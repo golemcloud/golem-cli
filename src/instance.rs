@@ -4,8 +4,8 @@ use clap::builder::ValueParser;
 use golem_client::model::InvokeParameters;
 use crate::clients::CloudAuthentication;
 use crate::clients::instance::InstanceClient;
-use crate::component::ComponentHandler;
-use crate::model::{ComponentIdOrName, GolemError, GolemResult, InstanceName, InvocationKey, JsonValueParser};
+use crate::template::TemplateHandler;
+use crate::model::{TemplateIdOrName, GolemError, GolemResult, InstanceName, InvocationKey, JsonValueParser};
 use crate::parse_key_val;
 
 #[derive(Subcommand, Debug)]
@@ -14,7 +14,7 @@ pub enum InstanceSubcommand {
     #[command()]
     Add {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -28,7 +28,7 @@ pub enum InstanceSubcommand {
     #[command()]
     InvocationKey {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -36,7 +36,7 @@ pub enum InstanceSubcommand {
     #[command()]
     InvokeAndAwait {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -56,7 +56,7 @@ pub enum InstanceSubcommand {
     #[command()]
     Invoke {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -70,7 +70,7 @@ pub enum InstanceSubcommand {
     #[command()]
     Connect {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -78,7 +78,7 @@ pub enum InstanceSubcommand {
     #[command()]
     Interrupt {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -86,7 +86,7 @@ pub enum InstanceSubcommand {
     #[command()]
     SimulatedCrash {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -94,7 +94,7 @@ pub enum InstanceSubcommand {
     #[command()]
     Delete {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -102,7 +102,7 @@ pub enum InstanceSubcommand {
     #[command()]
     Get {
         #[command(flatten)]
-        component_id_or_name: ComponentIdOrName,
+        template_id_or_name: TemplateIdOrName,
 
         #[arg(short, long)]
         instance_name: InstanceName,
@@ -114,80 +114,80 @@ pub trait InstanceHandler {
     async fn handle(&self, auth: &CloudAuthentication, subcommand: InstanceSubcommand) -> Result<GolemResult, GolemError>;
 }
 
-pub struct InstanceHandlerLive<'r, C: InstanceClient + Send + Sync, R: ComponentHandler + Send + Sync> {
+pub struct InstanceHandlerLive<'r, C: InstanceClient + Send + Sync, R: TemplateHandler + Send + Sync> {
     pub client:C,
-    pub component: &'r R
+    pub templates: &'r R
 }
 
 #[async_trait]
-impl <'r, C: InstanceClient + Send + Sync, R: ComponentHandler + Send + Sync> InstanceHandler for InstanceHandlerLive<'r, C, R> {
+impl <'r, C: InstanceClient + Send + Sync, R: TemplateHandler + Send + Sync> InstanceHandler for InstanceHandlerLive<'r, C, R> {
     async fn handle(&self, auth: &CloudAuthentication, subcommand: InstanceSubcommand) -> Result<GolemResult, GolemError> {
         match subcommand {
-            InstanceSubcommand::Add { component_id_or_name, instance_name, env, args  } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::Add { template_id_or_name, instance_name, env, args  } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
-                let inst = self.client.new_instance(instance_name, component_id, args, env, &auth).await?;
+                let inst = self.client.new_instance(instance_name, template_id, args, env, &auth).await?;
 
                 Ok(GolemResult::Ok(Box::new(inst)))
             }
-            InstanceSubcommand::InvocationKey { component_id_or_name, instance_name } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::InvocationKey { template_id_or_name, instance_name } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
-                let key = self.client.get_invocation_key(&instance_name, &component_id, &auth).await?;
+                let key = self.client.get_invocation_key(&instance_name, &template_id, &auth).await?;
 
                 Ok(GolemResult::Ok(Box::new(key)))
             }
-            InstanceSubcommand::InvokeAndAwait { component_id_or_name, instance_name,  invocation_key, function, parameters, use_stdio  } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::InvokeAndAwait { template_id_or_name, instance_name,  invocation_key, function, parameters, use_stdio  } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
                 let invocation_key = match invocation_key {
-                    None => self.client.get_invocation_key(&instance_name, &component_id, auth).await?,
+                    None => self.client.get_invocation_key(&instance_name, &template_id, auth).await?,
                     Some(key) => key,
                 };
                 
-                let res = self.client.invoke_and_await(instance_name, component_id, function, InvokeParameters{params: parameters}, invocation_key, use_stdio, auth).await?;
+                let res = self.client.invoke_and_await(instance_name, template_id, function, InvokeParameters{params: parameters}, invocation_key, use_stdio, auth).await?;
 
                 Ok(GolemResult::Json(res.result))
             }
-            InstanceSubcommand::Invoke { component_id_or_name, instance_name, function, parameters } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::Invoke { template_id_or_name, instance_name, function, parameters } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
-                self.client.invoke(instance_name, component_id, function, InvokeParameters{params: parameters}, auth).await?;
+                self.client.invoke(instance_name, template_id, function, InvokeParameters{params: parameters}, auth).await?;
 
                 Ok(GolemResult::Str("Invoked".to_string()))
             }
-            InstanceSubcommand::Connect { component_id_or_name, instance_name } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::Connect { template_id_or_name, instance_name } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
-                self.client.connect(instance_name, component_id, auth).await?;
+                self.client.connect(instance_name, template_id, auth).await?;
 
                 Err(GolemError("connect should never complete".to_string()))
             }
-            InstanceSubcommand::Interrupt { component_id_or_name, instance_name } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::Interrupt { template_id_or_name, instance_name } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
-                self.client.interrupt(instance_name, component_id, auth).await?;
+                self.client.interrupt(instance_name, template_id, auth).await?;
 
                 Ok(GolemResult::Str("Interrupted".to_string()))
             }
-            InstanceSubcommand::SimulatedCrash { component_id_or_name, instance_name } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::SimulatedCrash { template_id_or_name, instance_name } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
-                self.client.simulated_crash(instance_name, component_id, auth).await?;
+                self.client.simulated_crash(instance_name, template_id, auth).await?;
 
                 Ok(GolemResult::Str("Done".to_string()))
             }
-            InstanceSubcommand::Delete { component_id_or_name, instance_name } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::Delete { template_id_or_name, instance_name } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
-                self.client.delete(instance_name, component_id, auth).await?;
+                self.client.delete(instance_name, template_id, auth).await?;
 
                 Ok(GolemResult::Str("Deleted".to_string()))
             }
-            InstanceSubcommand::Get { component_id_or_name, instance_name } => {
-                let component_id = self.component.resolve_id(component_id_or_name, &auth).await?;
+            InstanceSubcommand::Get { template_id_or_name, instance_name } => {
+                let template_id = self.templates.resolve_id(template_id_or_name, &auth).await?;
 
-                let mata = self.client.get_metadata(instance_name, component_id, auth).await?;
+                let mata = self.client.get_metadata(instance_name, template_id, auth).await?;
 
                 Ok(GolemResult::Ok(Box::new(mata)))
             }
