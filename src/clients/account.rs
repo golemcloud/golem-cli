@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use golem_client::model::Account;
-use golem_client::model::AccountData;
-use golem_client::model::Plan;
+use golem_cloud_client::model::Account;
+use golem_cloud_client::model::AccountData;
+use golem_cloud_client::model::Plan;
 use tracing::info;
 
 use crate::model::{AccountId, GolemError};
@@ -15,12 +15,14 @@ pub trait AccountClient {
     async fn delete(&self, id: &AccountId) -> Result<(), GolemError>;
 }
 
-pub struct AccountClientLive<C: golem_client::api::AccountClient + Sync + Send> {
+pub struct AccountClientLive<C: golem_cloud_client::api::AccountClient + Sync + Send> {
     pub client: C,
 }
 
 #[async_trait]
-impl<C: golem_client::api::AccountClient + Sync + Send> AccountClient for AccountClientLive<C> {
+impl<C: golem_cloud_client::api::AccountClient + Sync + Send> AccountClient
+    for AccountClientLive<C>
+{
     async fn get(&self, id: &AccountId) -> Result<Account, GolemError> {
         info!("Getting account {id}");
         Ok(self.client.account_id_get(&id.id).await?)

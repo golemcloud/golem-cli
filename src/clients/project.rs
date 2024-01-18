@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use golem_client::model::Project;
-use golem_client::model::ProjectDataRequest;
+use golem_cloud_client::model::Project;
+use golem_cloud_client::model::ProjectDataRequest;
 use indoc::formatdoc;
 use tracing::info;
 
@@ -31,12 +31,14 @@ pub trait ProjectClient {
     }
 }
 
-pub struct ProjectClientLive<C: golem_client::api::ProjectClient + Sync + Send> {
+pub struct ProjectClientLive<C: golem_cloud_client::api::ProjectClient + Sync + Send> {
     pub client: C,
 }
 
 #[async_trait]
-impl<C: golem_client::api::ProjectClient + Sync + Send> ProjectClient for ProjectClientLive<C> {
+impl<C: golem_cloud_client::api::ProjectClient + Sync + Send> ProjectClient
+    for ProjectClientLive<C>
+{
     async fn create(
         &self,
         owner_account_id: AccountId,

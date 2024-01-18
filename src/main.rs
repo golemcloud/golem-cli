@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use clap_verbosity_flag::{Level, Verbosity};
-use golem_client::{Context, Security};
+use golem_cloud_client::{Context, Security};
 use golem_examples::model::{ExampleName, GuestLanguage, GuestLanguageTier, PackageName};
 use model::*;
 use reqwest::Url;
@@ -214,7 +214,7 @@ async fn async_main(cmd: GolemCommand) -> Result<(), Box<dyn std::error::Error>>
     };
 
     let login = LoginClientLive {
-        client: golem_client::api::LoginClientLive {
+        client: golem_cloud_client::api::LoginClientLive {
             context: login_context.clone(),
         },
         context: login_context,
@@ -235,12 +235,12 @@ async fn async_main(cmd: GolemCommand) -> Result<(), Box<dyn std::error::Error>>
     };
 
     let account_client = AccountClientLive {
-        client: golem_client::api::AccountClientLive {
+        client: golem_cloud_client::api::AccountClientLive {
             context: context.clone(),
         },
     };
     let grant_client = GrantClientLive {
-        client: golem_client::api::GrantClientLive {
+        client: golem_cloud_client::api::GrantClientLive {
             context: context.clone(),
         },
     };
@@ -249,7 +249,7 @@ async fn async_main(cmd: GolemCommand) -> Result<(), Box<dyn std::error::Error>>
         grant: grant_client,
     };
     let token_client = TokenClientLive {
-        client: golem_client::api::TokenClientLive {
+        client: golem_cloud_client::api::TokenClientLive {
             context: context.clone(),
         },
     };
@@ -257,7 +257,7 @@ async fn async_main(cmd: GolemCommand) -> Result<(), Box<dyn std::error::Error>>
         client: token_client,
     };
     let project_client = ProjectClientLive {
-        client: golem_client::api::ProjectClientLive {
+        client: golem_cloud_client::api::ProjectClientLive {
             context: context.clone(),
         },
     };
@@ -265,7 +265,7 @@ async fn async_main(cmd: GolemCommand) -> Result<(), Box<dyn std::error::Error>>
         client: &project_client,
     };
     let template_client = TemplateClientLive {
-        client: golem_client::api::TemplateClientLive {
+        client: golem_cloud_client::api::TemplateClientLive {
             context: context.clone(),
         },
     };
@@ -274,7 +274,7 @@ async fn async_main(cmd: GolemCommand) -> Result<(), Box<dyn std::error::Error>>
         projects: &project_client,
     };
     let project_policy_client = ProjectPolicyClientLive {
-        client: golem_client::api::ProjectPolicyClientLive {
+        client: golem_cloud_client::api::ProjectPolicyClientLive {
             context: context.clone(),
         },
     };
@@ -282,7 +282,7 @@ async fn async_main(cmd: GolemCommand) -> Result<(), Box<dyn std::error::Error>>
         client: project_policy_client,
     };
     let project_grant_client = ProjectGrantClientLive {
-        client: golem_client::api::ProjectGrantClientLive {
+        client: golem_cloud_client::api::ProjectGrantClientLive {
             context: context.clone(),
         },
     };
@@ -291,7 +291,7 @@ async fn async_main(cmd: GolemCommand) -> Result<(), Box<dyn std::error::Error>>
         project: &project_client,
     };
     let worker_client = WorkerClientLive {
-        client: golem_client::api::WorkerClientLive {
+        client: golem_cloud_client::api::WorkerClientLive {
             context: context.clone(),
         },
         context: context.clone(),

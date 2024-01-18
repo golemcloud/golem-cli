@@ -567,7 +567,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 
 [[package]]
-name = "golem-cli"
+name = "golem-cloud-cli"
 version = "0.0.0"
 dependencies = [
  "async-trait",
@@ -577,7 +577,7 @@ dependencies = [
  "derive_more",
  "dirs",
  "futures-util",
- "golem-client",
+ "golem-cloud-client",
  "golem-examples",
  "golem-gateway-client",
  "http 1.0.0",
@@ -600,10 +600,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "golem-client"
+name = "golem-cloud-client"
 version = "0.0.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "864ef2692b92b3657521a7a12d6540eacd764a9acd7e204786f43403965045ed"
+checksum = "9a32c5bf225f0a1e45485906777d4186f4097e54788e42208325289b82246156"
 dependencies = [
  "async-trait",
  "bytes",

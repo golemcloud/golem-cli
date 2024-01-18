@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use golem_client::model::CreateTokenDto;
-use golem_client::model::Token;
-use golem_client::model::UnsafeToken;
+use golem_cloud_client::model::CreateTokenDto;
+use golem_cloud_client::model::Token;
+use golem_cloud_client::model::UnsafeToken;
 use tracing::info;
 
 use crate::model::{AccountId, GolemError, TokenId};
@@ -19,12 +19,12 @@ pub trait TokenClient {
     async fn delete(&self, account_id: &AccountId, id: TokenId) -> Result<(), GolemError>;
 }
 
-pub struct TokenClientLive<C: golem_client::api::TokenClient + Sync + Send> {
+pub struct TokenClientLive<C: golem_cloud_client::api::TokenClient + Sync + Send> {
     pub client: C,
 }
 
 #[async_trait]
-impl<C: golem_client::api::TokenClient + Sync + Send> TokenClient for TokenClientLive<C> {
+impl<C: golem_cloud_client::api::TokenClient + Sync + Send> TokenClient for TokenClientLive<C> {
     async fn get_all(&self, account_id: &AccountId) -> Result<Vec<Token>, GolemError> {
         info!("Getting all tokens for used: {account_id}");
         Ok(self.client.get(&account_id.id).await?)

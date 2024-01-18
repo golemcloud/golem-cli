@@ -1,10 +1,10 @@
 use async_trait::async_trait;
-use golem_client::api::LoginClient as HttpClient;
-use golem_client::model::OAuth2Data;
-use golem_client::model::Token;
-use golem_client::model::TokenSecret;
-use golem_client::model::UnsafeToken;
-use golem_client::{Context, Security};
+use golem_cloud_client::api::LoginClient as HttpClient;
+use golem_cloud_client::model::OAuth2Data;
+use golem_cloud_client::model::Token;
+use golem_cloud_client::model::TokenSecret;
+use golem_cloud_client::model::UnsafeToken;
+use golem_cloud_client::{Context, Security};
 use tracing::info;
 
 use crate::model::GolemError;
@@ -30,7 +30,7 @@ impl<C: HttpClient + Sync + Send> LoginClient for LoginClientLive<C> {
         let mut context = self.context.clone();
         context.security_token = Security::Bearer(manual_token.value.to_string());
 
-        let client = golem_client::api::LoginClientLive { context };
+        let client = golem_cloud_client::api::LoginClientLive { context };
 
         Ok(client.v_2_login_token_get().await?)
     }

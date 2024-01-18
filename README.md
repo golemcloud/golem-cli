@@ -1,11 +1,13 @@
-# golem-cli
+# golem-cloud-cli
 
 Command line interface for [Golem Cloud](https://golem.cloud).
+
+For OSS golem version client see [Golem CLI](https://github.com/golemcloud/golem-cli).
 
 
 ## Installation
 
-To install `golem-cli` you currently need to use `cargo`, Rust's build tool. 
+To install `golem-cloud-cli` you currently need to use `cargo`, Rust's build tool. 
 
 To get `cargo` on your system, we recommend to use [rustup](https://rustup.rs/):
 
@@ -15,10 +17,10 @@ rustup install stable
 rustup default stable
 ```
 
-Then you can install `golem-cli` with the following command:
+Then you can install `golem-cloud-cli` with the following command:
 
 ```shell
-cargo install golem-cli
+cargo install golem-cloud-cli
 ```
 
 ## More information

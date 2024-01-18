@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use clap::builder::ValueParser;
 use clap::Subcommand;
-use golem_client::model::InvokeParameters;
+use golem_cloud_client::model::InvokeParameters;
 
 use crate::clients::worker::WorkerClient;
 use crate::model::{

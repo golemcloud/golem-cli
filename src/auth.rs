@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use golem_client::model::OAuth2Data;
-use golem_client::model::Token;
-use golem_client::model::TokenSecret;
-use golem_client::model::UnsafeToken;
+use golem_cloud_client::model::OAuth2Data;
+use golem_cloud_client::model::Token;
+use golem_cloud_client::model::TokenSecret;
+use golem_cloud_client::model::UnsafeToken;
 use indoc::printdoc;
 use serde::{Deserialize, Serialize};
 use tracing::info;

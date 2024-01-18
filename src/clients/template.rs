@@ -1,21 +1,21 @@
 use std::io::Read;
 
 use async_trait::async_trait;
-use golem_client::model::Export;
-use golem_client::model::ExportFunction;
-use golem_client::model::ExportInstance;
-use golem_client::model::FunctionParameter;
-use golem_client::model::FunctionResult;
-use golem_client::model::NameOptionTypePair;
-use golem_client::model::NameTypePair;
-use golem_client::model::Template;
-use golem_client::model::TemplateQuery;
-use golem_client::model::Type;
-use golem_client::model::TypeEnum;
-use golem_client::model::TypeFlags;
-use golem_client::model::TypeRecord;
-use golem_client::model::TypeTuple;
-use golem_client::model::TypeVariant;
+use golem_cloud_client::model::Export;
+use golem_cloud_client::model::ExportFunction;
+use golem_cloud_client::model::ExportInstance;
+use golem_cloud_client::model::FunctionParameter;
+use golem_cloud_client::model::FunctionResult;
+use golem_cloud_client::model::NameOptionTypePair;
+use golem_cloud_client::model::NameTypePair;
+use golem_cloud_client::model::Template;
+use golem_cloud_client::model::TemplateQuery;
+use golem_cloud_client::model::Type;
+use golem_cloud_client::model::TypeEnum;
+use golem_cloud_client::model::TypeFlags;
+use golem_cloud_client::model::TypeRecord;
+use golem_cloud_client::model::TypeTuple;
+use golem_cloud_client::model::TypeVariant;
 use serde::Serialize;
 use tokio::fs::File;
 use tracing::info;
@@ -44,7 +44,7 @@ pub trait TemplateClient {
 }
 
 #[derive(Clone)]
-pub struct TemplateClientLive<C: golem_client::api::TemplateClient + Sync + Send> {
+pub struct TemplateClientLive<C: golem_cloud_client::api::TemplateClient + Sync + Send> {
     pub client: C,
 }
 
@@ -184,7 +184,9 @@ fn show_exported_function(
 }
 
 #[async_trait]
-impl<C: golem_client::api::TemplateClient + Sync + Send> TemplateClient for TemplateClientLive<C> {
+impl<C: golem_cloud_client::api::TemplateClient + Sync + Send> TemplateClient
+    for TemplateClientLive<C>
+{
     async fn find(
         &self,
         project_id: Option<ProjectId>,

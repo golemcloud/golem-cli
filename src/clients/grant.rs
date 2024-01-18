@@ -11,12 +11,12 @@ pub trait GrantClient {
     async fn delete(&self, account_id: AccountId, role: Role) -> Result<(), GolemError>;
 }
 
-pub struct GrantClientLive<C: golem_client::api::GrantClient + Sync + Send> {
+pub struct GrantClientLive<C: golem_cloud_client::api::GrantClient + Sync + Send> {
     pub client: C,
 }
 
 #[async_trait]
-impl<C: golem_client::api::GrantClient + Sync + Send> GrantClient for GrantClientLive<C> {
+impl<C: golem_cloud_client::api::GrantClient + Sync + Send> GrantClient for GrantClientLive<C> {
     async fn get_all(&self, account_id: AccountId) -> Result<Vec<Role>, GolemError> {
         info!("Getting account roles.");
 
@@ -53,24 +53,24 @@ impl<C: golem_client::api::GrantClient + Sync + Send> GrantClient for GrantClien
     }
 }
 
-fn api_to_cli(role: golem_client::model::Role) -> Role {
+fn api_to_cli(role: golem_cloud_client::model::Role) -> Role {
     match role {
-        golem_client::model::Role::Admin {} => Role::Admin,
-        golem_client::model::Role::MarketingAdmin {} => Role::MarketingAdmin,
-        golem_client::model::Role::ViewProject {} => Role::ViewProject,
-        golem_client::model::Role::DeleteProject {} => Role::DeleteProject,
-        golem_client::model::Role::CreateProject {} => Role::CreateProject,
-        golem_client::model::Role::InstanceServer {} => Role::InstanceServer,
+        golem_cloud_client::model::Role::Admin {} => Role::Admin,
+        golem_cloud_client::model::Role::MarketingAdmin {} => Role::MarketingAdmin,
+        golem_cloud_client::model::Role::ViewProject {} => Role::ViewProject,
+        golem_cloud_client::model::Role::DeleteProject {} => Role::DeleteProject,
+        golem_cloud_client::model::Role::CreateProject {} => Role::CreateProject,
+        golem_cloud_client::model::Role::InstanceServer {} => Role::InstanceServer,
     }
 }
 
-fn cli_to_api(role: Role) -> golem_client::model::Role {
+fn cli_to_api(role: Role) -> golem_cloud_client::model::Role {
     match role {
-        Role::Admin {} => golem_client::model::Role::Admin,
-        Role::MarketingAdmin {} => golem_client::model::Role::MarketingAdmin,
-        Role::ViewProject {} => golem_client::model::Role::ViewProject,
-        Role::DeleteProject {} => golem_client::model::Role::DeleteProject,
-        Role::CreateProject {} => golem_client::model::Role::CreateProject,
-        Role::InstanceServer {} => golem_client::model::Role::InstanceServer,
+        Role::Admin {} => golem_cloud_client::model::Role::Admin,
+        Role::MarketingAdmin {} => golem_cloud_client::model::Role::MarketingAdmin,
+        Role::ViewProject {} => golem_cloud_client::model::Role::ViewProject,
+        Role::DeleteProject {} => golem_cloud_client::model::Role::DeleteProject,
+        Role::CreateProject {} => golem_cloud_client::model::Role::CreateProject,
+        Role::InstanceServer {} => golem_cloud_client::model::Role::InstanceServer,
     }
 }

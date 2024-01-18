@@ -1,12 +1,12 @@
-use golem_client::api::AccountError;
-use golem_client::api::GrantError;
-use golem_client::api::LoginError;
-use golem_client::api::ProjectError;
-use golem_client::api::ProjectGrantError;
-use golem_client::api::ProjectPolicyError;
-use golem_client::api::TemplateError;
-use golem_client::api::TokenError;
-use golem_client::api::WorkerError;
+use golem_cloud_client::api::AccountError;
+use golem_cloud_client::api::GrantError;
+use golem_cloud_client::api::LoginError;
+use golem_cloud_client::api::ProjectError;
+use golem_cloud_client::api::ProjectGrantError;
+use golem_cloud_client::api::ProjectPolicyError;
+use golem_cloud_client::api::TemplateError;
+use golem_cloud_client::api::TokenError;
+use golem_cloud_client::api::WorkerError;
 
 pub trait ResponseContentErrorMapper {
     fn map(self) -> String;

@@ -2,13 +2,13 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
-use golem_client::model::CallingConvention;
-use golem_client::model::InvokeParameters;
-use golem_client::model::InvokeResult;
-use golem_client::model::VersionedWorkerId;
-use golem_client::model::WorkerCreationRequest;
-use golem_client::model::WorkerMetadata;
-use golem_client::Context;
+use golem_cloud_client::model::CallingConvention;
+use golem_cloud_client::model::InvokeParameters;
+use golem_cloud_client::model::InvokeResult;
+use golem_cloud_client::model::VersionedWorkerId;
+use golem_cloud_client::model::WorkerCreationRequest;
+use golem_cloud_client::model::WorkerMetadata;
+use golem_cloud_client::Context;
 use native_tls::TlsConnector;
 use serde::Deserialize;
 use tokio::{task, time};
@@ -74,14 +74,14 @@ pub trait WorkerClient {
 }
 
 #[derive(Clone)]
-pub struct WorkerClientLive<C: golem_client::api::WorkerClient + Sync + Send> {
+pub struct WorkerClientLive<C: golem_cloud_client::api::WorkerClient + Sync + Send> {
     pub client: C,
     pub context: Context,
     pub allow_insecure: bool,
 }
 
 #[async_trait]
-impl<C: golem_client::api::WorkerClient + Sync + Send> WorkerClient for WorkerClientLive<C> {
+impl<C: golem_cloud_client::api::WorkerClient + Sync + Send> WorkerClient for WorkerClientLive<C> {
     async fn new_worker(
         &self,
         name: WorkerName,
@@ -384,6 +384,6 @@ struct Log {
     pub message: String,
 }
 
-fn key_api_to_cli(key: golem_client::model::InvocationKey) -> InvocationKey {
+fn key_api_to_cli(key: golem_cloud_client::model::InvocationKey) -> InvocationKey {
     InvocationKey(key.value)
 }

@@ -1,6 +1,6 @@
 use crate::model::{AccountId, ProjectAction};
-use golem_client::model::TokenSecret;
-use golem_client::model::UnsafeToken;
+use golem_cloud_client::model::TokenSecret;
+use golem_cloud_client::model::UnsafeToken;
 
 pub mod account;
 pub mod errors;
@@ -37,24 +37,30 @@ impl CloudAuthentication {
     }
 }
 
-pub fn action_cli_to_api(action: ProjectAction) -> golem_client::model::ProjectAction {
+pub fn action_cli_to_api(action: ProjectAction) -> golem_cloud_client::model::ProjectAction {
     match action {
-        ProjectAction::ViewTemplate => golem_client::model::ProjectAction::ViewTemplate {},
-        ProjectAction::CreateTemplate => golem_client::model::ProjectAction::CreateTemplate {},
-        ProjectAction::UpdateTemplate => golem_client::model::ProjectAction::UpdateTemplate {},
-        ProjectAction::DeleteTemplate => golem_client::model::ProjectAction::DeleteTemplate {},
-        ProjectAction::ViewWorker => golem_client::model::ProjectAction::ViewWorker {},
-        ProjectAction::CreateWorker => golem_client::model::ProjectAction::CreateWorker {},
-        ProjectAction::UpdateWorker => golem_client::model::ProjectAction::UpdateWorker {},
-        ProjectAction::DeleteWorker => golem_client::model::ProjectAction::DeleteWorker {},
+        ProjectAction::ViewTemplate => golem_cloud_client::model::ProjectAction::ViewTemplate {},
+        ProjectAction::CreateTemplate => {
+            golem_cloud_client::model::ProjectAction::CreateTemplate {}
+        }
+        ProjectAction::UpdateTemplate => {
+            golem_cloud_client::model::ProjectAction::UpdateTemplate {}
+        }
+        ProjectAction::DeleteTemplate => {
+            golem_cloud_client::model::ProjectAction::DeleteTemplate {}
+        }
+        ProjectAction::ViewWorker => golem_cloud_client::model::ProjectAction::ViewWorker {},
+        ProjectAction::CreateWorker => golem_cloud_client::model::ProjectAction::CreateWorker {},
+        ProjectAction::UpdateWorker => golem_cloud_client::model::ProjectAction::UpdateWorker {},
+        ProjectAction::DeleteWorker => golem_cloud_client::model::ProjectAction::DeleteWorker {},
         ProjectAction::ViewProjectGrants => {
-            golem_client::model::ProjectAction::ViewProjectGrants {}
+            golem_cloud_client::model::ProjectAction::ViewProjectGrants {}
         }
         ProjectAction::CreateProjectGrants => {
-            golem_client::model::ProjectAction::CreateProjectGrants {}
+            golem_cloud_client::model::ProjectAction::CreateProjectGrants {}
         }
         ProjectAction::DeleteProjectGrants => {
-            golem_client::model::ProjectAction::DeleteProjectGrants {}
+            golem_cloud_client::model::ProjectAction::DeleteProjectGrants {}
         }
     }
 }
