@@ -1,46 +1,38 @@
-use std::path::PathBuf;
+use std::io::Read;
 
 use async_trait::async_trait;
 use golem_client::model::{
-    Export, FunctionParameter, FunctionResult, Template, TemplateQuery, Type,
+    Export, ExportFunction, ExportInstance, FunctionParameter, FunctionResult, NameOptionTypePair,
+    NameTypePair, Template, Type, TypeEnum, TypeFlags, TypeRecord, TypeTuple, TypeVariant,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tracing::info;
 
-use crate::clients::CloudAuthentication;
-use crate::model::{GolemError, TemplateName};
-use crate::{ProjectId, RawTemplateId};
+use crate::model::{GolemError, PathBufOrStdin, RawTemplateId, TemplateName};
 
 #[async_trait]
 pub trait TemplateClient {
-    async fn find(
-        &self,
-        project_id: Option<ProjectId>,
-        name: Option<TemplateName>,
-        auth: &CloudAuthentication,
-    ) -> Result<Vec<TemplateView>, GolemError>;
+    async fn find(&self, name: Option<TemplateName>) -> Result<Vec<TemplateView>, GolemError>;
     async fn add(
         &self,
-        project_id: Option<ProjectId>,
         name: TemplateName,
-        file: PathBuf,
-        auth: &CloudAuthentication,
+        file: PathBufOrStdin,
     ) -> Result<TemplateView, GolemError>;
     async fn update(
         &self,
         id: RawTemplateId,
-        file: PathBuf,
-        auth: &CloudAuthentication,
+        file: PathBufOrStdin,
     ) -> Result<TemplateView, GolemError>;
 }
 
 #[derive(Clone)]
-pub struct TemplateClientLive<C: golem_client::template::Template + Sync + Send> {
+pub struct TemplateClientLive<C: golem_client::api::TemplateClient + Sync + Send> {
     pub client: C,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TemplateView {
     pub template_id: String,
     pub template_version: i32,
@@ -52,16 +44,16 @@ pub struct TemplateView {
 impl From<&Template> for TemplateView {
     fn from(value: &Template) -> Self {
         TemplateView {
-            template_id: value.versioned_template_id.raw_template_id.to_string(),
+            template_id: value.versioned_template_id.template_id.to_string(),
             template_version: value.versioned_template_id.version,
-            template_name: value.template_name.value.to_string(),
+            template_name: value.template_name.to_string(),
             template_size: value.template_size,
             exports: value
                 .metadata
                 .exports
                 .iter()
                 .flat_map(|exp| match exp {
-                    Export::Instance { name, functions } => {
+                    Export::Instance(ExportInstance { name, functions }) => {
                         let fs: Vec<String> = functions
                             .iter()
                             .map(|f| {
@@ -75,11 +67,11 @@ impl From<&Template> for TemplateView {
                             .collect();
                         fs
                     }
-                    Export::Function {
+                    Export::Function(ExportFunction {
                         name,
                         parameters,
                         results,
-                    } => {
+                    }) => {
                         vec![show_exported_function("", name, parameters, results)]
                     }
                 })
@@ -88,16 +80,16 @@ impl From<&Template> for TemplateView {
     }
 }
 
-fn render_type(tpe: &Type) -> String {
-    match tpe {
-        Type::Variant(cases) => {
+fn render_type(typ: &Type) -> String {
+    match typ {
+        Type::Variant(TypeVariant { cases }) => {
             let cases_str = cases
                 .iter()
-                .map(|(name, tpe)| {
+                .map(|NameOptionTypePair { name, typ }| {
                     format!(
                         "{name}: {}",
-                        tpe.clone()
-                            .map(|tpe| render_type(&tpe))
+                        typ.clone()
+                            .map(|typ| render_type(&typ))
                             .unwrap_or("()".to_string())
                     )
                 })
@@ -105,48 +97,53 @@ fn render_type(tpe: &Type) -> String {
                 .join(", ");
             format!("variant({cases_str})")
         }
-        Type::Result((ok, err)) => format!(
+        Type::Result(boxed) => format!(
             "result({}, {})",
-            ok.clone().map_or("()".to_string(), |tpe| render_type(&tpe)),
-            err.clone()
-                .map_or("()".to_string(), |tpe| render_type(&tpe))
+            boxed
+                .ok
+                .clone()
+                .map_or("()".to_string(), |typ| render_type(&typ)),
+            boxed
+                .err
+                .clone()
+                .map_or("()".to_string(), |typ| render_type(&typ))
         ),
-        Type::Option(elem) => format!("{}?", render_type(elem)),
-        Type::Enum(names) => format!("enum({})", names.join(", ")),
-        Type::Flags(names) => format!("flags({})", names.join(", ")),
-        Type::Record(fields) => {
-            let pairs: Vec<String> = fields
+        Type::Option(boxed) => format!("{}?", render_type(&boxed.inner)),
+        Type::Enum(TypeEnum { cases }) => format!("enum({})", cases.join(", ")),
+        Type::Flags(TypeFlags { cases }) => format!("flags({})", cases.join(", ")),
+        Type::Record(TypeRecord { cases }) => {
+            let pairs: Vec<String> = cases
                 .iter()
-                .map(|(name, tpe)| format!("{name}: {}", render_type(tpe)))
+                .map(|NameTypePair { name, typ }| format!("{name}: {}", render_type(typ)))
                 .collect();
 
             format!("{{{}}}", pairs.join(", "))
         }
-        Type::Tuple(elems) => {
-            let tpes: Vec<String> = elems.iter().map(|tpe| render_type(tpe)).collect();
-            format!("({})", tpes.join(", "))
+        Type::Tuple(TypeTuple { items }) => {
+            let typs: Vec<String> = items.iter().map(render_type).collect();
+            format!("({})", typs.join(", "))
         }
-        Type::List(elem) => format!("[{}]", render_type(elem)),
-        Type::Str {} => "str".to_string(),
-        Type::Chr {} => "chr".to_string(),
-        Type::F64 {} => "f64".to_string(),
-        Type::F32 {} => "f32".to_string(),
-        Type::U64 {} => "u64".to_string(),
-        Type::S64 {} => "s64".to_string(),
-        Type::U32 {} => "u32".to_string(),
-        Type::S32 {} => "s32".to_string(),
-        Type::U16 {} => "u16".to_string(),
-        Type::S16 {} => "s16".to_string(),
-        Type::U8 {} => "u8".to_string(),
-        Type::S8 {} => "s8".to_string(),
-        Type::Bool {} => "bool".to_string(),
+        Type::List(boxed) => format!("[{}]", render_type(&boxed.inner)),
+        Type::Str { .. } => "str".to_string(),
+        Type::Chr { .. } => "chr".to_string(),
+        Type::F64 { .. } => "f64".to_string(),
+        Type::F32 { .. } => "f32".to_string(),
+        Type::U64 { .. } => "u64".to_string(),
+        Type::S64 { .. } => "s64".to_string(),
+        Type::U32 { .. } => "u32".to_string(),
+        Type::S32 { .. } => "s32".to_string(),
+        Type::U16 { .. } => "u16".to_string(),
+        Type::S16 { .. } => "s16".to_string(),
+        Type::U8 { .. } => "u8".to_string(),
+        Type::S8 { .. } => "s8".to_string(),
+        Type::Bool { .. } => "bool".to_string(),
     }
 }
 
 fn render_result(r: &FunctionResult) -> String {
     match &r.name {
-        None => render_type(&r.tpe),
-        Some(name) => format!("{name}: {}", render_type(&r.tpe)),
+        None => render_type(&r.typ),
+        Some(name) => format!("{name}: {}", render_type(&r.typ)),
     }
 }
 
@@ -158,7 +155,7 @@ fn show_exported_function(
 ) -> String {
     let params = parameters
         .iter()
-        .map(|p| format!("{}: {}", p.name, render_type(&p.tpe)))
+        .map(|p| format!("{}: {}", p.name, render_type(&p.typ)))
         .collect::<Vec<String>>()
         .join(", ");
     let res_str = results
@@ -170,53 +167,42 @@ fn show_exported_function(
 }
 
 #[async_trait]
-impl<C: golem_client::template::Template + Sync + Send> TemplateClient for TemplateClientLive<C> {
-    async fn find(
-        &self,
-        project_id: Option<ProjectId>,
-        name: Option<TemplateName>,
-        auth: &CloudAuthentication,
-    ) -> Result<Vec<TemplateView>, GolemError> {
+impl<C: golem_client::api::TemplateClient + Sync + Send> TemplateClient for TemplateClientLive<C> {
+    async fn find(&self, name: Option<TemplateName>) -> Result<Vec<TemplateView>, GolemError> {
         info!("Getting templates");
 
-        let templates = self
-            .client
-            .get_all_templates(
-                project_id.map(|ProjectId(id)| id.to_string()).as_deref(),
-                name.map(|TemplateName(s)| s).as_deref(),
-                &auth.header(),
-            )
-            .await?;
+        let name = name.map(|n| n.0);
 
+        let templates: Vec<Template> = self.client.get(name.as_deref()).await?;
         let views = templates.iter().map(|c| c.into()).collect();
         Ok(views)
     }
 
     async fn add(
         &self,
-        project_id: Option<ProjectId>,
         name: TemplateName,
-        path: PathBuf,
-        auth: &CloudAuthentication,
+        path: PathBufOrStdin,
     ) -> Result<TemplateView, GolemError> {
         info!("Adding template {name:?} from {path:?}");
 
-        let file = File::open(path)
-            .await
-            .map_err(|e| GolemError(format!("Can't open template file: {e}")))?;
-        let template_name = golem_client::model::TemplateName { value: name.0 };
+        let template = match path {
+            PathBufOrStdin::Path(path) => {
+                let file = File::open(path)
+                    .await
+                    .map_err(|e| GolemError(format!("Can't open template file: {e}")))?;
 
-        let template = self
-            .client
-            .upload_template(
-                TemplateQuery {
-                    project_id: project_id.map(|ProjectId(id)| id),
-                    component_name: template_name,
-                },
-                file,
-                &auth.header(),
-            )
-            .await?;
+                self.client.post(&name.0, file).await?
+            }
+            PathBufOrStdin::Stdin => {
+                let mut bytes = Vec::new();
+
+                let _ = std::io::stdin()
+                    .read_to_end(&mut bytes) // TODO: steaming request from stdin
+                    .map_err(|e| GolemError(format!("Failed to read stdin: {e:?}")))?;
+
+                self.client.post(&name.0, bytes).await?
+            }
+        };
 
         Ok((&template).into())
     }
@@ -224,19 +210,28 @@ impl<C: golem_client::template::Template + Sync + Send> TemplateClient for Templ
     async fn update(
         &self,
         id: RawTemplateId,
-        path: PathBuf,
-        auth: &CloudAuthentication,
+        path: PathBufOrStdin,
     ) -> Result<TemplateView, GolemError> {
         info!("Updating template {id:?} from {path:?}");
 
-        let file = File::open(path)
-            .await
-            .map_err(|e| GolemError(format!("Can't open template file: {e}")))?;
+        let template = match path {
+            PathBufOrStdin::Path(path) => {
+                let file = File::open(path)
+                    .await
+                    .map_err(|e| GolemError(format!("Can't open template file: {e}")))?;
 
-        let template = self
-            .client
-            .update_template(&id.0.to_string(), file, &auth.header())
-            .await?;
+                self.client.template_id_upload_put(&id.0, file).await?
+            }
+            PathBufOrStdin::Stdin => {
+                let mut bytes = Vec::new();
+
+                let _ = std::io::stdin()
+                    .read_to_end(&mut bytes) // TODO: steaming request from stdin
+                    .map_err(|e| GolemError(format!("Failed to read stdin: {e:?}")))?;
+
+                self.client.template_id_upload_put(&id.0, bytes).await?
+            }
+        };
 
         Ok((&template).into())
     }

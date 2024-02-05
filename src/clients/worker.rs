@@ -1,13 +1,13 @@
-use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use golem_client::model::{
-    InvokeParameters, InvokeResult, VersionedWorkerId, WorkerCreationRequest, WorkerMetadata,
+    CallingConvention, InvokeParameters, InvokeResult, VersionedWorkerId, WorkerCreationRequest,
+    WorkerMetadata,
 };
+use golem_client::Context;
 use native_tls::TlsConnector;
-use reqwest::Url;
 use serde::Deserialize;
 use tokio::{task, time};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
@@ -15,9 +15,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::{connect_async_tls_with_config, Connector};
 use tracing::{debug, info};
 
-use crate::clients::CloudAuthentication;
-use crate::model::{GolemError, InvocationKey, RawTemplateId};
-use crate::WorkerName;
+use crate::model::{GolemError, InvocationKey, RawTemplateId, WorkerName};
 
 #[async_trait]
 pub trait WorkerClient {
@@ -27,13 +25,11 @@ pub trait WorkerClient {
         template_id: RawTemplateId,
         args: Vec<String>,
         env: Vec<(String, String)>,
-        auth: &CloudAuthentication,
     ) -> Result<VersionedWorkerId, GolemError>;
     async fn get_invocation_key(
         &self,
         name: &WorkerName,
         template_id: &RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<InvocationKey, GolemError>;
 
     async fn invoke_and_await(
@@ -44,7 +40,6 @@ pub trait WorkerClient {
         parameters: InvokeParameters,
         invocation_key: InvocationKey,
         use_stdio: bool,
-        auth: &CloudAuthentication,
     ) -> Result<InvokeResult, GolemError>;
 
     async fn invoke(
@@ -53,70 +48,55 @@ pub trait WorkerClient {
         template_id: RawTemplateId,
         function: String,
         parameters: InvokeParameters,
-        auth: &CloudAuthentication,
     ) -> Result<(), GolemError>;
 
     async fn interrupt(
         &self,
         name: WorkerName,
         template_id: RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<(), GolemError>;
     async fn simulated_crash(
         &self,
         name: WorkerName,
         template_id: RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<(), GolemError>;
-    async fn delete(
-        &self,
-        name: WorkerName,
-        template_id: RawTemplateId,
-        auth: &CloudAuthentication,
-    ) -> Result<(), GolemError>;
+    async fn delete(&self, name: WorkerName, template_id: RawTemplateId) -> Result<(), GolemError>;
     async fn get_metadata(
         &self,
         name: WorkerName,
         template_id: RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<WorkerMetadata, GolemError>;
-    async fn connect(
-        &self,
-        name: WorkerName,
-        template_id: RawTemplateId,
-        auth: &CloudAuthentication,
-    ) -> Result<(), GolemError>;
+    async fn connect(&self, name: WorkerName, template_id: RawTemplateId)
+        -> Result<(), GolemError>;
 }
 
 #[derive(Clone)]
-pub struct WorkerClientLive<C: golem_client::worker::Worker + Send + Sync> {
+pub struct WorkerClientLive<C: golem_client::api::WorkerClient + Sync + Send> {
     pub client: C,
-    pub base_url: Url,
+    pub context: Context,
     pub allow_insecure: bool,
 }
 
 #[async_trait]
-impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClientLive<C> {
+impl<C: golem_client::api::WorkerClient + Sync + Send> WorkerClient for WorkerClientLive<C> {
     async fn new_worker(
         &self,
         name: WorkerName,
         template_id: RawTemplateId,
         args: Vec<String>,
         env: Vec<(String, String)>,
-        auth: &CloudAuthentication,
     ) -> Result<VersionedWorkerId, GolemError> {
         info!("Creating worker {name} of {}", template_id.0);
 
         Ok(self
             .client
-            .launch_new_worker(
-                &template_id.0.to_string(),
-                WorkerCreationRequest {
+            .template_id_workers_post(
+                &template_id.0,
+                &WorkerCreationRequest {
                     name: name.0,
                     args,
-                    env,
+                    env: env.into_iter().collect(),
                 },
-                &auth.header(),
             )
             .await?)
     }
@@ -125,13 +105,12 @@ impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClien
         &self,
         name: &WorkerName,
         template_id: &RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<InvocationKey, GolemError> {
         info!("Getting invocation key for {}/{}", template_id.0, name.0);
 
         let key = self
             .client
-            .get_invocation_key(&template_id.0.to_string(), &name.0, &auth.header())
+            .template_id_workers_worker_name_key_post(&template_id.0, &name.0)
             .await?;
 
         Ok(key_api_to_cli(key))
@@ -145,25 +124,27 @@ impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClien
         parameters: InvokeParameters,
         invocation_key: InvocationKey,
         use_stdio: bool,
-        auth: &CloudAuthentication,
     ) -> Result<InvokeResult, GolemError> {
         info!(
             "Invoke and await for function {function} in {}/{}",
             template_id.0, name.0
         );
 
-        let calling_convention = if use_stdio { "stdio" } else { "component" };
+        let calling_convention = if use_stdio {
+            CallingConvention::Stdio
+        } else {
+            CallingConvention::Component
+        };
 
         Ok(self
             .client
-            .invoke_and_await_function(
-                &template_id.0.to_string(),
+            .template_id_workers_worker_name_invoke_and_await_post(
+                &template_id.0,
                 &name.0,
                 &invocation_key.0,
                 &function,
-                Some(calling_convention),
-                parameters,
-                &auth.header(),
+                Some(&calling_convention),
+                &parameters,
             )
             .await?)
     }
@@ -174,85 +155,69 @@ impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClien
         template_id: RawTemplateId,
         function: String,
         parameters: InvokeParameters,
-        auth: &CloudAuthentication,
     ) -> Result<(), GolemError> {
         info!("Invoke function {function} in {}/{}", template_id.0, name.0);
 
-        Ok(self
+        let _ = self
             .client
-            .invoke_function(
-                &template_id.0.to_string(),
+            .template_id_workers_worker_name_invoke_post(
+                &template_id.0,
                 &name.0,
                 &function,
-                parameters,
-                &auth.header(),
+                &parameters,
             )
-            .await?)
+            .await?;
+        Ok(())
     }
 
     async fn interrupt(
         &self,
         name: WorkerName,
         template_id: RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<(), GolemError> {
         info!("Interrupting {}/{}", template_id.0, name.0);
 
-        Ok(self
+        let _ = self
             .client
-            .interrupt_worker(
-                &template_id.0.to_string(),
-                &name.0,
-                Some(false),
-                &auth.header(),
-            )
-            .await?)
+            .template_id_workers_worker_name_interrupt_post(&template_id.0, &name.0, Some(false))
+            .await?;
+        Ok(())
     }
 
     async fn simulated_crash(
         &self,
         name: WorkerName,
         template_id: RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<(), GolemError> {
         info!("Simulating crash of {}/{}", template_id.0, name.0);
 
-        Ok(self
+        let _ = self
             .client
-            .interrupt_worker(
-                &template_id.0.to_string(),
-                &name.0,
-                Some(true),
-                &auth.header(),
-            )
-            .await?)
+            .template_id_workers_worker_name_interrupt_post(&template_id.0, &name.0, Some(true))
+            .await?;
+        Ok(())
     }
 
-    async fn delete(
-        &self,
-        name: WorkerName,
-        template_id: RawTemplateId,
-        auth: &CloudAuthentication,
-    ) -> Result<(), GolemError> {
+    async fn delete(&self, name: WorkerName, template_id: RawTemplateId) -> Result<(), GolemError> {
         info!("Deleting worker {}/{}", template_id.0, name.0);
 
-        Ok(self
+        let _ = self
             .client
-            .delete_worker(&template_id.0.to_string(), &name.0, &auth.header())
-            .await?)
+            .template_id_workers_worker_name_delete(&template_id.0, &name.0)
+            .await?;
+        Ok(())
     }
 
     async fn get_metadata(
         &self,
         name: WorkerName,
         template_id: RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<WorkerMetadata, GolemError> {
         info!("Getting worker {}/{} metadata", template_id.0, name.0);
 
         Ok(self
             .client
-            .get_worker_metadata(&template_id.0.to_string(), &name.0, &auth.header())
+            .template_id_workers_worker_name_get(&template_id.0, &name.0)
             .await?)
     }
 
@@ -260,17 +225,17 @@ impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClien
         &self,
         name: WorkerName,
         template_id: RawTemplateId,
-        auth: &CloudAuthentication,
     ) -> Result<(), GolemError> {
-        let mut url = self.base_url.clone();
+        let mut url = self.context.base_url.clone();
 
         let ws_schema = if url.scheme() == "http" { "ws" } else { "wss" };
 
         url.set_scheme(ws_schema)
             .map_err(|_| GolemError("Can't set schema.".to_string()))?;
+
         url.path_segments_mut()
             .map_err(|_| GolemError("Can't get path.".to_string()))?
-            .push("v1")
+            .push("v2")
             .push("templates")
             .push(&template_id.0.to_string())
             .push("workers")
@@ -281,7 +246,13 @@ impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClien
             .into_client_request()
             .map_err(|e| GolemError(format!("Can't create request: {e}")))?;
         let headers = request.headers_mut();
-        headers.insert("Authorization", auth.header().parse().unwrap());
+
+        if let Some(token) = self.context.bearer_token() {
+            headers.insert(
+                "Authorization",
+                format!("Bearer {}", token).parse().unwrap(),
+            );
+        }
 
         let connector = if self.allow_insecure {
             Some(Connector::NativeTls(
@@ -297,7 +268,22 @@ impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClien
 
         let (ws_stream, _) = connect_async_tls_with_config(request, None, false, connector)
             .await
-            .map_err(|e| GolemError(format!("Failed websocket: {e}")))?;
+            .map_err(|e| match e {
+                tungstenite::error::Error::Http(http_error_response) => {
+                    match http_error_response.body().clone() {
+                        Some(body) => GolemError(format!(
+                            "Failed Websocket. Http error: {}, {}",
+                            http_error_response.status(),
+                            String::from_utf8_lossy(&body)
+                        )),
+                        None => GolemError(format!(
+                            "Failed Websocket. Http error: {}",
+                            http_error_response.status()
+                        )),
+                    }
+                }
+                _ => GolemError(format!("Failed Websocket. Error: {}", e)),
+            })?;
 
         let (mut write, read) = ws_stream.split();
 
@@ -318,48 +304,71 @@ impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClien
             }
         });
 
-        let read_res = read.for_each(|message| async {
-            let message: Message = message.unwrap();
+        let read_res = read.for_each(|message_or_error| async {
+            match message_or_error {
+                Err(error) => {
+                    print!("Error reading message: {}", error);
+                }
+                Ok(message) => {
+                    let instance_connect_msg = match message {
+                        Message::Text(str) => {
+                            let parsed: serde_json::Result<InstanceConnectMessage> =
+                                serde_json::from_str(&str);
+                            Some(parsed.unwrap()) // TODO: error handling
+                        }
+                        Message::Binary(data) => {
+                            let parsed: serde_json::Result<InstanceConnectMessage> =
+                                serde_json::from_slice(&data);
+                            Some(parsed.unwrap()) // TODO: error handling
+                        }
+                        Message::Ping(_) => {
+                            debug!("Ignore ping");
+                            None
+                        }
+                        Message::Pong(_) => {
+                            debug!("Ignore pong");
+                            None
+                        }
+                        Message::Close(details) => {
+                            match details {
+                                Some(closed_frame) => {
+                                    print!("Connection Closed: {}", closed_frame);
+                                }
+                                None => {
+                                    print!("Connection Closed");
+                                }
+                            }
+                            None
+                        }
+                        Message::Frame(_) => {
+                            info!("Ignore unexpected frame");
+                            None
+                        }
+                    };
 
-            let msg = match message {
-                Message::Text(str) => {
-                    let parsed: serde_json::Result<InstanceConnectMessage> =
-                        serde_json::from_str(&str);
-                    Some(parsed.unwrap()) // TODO: error handling
-                }
-                Message::Binary(data) => {
-                    let parsed: serde_json::Result<InstanceConnectMessage> =
-                        serde_json::from_slice(&data);
-                    Some(parsed.unwrap()) // TODO: error handling
-                }
-                Message::Ping(_) => {
-                    debug!("Ignore ping");
-                    None
-                }
-                Message::Pong(_) => {
-                    debug!("Ignore pong");
-                    None
-                }
-                Message::Close(_) => {
-                    info!("Ignore unexpected close");
-                    None
-                }
-                Message::Frame(_) => {
-                    info!("Ignore unexpected frame");
-                    None
-                }
-            };
-
-            match msg {
-                None => {}
-                Some(msg) => match msg {
-                    InstanceConnectMessage::Message { message } => {
-                        print!("{message}")
+                    match instance_connect_msg {
+                        None => {}
+                        Some(msg) => match msg.event {
+                            WorkerEvent::Stdout(StdOutLog { message }) => {
+                                print!("{message}")
+                            }
+                            WorkerEvent::Stderr(StdErrLog { message }) => {
+                                print!("{message}")
+                            }
+                            WorkerEvent::Log(Log {
+                                level,
+                                context,
+                                message,
+                            }) => match level {
+                                0 => tracing::trace!(message, context = context),
+                                1 => tracing::debug!(message, context = context),
+                                2 => tracing::info!(message, context = context),
+                                3 => tracing::warn!(message, context = context),
+                                _ => tracing::error!(message, context = context),
+                            },
+                        },
                     }
-                    InstanceConnectMessage::Error { error } => {
-                        eprintln!("Connection error: {error}")
-                    }
-                },
+                }
             }
         });
 
@@ -372,61 +381,32 @@ impl<C: golem_client::worker::Worker + Send + Sync> WorkerClient for WorkerClien
 }
 
 #[derive(Deserialize, Debug)]
-enum InstanceConnectMessage {
-    Message { message: String },
-    Error { error: InstanceEndpointError },
+struct InstanceConnectMessage {
+    pub event: WorkerEvent,
 }
 
 #[derive(Deserialize, Debug)]
-pub enum InstanceEndpointError {
-    BadRequest {
-        errors: Vec<String>,
-    },
-    Unauthorized {
-        error: String,
-    },
-    LimitExceeded {
-        error: String,
-    },
-    Golem {
-        #[serde(rename = "golemError")]
-        golem_error: golem_client::model::GolemError,
-    },
-    GatewayTimeout {},
-    NotFound {
-        error: String,
-    },
-    AlreadyExists {
-        error: String,
-    },
+enum WorkerEvent {
+    Stdout(StdOutLog),
+    Stderr(StdErrLog),
+    Log(Log),
 }
 
-impl Display for InstanceEndpointError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InstanceEndpointError::BadRequest { errors } => {
-                write!(f, "BadRequest: {errors:?}")
-            }
-            InstanceEndpointError::Unauthorized { error } => {
-                write!(f, "Unauthorized: {error}")
-            }
-            InstanceEndpointError::LimitExceeded { error } => {
-                write!(f, "LimitExceeded: {error}")
-            }
-            InstanceEndpointError::Golem { golem_error } => {
-                write!(f, "Golem: {golem_error:?}")
-            }
-            InstanceEndpointError::GatewayTimeout {} => {
-                write!(f, "GatewayTimeout")
-            }
-            InstanceEndpointError::NotFound { error } => {
-                write!(f, "NotFound: {error}")
-            }
-            InstanceEndpointError::AlreadyExists { error } => {
-                write!(f, "AlreadyExists: {error}")
-            }
-        }
-    }
+#[derive(Deserialize, Debug)]
+struct StdOutLog {
+    message: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct StdErrLog {
+    message: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct Log {
+    pub level: i32,
+    pub context: String,
+    pub message: String,
 }
 
 fn key_api_to_cli(key: golem_client::model::InvocationKey) -> InvocationKey {
