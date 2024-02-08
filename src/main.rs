@@ -24,6 +24,12 @@ use golem_examples::model::{ExampleName, GuestLanguage, GuestLanguageTier, Packa
 use reqwest::Url;
 use tracing_subscriber::FmtSubscriber;
 
+use golem_cli::clients::template::TemplateClientLive;
+use golem_cli::clients::worker::WorkerClientLive;
+use golem_cli::examples;
+use golem_cli::template::{TemplateHandler, TemplateHandlerLive, TemplateSubcommand};
+use golem_cli::worker::{WorkerHandler, WorkerHandlerLive, WorkerSubcommand};
+
 #[derive(Subcommand, Debug)]
 #[command()]
 enum Command {
