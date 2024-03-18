@@ -1,0 +1,15 @@
+{
+  "workers_count": 4,
+  "steps": [
+    "StopAllShards",
+    "RestartShardManager",
+    {
+      "StartShards": 4
+    },
+    "RestartShardManager",
+    {
+      "InvokeAndAwaitWorkersAsync": "StartShards, RestartShardManager, Invoke"
+    },
+    "WaitForInvokeAndAwaitResult"
+  ]
+}
