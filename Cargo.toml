@@ -17,7 +17,6 @@ harness = false
 [[test]]
 name = "sharding"
 path = "tests/sharding.rs"
-harness = false
 
 [dependencies]
 async-trait = "0.1.76"
@@ -67,6 +66,7 @@ tonic = "0.10.2"
 tonic-health = "0.10.2"
 rand = "0.8.5"
 async-recursion = "1.0.5"
+anyhow = "1.0.81"
 
 [features]
 default = ["stubgen"]

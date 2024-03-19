@@ -5,14 +5,13 @@ use crate::context::{Context, ContextInfo, EnvConfig};
 use golem_cli::clients::template::TemplateView;
 use golem_cli::model::InvocationKey;
 use golem_client::model::VersionedWorkerId;
-use libtest_mimic::{Arguments, Conclusion, Failed, Trial};
+use libtest_mimic::Failed;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use testcontainers::clients;
 
@@ -36,36 +35,9 @@ enum Step {
     WaitForInvokeAndAwaitResult,
 }
 
-// fn default_scenario() -> Scenario {
-//     Scenario {
-//         workers_count: 4,
-//         steps: vec![
-//             Step::StopAllShards,
-//             Step::InvokeAndAwaitWorkersAsync("Invoke, RestartShardManager, StartShards".to_string()),
-//             Step::RestartShardManager,
-//             Step::Sleep(Duration::from_secs(3)),
-//             Step::StartShards(4),
-//             Step::WaitForInvokeAndAwaitResult,
-//             Step::StopAllShards,
-//             Step::RestartShardManager,
-//             Step::StartShards(4),
-//             Step::RestartShardManager,
-//             Step::InvokeAndAwaitWorkersAsync("StartShards, RestartShardManager, Invoke".to_string()),
-//             Step::WaitForInvokeAndAwaitResult,
-//             Step::StopAllShards,
-//             Step::RestartShardManager,
-//             Step::StartShards(4),
-//             Step::StopShards(3),
-//             Step::Sleep(Duration::from_secs(3)),
-//             Step::InvokeAndAwaitWorkersAsync("StartShards(4), StopShards(3), Invoke".to_string()),
-//             Step::WaitForInvokeAndAwaitResult,
-//         ],
-//     }
-// }
-
 fn read_scenario() -> Scenario {
     let file_path_str =
-        std::env::var("GOLEM_TEST_SCENARIO").unwrap_or("./scenario.json".to_string());
+        std::env::var("GOLEM_TEST_SCENARIO").unwrap_or("./test-files/scenario.json".to_string());
     println!("Reading scenario from {file_path_str}");
 
     let path = PathBuf::from(file_path_str);
@@ -75,22 +47,11 @@ fn read_scenario() -> Scenario {
     serde_json::from_reader(file).unwrap()
 }
 
-fn run(context: ContextInfo, env_command_tx: Sender<EnvCommand>, env_event_rx: Receiver<EnvEvent>) -> Conclusion {
-    let args = Arguments::from_args();
-
-    let context = Arc::new(context);
-
-    let mut tests = Vec::new();
-
-    tests.append(&mut all(context.clone(), env_command_tx, env_event_rx));
-
-    libtest_mimic::run(&args, tests)
-}
-
-fn main() -> Result<(), Failed> {
+#[test]
+fn service_is_responsive_to_shard_changes() -> Result<(), Failed> {
     env_logger::init();
 
-    let (tx, rx) = std::sync::mpsc::channel();
+    let (context_tx, context_rx) = std::sync::mpsc::channel();
     let (env_command_tx, env_command_rx) = std::sync::mpsc::channel();
     let (env_event_tx, env_event_rx) = std::sync::mpsc::channel();
 
@@ -100,30 +61,28 @@ fn main() -> Result<(), Failed> {
 
         let context_info = context.info();
 
-        tx.send(context_info).unwrap();
+        context_tx.send(context_info).unwrap();
 
         env_handler(context, env_command_rx, env_event_tx);
 
         drop(docker);
     });
 
-    let context_info = rx.recv().unwrap();
+    let context_info = context_rx.recv().unwrap();
 
-    let res = run(context_info, env_command_tx, env_event_rx);
+    let cli = CliLive::make(&context_info)?.with_long_args();
+
+    service_is_responsive_to_shard_changes_run(
+        context_info,
+        read_scenario(),
+        env_command_tx,
+        env_event_rx,
+        cli,
+    )?;
 
     context_handler.join().unwrap();
 
-    res.exit()
-}
-
-fn all(context: Arc<ContextInfo>, env_command_tx: Sender<EnvCommand>, env_event_rx: Receiver<EnvEvent>) -> Vec<Trial> {
-    let cli = CliLive::make(&context).unwrap().with_long_args();
-    let ctx = (context, read_scenario(), env_command_tx, Mutex::new(env_event_rx), cli);
-    vec![Trial::test_in_context(
-        format!("service_is_responsive_to_shard_changes"),
-        ctx,
-        service_is_responsive_to_shard_changes,
-    )]
+    Ok(())
 }
 
 enum EnvCommand {
@@ -376,14 +335,12 @@ fn get_invocation_key_invoke_and_await_with_retry(
     res
 }
 
-fn service_is_responsive_to_shard_changes(
-    (context, scenario, env_command_tx, env_event_rx, cli): (
-        Arc<ContextInfo>,
-        Scenario,
-        Sender<EnvCommand>,
-        Mutex<Receiver<EnvEvent>>,
-        CliLive,
-    ),
+fn service_is_responsive_to_shard_changes_run(
+    context: ContextInfo,
+    scenario: Scenario,
+    env_command_tx: Sender<EnvCommand>,
+    env_event_rx: Receiver<EnvEvent>,
+    cli: CliLive,
 ) -> Result<(), Failed> {
     let template_name = "echo-service-1".to_string();
 
@@ -440,21 +397,21 @@ fn service_is_responsive_to_shard_changes(
         match step {
             Step::StartShards(n) => {
                 env_command_tx.send(EnvCommand::StartShards(n)).unwrap();
-                let _ = env_event_rx.lock().unwrap().recv().unwrap();
+                let _ = env_event_rx.recv().unwrap();
             }
             Step::StopShards(n) => {
                 env_command_tx.send(EnvCommand::StopShards(n)).unwrap();
-                let _ = env_event_rx.lock().unwrap().recv().unwrap();
+                let _ = env_event_rx.recv().unwrap();
             }
             Step::StopAllShards => {
                 env_command_tx.send(EnvCommand::StopAllShards).unwrap();
-                let _ = env_event_rx.lock().unwrap().recv().unwrap();
+                let _ = env_event_rx.recv().unwrap();
             }
             Step::RestartShardManager => {
                 env_command_tx
                     .send(EnvCommand::RestartShardManager)
                     .unwrap();
-                let _ = env_event_rx.lock().unwrap().recv().unwrap();
+                let _ = env_event_rx.recv().unwrap();
             }
             Step::Sleep(duration) => {
                 std::thread::sleep(duration);
