@@ -57,7 +57,7 @@ jobs:
           GOLEM_TEST_TEMPLATES: ./test-templates
           RUST_LOG: info
           CI: true
-        run: cargo test --test sharding
+        run: cargo test --test sharding -- --nocapture
         timeout-minutes: 10
   publish:
     needs: [build]
