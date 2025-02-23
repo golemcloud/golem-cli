@@ -38,6 +38,7 @@ jobs:
         cache-all-crates: true
         save-if: true
     - uses: davidB/rust-cargo-make@v1
+    - uses: cargo-bins/cargo-binstall@main
     - name: Install cargo-component
       run: cargo binstall --no-confirm cargo-component@0.20.0
     - name: Install Protoc
