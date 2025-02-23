@@ -1295,7 +1295,7 @@ fn compile_and_collect_globs(root_dir: &Path, globs: &[String]) -> Result<Vec<Pa
         .collect::<Result<Vec<_>, _>>()
         .map_err(|err| anyhow!(err))?
         .iter()
-        .map(|glob| {
+        .flat_map(|glob| {
             glob.walk_with_behavior(
                 root_dir,
                 WalkBehavior {
@@ -1303,10 +1303,8 @@ fn compile_and_collect_globs(root_dir: &Path, globs: &[String]) -> Result<Vec<Pa
                     ..WalkBehavior::default()
                 },
             )
-            .into_iter()
             .collect::<Vec<_>>()
         })
-        .flatten()
         .map(|walk_item| {
             walk_item
                 .map(|entry| entry.path().to_path_buf())
