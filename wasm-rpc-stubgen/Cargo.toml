@@ -36,7 +36,6 @@ cargo_toml = { workspace = true }
 clap = { workspace = true }
 colored = { workspace = true }
 fs_extra = { workspace = true }
-glob = { workspace = true }
 heck = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
@@ -57,6 +56,7 @@ tokio = { workspace = true }
 toml = { workspace = true }
 wac-graph = { workspace = true }
 walkdir = { workspace = true }
+wax = { workspace = true }
 wit-bindgen-rust = { workspace = true }
 wit-encoder = { workspace = true }
 wit-parser = { workspace = true }
