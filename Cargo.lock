@@ -4313,19 +4313,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "golem-wasm-rpc-stubgen-tests-integration"
-version = "0.0.0"
-dependencies = [
- "assert2",
- "fs_extra",
- "golem-wasm-ast 1.1.20",
- "golem-wasm-rpc-stubgen",
- "tempfile",
- "test-r",
- "tokio",
-]
-
-[[package]]
 name = "golem-wit"
 version = "0.0.0"
 source = "git+https://github.com/golemcloud/golem-wit.git?tag=v1.1.11#ac26b9ab28df06912b885b192761fd4612e83723"

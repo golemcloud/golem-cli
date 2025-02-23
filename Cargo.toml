@@ -6,12 +6,11 @@ members = [
     "golem-cli",
     "golem-cloud-cli",
     "wasm-rpc-stubgen",
-    "wasm-rpc-stubgen/tests-integration"
 ]
 
 [workspace.dependencies]
 # Golem wit - git deps
-golem-wit = { git = "https://github.com/golemcloud/golem-wit.git", tag="v1.1.11" }
+golem-wit = { git = "https://github.com/golemcloud/golem-wit.git", tag = "v1.1.11" }
 
 # Golem dep
 golem-client = "=1.1.20"

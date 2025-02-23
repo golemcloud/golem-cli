@@ -7,6 +7,8 @@ homepage = "https://golem.cloud"
 repository = "https://github.com/golemcloud/golem-cli"
 description = "Golem WASM RPC stub generator"
 
+autotests = false
+
 [lib]
 path = "src/lib.rs"
 harness = false
@@ -17,11 +19,8 @@ path = "src/main.rs"
 test = false
 
 [[test]]
-name = "wit"
-harness = false
-
-[[test]]
-name = "add_dep"
+name = "integration"
+path = "tests/lib.rs"
 harness = false
 
 [dependencies]
