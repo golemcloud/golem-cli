@@ -11,7 +11,7 @@ use crate::model::app::{
     DEFAULT_CONFIG_FILE_NAME,
 };
 use crate::model::app_raw;
-use crate::stub::{StubConfig, StubDefinition};
+use crate::stub::{StubConfig, StubDefinition, StubSourceTransform};
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wit_generate::{
     add_client_as_dependency_to_wit_dir, extract_exports_as_wit_dep, AddClientAsDepConfig,
@@ -154,7 +154,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                         wasm_rpc_path_override: std::env::var("WASM_RPC_PATH_OVERRIDE").ok(),
                         wasm_rpc_version_override: std::env::var("WASM_RPC_VERSION_OVERRIDE").ok(),
                     },
-                    extract_source_exports_package: false,
+                    source_transform: StubSourceTransform::None,
                     seal_cargo_workspace: true,
                 })
                 .context("Failed to gather information for the stub generator")?,

@@ -715,12 +715,11 @@ pub fn extract_exports_as_wit_dep(wit_dir: &Path) -> anyhow::Result<()> {
 
 // TODO: handle world include
 // TODO: handle world use
-// TODO: maybe transform inline interfaces and functions into included world?
 fn extract_exports_package(
     main_package_id: PackageId,
     encoded_wit_dir: &mut EncodedWitDir,
 ) -> anyhow::Result<(Package, Package)> {
-    let package = encoded_wit_dir.package(main_package_id)?;
+    let mut package = encoded_wit_dir.package(main_package_id)?.clone();
 
     let mut exports_package = package.clone();
     exports_package.set_name(naming::wit::exports_encoder_package_name(package.name()));
@@ -949,7 +948,93 @@ fn extract_exports_package(
         exports_package.interface(interface);
     }
 
-    Ok((package.clone(), exports_package))
+    Ok((package, exports_package))
+}
+
+pub fn strip_main_package_for_client_in_wit_dir(wit_dir: &Path) -> anyhow::Result<()> {
+    log_action(
+        "Stripping",
+        format!(
+            "main package for client usage in wit directory {}",
+            wit_dir.log_color_highlight()
+        ),
+    );
+
+    let resolved_wit_dir = ResolvedWitDir::new(wit_dir)?;
+    let main_package_id = resolved_wit_dir.package_id;
+    let mut encoded_wit_dir = EncodedWitDir::new(&resolved_wit_dir.resolve)?;
+
+    let stripped_main_package =
+        stripped_main_package_for_clients(main_package_id, &mut encoded_wit_dir)?;
+    let sources = resolved_wit_dir
+        .package_sources
+        .get(&resolved_wit_dir.package_id)
+        .ok_or_else(|| {
+            anyhow!(
+                "Failed to get sources for main package, wit dir: {}",
+                wit_dir.log_color_highlight()
+            )
+        })?;
+
+    if sources.files.len() != 1 {
+        bail!(
+            "Expected exactly one source for main package, wit dir: {}",
+            wit_dir.log_color_highlight()
+        );
+    }
+
+    let _indent = LogIndent::new();
+
+    let main_package_path = &sources.files[0];
+    log_action(
+        "Writing",
+        format!(
+            "stripped main package to {}",
+            main_package_path.log_color_highlight()
+        ),
+    );
+    fs::write_str(main_package_path, stripped_main_package.to_string())?;
+
+    Ok(())
+}
+
+// TODO: handle world include
+// TODO: handle world use
+pub fn stripped_main_package_for_clients(
+    main_package_id: PackageId,
+    encoded_wit_dir: &mut EncodedWitDir,
+) -> anyhow::Result<Package> {
+    let mut package = encoded_wit_dir.package(main_package_id)?.clone();
+
+    let mut exported_interface_identifiers = HashSet::<Ident>::new();
+    for package_item in package.items_mut() {
+        if let PackageItem::World(world) = package_item {
+            world.items_mut().retain(|world_item| match world_item {
+                // Remove interface imports
+                WorldItem::InlineInterfaceExport(_) => false,
+                // Remove and function imports
+                WorldItem::FunctionImport(_) => false,
+                // Remove named interface export identifiers
+                WorldItem::NamedInterfaceImport(_) => false,
+                // Collect exported interface identifiers
+                WorldItem::NamedInterfaceExport(interface) => {
+                    exported_interface_identifiers.insert(interface.name().clone());
+                    true
+                }
+                _ => true,
+            });
+        }
+    }
+
+    package.items_mut().retain(|item| match item {
+        // Drop interfaces not used for export
+        PackageItem::Interface(interface) => {
+            exported_interface_identifiers.contains(interface.name())
+        }
+        PackageItem::World(_) => true,
+    });
+
+    Ok(package)
 }
 
 trait UsedTypeIdents {

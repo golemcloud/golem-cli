@@ -26,13 +26,6 @@ use fs_extra::dir::CopyOptions;
 use heck::ToSnakeCase;
 use std::path::{Path, PathBuf};
 
-pub fn generate_client(stub_def: &StubDefinition) -> anyhow::Result<()> {
-    let _ = generate_client_wit_dir(stub_def)?;
-    generate_client_cargo_toml(stub_def).context("Failed to generate the Cargo.toml file")?;
-    generate_stub_source(stub_def).context("Failed to generate the client Rust source")?;
-    Ok(())
-}
-
 pub async fn build(
     stub_def: &StubDefinition,
     dest_wasm: &Path,

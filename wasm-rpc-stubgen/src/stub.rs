@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::wit_encode::EncodedWitDir;
-use crate::wit_generate::extract_exports_as_wit_dep;
+use crate::wit_generate::{extract_exports_as_wit_dep, strip_main_package_for_client_in_wit_dir};
 use crate::wit_resolve::{PackageSource, ResolvedWitDir};
 use crate::{naming, WasmRpcOverride};
 use anyhow::{anyhow, Context};
@@ -28,6 +28,13 @@ use wit_parser::{
     Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, World, WorldId, WorldItem, WorldKey,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StubSourceTransform {
+    None,
+    ExtractExportsPackage,
+    StripSourcePackage,
+}
+
 #[derive(Clone, Debug)]
 pub struct StubConfig {
     pub source_wit_root: PathBuf,
@@ -35,7 +42,7 @@ pub struct StubConfig {
     pub selected_world: Option<String>,
     pub stub_crate_version: String,
     pub wasm_rpc_override: WasmRpcOverride,
-    pub extract_source_exports_package: bool,
+    pub source_transform: StubSourceTransform,
     pub seal_cargo_workspace: bool,
 }
 
@@ -56,9 +63,17 @@ pub struct StubDefinition {
 
 impl StubDefinition {
     pub fn new(config: StubConfig) -> anyhow::Result<Self> {
-        if config.extract_source_exports_package {
-            extract_exports_as_wit_dep(&config.source_wit_root)
-                .context("Failed to extract exports package")?
+        match config.source_transform {
+            StubSourceTransform::None => {
+                // NOP
+            }
+            StubSourceTransform::ExtractExportsPackage => {
+                extract_exports_as_wit_dep(&config.source_wit_root)
+                    .context("Failed to extract exports package")?
+            }
+            StubSourceTransform::StripSourcePackage => {
+                strip_main_package_for_client_in_wit_dir(&config.source_wit_root)?
+            }
         }
 
         let resolved_source = ResolvedWitDir::new(&config.source_wit_root)?;
