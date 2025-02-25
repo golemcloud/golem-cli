@@ -34,6 +34,7 @@ use tracing_subscriber::FmtSubscriber;
 pub mod clients;
 pub mod cloud;
 pub mod command;
+pub mod command_v_1_2;
 pub mod completion;
 pub mod config;
 pub mod connect_output;
@@ -182,6 +183,73 @@ where
         Err(error) => {
             eprintln!("{}", format_error(&error.0));
             ExitCode::FAILURE
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use test_r::test;
+
+    use crate::command::profile::OssProfileAdd;
+    use crate::command::EmptyCommand;
+    use crate::oss::cli::GolemOssCli;
+    use clap::{ArgAction, Command, CommandFactory};
+    use crate::command_v_1_2::GolemCliCommand;
+
+    // TODO: delete before merge
+    #[test]
+    fn dump_commands() {
+        let command = GolemOssCli::<OssProfileAdd, EmptyCommand>::command();
+        dump_command(0, &command);
+    }
+
+    #[test]
+    fn dump_commands_v_1_2() {
+        let command = GolemCliCommand::command();
+        dump_command(0, &command);
+    }
+
+    fn dump_command(level: usize, command: &Command) {
+        print!("{}{}", "\t".repeat(level), command.get_name());
+
+        let aliases = command.get_aliases().collect::<Vec<_>>();
+        if !aliases.is_empty() {
+            print!(" ({})", aliases.join(", "));
+        }
+
+        let (positional, flag_args): (Vec<_>, Vec<_>) =
+            command.get_arguments().partition(|arg| arg.is_positional());
+
+        if !positional.is_empty() {
+            for arg in positional {
+                if arg.is_required_set() && arg.get_default_values().is_empty() {
+                    print!(" <{}>", arg.get_id().to_string());
+                } else {
+                    print!(" [{}]", arg.get_id().to_string());
+                }
+                if let ArgAction::Append = arg.get_action() {
+                    print!("*")
+                }
+            }
+        }
+
+        println!();
+
+        if !flag_args.is_empty() {
+            print!("{}", "\t".repeat(level + 2));
+            for arg in flag_args.clone() {
+                print!(" --{}", arg.get_long().unwrap().to_string(),);
+                arg.get_short()
+                    .iter()
+                    .for_each(|short| print!("({})", short));
+            }
+            println!()
+        }
+
+        let subcommand_level = level + 1;
+        for subcommand in command.get_subcommands() {
+            dump_command(subcommand_level, subcommand);
         }
     }
 }

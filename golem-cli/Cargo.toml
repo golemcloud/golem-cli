@@ -16,6 +16,11 @@ name = "golem-cli"
 path = "src/main.rs"
 test = false
 
+[[bin]]
+name = "glm"
+path = "src/main_v_1_2.rs"
+test = false
+
 [[test]]
 name = "integration"
 path = "tests/main.rs"
