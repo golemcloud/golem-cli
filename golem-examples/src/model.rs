@@ -433,18 +433,22 @@ pub(crate) struct ExampleMetadata {
 mod tests {
     use crate::model::{ComponentName, PackageName};
 
+    #[allow(dead_code)]
     fn n1() -> ComponentName {
         ComponentName::new("my-test-component")
     }
 
+    #[allow(dead_code)]
     fn n2() -> ComponentName {
         ComponentName::new("MyTestComponent")
     }
 
+    #[allow(dead_code)]
     fn n3() -> ComponentName {
         ComponentName::new("myTestComponent")
     }
 
+    #[allow(dead_code)]
     fn n4() -> ComponentName {
         ComponentName::new("my_test_component")
     }
@@ -481,10 +485,12 @@ mod tests {
         assert_eq!(n4().to_kebab_case(), "my-test-component");
     }
 
+    #[allow(dead_code)]
     fn p1() -> PackageName {
         PackageName::from_string("foo:bar").unwrap()
     }
 
+    #[allow(dead_code)]
     fn p2() -> PackageName {
         PackageName::from_string("foo:bar-baz").unwrap()
     }

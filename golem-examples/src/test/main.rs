@@ -100,8 +100,10 @@ pub fn main() -> io::Result<()> {
             let languages = language.into_iter().collect::<Vec<_>>();
             let alphabet: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-            let target_path = PathBuf::from(target_path.unwrap_or_else(|| "target/examples-test-app".to_string()))
-                .join("app-default");
+            let target_path = PathBuf::from(
+                target_path.unwrap_or_else(|| "target/examples-test-app".to_string()),
+            )
+            .join("app-default");
 
             if target_path.exists() {
                 println!("Deleting {}", target_path.display().to_string().blue());
@@ -271,7 +273,7 @@ fn add_cargo_workspace(project_root: &Path) -> Result<(), String> {
             format!(
                 "failed to read Cargo.toml ({}): {}",
                 &cargo_toml_path.display(),
-                err.to_string()
+                err
             )
         })?
         .parse::<DocumentMut>()
@@ -279,7 +281,7 @@ fn add_cargo_workspace(project_root: &Path) -> Result<(), String> {
             format!(
                 "failed to parse Cargo.toml: ({}): {}",
                 &cargo_toml_path.display(),
-                err.to_string()
+                err
             )
         })?;
 
@@ -289,7 +291,7 @@ fn add_cargo_workspace(project_root: &Path) -> Result<(), String> {
         format!(
             "failed to write Cargo.toml: ({}):, {}",
             &cargo_toml_path.display(),
-            err.to_string()
+            err
         )
     })?;
 

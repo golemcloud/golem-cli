@@ -140,7 +140,7 @@ pub fn instantiate_example(
         };
 
         fs::create_dir_all(&adapter_dir)?;
-        println!("{:?}", &ADAPTERS.entries().into_iter().collect::<Vec<_>>());
+        println!("{:?}", &ADAPTERS.entries().iter().collect::<Vec<_>>());
         copy(
             &ADAPTERS,
             adapter_path,
@@ -502,7 +502,8 @@ fn parse_example(
     let mut wit_deps: Vec<PathBuf> = vec![];
     if metadata.requires_golem_host_wit.unwrap_or(false) {
         WIT.dirs()
-            .filter_map(|dir| dir.path().starts_with("golem").then(|| dir.path()))
+            .filter(|&dir| dir.path().starts_with("golem"))
+            .map(|dir| dir.path())
             .for_each(|path| {
                 wit_deps.push(path.to_path_buf());
             });
