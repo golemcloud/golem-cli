@@ -11,6 +11,8 @@
 # - `cargo make stubgen-integrations-tests`: runs stubgen integrations tests only
 # - `cargo make template-tests`: runs template tests only
 # - `cargo make publish`: publishes packages to crates.io
+# - `cargo make desktop`: builds the desktop application
+# - `cargo make dev-desktop`: run the desktop application
 
 [config]
 default_to_workspace = false # by default, we run cargo commands on top level instead of per member
@@ -145,3 +147,23 @@ exec --fail-on-error cargo install --path golem-cli --bin golem-cli
 exec --fail-on-error cargo run --package golem-examples --bin golem-examples-test-cli examples
 exec --fail-on-error cargo run --package golem-examples --bin golem-examples-test-cli app
 '''
+
+[tasks.desktop]
+description = "Builds the desktop application"
+dependencies = ["npm-install"]
+command = "npm"
+args = ["run", "tauri", "build"]
+cwd = "./desktop-app"
+
+[tasks.dev-desktop]
+description = "Run the desktop application"
+dependencies = ["npm-install"]
+command = "npm"
+args = ["run", "tauri", "dev"]
+cwd = "./desktop-app"
+
+[tasks.npm-install]
+description = "Install npm dependencies"
+command = "npm"
+args = ["install"]
+cwd = "./desktop-app"
