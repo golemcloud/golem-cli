@@ -131,12 +131,13 @@ pub fn instantiate_example(
                 .target_path
                 .join(match &example.adapter_target {
                     Some(target) => target.clone(),
-                    None => parameters.target_path.join("adapters"),
+                    None => PathBuf::from("adapters"),
                 })
                 .join(example.language.tier().name())
         };
 
         fs::create_dir_all(&adapter_dir)?;
+        println!("{:?}", &ADAPTERS.entries().into_iter().collect::<Vec<_>>());
         copy(
             &ADAPTERS,
             adapter_path,
@@ -497,21 +498,26 @@ fn parse_example(
 
     let mut wit_deps: Vec<PathBuf> = vec![];
     if metadata.requires_golem_host_wit.unwrap_or(false) {
-        wit_deps.push(Path::new("golem").to_path_buf());
-        wit_deps.push(Path::new("golem-1.1").to_path_buf());
-        wit_deps.push(Path::new("wasm-rpc").to_path_buf());
+        WIT.dirs()
+            .filter_map(|dir| dir.path().starts_with("golem").then(|| dir.path()))
+            .for_each(|path| {
+                wit_deps.push(path.to_path_buf());
+            });
+
+        wit_deps.push(PathBuf::from("golem-1.x"));
+        wit_deps.push(PathBuf::from("wasm-rpc"));
     }
     if metadata.requires_wasi.unwrap_or(false) {
-        wit_deps.push(Path::new("blobstore").to_path_buf());
-        wit_deps.push(Path::new("cli").to_path_buf());
-        wit_deps.push(Path::new("clocks").to_path_buf());
-        wit_deps.push(Path::new("filesystem").to_path_buf());
-        wit_deps.push(Path::new("http").to_path_buf());
-        wit_deps.push(Path::new("io").to_path_buf());
-        wit_deps.push(Path::new("keyvalue").to_path_buf());
-        wit_deps.push(Path::new("logging").to_path_buf());
-        wit_deps.push(Path::new("random").to_path_buf());
-        wit_deps.push(Path::new("sockets").to_path_buf());
+        wit_deps.push(PathBuf::from("blobstore"));
+        wit_deps.push(PathBuf::from("cli"));
+        wit_deps.push(PathBuf::from("clocks"));
+        wit_deps.push(PathBuf::from("filesystem"));
+        wit_deps.push(PathBuf::from("http"));
+        wit_deps.push(PathBuf::from("io"));
+        wit_deps.push(PathBuf::from("keyvalue"));
+        wit_deps.push(PathBuf::from("logging"));
+        wit_deps.push(PathBuf::from("random"));
+        wit_deps.push(PathBuf::from("sockets"));
     }
 
     let requires_adapter = metadata

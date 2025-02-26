@@ -62,3 +62,43 @@ jobs:
         report_paths: '**/target/report-*.xml'
         detailed_summary: true
         include_passed: true
+  template-tests:
+    runs-on: ubuntu-latest-xlarge
+    env:
+      CARGO_BUILD_JOBS: 6
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+        submodules: recursive
+    - name: Fetch tag
+      run: git fetch origin --deepen=1
+    - name: Setup Rust
+      run: rustup update stable --no-self-update && rustup default stable
+    - uses: davidB/rust-cargo-make@v1
+    - uses: cargo-bins/cargo-binstall@main
+    - name: Install cargo-component
+      run: cargo binstall --no-confirm cargo-component@0.20.0
+    - name: Install Protoc
+      uses: arduino/setup-protoc@v3
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: debug
+        cache-all-crates: true
+        save-if: true
+    - name: Install componentize-py
+      run: pip install componentize-py==0.16.0
+    - name: Install WASI SDK
+      run: |
+        WASI_VERSION=25
+        WASI_SDK_PATH=/opt/wasi-sdk
+        wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION}.0-x86_64-linux.tar.gz
+        tar -xvf wasi-sdk-${WASI_VERSION}.0-linux.tar.gz
+        sudo mv wasi-sdk-${WASI_VERSION}.0 ${WASI_SDK_PATH}
+        echo "WASI_SDK_PATH=${WASI_SDK_PATH}" >> $GITHUB_ENV
+    - uses: mlugg/setup-zig@v1
+    - name: Template tests
+      run: cargo make --profile ci template-tests

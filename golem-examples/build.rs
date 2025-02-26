@@ -1,5 +1,4 @@
 use cargo_metadata::MetadataCommand;
-use copy_dir::copy_dir;
 use std::env;
 use std::path::PathBuf;
 
@@ -13,15 +12,27 @@ fn main() {
     println!("cargo:warning=Golem WIT root: {golem_wit_root:?}");
 
     let target = out_dir.join("golem-wit");
-    if target.exists() {
-        if dir_diff::is_different(&golem_wit_root, &target).unwrap_or(true) {
-            std::fs::remove_dir_all(&target).unwrap();
-            copy_dir(golem_wit_root, target).unwrap();
-        } else {
-            println!("cargo:warning=Golem WIT is up to date in {target:?}");
-        }
+    let target_exists = target.exists();
+    let target_is_different =
+        target_exists && dir_diff::is_different(&golem_wit_root, &target).unwrap_or(true);
+
+    if target_exists && !target_is_different {
+        println!("cargo:warning=Golem WIT is up to date in {target:?}");
+        return;
+    }
+
+    fs_extra::dir::create(&target, true).unwrap();
+    fs_extra::dir::copy(
+        &golem_wit_root,
+        &target,
+        &fs_extra::dir::CopyOptions::new().content_only(true),
+    )
+    .unwrap();
+
+    if target_exists {
+        println!("cargo:warning=Golem WIT was updated in {target:?}");
     } else {
-        copy_dir(golem_wit_root, target).unwrap();
+        println!("cargo:warning=Golem WIT was created in {target:?}");
     }
 }
 

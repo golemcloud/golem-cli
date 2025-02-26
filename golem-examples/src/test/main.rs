@@ -12,9 +12,10 @@ use nanoid::nanoid;
 use regex::Regex;
 use std::collections::HashSet;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::str::FromStr;
+use toml_edit::DocumentMut;
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -66,7 +67,7 @@ pub fn main() -> io::Result<()> {
                     let result =
                         test_example(&target_path, skip_instantiate, skip_instructions, example);
                     if let Err(err) = &result {
-                        println!("{}", err.bright_red())
+                        println!("{}", err.bright_red());
                     }
                     (example.clone(), result)
                 })
@@ -176,7 +177,7 @@ fn test_example(
     let target_path = PathBuf::from(
         target_path
             .clone()
-            .unwrap_or_else(|| "examples-test".to_string()),
+            .unwrap_or_else(|| "target/examples-test".to_string()),
     );
     let component_name = ComponentName::new(example.name.as_string().to_string() + "-comp");
     let package_name =
@@ -233,6 +234,8 @@ fn test_example(
         let _ = instantiate_example(example, &example_parameters, TargetExistsResolveMode::Fail)
             .map_err(|e| format!("instantiate failed: {}", e))?;
 
+        add_cargo_workspace(&component_path)?;
+
         println!("Successfully instantiated the example");
     }
 
@@ -253,6 +256,47 @@ fn test_example(
         }
         println!("Successfully executed instructions\n");
     }
+
+    Ok(())
+}
+
+fn add_cargo_workspace(project_root: &Path) -> Result<(), String> {
+    let cargo_toml_path = project_root.join("Cargo.toml");
+    if !cargo_toml_path.exists() {
+        return Ok(());
+    }
+
+    let mut cargo_toml = fs_extra::file::read_to_string(&cargo_toml_path)
+        .map_err(|err| {
+            format!(
+                "failed to read Cargo.toml ({}): {}",
+                &cargo_toml_path.display(),
+                err.to_string()
+            )
+        })?
+        .parse::<DocumentMut>()
+        .map_err(|err| {
+            format!(
+                "failed to parse Cargo.toml: ({}): {}",
+                &cargo_toml_path.display(),
+                err.to_string()
+            )
+        })?;
+
+    cargo_toml["workspace"].or_insert(toml_edit::table());
+
+    fs_extra::file::write_all(&cargo_toml_path, &cargo_toml.to_string()).map_err(|err| {
+        format!(
+            "failed to write Cargo.toml: ({}):, {}",
+            &cargo_toml_path.display(),
+            err.to_string()
+        )
+    })?;
+
+    println!(
+        "Added workspace to Cargo.toml ({})",
+        cargo_toml_path.display()
+    );
 
     Ok(())
 }

@@ -1,11 +1,11 @@
 use fancy_regex::{Match, Regex};
 use inflector::Inflector;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt::Formatter;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::LazyLock;
 use std::{fmt, io};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -15,8 +15,8 @@ use strum_macros::EnumIter;
 )]
 pub struct ComponentName(String);
 
-static COMPONENT_NAME_SPLIT_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new("(?=[A-Z\\-_:])").unwrap());
+static COMPONENT_NAME_SPLIT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("(?=[A-Z\\-_:])").unwrap());
 
 impl ComponentName {
     pub fn new(name: impl AsRef<str>) -> ComponentName {
@@ -432,51 +432,66 @@ pub(crate) struct ExampleMetadata {
 #[cfg(test)]
 mod tests {
     use crate::model::{ComponentName, PackageName};
-    use once_cell::sync::Lazy;
 
-    static N1: Lazy<ComponentName> = Lazy::new(|| ComponentName::new("my-test-component"));
-    static N2: Lazy<ComponentName> = Lazy::new(|| ComponentName::new("MyTestComponent"));
-    static N3: Lazy<ComponentName> = Lazy::new(|| ComponentName::new("myTestComponent"));
-    static N4: Lazy<ComponentName> = Lazy::new(|| ComponentName::new("my_test_component"));
+    fn n1() -> ComponentName {
+        ComponentName::new("my-test-component")
+    }
+
+    fn n2() -> ComponentName {
+        ComponentName::new("MyTestComponent")
+    }
+
+    fn n3() -> ComponentName {
+        ComponentName::new("myTestComponent")
+    }
+
+    fn n4() -> ComponentName {
+        ComponentName::new("my_test_component")
+    }
 
     #[test]
     pub fn component_name_to_pascal_case() {
-        assert_eq!(N1.to_pascal_case(), "MyTestComponent");
-        assert_eq!(N2.to_pascal_case(), "MyTestComponent");
-        assert_eq!(N3.to_pascal_case(), "MyTestComponent");
-        assert_eq!(N4.to_pascal_case(), "MyTestComponent");
+        assert_eq!(n1().to_pascal_case(), "MyTestComponent");
+        assert_eq!(n2().to_pascal_case(), "MyTestComponent");
+        assert_eq!(n3().to_pascal_case(), "MyTestComponent");
+        assert_eq!(n4().to_pascal_case(), "MyTestComponent");
     }
 
     #[test]
     pub fn component_name_to_camel_case() {
-        assert_eq!(N1.to_camel_case(), "myTestComponent");
-        assert_eq!(N2.to_camel_case(), "myTestComponent");
-        assert_eq!(N3.to_camel_case(), "myTestComponent");
-        assert_eq!(N4.to_camel_case(), "myTestComponent");
+        assert_eq!(n1().to_camel_case(), "myTestComponent");
+        assert_eq!(n2().to_camel_case(), "myTestComponent");
+        assert_eq!(n3().to_camel_case(), "myTestComponent");
+        assert_eq!(n4().to_camel_case(), "myTestComponent");
     }
 
     #[test]
     pub fn component_name_to_snake_case() {
-        assert_eq!(N1.to_snake_case(), "my_test_component");
-        assert_eq!(N2.to_snake_case(), "my_test_component");
-        assert_eq!(N3.to_snake_case(), "my_test_component");
-        assert_eq!(N4.to_snake_case(), "my_test_component");
+        assert_eq!(n1().to_snake_case(), "my_test_component");
+        assert_eq!(n2().to_snake_case(), "my_test_component");
+        assert_eq!(n3().to_snake_case(), "my_test_component");
+        assert_eq!(n4().to_snake_case(), "my_test_component");
     }
 
     #[test]
     pub fn component_name_to_kebab_case() {
-        assert_eq!(N1.to_kebab_case(), "my-test-component");
-        assert_eq!(N2.to_kebab_case(), "my-test-component");
-        assert_eq!(N3.to_kebab_case(), "my-test-component");
-        assert_eq!(N4.to_kebab_case(), "my-test-component");
+        assert_eq!(n1().to_kebab_case(), "my-test-component");
+        assert_eq!(n2().to_kebab_case(), "my-test-component");
+        assert_eq!(n3().to_kebab_case(), "my-test-component");
+        assert_eq!(n4().to_kebab_case(), "my-test-component");
     }
 
-    static P1: Lazy<PackageName> = Lazy::new(|| PackageName::from_string("foo:bar").unwrap());
-    static P2: Lazy<PackageName> = Lazy::new(|| PackageName::from_string("foo:bar-baz").unwrap());
+    fn p1() -> PackageName {
+        PackageName::from_string("foo:bar").unwrap()
+    }
+
+    fn p2() -> PackageName {
+        PackageName::from_string("foo:bar-baz").unwrap()
+    }
 
     #[test]
     pub fn package_name_to_pascal_case() {
-        assert_eq!(P1.to_pascal_case(), "FooBar");
-        assert_eq!(P2.to_pascal_case(), "FooBarBaz");
+        assert_eq!(p1().to_pascal_case(), "FooBar");
+        assert_eq!(p2().to_pascal_case(), "FooBarBaz");
     }
 }
