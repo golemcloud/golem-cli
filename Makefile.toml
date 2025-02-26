@@ -139,11 +139,21 @@ exec --fail-on-error cargo test --package golem-wasm-rpc-stubgen :tag: --tests -
 exec --fail-on-error cargo test --package golem-wasm-rpc-stubgen :tag:uses_cargo --tests -- --nocapture --test-threads=1 --report-time %{JUNIT_OPTS}
 '''
 
-[tasks.template-tests]
-description = "Run template tests"
+# Install
+[tasks.install-golem-cli-non-ci]
+condition = { env_not_set = ["CI"] } # on CI we install from target
+decription = "Install golem-cli"
 script_runner = "@duckscript"
 script = '''
 exec --fail-on-error cargo install --path golem-cli --bin golem-cli
+'''
+
+[tasks.template-tests]
+dependencies = ["install-golem-cli-non-ci"]
+description = "Run template tests"
+script_runner = "@duckscript"
+script = '''
+
 exec --fail-on-error cargo run --package golem-examples --bin golem-examples-test-cli examples
 exec --fail-on-error cargo run --package golem-examples --bin golem-examples-test-cli app
 '''
