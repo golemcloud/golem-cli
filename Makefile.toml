@@ -153,7 +153,7 @@ dependencies = ["install-golem-cli-non-ci"]
 description = "Run template integration tests"
 script_runner = "@duckscript"
 script = '''
-exec --fail-on-error cargo test --package golem-examples --tests integration -- --nocapture --test-threads=1 --report-time %{JUNIT_OPTS}
+exec --fail-on-error cargo test --package golem-examples --test integration -- --nocapture --test-threads=1 --report-time %{JUNIT_OPTS}
 '''
 
 ## ** DESKTOP APP **
