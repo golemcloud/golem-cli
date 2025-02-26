@@ -68,7 +68,7 @@ jobs:
         include_passed: true
     # Template tests
     - name: Install golem-cli globally
-      run:  mv target/debug/golem-cli /usr/local/bin
+      run: mv target/debug/golem-cli /usr/local/bin
     - name: Install componentize-py
       run: pip install componentize-py==0.16.0
     - name: Install WASI SDK
@@ -80,5 +80,9 @@ jobs:
         sudo mv wasi-sdk-${WASI_VERSION}.0-x86_64-linux ${WASI_SDK_PATH}
         echo "WASI_SDK_PATH=${WASI_SDK_PATH}" >> $GITHUB_ENV
     - uses: mlugg/setup-zig@v1
+    - uses: actions/setup-go@v5.3.0
+    - uses: acifani/setup-tinygo@v2.0.0
+      with:
+        tinygo-version: '0.35.0'
     - name: Template tests
       run: cargo make --profile ci template-tests
