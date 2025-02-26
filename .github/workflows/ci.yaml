@@ -96,7 +96,7 @@ jobs:
         WASI_VERSION=25
         WASI_SDK_PATH=/opt/wasi-sdk
         wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION}.0-x86_64-linux.tar.gz
-        tar -xvf wasi-sdk-${WASI_VERSION}.0-linux.tar.gz
+        tar -xvf wasi-sdk-${WASI_VERSION}.0-x86_64-linux.tar.gz
         sudo mv wasi-sdk-${WASI_VERSION}.0 ${WASI_SDK_PATH}
         echo "WASI_SDK_PATH=${WASI_SDK_PATH}" >> $GITHUB_ENV
     - uses: mlugg/setup-zig@v1
