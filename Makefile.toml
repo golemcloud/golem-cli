@@ -11,6 +11,7 @@
 # - `cargo make stubgen-integrations-tests`: runs stubgen integrations tests only
 # - `cargo make publish`: publishes packages to crates.io
 # - `cargo make desktop`: builds the desktop application
+# - `cargo make dev-desktop`: run the desktop application
 
 [config]
 default_to_workspace = false # by default, we run cargo commands on top level instead of per member
@@ -141,4 +142,17 @@ exec --fail-on-error cargo test --package golem-wasm-rpc-stubgen :tag:uses_cargo
 description = "Builds the desktop application"
 command = "npm"
 args = ["run", "tauri", "build"]
+cwd = "./app/desktop"
+
+[tasks.dev-desktop]
+description = "Run the desktop application"
+dependencies = ["npm-install"]
+command = "npm"
+args = ["run", "tauri", "dev"]
+cwd = "./app/desktop"
+
+[tasks.npm-install]
+description = "Install npm dependencies"
+command = "npm"
+args = ["install"]
 cwd = "./app/desktop"

@@ -11,20 +11,19 @@ To get started with Golem GUI, follow these steps:
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/golemcloud/golem.git
+git clone https://github.com/golemcloud/golem-cli.git
 ```
 
-2. Install the dependencies:
+2. Start the development application:
 
 ```bash
-cd golem/crates/webapp
-npm install
+cargo make dev-desktop
 ```
 
-3. Start the development server:
+4. Build the application:
 
 ```bash
-npm run tauri dev
+cargo make desktop
 ```
 
 Application will be opened as window.
