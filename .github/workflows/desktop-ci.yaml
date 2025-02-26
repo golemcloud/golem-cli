@@ -2,6 +2,8 @@ name: "Desktop CI"
 
 on:
   pull_request:
+    paths:
+     - 'desktop-app/**'
   push:
     branches:
       - main
