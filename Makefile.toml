@@ -140,19 +140,20 @@ exec --fail-on-error cargo test --package golem-wasm-rpc-stubgen :tag:uses_cargo
 
 [tasks.desktop]
 description = "Builds the desktop application"
+dependencies = ["npm-install"]
 command = "npm"
 args = ["run", "tauri", "build"]
-cwd = "./app/desktop"
+cwd = "./desktop-app"
 
 [tasks.dev-desktop]
 description = "Run the desktop application"
 dependencies = ["npm-install"]
 command = "npm"
 args = ["run", "tauri", "dev"]
-cwd = "./app/desktop"
+cwd = "./desktop-app"
 
 [tasks.npm-install]
 description = "Install npm dependencies"
 command = "npm"
 args = ["install"]
-cwd = "./app/desktop"
+cwd = "./desktop-app"

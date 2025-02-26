@@ -9,7 +9,7 @@ members = [
 ]
 
 exclude = [
-    "app/desktop/src-tauri"
+    "desktop-app/src-tauri"
 ]
 
 [workspace.dependencies]
