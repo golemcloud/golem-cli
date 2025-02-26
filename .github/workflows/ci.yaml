@@ -67,6 +67,8 @@ jobs:
         detailed_summary: true
         include_passed: true
     # Template tests
+    - name: Install golem-cli globally
+      run:  mv target/debug/golem-cli /usr/local/bin
     - name: Install componentize-py
       run: pip install componentize-py==0.16.0
     - name: Install WASI SDK
