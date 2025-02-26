@@ -7,9 +7,11 @@ homepage = "https://golem.cloud"
 repository = "https://github.com/golemcloud/golem-cli"
 description = "Golem example templates"
 default-run = "golem-examples-cli"
+autotests = false
 
 [dependencies]
 Inflector = { workspace = true }
+assert2 = { workspace = true }
 clap = { workspace = true, optional = true }
 colored = { workspace = true }
 derive_more = { workspace = true }
@@ -44,8 +46,15 @@ harness = false
 name = "golem-examples-cli"
 path = "src/main.rs"
 required-features = ["cli"]
+test = false
 
 [[bin]]
 name = "golem-examples-test-cli"
 path = "src/test/main.rs"
 required-features = ["cli"]
+test = false
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+harness = false

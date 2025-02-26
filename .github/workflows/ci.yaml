@@ -46,29 +46,6 @@ jobs:
       uses: arduino/setup-protoc@v3
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: Swatinem/rust-cache@v2
-      with:
-        shared-key: debug
-        cache-all-crates: true
-        save-if: true
-    - name: Build all targets
-      run: cargo make --profile ci build
-    - name: Unit tests
-      run: cargo make --profile ci unit-tests
-    - name: Integration tests
-      run: cargo make --profile ci integration-tests
-    - name: Check formatting and clippy rules
-      run: cargo make --profile ci check
-    - name: Publish Test Report
-      uses: mikepenz/action-junit-report@v4
-      if: always()
-      with:
-        report_paths: '**/target/report-*.xml'
-        detailed_summary: true
-        include_passed: true
-    # Template tests
-    - name: Install golem-cli globally
-      run: mv target/debug/golem-cli /usr/local/bin
     - name: Install componentize-py
       run: pip install componentize-py==0.16.0
     - name: Install WASI SDK
@@ -84,5 +61,25 @@ jobs:
     - uses: acifani/setup-tinygo@v2.0.0
       with:
         tinygo-version: '0.35.0'
-    - name: Template tests
-      run: cargo make --profile ci template-tests
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: debug
+        cache-all-crates: true
+        save-if: true
+    - name: Build all targets
+      run: cargo make --profile ci build
+    - name: Install golem-cli globally
+      run: mv target/debug/golem-cli /usr/local/bin
+    - name: Unit tests
+      run: cargo make --profile ci unit-tests
+    - name: Integration tests
+      run: cargo make --profile ci integration-tests
+    - name: Check formatting and clippy rules
+      run: cargo make --profile ci check
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v4
+      if: always()
+      with:
+        report_paths: '**/target/report-*.xml'
+        detailed_summary: true
+        include_passed: true

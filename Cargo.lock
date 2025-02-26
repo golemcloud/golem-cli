@@ -3890,6 +3890,7 @@ name = "golem-examples"
 version = "0.0.0"
 dependencies = [
  "Inflector",
+ "assert2",
  "cargo_metadata",
  "clap",
  "colored 3.0.0",
