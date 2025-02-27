@@ -29,7 +29,7 @@ mod tests {
 
         if !positional.is_empty() {
             for arg in positional {
-                print!(" <{}>", arg.get_id().to_string());
+                print!(" <{}>", arg.get_id());
             }
         }
         println!();
@@ -37,7 +37,7 @@ mod tests {
         if !flag_args.is_empty() {
             print!("{}", "\t".repeat(level + 2));
             for arg in flag_args.clone() {
-                print!(" --{}", arg.get_long().unwrap().to_string(),);
+                print!(" --{}", arg.get_long().unwrap(),);
                 arg.get_short()
                     .iter()
                     .for_each(|short| print!("({})", short));

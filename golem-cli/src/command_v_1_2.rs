@@ -52,13 +52,10 @@ impl GolemCliCommand {
         match GolemCliCommand::try_parse_from(&args) {
             Ok(command) => GolemCliCommandParseResult::FullMatch(command),
             Err(error) => {
-                let fallback_global_flags = GolemCliFallbackCommand::try_parse_from(
-                    args.iter().enumerate().filter_map(|(idx, arg)| {
-                        (idx == 0 || arg.to_string_lossy().starts_with('-')).then_some(arg)
-                    }),
-                )
-                .unwrap_or_default()
-                .global_flags;
+                // TODO: there are still cases where this will fail (e.g. unknown flags before known ones)
+                let fallback_global_flags = GolemCliFallbackCommand::try_parse_from(args)
+                    .unwrap_or_default()
+                    .global_flags;
 
                 let invalid_arg_matchers = Self::invalid_arg_matchers();
                 let partial_match = error.context().find_map(|context| match context {

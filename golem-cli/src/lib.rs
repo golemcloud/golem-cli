@@ -193,9 +193,9 @@ mod tests {
 
     use crate::command::profile::OssProfileAdd;
     use crate::command::EmptyCommand;
+    use crate::command_v_1_2::GolemCliCommand;
     use crate::oss::cli::GolemOssCli;
     use clap::{ArgAction, Command, CommandFactory};
-    use crate::command_v_1_2::GolemCliCommand;
 
     // TODO: delete before merge
     #[test]
@@ -224,9 +224,9 @@ mod tests {
         if !positional.is_empty() {
             for arg in positional {
                 if arg.is_required_set() && arg.get_default_values().is_empty() {
-                    print!(" <{}>", arg.get_id().to_string());
+                    print!(" <{}>", arg.get_id());
                 } else {
-                    print!(" [{}]", arg.get_id().to_string());
+                    print!(" [{}]", arg.get_id());
                 }
                 if let ArgAction::Append = arg.get_action() {
                     print!("*")
@@ -239,7 +239,7 @@ mod tests {
         if !flag_args.is_empty() {
             print!("{}", "\t".repeat(level + 2));
             for arg in flag_args.clone() {
-                print!(" --{}", arg.get_long().unwrap().to_string(),);
+                print!(" --{}", arg.get_long().unwrap(),);
                 arg.get_short()
                     .iter()
                     .for_each(|short| print!("({})", short));
