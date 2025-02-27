@@ -18,7 +18,7 @@ use test_r::test;
 
 use fs_extra::dir::CopyOptions;
 use golem_wasm_rpc_stubgen::commands::generate::generate_client_wit_dir;
-use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
+use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition, StubSourceTransform};
 use golem_wasm_rpc_stubgen::WasmRpcOverride;
 use std::path::Path;
 use tempfile::{tempdir, TempDir};
@@ -37,7 +37,7 @@ fn all_wit_types() {
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
         wasm_rpc_override: WasmRpcOverride::default(),
-        extract_source_exports_package: true,
+        source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: false,
     })
     .unwrap();
@@ -140,7 +140,7 @@ fn many_ways_to_export() {
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
         wasm_rpc_override: WasmRpcOverride::default(),
-        extract_source_exports_package: true,
+        source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: false,
     })
     .unwrap();

@@ -29,15 +29,11 @@ pub mod wit_resolve;
 use crate::commands::app::ComponentSelectMode;
 use crate::log::{LogColorize, Output};
 use crate::model::app::{AppBuildStep, ComponentPropertiesExtensions};
-use crate::stub::{StubConfig, StubDefinition};
-use crate::wit_generate::UpdateCargoToml;
-use anyhow::Context;
 use clap::Subcommand;
 use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::process::exit;
-use tempfile::TempDir;
 
 #[cfg(test)]
 test_r::enable!();
@@ -219,55 +215,6 @@ pub struct AppCustomCommand {
     args: AppBuildArgs,
     #[arg(value_name = "custom command")]
     command: String,
-}
-
-pub fn generate(args: GenerateArgs) -> anyhow::Result<()> {
-    let stub_def = StubDefinition::new(
-        StubConfig {
-            source_wit_root: args.source_wit_root,
-            client_root: args.dest_crate_root,
-            selected_world: args.world,
-            stub_crate_version: args.stub_crate_version,
-            wasm_rpc_override: args.wasm_rpc_override,
-            extract_source_exports_package: true,
-            seal_cargo_workspace: false,
-        }
-    )
-        .context("Failed to gather information for the stub generator. Make sure source_wit_root has a valid WIT file.")?;
-    commands::generate::generate_client(&stub_def)
-}
-
-pub async fn build(args: BuildArgs) -> anyhow::Result<()> {
-    let target_root = TempDir::new()?;
-
-    let stub_def = StubDefinition::new(StubConfig {
-        source_wit_root: args.source_wit_root,
-        client_root: target_root.path().to_path_buf(),
-        selected_world: args.world,
-        stub_crate_version: args.stub_crate_version,
-        wasm_rpc_override: args.wasm_rpc_override,
-        extract_source_exports_package: true,
-        seal_cargo_workspace: false,
-    })
-    .context("Failed to gather information for the stub generator")?;
-
-    commands::generate::build(&stub_def, &args.dest_wasm, &args.dest_wit_root, false).await
-}
-
-pub fn add_stub_dependency(args: AddStubDependencyArgs) -> anyhow::Result<()> {
-    commands::dependencies::add_stub_dependency(
-        &args.stub_wit_root,
-        &args.dest_wit_root,
-        if args.update_cargo_toml {
-            UpdateCargoToml::Update
-        } else {
-            UpdateCargoToml::NoUpdate
-        },
-    )
-}
-
-pub async fn compose(args: ComposeArgs) -> anyhow::Result<()> {
-    commands::composition::compose(&args.source_wasm, &args.stub_wasm, &args.dest_wasm).await
 }
 
 pub async fn run_app_command<CPE: ComponentPropertiesExtensions>(

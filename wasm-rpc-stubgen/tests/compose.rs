@@ -21,9 +21,11 @@ use fs_extra::dir::CopyOptions;
 use golem_wasm_ast::component::Component;
 use golem_wasm_ast::DefaultAst;
 use golem_wasm_rpc_stubgen::commands::composition::compose;
-use golem_wasm_rpc_stubgen::commands::dependencies::{add_stub_dependency, UpdateCargoToml};
 use golem_wasm_rpc_stubgen::commands::generate::generate_and_build_client;
-use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
+use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition, StubSourceTransform};
+use golem_wasm_rpc_stubgen::wit_generate::{
+    add_client_as_dependency_to_wit_dir, AddClientAsDepConfig, UpdateCargoToml,
+};
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use test_r::test;
@@ -33,11 +35,11 @@ async fn compose_with_single_stub() {
     let (_source_dir, stub_dir, stub_wasm) = init_stub("all-wit-types").await;
     let caller_dir = init_caller("caller-no-dep-importstub");
 
-    add_stub_dependency(
-        &stub_dir.path().join("wit"),
-        &caller_dir.path().join("wit"),
-        UpdateCargoToml::Update,
-    )
+    add_client_as_dependency_to_wit_dir(AddClientAsDepConfig {
+        client_wit_root: stub_dir.path().join("wit"),
+        dest_wit_root: caller_dir.path().join("wit"),
+        update_cargo_toml: UpdateCargoToml::Update,
+    })
     .unwrap();
 
     cargo_component_build(caller_dir.path());
@@ -78,7 +80,7 @@ async fn init_stub(name: &str) -> (TempDir, TempDir, PathBuf) {
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
         wasm_rpc_override: wasm_rpc_override(),
-        extract_source_exports_package: true,
+        source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: true,
     })
     .unwrap();
