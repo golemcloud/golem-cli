@@ -4,7 +4,6 @@ use colored::Colorize;
 use golem_cli::command_v_1_2::worker::WorkerSubcommand;
 use golem_cli::command_v_1_2::{GolemCliCommand, GolemCliSubcommand};
 use golem_examples::model::GuestLanguage;
-use itertools::Itertools;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use tracing::debug;
@@ -68,14 +67,14 @@ fn enrich_clap_error(error: &clap::Error) {
                         }),
                         (&["worker", "invoke"], &[], "worker_name", |_| {
                             eprintln!("{}", "\nExisting workers:".underline().bold());
-                            eprintln!("...")
+                            eprintln!("...");
+                            eprintln!("To see all workers use.. TODO");
                         }),
                         (
                             &["worker", "invoke"],
                             &["worker_name"],
                             "function_name",
                             |matched_args| {
-                                eprintln!("{:?}", std::env::args().join(" "));
                                 eprintln!(
                                     "\n{}",
                                     format!("Available functions for {}:", matched_args[0])
