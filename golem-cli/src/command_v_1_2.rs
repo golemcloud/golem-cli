@@ -4,23 +4,204 @@ use crate::command_v_1_2::cloud::CloudSubcommand;
 use crate::command_v_1_2::component::ComponentSubcommand;
 use crate::command_v_1_2::plugin::PluginSubcommand;
 use crate::command_v_1_2::worker::WorkerSubcommand;
-use clap::Parser;
-use clap::{self, Subcommand};
+use clap::error::{ContextKind, ContextValue};
+use clap::{self, CommandFactory, Subcommand};
+use clap::{Args, Parser};
 use clap_verbosity_flag::Verbosity;
+use std::collections::HashMap;
+use std::ffi::OsString;
 use std::path::PathBuf;
 
-// TODO: let's pull up custom manifest location here, and only allow one to be defined
 #[derive(Debug, Parser)]
 pub struct GolemCliCommand {
+    #[command(flatten)]
+    pub global_flag: GolemCliGlobalFlags,
+
+    #[clap(subcommand)]
+    pub subcommand: GolemCliSubcommand,
+}
+
+#[derive(Debug, Default, Args)]
+pub struct GolemCliGlobalFlags {
     #[command(flatten)]
     pub verbosity: Verbosity,
 
     /// Custom path to the root application manifest (golem.yaml)
     #[arg(long, short, global = true)]
     pub app_manifest_path: Option<PathBuf>,
+}
 
-    #[clap(subcommand)]
-    pub subcommand: GolemCliSubcommand,
+#[derive(Debug, Default, Parser)]
+#[command(ignore_errors = true)]
+pub struct GolemCliFallbackCommand {
+    #[command(flatten)]
+    pub global_flags: GolemCliGlobalFlags,
+}
+
+impl GolemCliCommand {
+    pub fn try_parse_from_lenient<I, T>(iterator: I) -> GolemCliCommandParseResult
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<OsString> + Clone,
+    {
+        let args = iterator
+            .into_iter()
+            .map(|arg| arg.into())
+            .collect::<Vec<OsString>>();
+
+        match GolemCliCommand::try_parse_from(&args) {
+            Ok(command) => GolemCliCommandParseResult::FullMatch(command),
+            Err(error) => {
+                let fallback_global_flags = GolemCliFallbackCommand::try_parse_from(
+                    args.iter().enumerate().filter_map(|(idx, arg)| {
+                        (idx == 0 || arg.to_string_lossy().starts_with('-')).then_some(arg)
+                    }),
+                )
+                .unwrap_or_default()
+                .global_flags;
+
+                let invalid_arg_matchers = Self::invalid_arg_matchers();
+                let partial_match = error.context().find_map(|context| match context {
+                    (ContextKind::InvalidArg, ContextValue::Strings(args)) => {
+                        Self::match_invalid_arg(args, &invalid_arg_matchers)
+                    }
+                    _ => None,
+                });
+
+                match partial_match {
+                    Some(partial_match) => GolemCliCommandParseResult::ErrorWithPartialMatch {
+                        error,
+                        global_flags: fallback_global_flags,
+                        partial_match,
+                    },
+                    None => GolemCliCommandParseResult::Error {
+                        error,
+                        global_flags: fallback_global_flags,
+                    },
+                }
+            }
+        }
+    }
+
+    // TODO: unit test for checking validity of subcommands and arg names
+    fn invalid_arg_matchers() -> Vec<InvalidArgMatcher> {
+        vec![
+            InvalidArgMatcher {
+                subcommands: vec!["app", "new"],
+                found_positional_args: vec![],
+                missing_positional_arg: "language",
+                to_partial_match: |_| GolemCliCommandPartialMatch::AppNewMissingLanguage,
+            },
+            InvalidArgMatcher {
+                subcommands: vec!["component", "new"],
+                found_positional_args: vec![],
+                missing_positional_arg: "language",
+                to_partial_match: |_| GolemCliCommandPartialMatch::ComponentNewMissingLanguage,
+            },
+            InvalidArgMatcher {
+                subcommands: vec!["worker", "invoke"],
+                found_positional_args: vec![],
+                missing_positional_arg: "worker_name",
+                to_partial_match: |_| GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName,
+            },
+            InvalidArgMatcher {
+                subcommands: vec!["worker", "invoke"],
+                found_positional_args: vec!["worker_name"],
+                missing_positional_arg: "function_name",
+                to_partial_match: |args| {
+                    GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName {
+                        worker_name: args[0].clone(),
+                    }
+                },
+            },
+        ]
+    }
+
+    fn match_invalid_arg(
+        error_context_args: &[String],
+        matchers: &[InvalidArgMatcher],
+    ) -> Option<GolemCliCommandPartialMatch> {
+        let command = Self::command();
+
+        let positional_args = std::env::args()
+            .skip(1)
+            .filter(|arg| !arg.starts_with('-'))
+            .collect::<Vec<_>>();
+
+        let positional_args = positional_args
+            .iter()
+            .map(|arg| arg.as_str())
+            .collect::<Vec<_>>();
+
+        for matcher in matchers {
+            let missing_arg_error_name =
+                format!("<{}>", matcher.missing_positional_arg.to_uppercase());
+            if positional_args.len() < matcher.subcommands.len() {
+                continue;
+            }
+            if !error_context_args.contains(&missing_arg_error_name) {
+                continue;
+            }
+            if !positional_args.starts_with(&matcher.subcommands) {
+                continue;
+            }
+
+            let mut command = &command;
+            for subcommand in &matcher.subcommands {
+                // TODO: unit test for unwrap (e.g. let's add sample test for all the matchers)
+                command = command.find_subcommand(subcommand).unwrap();
+            }
+            let positional_arg_ids_to_idx = command
+                .get_arguments()
+                .filter(|arg| arg.is_positional())
+                .enumerate()
+                .map(|(idx, arg)| (arg.get_id().to_string(), idx))
+                .collect::<HashMap<_, _>>();
+
+            let mut found_args = Vec::<String>::with_capacity(matcher.found_positional_args.len());
+            for expected_arg_name in &matcher.found_positional_args {
+                let Some(idx) = positional_arg_ids_to_idx.get(*expected_arg_name) else {
+                    break;
+                };
+                let Some(arg_value) = positional_args.get(matcher.subcommands.len() + *idx) else {
+                    break;
+                };
+                found_args.push(arg_value.to_string());
+            }
+            if found_args.len() == matcher.found_positional_args.len() {
+                return Some((matcher.to_partial_match)(found_args));
+            }
+        }
+
+        None
+    }
+}
+
+struct InvalidArgMatcher {
+    pub subcommands: Vec<&'static str>,
+    pub found_positional_args: Vec<&'static str>,
+    pub missing_positional_arg: &'static str,
+    pub to_partial_match: fn(Vec<String>) -> GolemCliCommandPartialMatch,
+}
+
+pub enum GolemCliCommandParseResult {
+    FullMatch(GolemCliCommand),
+    ErrorWithPartialMatch {
+        error: clap::Error,
+        global_flags: GolemCliGlobalFlags,
+        partial_match: GolemCliCommandPartialMatch,
+    },
+    Error {
+        error: clap::Error,
+        global_flags: GolemCliGlobalFlags,
+    },
+}
+
+pub enum GolemCliCommandPartialMatch {
+    AppNewMissingLanguage,
+    ComponentNewMissingLanguage,
+    WorkerInvokeMissingWorkerName,
+    WorkerInvokeMissingFunctionName { worker_name: String },
 }
 
 #[derive(Debug, Subcommand)]
