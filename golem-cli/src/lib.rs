@@ -35,6 +35,7 @@ pub mod clients;
 pub mod cloud;
 pub mod command;
 pub mod command_v_1_2;
+pub mod command_handler_v_1_2;
 pub mod completion;
 pub mod config;
 pub mod connect_output;
