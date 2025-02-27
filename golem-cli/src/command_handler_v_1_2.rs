@@ -7,7 +7,7 @@ use colored::Colorize;
 use golem_examples::model::GuestLanguage;
 use std::ffi::OsString;
 use strum::IntoEnumIterator;
-use tracing::debug;
+use tracing::{debug, Level};
 
 pub fn main<I, T>(args_iterator: I)
 where
