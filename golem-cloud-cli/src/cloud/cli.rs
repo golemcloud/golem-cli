@@ -17,16 +17,16 @@ use clap::{ArgMatches, Command, Error, FromArgMatches, Parser, Subcommand};
 use clap_verbosity_flag::Verbosity;
 use colored::Colorize;
 use golem_cli::cloud::{AccountId, ProjectId};
-use golem_cli::command::profile::UniversalProfileAdd;
-use golem_cli::command::worker::WorkerRefSplit;
-use golem_cli::command::{CliCommand, NoProfileCommandContext, SharedCommand, StaticSharedCommand};
+use golem_cli::command_old::profile::UniversalProfileAdd;
+use golem_cli::command_old::worker::WorkerRefSplit;
+use golem_cli::command_old::{CliCommand, NoProfileCommandContext, SharedCommand, StaticSharedCommand};
 use golem_cli::config::{CloudProfile, ProfileName};
 use golem_cli::factory::ServiceFactory;
 use golem_cli::init::ProfileAuth;
 use golem_cli::init::{init_profile, CliKind};
 use golem_cli::model::app_ext::GolemComponentExtensions;
 use golem_cli::model::{Format, GolemError, GolemResult, WorkerName};
-use golem_cli::{check_for_newer_server_version, command, completion};
+use golem_cli::{check_for_newer_server_version, command_old, completion};
 use golem_cloud_client::model::CloudPluginOwner;
 use golem_cloud_client::CloudPluginScope;
 use golem_common::model::TargetWorkerId;
@@ -458,9 +458,9 @@ pub struct GolemCloudCli<ProfileAdd: clap::Args> {
     pub format: Option<Format>,
 
     #[command(subcommand)]
-    pub command: command::Zip<
+    pub command: command_old::Zip<
         StaticSharedCommand,
-        command::Zip<SpecializedSharedCommand<ProfileAdd>, CloudOnlyCommand>,
+        command_old::Zip<SpecializedSharedCommand<ProfileAdd>, CloudOnlyCommand>,
     >,
 }
 

@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use super::model::OssContext;
-use crate::command::profile::UniversalProfileAdd;
-use crate::command::worker::OssWorkerUriArg;
-use crate::command::{self, NoProfileCommandContext};
-use crate::command::{CliCommand, SharedCommand, StaticSharedCommand};
+use crate::command_old::profile::UniversalProfileAdd;
+use crate::command_old::worker::OssWorkerUriArg;
+use crate::command_old::{self, NoProfileCommandContext};
+use crate::command_old::{CliCommand, SharedCommand, StaticSharedCommand};
 use crate::completion;
 use crate::config::{OssProfile, ProfileName};
 use crate::factory::ServiceFactory;
@@ -127,11 +127,11 @@ pub struct GolemOssCli<ProfileAdd: clap::Args, ExtraCommand: Subcommand> {
     pub format: Option<Format>,
 
     #[command(subcommand)]
-    pub command: command::Zip<
+    pub command: command_old::Zip<
         StaticSharedCommand,
-        command::Zip<
+        command_old::Zip<
             OssSpecializedSharedCommand<ProfileAdd>,
-            command::Zip<OssOnlyCommand, ExtraCommand>,
+            command_old::Zip<OssOnlyCommand, ExtraCommand>,
         >,
     >,
 }

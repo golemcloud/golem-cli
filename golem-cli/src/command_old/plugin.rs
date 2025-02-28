@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::clients::plugin::PluginClient;
-use crate::command::ComponentRefSplit;
+use crate::command_old::ComponentRefSplit;
 use crate::model::plugin_manifest::{
     FromPluginManifest, PluginManifest, PluginTypeSpecificManifest,
 };

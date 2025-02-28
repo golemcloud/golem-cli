@@ -17,7 +17,7 @@ use test_r::{add_test, inherit_test_dep, test_gen};
 use crate::cli::{Cli, CliLive};
 use crate::Tracing;
 use assert2::assert;
-use golem_cli::command::profile::{ProfileType, ProfileView};
+use golem_cli::command_old::profile::{ProfileType, ProfileView};
 use golem_cli::config::{ProfileConfig, ProfileName};
 use golem_cli::model::Format;
 use golem_test_framework::config::EnvBasedTestDependencies;

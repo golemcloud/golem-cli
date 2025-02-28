@@ -19,8 +19,8 @@ use crate::model::PrintRes;
 use crate::service::version::{VersionCheckResult, VersionService};
 use clap_verbosity_flag::Verbosity;
 use colored::Colorize;
-use command::profile::OssProfileAdd;
-use command::{CliCommand, NoProfileCommandContext};
+use command_old::profile::OssProfileAdd;
+use command_old::{CliCommand, NoProfileCommandContext};
 use config::{get_config_dir, Config};
 use golem_common::golem_version;
 use indoc::eprintdoc;
@@ -33,6 +33,8 @@ use tracing_subscriber::FmtSubscriber;
 
 pub mod clients;
 pub mod cloud;
+pub mod command_old;
+pub mod command_handler_v_1_2;
 pub mod command;
 pub mod completion;
 pub mod config;
@@ -142,7 +144,7 @@ where
     };
 
     let (command, parsed) =
-        command::command_and_parsed::<GolemOssCli<OssProfileAdd, ExtraCommands>>();
+        command_old::command_and_parsed::<GolemOssCli<OssProfileAdd, ExtraCommands>>();
 
     let format = parsed
         .format
@@ -182,6 +184,74 @@ where
         Err(error) => {
             eprintln!("{}", format_error(&error.0));
             ExitCode::FAILURE
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use test_r::test;
+
+    use crate::command_old::profile::OssProfileAdd;
+    use crate::command_old::EmptyCommand;
+    use crate::command::GolemCliCommand;
+    use crate::oss::cli::GolemOssCli;
+    use clap::{ArgAction, Command, CommandFactory};
+
+    // TODO: delete before merge
+    #[test]
+    fn dump_commands() {
+        let command = GolemOssCli::<OssProfileAdd, EmptyCommand>::command();
+        dump_command(0, &command);
+    }
+
+    #[test]
+    fn dump_commands_v_1_2() {
+        let command = GolemCliCommand::command();
+        dump_command(0, &command);
+    }
+
+    fn dump_command(level: usize, command: &Command) {
+        print!("{}{}", "\t".repeat(level), command.get_name());
+
+        let aliases = command.get_aliases().collect::<Vec<_>>();
+        if !aliases.is_empty() {
+            print!(" ({})", aliases.join(", "));
+        }
+
+        let (positional, flag_args): (Vec<_>, Vec<_>) =
+            command.get_arguments().partition(|arg| arg.is_positional());
+
+        if !positional.is_empty() {
+            for arg in positional {
+                let id = arg.get_id().to_string().to_uppercase();
+                if arg.is_required_set() && arg.get_default_values().is_empty() {
+                    print!(" <{}>", id);
+                } else {
+                    print!(" [{}]", id);
+                }
+                if let ArgAction::Append = arg.get_action() {
+                    print!("...")
+                }
+            }
+        }
+
+        println!();
+
+        if !flag_args.is_empty() {
+            print!("{}", "\t".repeat(level + 2));
+            for arg in flag_args.clone() {
+                print!(" --{}", arg.get_long().unwrap(),);
+                arg.get_short()
+                    .iter()
+                    .for_each(|short| print!("({})", short));
+            }
+            println!()
+        }
+
+        let subcommand_level = level + 1;
+        for subcommand in command.get_subcommands() {
+            dump_command(subcommand_level, subcommand);
         }
     }
 }

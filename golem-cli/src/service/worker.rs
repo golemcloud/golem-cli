@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::clients::worker::WorkerClient;
-use crate::command::worker::WorkerConnectOptions;
+use crate::command_old::worker::WorkerConnectOptions;
 use crate::model::component::{
     format_function_name, function_params_types, show_exported_function, Component,
 };

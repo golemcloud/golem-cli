@@ -12,6 +12,11 @@ autotests = false
 harness = false
 
 [[bin]]
+name = "golem-cli-old"
+path = "src/main_old.rs"
+test = false
+
+[[bin]]
 name = "golem-cli"
 path = "src/main.rs"
 test = false

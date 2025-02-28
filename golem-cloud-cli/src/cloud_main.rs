@@ -1,4 +1,4 @@
-use golem_cli::command::profile::CloudProfileAdd;
+use golem_cli::command_old::profile::CloudProfileAdd;
 use golem_cli::config::{get_config_dir, CloudProfile, Config, NamedProfile, Profile, ProfileName};
 use golem_cli::init::CliKind;
 use golem_cli::init_tracing;
@@ -26,7 +26,7 @@ fn main() -> ExitCode {
     };
 
     let (command, parsed) =
-        golem_cli::command::command_and_parsed::<GolemCloudCli<CloudProfileAdd>>();
+        golem_cli::command_old::command_and_parsed::<GolemCloudCli<CloudProfileAdd>>();
 
     let format = parsed.format.unwrap_or(profile.config.default_format);
 

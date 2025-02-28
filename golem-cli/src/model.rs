@@ -22,7 +22,7 @@ pub mod text;
 pub mod wave;
 
 use crate::cloud::AccountId;
-use crate::command::{ComponentRefSplit, ComponentRefsSplit};
+use crate::command_old::{ComponentRefSplit, ComponentRefsSplit};
 use crate::model::text::fmt::TextFormat;
 use crate::oss::model::OssContext;
 use async_trait::async_trait;

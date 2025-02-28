@@ -710,7 +710,7 @@ pub mod example {
 }
 
 pub mod profile {
-    use crate::command::profile::{ProfileType, ProfileView};
+    use crate::command_old::profile::{ProfileType, ProfileView};
     use crate::config::ProfileConfig;
     use crate::model::text::fmt::*;
     use colored::Colorize;

@@ -6,7 +6,7 @@ pub mod to_oss;
 use async_trait::async_trait;
 use clap::{ArgMatches, Error, FromArgMatches};
 use derive_more::{Display, FromStr, Into};
-use golem_cli::command::{ComponentRefSplit, ComponentRefsSplit};
+use golem_cli::command_old::{ComponentRefSplit, ComponentRefsSplit};
 use golem_cli::model::plugin_manifest::{FromPluginManifest, PluginManifest};
 use golem_cli::model::{ComponentIdResolver, ComponentName, GolemError, PluginScopeArgs};
 use golem_client::model::PluginTypeSpecificDefinition;

@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use golem_cli::clients::worker::{worker_name_required, WorkerClient};
-use golem_cli::command::worker::WorkerConnectOptions;
+use golem_cli::command_old::worker::WorkerConnectOptions;
 use golem_cli::connect_output::ConnectOutput;
 use golem_cli::model::{
     Format, GolemError, IdempotencyKey, WorkerMetadata, WorkerName, WorkerUpdateMode,

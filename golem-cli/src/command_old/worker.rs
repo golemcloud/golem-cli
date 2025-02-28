@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::ComponentRefSplit;
+use crate::command_old::ComponentRefSplit;
 use clap::builder::ValueParser;
 use clap::{ArgMatches, Args, Error, FromArgMatches, Subcommand};
 use golem_client::model::{
