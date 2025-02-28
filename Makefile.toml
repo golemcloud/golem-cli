@@ -117,12 +117,29 @@ command = "cargo"
 args = ["clippy", "--fix", "--allow-dirty", "--allow-staged", "--", "--no-deps", "-Dwarnings"]
 
 ## ** INSTALL **
-[tasks.install-golem-cli-non-ci]
-condition = { env_not_set = ["CI"] } # on CI we install from target
+[tasks.install]
+dependencies = ["install-golem-cli", "setup-golem-cli-ci", "install-golem-cli-old"]
+
+[tasks.install-golem-cli]
 description = "Install golem-cli"
 script_runner = "@duckscript"
 script = '''
-exec --fail-on-error cargo install --path golem-cli --bin golem-cli
+exec --fail-on-error cargo install --path golem-cli --bin golem-cli --target-dir target --locked --offline
+'''
+
+[tasks.setup-golem-cli-ci]
+description = "Setup golem-cli"
+condition = { profiles = ["ci"] }
+script_runner = "@duckscript"
+script = '''
+exec --fail-on-error golem-cli profile add --set-active --component-url http://localhost:9881/ default
+'''
+
+[tasks.install-golem-cli-old]
+description = "Install golem-cli-old"
+script_runner = "@duckscript"
+script = '''
+exec --fail-on-error cargo install --path golem-cli --bin golem-cli-old --target-dir target --locked
 '''
 
 ## ** TEST **
@@ -149,7 +166,7 @@ exec --fail-on-error cargo test --package golem-wasm-rpc-stubgen :tag:uses_cargo
 '''
 
 [tasks.template-integration-tests]
-dependencies = ["install-golem-cli-non-ci"]
+dependencies = ["install-golem-cli"]
 description = "Run template integration tests"
 script_runner = "@duckscript"
 script = '''

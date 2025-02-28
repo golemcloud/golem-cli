@@ -19,8 +19,8 @@ use crate::model::PrintRes;
 use crate::service::version::{VersionCheckResult, VersionService};
 use clap_verbosity_flag::Verbosity;
 use colored::Colorize;
-use command::profile::OssProfileAdd;
-use command::{CliCommand, NoProfileCommandContext};
+use command_old::profile::OssProfileAdd;
+use command_old::{CliCommand, NoProfileCommandContext};
 use config::{get_config_dir, Config};
 use golem_common::golem_version;
 use indoc::eprintdoc;
@@ -33,9 +33,9 @@ use tracing_subscriber::FmtSubscriber;
 
 pub mod clients;
 pub mod cloud;
-pub mod command;
-pub mod command_v_1_2;
+pub mod command_old;
 pub mod command_handler_v_1_2;
+pub mod command;
 pub mod completion;
 pub mod config;
 pub mod connect_output;
@@ -144,7 +144,7 @@ where
     };
 
     let (command, parsed) =
-        command::command_and_parsed::<GolemOssCli<OssProfileAdd, ExtraCommands>>();
+        command_old::command_and_parsed::<GolemOssCli<OssProfileAdd, ExtraCommands>>();
 
     let format = parsed
         .format
@@ -192,9 +192,9 @@ where
 mod tests {
     use test_r::test;
 
-    use crate::command::profile::OssProfileAdd;
-    use crate::command::EmptyCommand;
-    use crate::command_v_1_2::GolemCliCommand;
+    use crate::command_old::profile::OssProfileAdd;
+    use crate::command_old::EmptyCommand;
+    use crate::command::GolemCliCommand;
     use crate::oss::cli::GolemOssCli;
     use clap::{ArgAction, Command, CommandFactory};
 
@@ -224,13 +224,14 @@ mod tests {
 
         if !positional.is_empty() {
             for arg in positional {
+                let id = arg.get_id().to_string().to_uppercase();
                 if arg.is_required_set() && arg.get_default_values().is_empty() {
-                    print!(" <{}>", arg.get_id());
+                    print!(" <{}>", id);
                 } else {
-                    print!(" [{}]", arg.get_id());
+                    print!(" [{}]", id);
                 }
                 if let ArgAction::Append = arg.get_action() {
-                    print!("*")
+                    print!("...")
                 }
             }
         }

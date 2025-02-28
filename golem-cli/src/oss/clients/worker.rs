@@ -15,7 +15,7 @@
 use std::time::Duration;
 
 use crate::clients::worker::{worker_name_required, WorkerClient};
-use crate::command::worker::WorkerConnectOptions;
+use crate::command_old::worker::WorkerConnectOptions;
 use crate::connect_output::ConnectOutput;
 use crate::model::{
     Format, GolemError, IdempotencyKey, WorkerMetadata, WorkerName, WorkerUpdateMode,

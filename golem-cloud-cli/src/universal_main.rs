@@ -1,5 +1,5 @@
-use golem_cli::command::profile::UniversalProfileAdd;
-use golem_cli::command::EmptyCommand;
+use golem_cli::command_old::profile::UniversalProfileAdd;
+use golem_cli::command_old::EmptyCommand;
 use golem_cli::config::{get_config_dir, Config, Profile};
 use golem_cli::init::CliKind;
 use golem_cli::init_tracing;
@@ -31,7 +31,7 @@ async fn async_main() -> ExitCode {
 
         match profile.profile {
             Profile::Golem(profile) => {
-                let (command, parsed) = golem_cli::command::command_and_parsed::<
+                let (command, parsed) = golem_cli::command_old::command_and_parsed::<
                     GolemOssCli<UniversalProfileAdd, EmptyCommand>,
                 >();
 
@@ -48,7 +48,7 @@ async fn async_main() -> ExitCode {
             }
             Profile::GolemCloud(profile) => {
                 let (command, parsed) =
-                    golem_cli::command::command_and_parsed::<GolemCloudCli<UniversalProfileAdd>>();
+                    golem_cli::command_old::command_and_parsed::<GolemCloudCli<UniversalProfileAdd>>();
 
                 let format = parsed.format.unwrap_or(profile.config.default_format);
 
@@ -67,7 +67,7 @@ async fn async_main() -> ExitCode {
             }
         }
     } else {
-        let (command, parsed) = golem_cli::command::command_and_parsed::<
+        let (command, parsed) = golem_cli::command_old::command_and_parsed::<
             GolemOssCli<UniversalProfileAdd, EmptyCommand>,
         >();
 

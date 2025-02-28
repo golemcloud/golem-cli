@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::worker::WorkerConnectOptions;
+use crate::command_old::worker::WorkerConnectOptions;
 use crate::model::{
     Format, GolemError, IdempotencyKey, WorkerMetadata, WorkerName, WorkerUpdateMode,
     WorkersMetadataResponse,

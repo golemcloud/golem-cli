@@ -36,7 +36,7 @@ mod tests {
 
     use crate::command::SingleExecutableCommand;
     use clap::{Command, CommandFactory};
-    use golem_cli::command::profile::OssProfileAdd;
+    use golem_cli::command_old::profile::OssProfileAdd;
     use golem_cli::oss::cli::GolemOssCli;
 
     // TODO: delete before merge

@@ -13,7 +13,7 @@ mod tests {
 
     use crate::cloud::cli::GolemCloudCli;
     use clap::{Command, CommandFactory};
-    use golem_cli::command::profile::CloudProfileAdd;
+    use golem_cli::command_old::profile::CloudProfileAdd;
 
     // TODO: delete before merge
     #[test]

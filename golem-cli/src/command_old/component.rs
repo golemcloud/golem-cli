@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::{ComponentRefSplit, ComponentRefsSplit};
+use crate::command_old::{ComponentRefSplit, ComponentRefsSplit};
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::component::ComponentUpsertResult;
 use crate::model::text::component::{ComponentAddView, ComponentUpdateView};

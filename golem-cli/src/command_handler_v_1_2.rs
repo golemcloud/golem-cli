@@ -1,5 +1,5 @@
-use crate::command_v_1_2::worker::WorkerSubcommand;
-use crate::command_v_1_2::{
+use crate::command::worker::WorkerSubcommand;
+use crate::command::{
     GolemCliCommand, GolemCliCommandParseResult, GolemCliCommandPartialMatch, GolemCliSubcommand,
 };
 use crate::init_tracing;
@@ -14,7 +14,7 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    match GolemCliCommand::try_parse_from_lenient(args_iterator) {
+    match GolemCliCommand::try_parse_from_lenient(args_iterator, true) {
         GolemCliCommandParseResult::FullMatch(command) => {
             init_tracing(command.global_flag.verbosity);
 
@@ -26,6 +26,7 @@ where
                             worker_name,
                             function_name,
                             arguments,
+                            ..
                         } => {
                             println!("Invoke");
                             println!("worker: {:?}", worker_name);
@@ -36,6 +37,7 @@ where
                     GolemCliSubcommand::Api { .. } => {}
                     GolemCliSubcommand::Plugin { .. } => {}
                     GolemCliSubcommand::App { .. } => {}
+                    GolemCliSubcommand::Server { .. } => {}
                     GolemCliSubcommand::Cloud { .. } => {}
                     GolemCliSubcommand::Diagnose => {}
                     GolemCliSubcommand::Completion => {}
@@ -54,9 +56,14 @@ where
             match partial_match {
                 GolemCliCommandPartialMatch::AppNewMissingLanguage
                 | GolemCliCommandPartialMatch::ComponentNewMissingLanguage => {
-                    eprintln!("{}", "\nAvailable languages:".underline().bold());
+                    eprintln!(
+                        "{}",
+                        "\nAvailable languages and templates:".underline().bold()
+                    );
                     for language in GuestLanguage::iter() {
                         eprintln!("  - {}", language);
+                        eprintln!("    - default..");
+                        eprintln!("    - other");
                     }
                 }
                 GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName => {

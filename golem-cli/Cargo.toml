@@ -12,13 +12,13 @@ autotests = false
 harness = false
 
 [[bin]]
-name = "golem-cli"
-path = "src/main.rs"
+name = "golem-cli-old"
+path = "src/main_old.rs"
 test = false
 
 [[bin]]
-name = "glm"
-path = "src/main_v_1_2.rs"
+name = "golem-cli"
+path = "src/main.rs"
 test = false
 
 [[test]]
