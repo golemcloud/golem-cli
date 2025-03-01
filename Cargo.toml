@@ -2,15 +2,15 @@
 resolver = "2"
 
 members = [
-    "golem",
+
     "golem-cli",
-    "golem-cloud-cli",
     "golem-examples",
     "wasm-rpc-stubgen",
 ]
 
 exclude = [
-    "desktop-app/src-tauri"
+    "golem", # TODO: disabled until unification is finished in golem-cli
+    "desktop-app/src-tauri",
 ]
 
 [workspace.dependencies]
@@ -47,7 +47,6 @@ clap-verbosity-flag = "3.0.2"
 clap_complete = "4.5.45"
 cli-table = "0.4.9"
 colored = "3.0.0"
-derive_more = { version = "2.0.1", features = ["display", "into", "from_str"] }
 dirs = "6.0.0"
 dir-diff = "0.3.3"
 fancy-regex = "0.14.0"

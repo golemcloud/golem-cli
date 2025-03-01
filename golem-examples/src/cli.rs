@@ -20,12 +20,13 @@ pub struct NameOrLanguage {
 impl NameOrLanguage {
     /// Gets the selected example's name
     pub fn example_name(&self) -> ExampleName {
-        self.example
-            .clone()
-            .unwrap_or(ExampleName::from_string(format!(
+        self.example.clone().unwrap_or(
+            format!(
                 "{}-default",
                 self.language.unwrap_or(GuestLanguage::Rust).id()
-            )))
+            )
+            .into(),
+        )
     }
 }
 

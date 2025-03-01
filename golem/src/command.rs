@@ -14,10 +14,7 @@
 
 use crate::launch::{launch_golem_services, LaunchArgs};
 use clap::Parser;
-use golem_cli::{
-    command_old::CliCommand,
-    model::{GolemError, GolemResult},
-};
+use golem_cli::model::{GolemError, GolemResult};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]

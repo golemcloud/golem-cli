@@ -5,6 +5,7 @@ use crate::command::component::ComponentSubcommand;
 use crate::command::plugin::PluginSubcommand;
 use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
+use crate::config::ProfileName;
 use clap::error::{ContextKind, ContextValue};
 use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
@@ -17,7 +18,7 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 pub struct GolemCliCommand {
     #[command(flatten)]
-    pub global_flag: GolemCliGlobalFlags,
+    pub global_flags: GolemCliGlobalFlags,
 
     #[clap(subcommand)]
     pub subcommand: GolemCliSubcommand,
@@ -27,7 +28,7 @@ pub struct GolemCliCommand {
 pub struct GolemCliGlobalFlags {
     /// Select Golem profile
     #[arg(long, short, global = true)]
-    pub profile: Option<String>,
+    pub profile: Option<ProfileName>,
 
     /// Custom path to the root application manifest (golem.yaml)
     #[arg(long, short, global = true)]
@@ -36,6 +37,10 @@ pub struct GolemCliGlobalFlags {
     /// Select build profile
     #[arg(long, short, global = true)]
     pub build_profile: Option<String>,
+
+    /// Custom path to the config directory (defaults to $HOME/.golem)
+    #[arg(long, short, global = true)]
+    pub config_dir: Option<PathBuf>,
 
     #[command(flatten)]
     pub verbosity: Verbosity,
@@ -60,7 +65,7 @@ impl GolemCliGlobalFlags {
 
         if self.profile.is_none() {
             if let Ok(profile) = std::env::var("GOLEM_PROFILE") {
-                self.profile = Some(profile);
+                self.profile = Some(profile.into());
             }
         }
 
@@ -84,6 +89,12 @@ impl GolemCliGlobalFlags {
         }
 
         self
+    }
+
+    pub fn config_dir(&self) -> PathBuf {
+        self.config_dir
+            .clone()
+            .unwrap_or_else(|| dirs::home_dir().unwrap().join(".golem"))
     }
 }
 
@@ -111,7 +122,7 @@ impl GolemCliCommand {
         match GolemCliCommand::try_parse_from(&args) {
             Ok(mut command) => {
                 if with_env_overrides {
-                    command.global_flag = command.global_flag.with_env_overrides()
+                    command.global_flags = command.global_flags.with_env_overrides()
                 }
                 GolemCliCommandParseResult::FullMatch(command)
             }
@@ -322,16 +333,16 @@ pub enum GolemCliSubcommand {
 }
 
 pub mod shared_args {
+    use crate::model::ComponentName;
     use clap::Args;
     use golem_examples::model::GuestLanguage;
 
+    // TODO: move names to model
     pub type ApplicationName = String;
-    pub type ComponentName = String;
     pub type ProjectName = String;
     pub type NewComponentName = String;
     pub type WorkerFunctionArgument = String;
     pub type WorkerFunctionName = String;
-    pub type WorkerName = String;
 
     #[derive(Debug, Args)]
     pub struct ComponentOptionalComponentNames {
@@ -444,7 +455,8 @@ pub mod component {
 }
 
 pub mod worker {
-    use crate::command::shared_args::{WorkerFunctionArgument, WorkerFunctionName, WorkerName};
+    use crate::command::shared_args::{WorkerFunctionArgument, WorkerFunctionName};
+    use crate::model::WorkerName;
     use clap::Subcommand;
 
     #[derive(Debug, Subcommand)]

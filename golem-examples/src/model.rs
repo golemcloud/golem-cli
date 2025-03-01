@@ -10,19 +10,13 @@ use std::{fmt, io};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, derive_more::FromStr, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ComponentName(String);
 
 static COMPONENT_NAME_SPLIT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("(?=[A-Z\\-_:])").unwrap());
 
 impl ComponentName {
-    pub fn new(name: impl AsRef<str>) -> ComponentName {
-        ComponentName(name.as_ref().to_string())
-    }
-
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -66,6 +60,18 @@ impl ComponentName {
 
     pub fn to_camel_case(&self) -> String {
         self.to_pascal_case().to_camel_case()
+    }
+}
+
+impl From<&str> for ComponentName {
+    fn from(name: &str) -> Self {
+        ComponentName(name.to_string())
+    }
+}
+
+impl From<String> for ComponentName {
+    fn from(name: String) -> Self {
+        ComponentName(name)
     }
 }
 
@@ -316,18 +322,24 @@ impl FromStr for PackageName {
     }
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, derive_more::FromStr, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ExampleName(String);
 
 impl ExampleName {
-    pub fn from_string(s: impl AsRef<str>) -> ExampleName {
-        ExampleName(s.as_ref().to_string())
-    }
-
     pub fn as_string(&self) -> &str {
         &self.0
+    }
+}
+
+impl From<&str> for ExampleName {
+    fn from(s: &str) -> Self {
+        ExampleName(s.to_string())
+    }
+}
+
+impl From<String> for ExampleName {
+    fn from(s: String) -> Self {
+        ExampleName(s)
     }
 }
 
@@ -337,16 +349,10 @@ impl fmt::Display for ExampleName {
     }
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, derive_more::FromStr, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ComposableAppGroupName(String);
 
 impl ComposableAppGroupName {
-    pub fn from_string(s: impl AsRef<str>) -> ComposableAppGroupName {
-        ComposableAppGroupName(s.as_ref().to_string())
-    }
-
     pub fn as_string(&self) -> &str {
         &self.0
     }
@@ -355,6 +361,18 @@ impl ComposableAppGroupName {
 impl Default for ComposableAppGroupName {
     fn default() -> Self {
         ComposableAppGroupName("default".to_string())
+    }
+}
+
+impl From<&str> for ComposableAppGroupName {
+    fn from(s: &str) -> Self {
+        ComposableAppGroupName(s.to_string())
+    }
+}
+
+impl From<String> for ComposableAppGroupName {
+    fn from(s: String) -> Self {
+        ComposableAppGroupName(s)
     }
 }
 
@@ -435,22 +453,22 @@ mod tests {
 
     #[allow(dead_code)]
     fn n1() -> ComponentName {
-        ComponentName::new("my-test-component")
+        "my-test-component".into()
     }
 
     #[allow(dead_code)]
     fn n2() -> ComponentName {
-        ComponentName::new("MyTestComponent")
+        "MyTestComponent".into()
     }
 
     #[allow(dead_code)]
     fn n3() -> ComponentName {
-        ComponentName::new("myTestComponent")
+        "myTestComponent".into()
     }
 
     #[allow(dead_code)]
     fn n4() -> ComponentName {
-        ComponentName::new("my_test_component")
+        "my_test_component".into()
     }
 
     #[test]

@@ -1,3 +1,10 @@
-fn main() {
-    golem_cli::command_handler_v_1_2::main(std::env::args_os());
+use golem_cli::command_handler::CommandHandler;
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to build tokio runtime for cli main")
+        .block_on(CommandHandler::handle_args(std::env::args_os()))
 }

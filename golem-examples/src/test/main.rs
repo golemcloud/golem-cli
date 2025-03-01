@@ -181,7 +181,7 @@ fn test_example(
             .clone()
             .unwrap_or_else(|| "target/examples-test".to_string()),
     );
-    let component_name = ComponentName::new(example.name.as_string().to_string() + "-comp");
+    let component_name: ComponentName = format!("{}-comp", example.name).into();
     let package_name =
         PackageName::from_string("golemx:componentx").ok_or("failed to create package name")?;
     let component_path = target_path.join(component_name.as_str());

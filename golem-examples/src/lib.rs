@@ -1,7 +1,6 @@
 use crate::model::{
-    ComponentName, ComposableAppGroupName, Example, ExampleKind, ExampleMetadata, ExampleName,
-    ExampleParameters, GuestLanguage, PackageName, TargetExistsResolveDecision,
-    TargetExistsResolveMode,
+    ComposableAppGroupName, Example, ExampleKind, ExampleMetadata, ExampleParameters,
+    GuestLanguage, PackageName, TargetExistsResolveDecision, TargetExistsResolveMode,
 };
 use include_dir::{include_dir, Dir, DirEntry};
 use itertools::Itertools;
@@ -173,7 +172,7 @@ pub fn add_component_by_example(
     package_name: &PackageName,
 ) -> io::Result<()> {
     let parameters = ExampleParameters {
-        component_name: ComponentName::new(package_name.to_string_with_colon()),
+        component_name: package_name.to_string_with_colon().into(),
         package_name: package_name.clone(),
         target_path: target_path.into(),
     };
@@ -467,11 +466,11 @@ fn parse_example(
     let kind = match (metadata.app_common_group, metadata.app_component_group) {
         (None, None) => ExampleKind::Standalone,
         (Some(group), None) => ExampleKind::ComposableAppCommon {
-            group: ComposableAppGroupName::from_string(group),
+            group: group.into(),
             skip_if_exists: metadata.app_common_skip_if_exists.map(PathBuf::from),
         },
         (None, Some(group)) => ExampleKind::ComposableAppComponent {
-            group: ComposableAppGroupName::from_string(group),
+            group: group.into(),
         },
         (Some(_), Some(_)) => panic!(
             "Only one of appCommonGroup and appComponentGroup can be specified, example root: {}",
@@ -497,7 +496,7 @@ fn parse_example(
         ExampleKind::ComposableAppComponent { .. } => "".to_string(),
     };
 
-    let name = ExampleName::from_string(example_root.file_name().unwrap().to_str().unwrap());
+    let name = example_root.file_name().unwrap().to_str().unwrap().into();
 
     let mut wit_deps: Vec<PathBuf> = vec![];
     if metadata.requires_golem_host_wit.unwrap_or(false) {

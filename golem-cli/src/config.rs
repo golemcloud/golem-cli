@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::cloud::CloudAuthenticationConfig;
-use crate::init::CliKind;
-use crate::model::{Format, GolemError, HasFormatConfig};
+use crate::model::{Format, GolemError, HasFormatConfig, ProfileType};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -26,27 +25,17 @@ use std::time::Duration;
 use tracing::warn;
 use url::Url;
 
-pub fn get_config_dir() -> PathBuf {
-    let home = dirs::home_dir().unwrap();
-    let default_conf_dir = home.join(".golem");
-
-    std::env::var("GOLEM_CONFIG_DIR")
-        .map(PathBuf::from)
-        .unwrap_or(default_conf_dir)
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub profiles: HashMap<ProfileName, Profile>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub active_profile: Option<ProfileName>,
+    // TODO: deprecate this?
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub active_cloud_profile: Option<ProfileName>,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, derive_more::FromStr,
-)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct ProfileName(pub String);
 
 impl Display for ProfileName {
@@ -55,12 +44,15 @@ impl Display for ProfileName {
     }
 }
 
-impl ProfileName {
-    pub fn default(cli_kind: CliKind) -> ProfileName {
-        match cli_kind {
-            CliKind::Universal | CliKind::Oss => ProfileName("default".to_string()),
-            CliKind::Cloud => ProfileName("cloud_default".to_string()),
-        }
+impl From<&str> for ProfileName {
+    fn from(name: &str) -> Self {
+        Self(name.to_string())
+    }
+}
+
+impl From<String> for ProfileName {
+    fn from(name: String) -> Self {
+        Self(name)
     }
 }
 
@@ -138,6 +130,7 @@ impl HasFormatConfig for OssProfile {
     }
 }
 
+// TODO: flatten this?
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Eq, PartialEq)]
 pub struct ProfileConfig {
     #[serde(default)]
@@ -159,6 +152,7 @@ impl Config {
             Ok(conf) => Some(conf),
             Err(err) => {
                 warn!("Config parsing failed: {err}");
+                // TODO: should not silently ignore config parsing errors
                 None
             }
         }
@@ -187,34 +181,20 @@ impl Config {
 
     pub fn set_active_profile_name(
         profile_name: ProfileName,
-        cli_kind: CliKind,
         config_dir: &Path,
     ) -> Result<(), GolemError> {
         let mut config = Self::read_from_file(config_dir);
 
-        if let Some(profile) = config.profiles.get(&profile_name) {
-            match profile {
-                Profile::Golem(_) => {
-                    if cli_kind == CliKind::Cloud {
-                        return Err(GolemError(format!("Profile {profile_name} is not a Cloud profile. Use `golem-cli` instead of `golem-cloud-cli` for this profile.")));
-                    }
-                }
-                Profile::GolemCloud(_) => {
-                    if cli_kind == CliKind::Oss {
-                        return Err(GolemError(format!("Profile {profile_name} is a Cloud profile. Use `golem-cloud-cli` instead of `golem-cli` for this profile. You can also install universal version of `golem-cli` using `cargo install golem-cloud-cli --features universal`")));
-                    }
-                }
-            }
-        } else {
+        let Some(profile) = config.profiles.get(&profile_name) else {
             return Err(GolemError(format!(
                 "No profile {profile_name} in configuration. Available profiles: [{}]",
                 config.profiles.keys().map(|n| &n.0).join(", ")
             )));
-        }
+        };
 
-        match cli_kind {
-            CliKind::Universal | CliKind::Oss => config.active_profile = Some(profile_name),
-            CliKind::Cloud => config.active_cloud_profile = Some(profile_name),
+        match &profile {
+            Profile::Golem(_) => config.active_profile = Some(profile_name),
+            Profile::GolemCloud(_) => config.active_cloud_profile = Some(profile_name),
         }
 
         config.store_file(config_dir)?;
@@ -222,27 +202,27 @@ impl Config {
         Ok(())
     }
 
-    pub fn get_active_profile(cli_kind: CliKind, config_dir: &Path) -> Option<NamedProfile> {
+    pub fn get_active_profile(
+        config_dir: &Path,
+        selected_profile: Option<ProfileName>,
+    ) -> NamedProfile {
+        // TODO: allow missing config
         let mut config = Self::read_from_file(config_dir);
 
-        let name = match cli_kind {
-            CliKind::Universal | CliKind::Oss => config
+        let name = selected_profile.unwrap_or_else(|| {
+            config
                 .active_profile
-                .unwrap_or_else(|| ProfileName::default(cli_kind)),
-            CliKind::Cloud => config
-                .active_cloud_profile
-                .unwrap_or_else(|| ProfileName::default(cli_kind)),
-        };
+                .unwrap_or_else(|| panic!("TODO: handle builtin (local and cloud) profiles"))
+        });
 
-        Some(NamedProfile {
+        NamedProfile {
             name: name.clone(),
-            profile: config.profiles.remove(&name)?,
-        })
+            profile: config.profiles.remove(&name).unwrap(),
+        }
     }
 
     pub fn get_profile(name: &ProfileName, config_dir: &Path) -> Option<Profile> {
         let mut config = Self::read_from_file(config_dir);
-
         config.profiles.remove(name)
     }
 
@@ -259,7 +239,7 @@ impl Config {
     }
 
     pub fn delete_profile(name: &ProfileName, config_dir: &Path) -> Result<(), GolemError> {
-        let mut config = Self::read_from_file(config_dir);
+        /*let mut config = Self::read_from_file(config_dir);
 
         if &config
             .active_profile
@@ -285,6 +265,48 @@ impl Config {
             .ok_or(GolemError(format!("Profile {name} not found")))?;
 
         config.store_file(config_dir)
+        */
+        todo!()
+    }
+}
+
+pub struct ClientConfig {
+    pub component_url: Url,
+    pub worker_url: Url,
+    pub cloud_url: Option<Url>,
+    pub service_http_client_config: HttpClientConfig,
+    pub health_check_http_client_config: HttpClientConfig,
+    pub file_download_http_client_config: HttpClientConfig,
+}
+
+impl From<&Profile> for ClientConfig {
+    fn from(profile: &Profile) -> Self {
+        match profile {
+            Profile::Golem(profile) => {
+                let allow_insecure = profile.allow_insecure;
+
+                ClientConfig {
+                    component_url: profile.url.clone(),
+                    worker_url: profile
+                        .worker_url
+                        .clone()
+                        .unwrap_or_else(|| profile.url.clone()),
+                    cloud_url: None,
+                    service_http_client_config: HttpClientConfig::new_for_service_calls(
+                        allow_insecure,
+                    ),
+                    health_check_http_client_config: HttpClientConfig::new_for_health_check(
+                        allow_insecure,
+                    ),
+                    file_download_http_client_config: HttpClientConfig::new_for_file_download(
+                        allow_insecure,
+                    ),
+                }
+            }
+            Profile::GolemCloud(_profile) => {
+                todo!()
+            }
+        }
     }
 }
 
@@ -304,7 +326,7 @@ impl HttpClientConfig {
             connect_timeout: None,
             read_timeout: None,
         }
-        .with_env_overrides("GOLEM")
+        .with_env_overrides("GOLEM_HTTP")
     }
 
     pub fn new_for_health_check(allow_insecure: bool) -> Self {
@@ -314,7 +336,7 @@ impl HttpClientConfig {
             connect_timeout: Some(Duration::from_secs(1)),
             read_timeout: Some(Duration::from_secs(1)),
         }
-        .with_env_overrides("GOLEM_HEALTHCHECK")
+        .with_env_overrides("GOLEM_HTTP_HEALTHCHECK")
     }
 
     pub fn new_for_file_download(allow_insecure: bool) -> Self {
@@ -324,7 +346,7 @@ impl HttpClientConfig {
             connect_timeout: Some(Duration::from_secs(10)),
             read_timeout: Some(Duration::from_secs(60)),
         }
-        .with_env_overrides("GOLEM_FILE_DOWNLOAD")
+        .with_env_overrides("GOLEM_HTTP_FILE_DOWNLOAD")
     }
 
     fn with_env_overrides(mut self, prefix: &str) -> Self {

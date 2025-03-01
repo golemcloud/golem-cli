@@ -340,10 +340,9 @@ pub mod api_security {
 
 pub mod api_definition {
     use crate::model::text::fmt::*;
+    use crate::model::{ComponentName, WorkerName};
     use cli_table::{format::Justify, Table};
     use golem_client::model::{HttpApiDefinitionResponseData, RouteResponseData};
-    use golem_common::model::ComponentId;
-    use golem_common::uri::oss::urn::ComponentUrn;
     use serde::{Deserialize, Serialize};
 
     #[derive(Table)]
@@ -352,10 +351,10 @@ pub mod api_definition {
         pub method: String,
         #[table(title = "Path")]
         pub path: String,
-        #[table(title = "Component URN", justify = "Justify::Right")]
-        pub component_urn: String,
+        #[table(title = "Component Name")]
+        pub component_name: ComponentName,
         #[table(title = "Worker Name")]
-        pub worker_name: String,
+        pub worker_name: WorkerName,
     }
 
     impl From<&RouteResponseData> for RouteTableView {
@@ -363,24 +362,22 @@ pub mod api_definition {
             Self {
                 method: value.method.to_string(),
                 path: value.path.to_string(),
-                component_urn: value
+                component_name: value
                     .binding
                     .clone()
                     .component_id
                     .map(|id| {
-                        ComponentUrn {
-                            id: ComponentId(id.component_id),
-                        }
-                        .to_string()
+                        // TODO: get component name
+                        id.component_id.to_string()
                     })
-                    .unwrap_or("NA".to_string())
-                    .to_string(),
-
+                    .unwrap_or("<NA>".to_string())
+                    .into(),
                 worker_name: value
                     .binding
                     .worker_name
                     .clone()
-                    .unwrap_or("<NA/ephemeral>".to_string()),
+                    .unwrap_or("<NA/ephemeral>".to_string())
+                    .into(),
             }
         }
     }
@@ -561,15 +558,14 @@ pub mod api_deployment {
 pub mod component {
     use crate::model::component::ComponentView;
     use crate::model::text::fmt::*;
+    use crate::model::ComponentName;
     use cli_table::{format::Justify, print_stdout, Table, WithTitle};
     use serde::{Deserialize, Serialize};
 
     #[derive(Table)]
     struct ComponentTableView {
-        #[table(title = "URN")]
-        pub component_urn: String,
         #[table(title = "Name")]
-        pub component_name: String,
+        pub component_name: ComponentName,
         #[table(title = "Version", justify = "Justify::Right")]
         pub component_version: u64,
         #[table(title = "Size", justify = "Justify::Right")]
@@ -581,8 +577,7 @@ pub mod component {
     impl From<&ComponentView> for ComponentTableView {
         fn from(value: &ComponentView) -> Self {
             Self {
-                component_urn: value.component_urn.to_string(),
-                component_name: value.component_name.to_string(),
+                component_name: value.component_name.clone(),
                 component_version: value.component_version,
                 component_size: value.component_size,
                 n_exports: value.exports.len(),
@@ -606,7 +601,6 @@ pub mod component {
         let mut fields = FieldsBuilder::new();
 
         fields
-            .fmt_field("Component URN", &view.component_urn, format_main_id)
             .fmt_field("Component name", &view.component_name, format_id)
             .fmt_field("Component version", &view.component_version, format_id)
             .fmt_field_option("Project ID", &view.project_id, format_id)
@@ -710,9 +704,11 @@ pub mod example {
 }
 
 pub mod profile {
-    use crate::command_old::profile::{ProfileType, ProfileView};
-    use crate::config::ProfileConfig;
+    use crate::config::{
+        CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileName,
+    };
     use crate::model::text::fmt::*;
+    use crate::model::{ProfileType, ProfileView};
     use colored::Colorize;
     use itertools::Itertools;
 
@@ -792,7 +788,8 @@ pub mod worker {
     use crate::model::invoke_result_view::InvokeResultView;
     use crate::model::text::fmt::*;
     use crate::model::{
-        IdempotencyKey, WorkerMetadata, WorkerMetadataView, WorkersMetadataResponseView,
+        ComponentName, IdempotencyKey, WorkerMetadata, WorkerMetadataView, WorkerName,
+        WorkersMetadataResponseView,
     };
     use base64::prelude::BASE64_STANDARD;
     use base64::Engine;
@@ -803,7 +800,6 @@ pub mod worker {
     use golem_common::model::public_oplog::{
         PluginInstallationDescription, PublicUpdateDescription, PublicWorkerInvocation,
     };
-    use golem_common::uri::oss::urn::{ComponentUrn, WorkerUrn};
     use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
     use golem_wasm_rpc::{print_type_annotated_value, ValueAndType};
     use indoc::{formatdoc, indoc, printdoc};
@@ -811,11 +807,14 @@ pub mod worker {
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct WorkerAddView(pub WorkerUrn);
+    pub struct WorkerAddView {
+        pub component_name: ComponentName,
+        pub worker_name: Option<WorkerName>,
+    }
 
     impl MessageWithFields for WorkerAddView {
         fn message(&self) -> String {
-            if let Some(worker_name) = &self.0.id.worker_name {
+            if let Some(worker_name) = &self.worker_name {
                 format!("Added worker {}", format_message_highlight(&worker_name))
             } else {
                 format!(
@@ -829,11 +828,8 @@ pub mod worker {
             let mut fields = FieldsBuilder::new();
 
             fields
-                .fmt_field("Worker URN", &self.0, format_main_id)
-                .fmt_field("Component URN", &self.0.id.component_id, |id| {
-                    format_id(&ComponentUrn { id: id.clone() })
-                })
-                .fmt_field_option("Worker name", &(self.0.id.worker_name.as_ref()), format_id);
+                .fmt_field("Component name", &self.component_name, format_id)
+                .fmt_field_option("Worker name", &self.worker_name, format_main_id);
 
             fields.build()
         }
@@ -856,26 +852,19 @@ pub mod worker {
 
     impl MessageWithFields for WorkerGetView {
         fn message(&self) -> String {
-            if let Some(worker_name) = &self.0.worker_urn.id.worker_name {
-                format!(
-                    "Got metadata for worker {}",
-                    format_message_highlight(worker_name)
-                )
-            } else {
-                "Got metadata for worker".to_string()
-            }
+            format!(
+                "Got metadata for worker {}",
+                format_message_highlight(&self.0.worker_name)
+            )
         }
 
         fn fields(&self) -> Vec<(String, String)> {
             let mut fields = FieldsBuilder::new();
 
             fields
-                .fmt_field("Worker URN", &self.0.worker_urn, format_main_id)
-                .fmt_field("Component URN", &self.0.worker_urn.id.component_id, |id| {
-                    format_id(&ComponentUrn { id: id.clone() })
-                })
-                .fmt_field_option("Worker name", &self.0.worker_urn.id.worker_name, format_id)
+                .fmt_field("Component name", &self.0.component_name, format_id)
                 .fmt_field("Component version", &self.0.component_version, format_id)
+                .fmt_field("Worker name", &self.0.worker_name, format_main_id)
                 .field("Created at", &self.0.created_at)
                 .fmt_field("Component size", &self.0.component_size, format_binary_size)
                 .fmt_field(
@@ -914,10 +903,10 @@ pub mod worker {
 
     #[derive(Table)]
     struct WorkerMetadataTableView {
-        #[table(title = "Component URN")]
-        pub component_urn: ComponentUrn,
-        #[table(title = "Name")]
-        pub worker_name: String,
+        #[table(title = "Component name")]
+        pub component_name: ComponentName,
+        #[table(title = "Worker name")]
+        pub worker_name: WorkerName,
         #[table(title = "Component\nversion", justify = "Justify::Right")]
         pub component_version: u64,
         #[table(title = "Status", justify = "Justify::Right")]
@@ -929,10 +918,8 @@ pub mod worker {
     impl From<&WorkerMetadataView> for WorkerMetadataTableView {
         fn from(value: &WorkerMetadataView) -> Self {
             Self {
-                component_urn: ComponentUrn {
-                    id: value.worker_urn.id.component_id.clone(),
-                },
-                worker_name: value.worker_urn.id.worker_name.clone().unwrap_or_default(),
+                component_name: value.component_name.clone(),
+                worker_name: value.worker_name.clone(),
                 status: format_status(&value.status),
                 component_version: value.component_version,
                 created_at: value.created_at,
@@ -980,29 +967,13 @@ pub mod worker {
         }
     }
 
-    #[derive(Table)]
-    struct WorkerUrnTableView {
-        #[table(title = "Worker URN")]
-        pub worker_urn: WorkerUrn,
-
-        #[table(title = "Name")]
-        pub worker_name: String,
-    }
-
-    impl From<&WorkerUrn> for WorkerUrnTableView {
-        fn from(value: &WorkerUrn) -> Self {
-            WorkerUrnTableView {
-                worker_urn: value.clone(),
-                worker_name: value.id.worker_name.clone().unwrap_or_default(),
-            }
-        }
-    }
-
     impl TextFormat for TryUpdateAllWorkersResult {
         fn print(&self) {
             if !self.triggered.is_empty() {
                 println!("Triggered update for the following workers:");
-                print_table::<_, WorkerUrnTableView>(&self.triggered);
+                self.triggered.iter().for_each(|worker_name| {
+                    println!("  - {}", worker_name);
+                });
             }
 
             if !self.failed.is_empty() {
@@ -1010,7 +981,9 @@ pub mod worker {
                     "{}",
                     format_warn("Failed to trigger update for the following workers:")
                 );
-                print_table::<_, WorkerUrnTableView>(&self.failed);
+                self.failed.iter().for_each(|worker_name| {
+                    println!("  - {}", worker_name);
+                });
             }
         }
     }

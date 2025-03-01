@@ -14,7 +14,7 @@
 
 use crate::cloud::ProjectId;
 use crate::model::wave::function_wave_compatible;
-use crate::model::GolemError;
+use crate::model::{ComponentName, GolemError};
 use chrono::{DateTime, Utc};
 use golem_client::model::{
     AnalysedType, ComponentMetadata, ComponentType, InitialComponentFile, VersionedComponentId,
@@ -22,7 +22,6 @@ use golem_client::model::{
 use golem_common::model::component_metadata::DynamicLinkedInstance;
 use golem_common::model::trim_date::TrimDateTime;
 use golem_common::model::ComponentId;
-use golem_common::uri::oss::urn::ComponentUrn;
 use golem_wasm_ast::analysis::wave::DisplayNamedFunc;
 use golem_wasm_ast::analysis::{
     AnalysedExport, AnalysedFunction, AnalysedFunctionResult, AnalysedInstance,
@@ -32,12 +31,12 @@ use golem_wasm_ast::analysis::{
 use rib::{ParsedFunctionName, ParsedFunctionSite};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tracing::info;
+use tracing::{info, Instrument};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Component {
     pub versioned_component_id: VersionedComponentId,
-    pub component_name: String,
+    pub component_name: ComponentName,
     pub component_size: u64,
     pub component_type: ComponentType,
     pub metadata: ComponentMetadata,
@@ -61,7 +60,7 @@ impl From<golem_client::model::Component> for Component {
 
         Component {
             versioned_component_id,
-            component_name,
+            component_name: component_name.into(),
             component_size,
             component_type: component_type.unwrap_or(ComponentType::Durable),
             metadata,
@@ -91,9 +90,8 @@ impl ComponentUpsertResult {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComponentView {
-    pub component_urn: ComponentUrn,
+    pub component_name: ComponentName,
     pub component_version: u64,
-    pub component_name: String,
     pub component_size: u64,
     pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,11 +119,8 @@ impl From<Component> for ComponentView {
 impl From<&Component> for ComponentView {
     fn from(value: &Component) -> Self {
         ComponentView {
-            component_urn: ComponentUrn {
-                id: ComponentId(value.versioned_component_id.component_id),
-            },
+            component_name: value.component_name.clone(),
             component_version: value.versioned_component_id.version,
-            component_name: value.component_name.to_string(),
             component_size: value.component_size,
             created_at: value.created_at,
             project_id: value.project_id,

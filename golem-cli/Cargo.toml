@@ -12,19 +12,9 @@ autotests = false
 harness = false
 
 [[bin]]
-name = "golem-cli-old"
-path = "src/main_old.rs"
-test = false
-
-[[bin]]
 name = "golem-cli"
 path = "src/main.rs"
 test = false
-
-[[test]]
-name = "integration"
-path = "tests/main.rs"
-harness = false
 
 [dependencies]
 # Workspace deps
@@ -33,6 +23,7 @@ golem-wasm-rpc-stubgen = { path = "../wasm-rpc-stubgen", version = "=0.0.0" }
 
 # Golem deps
 golem-client = { workspace = true }
+golem-cloud-client = { workspace = true }
 golem-common = { workspace = true }
 golem-rib = { workspace = true }
 golem-wasm-ast = { workspace = true }
@@ -51,7 +42,6 @@ clap-verbosity-flag = { workspace = true }
 clap_complete = { workspace = true }
 cli-table = { workspace = true }
 colored = { workspace = true }
-derive_more = { workspace = true }
 dirs = { workspace = true }
 futures-util = { workspace = true }
 humansize = { workspace = true }

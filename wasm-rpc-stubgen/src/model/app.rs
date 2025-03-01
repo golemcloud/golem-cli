@@ -51,6 +51,7 @@ impl From<&str> for ComponentName {
     }
 }
 
+// TODO: rename to build profile?
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProfileName(String);
 

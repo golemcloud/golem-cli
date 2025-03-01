@@ -26,13 +26,6 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use url::{ParseError, Url};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum CliKind {
-    Universal,
-    Oss,
-    Cloud,
-}
-
 #[async_trait]
 pub trait ProfileAuth {
     fn auth_enabled(&self) -> bool;
@@ -193,35 +186,31 @@ fn make_cloud_profile() -> Result<Profile, GolemError> {
     Ok(Profile::GolemCloud(profile))
 }
 
-fn set_active_profile(
-    cli_kind: CliKind,
-    profile_name: &ProfileName,
-    config_dir: &Path,
-) -> Result<(), GolemError> {
-    let active_profile = Config::get_active_profile(cli_kind, config_dir).map(|p| p.name);
+fn set_active_profile(profile_name: &ProfileName, config_dir: &Path) -> Result<(), GolemError> {
+    // TODO: local / cloud handling
+    let active_profile = Config::get_active_profile(config_dir, None).name;
 
-    match active_profile {
-        None => Config::set_active_profile_name(profile_name.clone(), cli_kind, config_dir),
-        Some(active_profile) if &active_profile == profile_name => Ok(()),
-        Some(active_profile) => {
-            let question = formatdoc!(
-                "
-                Current active profile is '{active_profile}'.
-                Do you want to switch active profile to '{profile_name}'?
-                "
-            );
+    if &active_profile == profile_name {
+        return Ok(());
+    }
 
-            let ans = Confirm::new(&question)
-                .with_default(true)
-                .prompt()
-                .map_err(|err| GolemError(format!("Unexpected error: {err}")))?;
+    // TODO: no interactive is needed for this, rather we should check if the profile exists...
+    let question = formatdoc!(
+        "
+        Current active profile is '{active_profile}'.
+        Do you want to switch active profile to '{profile_name}'?
+        "
+    );
 
-            if ans {
-                Config::set_active_profile_name(profile_name.clone(), cli_kind, config_dir)
-            } else {
-                Ok(())
-            }
-        }
+    let ans = Confirm::new(&question)
+        .with_default(true)
+        .prompt()
+        .map_err(|err| GolemError(format!("Unexpected error: {err}")))?;
+
+    if ans {
+        Config::set_active_profile_name(profile_name.clone(), config_dir)
+    } else {
+        Ok(())
     }
 }
 
@@ -323,11 +312,11 @@ pub struct InitResult {
 }
 
 pub async fn init_profile(
-    cli_kind: CliKind,
     profile_name: ProfileName,
     config_dir: &Path,
     profile_auth: &(dyn ProfileAuth + Send + Sync),
 ) -> Result<InitResult, GolemError> {
+    /*
     validate_profile_override(&profile_name, config_dir)?;
     let typ = match cli_kind {
         CliKind::Universal => select_type()?,
@@ -359,4 +348,6 @@ pub async fn init_profile(
         profile_name,
         auth_required,
     })
+    */
+    todo!()
 }
