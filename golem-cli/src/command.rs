@@ -6,10 +6,11 @@ use crate::command::plugin::PluginSubcommand;
 use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::ProfileName;
-use clap::error::{ContextKind, ContextValue};
-use clap::{self, CommandFactory, Subcommand};
+use clap::error::{ContextKind, ContextValue, ErrorKind};
+use clap::{self, CommandFactory, FromArgMatches, Subcommand};
 use clap::{Args, Parser};
 use clap_verbosity_flag::Verbosity;
+use golem_wasm_rpc_stubgen::log::LogColorize;
 use lenient_bool::LenientBool;
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -103,6 +104,8 @@ impl GolemCliGlobalFlags {
 pub struct GolemCliFallbackCommand {
     #[command(flatten)]
     pub global_flags: GolemCliGlobalFlags,
+
+    pub positional_args: Vec<String>,
 }
 
 impl GolemCliCommand {
@@ -127,35 +130,49 @@ impl GolemCliCommand {
                 GolemCliCommandParseResult::FullMatch(command)
             }
             Err(error) => {
-                let fallback_global_flags = {
-                    // TODO: there are still cases where this will fail (e.g. unknown flags before known ones
-                    let flags = GolemCliFallbackCommand::try_parse_from(args)
-                        .unwrap_or_default()
-                        .global_flags;
+                let fallback_command = {
+                    let mut fallback_command =
+                        GolemCliFallbackCommand::try_parse_from(args).unwrap_or_default();
                     if with_env_overrides {
-                        flags.with_env_overrides()
-                    } else {
-                        flags
+                        fallback_command.global_flags =
+                            fallback_command.global_flags.with_env_overrides()
                     }
+                    fallback_command
                 };
 
-                let invalid_arg_matchers = Self::invalid_arg_matchers();
-                let partial_match = error.context().find_map(|context| match context {
-                    (ContextKind::InvalidArg, ContextValue::Strings(args)) => {
-                        Self::match_invalid_arg(args, &invalid_arg_matchers)
+                let partial_match = match error.kind() {
+                    ErrorKind::MissingRequiredArgument => {
+                        error.context().find_map(|context| match context {
+                            (ContextKind::InvalidArg, ContextValue::Strings(args)) => {
+                                Self::match_invalid_arg(
+                                    &fallback_command.positional_args,
+                                    args,
+                                    &Self::invalid_arg_matchers(),
+                                )
+                            }
+                            _ => None,
+                        })
+                    }
+                    ErrorKind::MissingSubcommand if fallback_command.positional_args == ["app"] => {
+                        Some(GolemCliCommandPartialMatch::AppMissingSubcommandHelp)
+                    }
+                    ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+                        if fallback_command.positional_args == ["app"] =>
+                    {
+                        Some(GolemCliCommandPartialMatch::AppMissingSubcommandHelp)
                     }
                     _ => None,
-                });
+                };
 
                 match partial_match {
                     Some(partial_match) => GolemCliCommandParseResult::ErrorWithPartialMatch {
                         error,
-                        global_flags: fallback_global_flags,
+                        fallback_command,
                         partial_match,
                     },
                     None => GolemCliCommandParseResult::Error {
                         error,
-                        global_flags: fallback_global_flags,
+                        fallback_command,
                     },
                 }
             }
@@ -197,19 +214,15 @@ impl GolemCliCommand {
     }
 
     fn match_invalid_arg(
+        positional_args: &[String],
         error_context_args: &[String],
         matchers: &[InvalidArgMatcher],
     ) -> Option<GolemCliCommandPartialMatch> {
         let command = Self::command();
 
-        let positional_args = std::env::args()
-            .skip(1)
-            .filter(|arg| !arg.starts_with('-'))
-            .collect::<Vec<_>>();
-
         let positional_args = positional_args
             .iter()
-            .map(|arg| arg.as_str())
+            .map(|str| str.as_str())
             .collect::<Vec<_>>();
 
         for matcher in matchers {
@@ -271,17 +284,19 @@ pub enum GolemCliCommandParseResult {
     FullMatch(GolemCliCommand),
     ErrorWithPartialMatch {
         error: clap::Error,
-        global_flags: GolemCliGlobalFlags,
+        fallback_command: GolemCliFallbackCommand,
         partial_match: GolemCliCommandPartialMatch,
     },
     Error {
         error: clap::Error,
-        global_flags: GolemCliGlobalFlags,
+        fallback_command: GolemCliFallbackCommand,
     },
 }
 
+#[derive(Debug)]
 pub enum GolemCliCommandPartialMatch {
     AppNewMissingLanguage,
+    AppMissingSubcommandHelp,
     ComponentNewMissingLanguage,
     WorkerInvokeMissingWorkerName,
     WorkerInvokeMissingFunctionName { worker_name: String },
@@ -418,6 +433,9 @@ pub mod app {
             #[command(flatten)]
             component_name: AppOptionalComponentNames,
         },
+        /// Run custom command
+        #[clap(external_subcommand)]
+        CustomCommand(Vec<String>),
     }
 }
 

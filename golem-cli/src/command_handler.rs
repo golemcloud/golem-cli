@@ -1,7 +1,7 @@
 use crate::command::worker::WorkerSubcommand;
 use crate::command::{
-    GolemCliCommand, GolemCliCommandParseResult, GolemCliCommandPartialMatch, GolemCliGlobalFlags,
-    GolemCliSubcommand,
+    GolemCliCommand, GolemCliCommandParseResult, GolemCliCommandPartialMatch,
+    GolemCliFallbackCommand, GolemCliGlobalFlags, GolemCliSubcommand,
 };
 use crate::config::Config;
 use crate::context::{Context, GolemClients};
@@ -51,30 +51,25 @@ impl CommandHandler {
             }
             GolemCliCommandParseResult::ErrorWithPartialMatch {
                 error,
-                global_flags,
+                fallback_command,
                 partial_match,
             } => {
-                init_tracing(global_flags.verbosity);
-
+                init_tracing(fallback_command.global_flags.verbosity);
+                debug!(partial_match = ?partial_match, "Partial match");
+                log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 
-                Self::new(&global_flags)
+                Self::new(&fallback_command.global_flags)
                     .handle_partial_match_with_hints(partial_match)
                     .await
                     .map(|_| clamp_exit_code(error.exit_code()))
             }
             GolemCliCommandParseResult::Error {
                 error,
-                global_flags,
+                fallback_command,
             } => {
-                init_tracing(global_flags.verbosity);
-
-                if tracing::enabled!(Level::DEBUG) {
-                    for (kind, value) in error.context() {
-                        debug!(kind = %kind, value = %value, "Error context");
-                    }
-                }
-
+                init_tracing(fallback_command.global_flags.verbosity);
+                log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 
                 Ok(clamp_exit_code(error.exit_code()))
@@ -163,6 +158,10 @@ impl CommandHandler {
                     eprintln!("    - other");
                 }
             }
+            GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
+                eprintln!("{}", "\nCustom commands:".underline().bold());
+                eprintln!("...")
+            }
             GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName => {
                 eprintln!("{}", "\nExisting workers:".underline().bold());
                 eprintln!("...");
@@ -226,5 +225,15 @@ fn clamp_exit_code(exit_code: i32) -> ExitCode {
         ExitCode::from(255)
     } else {
         ExitCode::from(exit_code as u8)
+    }
+}
+
+fn log_parse_error(error: &clap::Error, fallback_command: &GolemCliFallbackCommand) {
+    debug!(fallback_command = ?fallback_command, "Fallback command");
+    debug!(error = ?error, "Clap error");
+    if tracing::enabled!(Level::DEBUG) {
+        for (kind, value) in error.context() {
+            debug!(kind = %kind, value = %value, "Clap error context");
+        }
     }
 }
