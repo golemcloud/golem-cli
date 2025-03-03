@@ -273,6 +273,7 @@ impl GolemCliCommand {
     }
 }
 
+#[derive(Debug)]
 struct InvalidArgMatcher {
     pub subcommands: Vec<&'static str>,
     pub found_positional_args: Vec<&'static str>,
@@ -651,5 +652,136 @@ pub mod server {
         },
         /// Clean the local server data directory
         Clean,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::command::GolemCliCommand;
+    use assert2::{assert, check};
+    use clap::builder::StyledStr;
+    use clap::{Command, CommandFactory, Parser};
+    use itertools::Itertools;
+    use std::collections::{BTreeMap, BTreeSet};
+    use test_r::test;
+
+    #[test]
+    fn all_commands_and_args_has_doc() {
+        fn collect_docs(
+            path: &mut Vec<String>,
+            doc_by_cmd_path: &mut BTreeMap<String, Option<StyledStr>>,
+            command: &Command,
+        ) {
+            path.push(command.get_name().to_string());
+            let key = path.iter().join(" ");
+
+            doc_by_cmd_path.insert(key.clone(), command.get_about().map(|s| s.clone()));
+
+            for arg in command.get_arguments() {
+                doc_by_cmd_path.insert(
+                    if arg.is_positional() {
+                        format!("{} |{}|", key, arg.get_id().to_string().to_uppercase())
+                    } else {
+                        format!("{} --{}", key, arg.get_id())
+                    },
+                    arg.get_help().map(|s| s.clone()),
+                );
+            }
+
+            for subcommand in command.get_subcommands() {
+                collect_docs(path, doc_by_cmd_path, subcommand);
+            }
+
+            path.pop();
+        }
+
+        let mut path = vec![];
+        let mut doc_by_cmd_path = BTreeMap::new();
+        collect_docs(&mut path, &mut doc_by_cmd_path, &GolemCliCommand::command());
+
+        let elems_without_about = doc_by_cmd_path
+            .into_iter()
+            .filter_map(|(path, about)| about.is_none().then(|| path))
+            .collect::<Vec<_>>();
+
+        assert!(
+            elems_without_about.is_empty(),
+            "\n{}",
+            elems_without_about.join("\n")
+        );
+    }
+
+    #[test]
+    fn invalid_arg_matchers_are_using_valid_commands_and_args_names() {
+        fn collect_positional_args(
+            path: &mut Vec<String>,
+            positional_args_by_cmd: &mut BTreeMap<String, BTreeSet<String>>,
+            command: &Command,
+        ) {
+            path.push(command.get_name().to_string());
+            let key = path.iter().join(" ");
+
+            positional_args_by_cmd.insert(
+                key,
+                command
+                    .get_arguments()
+                    .filter(|arg| arg.is_positional())
+                    .map(|arg| arg.get_id().to_string())
+                    .collect(),
+            );
+
+            for subcommand in command.get_subcommands() {
+                collect_positional_args(path, positional_args_by_cmd, subcommand);
+            }
+
+            path.pop();
+        }
+
+        let mut path = vec![];
+        let mut positional_args_by_cmd = BTreeMap::new();
+
+        collect_positional_args(
+            &mut path,
+            &mut positional_args_by_cmd,
+            &GolemCliCommand::command(),
+        );
+
+        let bad_matchers = GolemCliCommand::invalid_arg_matchers()
+            .into_iter()
+            .filter_map(|matcher| {
+                let cmd_path = format!("golem-cli {}", matcher.subcommands.iter().join(" "));
+
+                let Some(args) = positional_args_by_cmd.get(&cmd_path) else {
+                    return Some(("command not found".to_string(), matcher));
+                };
+
+                let missing_arg = [matcher.missing_positional_arg];
+
+                let bad_args = matcher
+                    .found_positional_args
+                    .iter()
+                    .chain(&missing_arg)
+                    .filter(|&&arg| !args.contains(arg))
+                    .collect::<Vec<_>>();
+
+                if !bad_args.is_empty() {
+                    return Some((
+                        format!("args not found: {}", bad_args.into_iter().join(", ")),
+                        matcher,
+                    ));
+                }
+
+                None
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            bad_matchers.is_empty(),
+            "\n{}",
+            bad_matchers
+                .into_iter()
+                .map(|(error, matcher)| format!("error: {}\nmatcher: {:?}\n", error, matcher))
+                .join("\n")
+        )
     }
 }
