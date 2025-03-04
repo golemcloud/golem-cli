@@ -97,33 +97,25 @@ pub enum ExampleKind {
     Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, EnumIter, Serialize, Deserialize,
 )]
 pub enum GuestLanguage {
-    Rust,
-    Go,
     C,
-    Zig,
+    Go,
     JavaScript,
-    TypeScript,
-    CSharp,
-    Swift,
-    Grain,
     Python,
-    Scala2,
+    Rust,
+    TypeScript,
+    Zig,
 }
 
 impl GuestLanguage {
     pub fn from_string(s: impl AsRef<str>) -> Option<GuestLanguage> {
         match s.as_ref().to_lowercase().as_str() {
-            "rust" => Some(GuestLanguage::Rust),
-            "go" => Some(GuestLanguage::Go),
             "c" | "c++" | "cpp" => Some(GuestLanguage::C),
-            "zig" => Some(GuestLanguage::Zig),
+            "go" => Some(GuestLanguage::Go),
             "js" | "javascript" => Some(GuestLanguage::JavaScript),
-            "ts" | "typescript" => Some(GuestLanguage::TypeScript),
-            "c#" | "cs" | "csharp" => Some(GuestLanguage::CSharp),
-            "swift" => Some(GuestLanguage::Swift),
-            "grain" => Some(GuestLanguage::Grain),
             "py" | "python" => Some(GuestLanguage::Python),
-            "scala2" => Some(GuestLanguage::Scala2),
+            "rust" => Some(GuestLanguage::Rust),
+            "ts" | "typescript" => Some(GuestLanguage::TypeScript),
+            "zig" => Some(GuestLanguage::Zig),
             _ => None,
         }
     }
@@ -136,43 +128,31 @@ impl GuestLanguage {
             GuestLanguage::Zig => "zig".to_string(),
             GuestLanguage::JavaScript => "js".to_string(),
             GuestLanguage::TypeScript => "ts".to_string(),
-            GuestLanguage::CSharp => "cs".to_string(),
-            GuestLanguage::Swift => "swift".to_string(),
-            GuestLanguage::Grain => "grain".to_string(),
             GuestLanguage::Python => "python".to_string(),
-            GuestLanguage::Scala2 => "scala2".to_string(),
         }
     }
 
     pub fn tier(&self) -> GuestLanguageTier {
         match self {
-            GuestLanguage::Rust => GuestLanguageTier::Tier1,
-            GuestLanguage::Go => GuestLanguageTier::Tier1,
             GuestLanguage::C => GuestLanguageTier::Tier1,
-            GuestLanguage::Zig => GuestLanguageTier::Tier1,
+            GuestLanguage::Go => GuestLanguageTier::Tier1,
             GuestLanguage::JavaScript => GuestLanguageTier::Tier1,
-            GuestLanguage::TypeScript => GuestLanguageTier::Tier1,
-            GuestLanguage::CSharp => GuestLanguageTier::Tier3,
-            GuestLanguage::Swift => GuestLanguageTier::Tier2,
-            GuestLanguage::Grain => GuestLanguageTier::Tier2,
             GuestLanguage::Python => GuestLanguageTier::Tier1,
-            GuestLanguage::Scala2 => GuestLanguageTier::Tier1,
+            GuestLanguage::Rust => GuestLanguageTier::Tier1,
+            GuestLanguage::TypeScript => GuestLanguageTier::Tier1,
+            GuestLanguage::Zig => GuestLanguageTier::Tier1,
         }
     }
 
     pub fn name(&self) -> &'static str {
         match self {
-            GuestLanguage::Rust => "Rust",
-            GuestLanguage::Go => "Go",
             GuestLanguage::C => "C",
-            GuestLanguage::Zig => "Zig",
+            GuestLanguage::Go => "Go",
             GuestLanguage::JavaScript => "JavaScript",
-            GuestLanguage::TypeScript => "TypeScript",
-            GuestLanguage::CSharp => "C#",
-            GuestLanguage::Swift => "Swift",
-            GuestLanguage::Grain => "Grain",
             GuestLanguage::Python => "Python",
-            GuestLanguage::Scala2 => "Scala 2",
+            GuestLanguage::Rust => "Rust",
+            GuestLanguage::TypeScript => "TypeScript",
+            GuestLanguage::Zig => "Zig",
         }
     }
 }
@@ -326,7 +306,7 @@ impl FromStr for PackageName {
 pub struct ExampleName(String);
 
 impl ExampleName {
-    pub fn as_string(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 }
@@ -353,7 +333,7 @@ impl fmt::Display for ExampleName {
 pub struct ComposableAppGroupName(String);
 
 impl ComposableAppGroupName {
-    pub fn as_string(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 }

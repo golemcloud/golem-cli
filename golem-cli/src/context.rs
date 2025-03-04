@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileName};
+use crate::command::GolemCliGlobalFlags;
+use crate::config::{
+    BuildProfileName, ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileName,
+};
+use crate::model::app_ext::GolemComponentExtensions;
+use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
 use golem_client::api::ApiSecurityClientLive as ApiSecurityClientOss;
@@ -38,20 +43,62 @@ use golem_cloud_client::api::ProjectPolicyClientLive as ProjectPolicyClientCloud
 use golem_cloud_client::api::TokenClientLive as TokenClientCloud;
 use golem_cloud_client::api::WorkerClientLive as WorkerClientCloud;
 use golem_cloud_client::{Context as ContextCloud, Security};
-use tokio::sync::OnceCell;
+use golem_examples::model::{ComposableAppGroupName, GuestLanguage};
+use golem_examples::ComposableAppExample;
+use golem_wasm_rpc_stubgen::commands::app::{
+    ApplicationContext, ApplicationSourceMode, ComponentSelectMode,
+};
+use golem_wasm_rpc_stubgen::log::{set_log_output, Output};
+use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
+use golem_wasm_rpc_stubgen::stub::WasmRpcOverride;
+use std::collections::{BTreeMap, HashSet};
+use std::marker::PhantomData;
+use std::path::PathBuf;
+use tracing::debug;
 
 pub struct Context {
     profile_name: ProfileName,
     profile: Profile,
-    clients: OnceCell<Clients>,
+    build_profile: Option<BuildProfileName>,
+    app_manifest_path: Option<PathBuf>,
+    wasm_rpc_override: WasmRpcOverride,
+    clients: tokio::sync::OnceCell<Clients>,
+    application_context: tokio::sync::OnceCell<ApplicationContext<GolemComponentExtensions>>,
+    templates: std::cell::OnceCell<
+        BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppExample>>,
+    >,
+    missing_templates: BTreeMap<ComposableAppGroupName, ComposableAppExample>,
+    component_select_mode: ComponentSelectMode,
+    component_select_mode_was_set: bool,
+    skip_up_to_date_checks: bool,
+    skip_up_to_date_checks_was_set: bool,
+    build_steps_filter: HashSet<AppBuildStep>,
+    build_steps_filter_was_set: bool,
 }
 
 impl Context {
-    pub fn new(profile: NamedProfile) -> Self {
+    pub fn new(global_flags: &GolemCliGlobalFlags, profile: NamedProfile) -> Self {
+        set_log_output(Output::Stderr);
+
         Self {
             profile_name: profile.name,
             profile: profile.profile,
-            clients: OnceCell::new(),
+            build_profile: global_flags.build_profile.clone(),
+            app_manifest_path: global_flags.app_manifest_path.clone(),
+            wasm_rpc_override: WasmRpcOverride {
+                wasm_rpc_path_override: global_flags.wasm_rpc_path.clone(),
+                wasm_rpc_version_override: global_flags.wasm_rpc_version.clone(),
+            },
+            clients: tokio::sync::OnceCell::new(),
+            application_context: tokio::sync::OnceCell::new(),
+            templates: std::cell::OnceCell::new(),
+            missing_templates: BTreeMap::new(),
+            component_select_mode: ComponentSelectMode::CurrentDir,
+            component_select_mode_was_set: false,
+            skip_up_to_date_checks: false,
+            skip_up_to_date_checks_was_set: false,
+            build_steps_filter: HashSet::new(),
+            build_steps_filter_was_set: false,
         }
     }
 
@@ -59,6 +106,105 @@ impl Context {
         self.clients
             .get_or_try_init(|| async { Clients::new((&self.profile).into()).await })
             .await
+    }
+
+    pub async fn golem_clients(&self) -> anyhow::Result<&GolemClients> {
+        Ok(&self.clients().await?.golem)
+    }
+
+    pub async fn application_context(
+        &self,
+    ) -> anyhow::Result<&ApplicationContext<GolemComponentExtensions>> {
+        self.application_context
+            .get_or_try_init(|| async {
+                let config = golem_wasm_rpc_stubgen::commands::app::Config {
+                    app_source_mode: {
+                        match &self.app_manifest_path {
+                            Some(path) => ApplicationSourceMode::Explicit(vec![path.clone()]),
+                            None => ApplicationSourceMode::Automatic,
+                        }
+                    },
+                    component_select_mode: self.component_select_mode.clone(),
+                    skip_up_to_date_checks: self.skip_up_to_date_checks,
+                    profile: self.build_profile.as_ref().map(|p| p.to_string().into()),
+                    offline: false, // TODO:
+                    extensions: PhantomData::<GolemComponentExtensions>,
+                    steps_filter: self.build_steps_filter.clone(),
+                    wasm_rpc_override: self.wasm_rpc_override.clone(),
+                };
+
+                debug!(config = ?config, "Initializing application context");
+
+                Ok(ApplicationContext::new(config)?)
+            })
+            .await
+    }
+
+    pub async fn application_context_mut(
+        &mut self,
+    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+        let _ = self.application_context().await?;
+        Ok(self.application_context.get_mut().unwrap())
+    }
+
+    fn set_app_ctx_config<T>(
+        &mut self,
+        name: &str,
+        get_value_mut: fn(&mut Context) -> &mut T,
+        get_was_set_mut: fn(&mut Context) -> &mut bool,
+        value: T,
+    ) {
+        if *get_was_set_mut(self) {
+            panic!("{} can be set only once, was already set", name);
+        }
+        if self.application_context.get().is_some() {
+            panic!("cannot change {} after application context init", name);
+        }
+        *get_value_mut(self) = value;
+        *get_was_set_mut(self) = true;
+    }
+
+    pub fn set_component_select_mode(&mut self, mode: ComponentSelectMode) {
+        self.set_app_ctx_config(
+            "component_select_mode",
+            |ctx| &mut ctx.component_select_mode,
+            |ctx| &mut ctx.component_select_mode_was_set,
+            mode,
+        );
+    }
+
+    pub fn set_skip_up_to_date_checks(&mut self, skip: bool) {
+        self.set_app_ctx_config(
+            "skip_up_to_date_checks",
+            |ctx| &mut ctx.skip_up_to_date_checks,
+            |ctx| &mut ctx.skip_up_to_date_checks_was_set,
+            skip,
+        )
+    }
+
+    pub fn set_steps_filter(&mut self, steps_filter: HashSet<AppBuildStep>) {
+        self.set_app_ctx_config(
+            "steps_filter",
+            |ctx| &mut ctx.build_steps_filter,
+            |ctx| &mut ctx.build_steps_filter_was_set,
+            steps_filter,
+        );
+    }
+
+    pub fn templates(
+        &self,
+    ) -> &BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppExample>> {
+        self.templates
+            .get_or_init(|| golem_examples::all_composable_app_examples())
+    }
+
+    fn language_templates(
+        &self,
+        language: GuestLanguage,
+    ) -> &BTreeMap<ComposableAppGroupName, ComposableAppExample> {
+        self.templates()
+            .get(&language)
+            .unwrap_or(&self.missing_templates)
     }
 }
 

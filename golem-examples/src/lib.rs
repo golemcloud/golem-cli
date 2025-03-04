@@ -1,5 +1,5 @@
 use crate::model::{
-    ComposableAppGroupName, Example, ExampleKind, ExampleMetadata, ExampleParameters,
+    ComposableAppGroupName, Example, ExampleKind, ExampleMetadata, ExampleName, ExampleParameters,
     GuestLanguage, PackageName, TargetExistsResolveDecision, TargetExistsResolveMode,
 };
 use include_dir::{include_dir, Dir, DirEntry};
@@ -9,8 +9,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-#[cfg(feature = "cli")]
-pub mod cli;
 pub mod model;
 
 #[cfg(test)]
@@ -64,7 +62,7 @@ pub fn all_standalone_examples() -> Vec<Example> {
 #[derive(Debug, Default)]
 pub struct ComposableAppExample {
     pub common: Option<Example>,
-    pub components: Vec<Example>,
+    pub components: BTreeMap<ExampleName, Example>,
 }
 
 pub fn all_composable_app_examples(
@@ -106,7 +104,7 @@ pub fn all_composable_app_examples(
             ExampleKind::ComposableAppComponent { group } => {
                 app_examples(&mut examples, example.language, group)
                     .components
-                    .push(example);
+                    .insert(example.name.clone(), example);
             }
         }
     }
@@ -139,7 +137,6 @@ pub fn instantiate_example(
         };
 
         fs::create_dir_all(&adapter_dir)?;
-        println!("{:?}", &ADAPTERS.entries().iter().collect::<Vec<_>>());
         copy(
             &ADAPTERS,
             adapter_path,

@@ -103,18 +103,7 @@ pub fn log_action<T: AsRef<str>>(action: &str, subject: T) {
         action.log_color_action(),
         subject.as_ref()
     );
-
-    match state.output {
-        Output::Stdout => {
-            println!("{}", message);
-        }
-        Output::Stderr => {
-            eprintln!("{}", message);
-        }
-        Output::None => {
-            // NOP
-        }
-    }
+    logln_internal(state.output, &message);
 }
 
 pub fn log_warn_action<T: AsRef<str>>(action: &str, subject: T) {
@@ -125,8 +114,33 @@ pub fn log_warn_action<T: AsRef<str>>(action: &str, subject: T) {
         action.log_color_warn(),
         subject.as_ref(),
     );
+    logln_internal(state.output, &message);
+}
 
-    match state.output {
+pub fn log<T: AsRef<str>>(message: T) {
+    let state = LOG_STATE.read().unwrap();
+    log_internal(state.output, message.as_ref());
+}
+
+pub fn logln<T: AsRef<str>>(message: T) {
+    let state = LOG_STATE.read().unwrap();
+    logln_internal(state.output, message.as_ref());
+}
+
+pub fn log_internal(output: Output, message: &str) {
+    match output {
+        Output::Stdout => {
+            print!("{}", message)
+        }
+        Output::Stderr => {
+            eprint!("{}", message)
+        }
+        Output::None => {}
+    }
+}
+
+pub fn logln_internal(output: Output, message: &str) {
+    match output {
         Output::Stdout => {
             println!("{}", message)
         }

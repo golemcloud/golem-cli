@@ -5,7 +5,7 @@ use crate::command::component::ComponentSubcommand;
 use crate::command::plugin::PluginSubcommand;
 use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
-use crate::config::ProfileName;
+use crate::config::{BuildProfileName, ProfileName};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{self, CommandFactory, FromArgMatches, Subcommand};
 use clap::{Args, Parser};
@@ -37,7 +37,7 @@ pub struct GolemCliGlobalFlags {
 
     /// Select build profile
     #[arg(long, short, global = true)]
-    pub build_profile: Option<String>,
+    pub build_profile: Option<BuildProfileName>,
 
     /// Custom path to the config directory (defaults to $HOME/.golem)
     #[arg(long, short, global = true)]
@@ -369,7 +369,7 @@ pub mod shared_args {
     #[derive(Debug, Args)]
     pub struct AppOptionalComponentNames {
         /// Optional component names, if not specified all components are selected.
-        component_name: Vec<ComponentName>,
+        pub component_name: Vec<ComponentName>,
     }
 
     #[derive(Debug, Args)]
@@ -393,7 +393,7 @@ pub mod shared_args {
     pub struct ForceBuildArg {
         /// When set to true will skip modification time based up-to-date checks, defaults to false
         #[clap(long, short, default_value = "false")]
-        force_build: bool,
+        pub force_build: bool,
     }
 }
 
@@ -409,6 +409,8 @@ pub mod app {
         /// Create new application
         New {
             application_name: ApplicationName,
+            // TODO: let's make this optionally "lang/template-name" (or eventually "lang/group/template-name")
+            // TODO: related to the above, think about how one should define component-names (using ':' or '=') ?
             #[command(flatten)]
             language: LanguagesPositionalArg,
         },

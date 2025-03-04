@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::naming;
 use crate::wit_encode::EncodedWitDir;
 use crate::wit_generate::extract_exports_as_wit_dep;
 use crate::wit_resolve::{PackageSource, ResolvedWitDir};
-use crate::{naming, WasmRpcOverride};
 use anyhow::{anyhow, Context};
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -37,6 +37,12 @@ pub struct StubConfig {
     pub wasm_rpc_override: WasmRpcOverride,
     pub extract_source_exports_package: bool,
     pub seal_cargo_workspace: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WasmRpcOverride {
+    pub wasm_rpc_path_override: Option<PathBuf>,
+    pub wasm_rpc_version_override: Option<String>,
 }
 
 pub struct StubDefinition {

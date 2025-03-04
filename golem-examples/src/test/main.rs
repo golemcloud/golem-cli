@@ -17,6 +17,8 @@ use std::process::exit;
 use std::str::FromStr;
 use toml_edit::DocumentMut;
 
+// TODO: let's also drop this, and move this logic to the integration tests, or use the golem-cli directly in the golem-cli integ tests)
+// TODO: when moving there, let's add tests for rebuilds too
 #[derive(Parser, Debug)]
 #[command()]
 enum Command {
@@ -60,7 +62,7 @@ pub fn main() -> io::Result<()> {
             let results: Vec<(Example, Result<(), String>)> = all_standalone_examples()
                 .iter()
                 .filter(|example| match &filter {
-                    Some(filter) => filter.is_match(example.name.as_string()),
+                    Some(filter) => filter.is_match(example.name.as_str()),
                     None => true,
                 })
                 .map(|example| {
@@ -122,8 +124,10 @@ pub fn main() -> io::Result<()> {
                 used_languages.insert(*language);
 
                 let default_examples = examples.get(&ComposableAppGroupName::default()).unwrap();
+                // TODO:
                 assert_eq!(default_examples.components.len(), 1);
-                let default_component_example = &default_examples.components[0];
+                let (_, default_component_example) =
+                    &default_examples.components.iter().next().unwrap();
 
                 for _ in 1..=2 {
                     let component_name = format!("app:comp-{}", nanoid!(10, &alphabet));

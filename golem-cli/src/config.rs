@@ -56,6 +56,27 @@ impl From<String> for ProfileName {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub struct BuildProfileName(pub String);
+
+impl Display for BuildProfileName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<&str> for BuildProfileName {
+    fn from(name: &str) -> Self {
+        Self(name.to_string())
+    }
+}
+
+impl From<String> for BuildProfileName {
+    fn from(name: String) -> Self {
+        Self(name)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NamedProfile {
     pub name: ProfileName,
