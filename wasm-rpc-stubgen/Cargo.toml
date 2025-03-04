@@ -13,11 +13,6 @@ autotests = false
 path = "src/lib.rs"
 harness = false
 
-[[bin]]
-name = "wasm-rpc-stubgen"
-path = "src/main.rs"
-test = false
-
 [[test]]
 name = "integration"
 path = "tests/lib.rs"
