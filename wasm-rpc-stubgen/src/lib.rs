@@ -26,6 +26,10 @@ pub mod wit_encode;
 pub mod wit_generate;
 pub mod wit_resolve;
 
+pub const WIT_BINDGEN_VERSION: &str = "0.26.0";
+pub const WASI_WIT_VERSION: &str = "0.2.0";
+pub const GOLEM_RPC_WIT_VERSION: &str = "0.1.3";
+
 #[cfg(test)]
 test_r::enable!();
 

@@ -3261,9 +3261,9 @@ checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
 
 [[package]]
 name = "golem-api-grpc"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e987f465c87b51847cc1e4e01167ca44268d463cd8136357d93a88d6eb729f2"
+checksum = "4707d49f360e8621288fa75382fb747736518299cbce8eec048428cc7cb05684"
 dependencies = [
  "async-trait",
  "bincode",
@@ -3343,9 +3343,9 @@ dependencies = [
 
 [[package]]
 name = "golem-client"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "163c35824472c37ea230522cd10d079e93b5b702bde94ab3ac11f56f14949b8d"
+checksum = "1337a65bcf0eadd5158b3485eabbde66d4cf9434153e82b7ff5df96edecb561c"
 dependencies = [
  "async-trait",
  "bytes 1.10.0",
@@ -3367,9 +3367,9 @@ dependencies = [
 
 [[package]]
 name = "golem-cloud-client"
-version = "1.1.4"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "941e8f86276c7efaf4eacb1f4aa6e8641859251da32a5eeb0ca8fd056897305a"
+checksum = "9cfa9305799b46e376f86524ac79616e67c5f4f75f80e30a810e79f0e963eaa7"
 dependencies = [
  "async-trait",
  "bytes 1.10.0",
@@ -3392,9 +3392,9 @@ dependencies = [
 
 [[package]]
 name = "golem-common"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4a124959b490096720f1da40c340ffed25fa3f9cc03a1c7893a681018effe1f"
+checksum = "67a39947f9967289490e6310f8c4d0bdf5956c4f899caab98903c8c17ea2bb28"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3417,6 +3417,7 @@ dependencies = [
  "iso8601-timestamp",
  "itertools 0.13.0",
  "lazy_static 1.5.0",
+ "nonempty-collections",
  "poem",
  "poem-openapi",
  "prometheus",
@@ -3503,9 +3504,9 @@ dependencies = [
 
 [[package]]
 name = "golem-rib"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80a2b8a88940e9195891b785a8c8c1948017ff1b274c824694286efb09dd1dd6"
+checksum = "3ab1a9fb1e1137c42358df6a2d57dc3d723ebfbfa93f212b31514685fa0eb396"
 dependencies = [
  "async-trait",
  "bigdecimal",
@@ -3522,9 +3523,9 @@ dependencies = [
 
 [[package]]
 name = "golem-service-base"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4edb84acd429c3d7b1ce46e8e438c40ad4fbe521861e038c664d343017f9d369"
+checksum = "22abbdda5e58a2467ab7c87251c747846b9b1f346ad309323072a38bceda3c44"
 dependencies = [
  "anyhow",
  "async-fs",
@@ -3536,10 +3537,12 @@ dependencies = [
  "axum",
  "bigdecimal",
  "bincode",
+ "bitflags 2.8.0",
  "bytes 1.10.0",
  "chrono",
  "conditional-trait-gen",
  "dashmap",
+ "figment",
  "futures",
  "golem-api-grpc",
  "golem-common",
@@ -3577,9 +3580,9 @@ dependencies = [
 
 [[package]]
 name = "golem-test-framework"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bda21f12a82925b9fa79c0d4715daf45be180a2259eb6b5aaf6eb316547285d8"
+checksum = "102a9e911083236863769bb71d80f1eb7a8afe63f76e07f8132922407b9dccb0"
 dependencies = [
  "anyhow",
  "async-dropper",
@@ -3630,9 +3633,9 @@ dependencies = [
 
 [[package]]
 name = "golem-wasm-ast"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5666667d6cbdb4f6be50438cdcc23c51f7ce797084efbb14fd5c12ee887bde42"
+checksum = "94b03954b4dfdefad03e464f245f0650d756eb93d9dac42a946204aefb96ebbf"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3652,9 +3655,9 @@ dependencies = [
 
 [[package]]
 name = "golem-wasm-rpc"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "824671c931f1e01ddc0b7c971f973eaefcebece5436fc255bdfe6db70bde12cc"
+checksum = "53f2bf1fa4155fe08f5871bcd0d7790533dec97d8053c78172c5ac4a6872807b"
 dependencies = [
  "arbitrary",
  "async-recursion",
@@ -5301,6 +5304,12 @@ checksum = "df9761775871bdef83bee530e60050f7e54b1105350d6884eb0fb4f46c2f9405"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "nonempty-collections"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7f301452dbaf00f14ca0c8204e46cf0c9a96f53543ac72cefa9b4d91c19e0ac"
 
 [[package]]
 name = "normpath"
