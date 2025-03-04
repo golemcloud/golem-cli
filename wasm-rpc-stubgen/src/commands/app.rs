@@ -37,7 +37,6 @@ use wax::{Glob, LinkBehavior, WalkBehavior};
 #[derive(Clone, Debug)]
 pub struct Config<CPE: ComponentPropertiesExtensions> {
     pub app_source_mode: ApplicationSourceMode,
-    pub component_select_mode: ComponentSelectMode,
     pub skip_up_to_date_checks: bool,
     pub profile: Option<BuildProfileName>,
     pub offline: bool,
@@ -59,7 +58,8 @@ impl<CPE: ComponentPropertiesExtensions> Config<CPE> {
 #[derive(Debug, Clone)]
 pub enum ApplicationSourceMode {
     Automatic,
-    // TODO: change to only accept the root document with include handling (and maybe change validation to only allow include in root doc)
+    // TODO: change to only accept the root document with include handling, and switch to that at start
+    // TODO: (and maybe change validation to only allow include in root doc)
     Explicit(Vec<PathBuf>),
 }
 
@@ -88,6 +88,12 @@ impl ComponentSelectMode {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct DynamicHelpSections {
+    pub components: bool,
+    pub custom_commands: bool,
+}
+
 #[derive(Debug)]
 pub struct ComponentStubInterfaces {
     pub stub_interface_name: String,
@@ -98,6 +104,7 @@ pub struct ApplicationContext<CPE: ComponentPropertiesExtensions> {
     pub config: Config<CPE>,
     pub application: Application<CPE>,
     pub wit: ResolvedWitApplication,
+    calling_working_dir: PathBuf,
     component_stub_defs: HashMap<ComponentName, StubDefinition>,
     common_wit_deps: OnceCell<anyhow::Result<WitDepsResolver>>,
     component_generated_base_wit_deps: HashMap<ComponentName, WitDepsResolver>,
@@ -105,24 +112,24 @@ pub struct ApplicationContext<CPE: ComponentPropertiesExtensions> {
 }
 
 impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
-    pub fn new(config: Config<CPE>) -> anyhow::Result<ApplicationContext<CPE>> {
+    pub fn new(config: Config<CPE>) -> anyhow::Result<Option<ApplicationContext<CPE>>> {
+        let Some(app_and_selected_components) = load_app(&config) else {
+            return Ok(None);
+        };
+
         let ctx = to_anyhow(
             "Failed to create application context, see problems above",
-            load_app(&config).and_then(|(application, selected_component_names)| {
+            app_and_selected_components.and_then(|(application, calling_working_dir)| {
                 ResolvedWitApplication::new(&application, config.profile.as_ref()).map(|wit| {
-                    let selected_component_names = if selected_component_names.is_empty() {
-                        application.component_names().cloned().collect()
-                    } else {
-                        selected_component_names
-                    };
                     ApplicationContext {
                         config,
                         application,
                         wit,
+                        calling_working_dir,
                         component_stub_defs: HashMap::new(),
                         common_wit_deps: OnceCell::new(),
                         component_generated_base_wit_deps: HashMap::new(),
-                        selected_component_names,
+                        selected_component_names: BTreeSet::new(),
                     }
                 })
             }),
@@ -134,7 +141,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
             log_action("Selected", "offline mode");
         }
 
-        Ok(ctx)
+        Ok(Some(ctx))
     }
 
     fn select_and_validate_profiles(&self) -> anyhow::Result<()> {
@@ -411,6 +418,115 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
             .component_generated_base_wit_deps
             .get(component_name)
             .unwrap())
+    }
+
+    pub fn select_components(
+        &mut self,
+        component_select_mode: &ComponentSelectMode,
+    ) -> anyhow::Result<()> {
+        log_action("Selecting", "components");
+        let _indent = LogIndent::new();
+
+        let current_dir = std::env::current_dir()?.canonicalize()?;
+
+        let selected_component_names: ValidatedResult<BTreeSet<ComponentName>> =
+            match component_select_mode {
+                // TODO: broken, debug it
+                ComponentSelectMode::CurrentDir => match &self.config.app_source_mode {
+                    ApplicationSourceMode::Automatic => {
+                        let called_from_project_root = self.calling_working_dir == current_dir;
+                        if called_from_project_root {
+                            ValidatedResult::Ok(
+                                self.application
+                                    .component_names()
+                                    .map(|cn| cn.to_owned())
+                                    .collect(),
+                            )
+                        } else {
+                            ValidatedResult::Ok(
+                                self.application
+                                    .component_names()
+                                    .filter(|component_name| {
+                                        self.application
+                                            .component_source_dir(component_name)
+                                            .starts_with(self.calling_working_dir.as_path())
+                                    })
+                                    .cloned()
+                                    .collect(),
+                            )
+                        }
+                    }
+                    // TODO: review this after changing explicit mode
+                    ApplicationSourceMode::Explicit(_) => ValidatedResult::Ok(
+                        self.application
+                            .component_names()
+                            .map(|cn| cn.to_owned())
+                            .collect(),
+                    ),
+                },
+                ComponentSelectMode::All => ValidatedResult::Ok(
+                    self.application
+                        .component_names()
+                        .map(|cn| cn.to_owned())
+                        .collect(),
+                ),
+                ComponentSelectMode::Explicit(component_names) => {
+                    let mut validation = ValidationBuilder::new();
+                    for component_name in component_names {
+                        if !self.application.contains_component(component_name) {
+                            validation.add_error(format!(
+                                "Requested component {} not found, available components: {}",
+                                component_name.as_str().log_color_error_highlight(),
+                                self.application
+                                    .component_names()
+                                    .map(|s| s.as_str().log_color_highlight())
+                                    .join(", ")
+                            ));
+                        }
+                    }
+                    validation.build(BTreeSet::from_iter(component_names.iter().cloned()))
+                }
+            };
+
+        let selected_component_names = to_anyhow(
+            "Failed to select requested components",
+            selected_component_names,
+        )?;
+
+        if self.application.component_names().next().is_none() {
+            log_action("Found", "no components")
+        } else {
+            log_action(
+                "Found",
+                format!(
+                    "components: {}",
+                    self.application
+                        .component_names()
+                        .map(|s| s.as_str().log_color_highlight())
+                        .join(", ")
+                ),
+            )
+        }
+
+        let components_formatted = selected_component_names
+            .iter()
+            .map(|s| s.as_str().log_color_highlight())
+            .join(", ");
+        match component_select_mode {
+            ComponentSelectMode::CurrentDir => log_action(
+                "Selected",
+                format!("components based on current dir: {} ", components_formatted),
+            ),
+            ComponentSelectMode::All => log_action("Selected", "all components"),
+            ComponentSelectMode::Explicit(_) => log_action(
+                "Selected",
+                format!("components based on request: {} ", components_formatted),
+            ),
+        }
+
+        self.selected_component_names = selected_component_names;
+
+        Ok(())
     }
 
     pub fn selected_component_names(&self) -> &BTreeSet<ComponentName> {
@@ -737,7 +853,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
         Ok(())
     }
 
-    pub fn log_dynamic_help(&self) -> anyhow::Result<()> {
+    pub fn log_dynamic_help(&self, config: &DynamicHelpSections) -> anyhow::Result<()> {
         static LABEL_SOURCE: &str = "Source";
         static LABEL_SELECTED: &str = "Selected";
         static LABEL_TEMPLATE: &str = "Template";
@@ -769,7 +885,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
 
         let should_colorize = SHOULD_COLORIZE.should_colorize();
 
-        if self.application.has_any_component() {
+        if config.components && self.application.has_any_component() {
             logln(format!(
                 "{}",
                 "Application components:".log_color_help_group()
@@ -838,27 +954,29 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
             logln("No components found\n");
         }
 
-        for (profile, commands) in self.application.all_custom_commands_for_all_profiles() {
-            if commands.is_empty() {
-                continue;
-            }
+        if config.custom_commands {
+            for (profile, commands) in self.application.all_custom_commands_for_all_profiles() {
+                if commands.is_empty() {
+                    continue;
+                }
 
-            match profile {
-                None => logln(format!(
-                    "{}",
-                    "Application custom commands:".log_color_help_group()
-                )),
-                Some(profile) => logln(format!(
-                    "{}{}{}",
-                    "Custom commands for ".log_color_help_group(),
-                    profile.as_str().log_color_help_group(),
-                    " profile:".log_color_help_group(),
-                )),
+                match profile {
+                    None => logln(format!(
+                        "{}",
+                        "Application custom commands:".log_color_help_group()
+                    )),
+                    Some(profile) => logln(format!(
+                        "{}{}{}",
+                        "Custom commands for ".log_color_help_group(),
+                        profile.as_str().log_color_help_group(),
+                        " profile:".log_color_help_group(),
+                    )),
+                }
+                for command in commands {
+                    logln(format!("  {}", command.bold()))
+                }
+                logln("\n")
             }
-            for command in commands {
-                logln(format!("  {}", command.bold()))
-            }
-            logln("\n")
         }
 
         // TODO: profiles?
@@ -956,116 +1074,37 @@ fn delete_path(context: &str, path: &Path) -> anyhow::Result<()> {
 
 fn load_app<CPE: ComponentPropertiesExtensions>(
     config: &Config<CPE>,
-) -> ValidatedResult<(Application<CPE>, BTreeSet<ComponentName>)> {
-    collect_sources(&config.app_source_mode).and_then(|(sources, calling_working_dir)| {
+) -> Option<ValidatedResult<(Application<CPE>, PathBuf)>> {
+    let Some(sources) = collect_sources(&config.app_source_mode) else {
+        return None;
+    };
+
+    let result = sources.and_then(|(sources, calling_working_dir)| {
         sources
             .into_iter()
             .map(|source| {
                 ValidatedResult::from_result(app_raw::ApplicationWithSource::from_yaml_file(source))
             })
             .collect::<ValidatedResult<Vec<_>>>()
-            .map(|source_apps| (source_apps, calling_working_dir))
-    }).and_then(|(source_raw_apps, calling_working_dir)| {
-        let current_dir = std::env::current_dir().expect("Failed to get current working directory");
+            .and_then(Application::from_raw_apps)
+            .map(|app| (app, calling_working_dir))
+    });
 
-        log_action("Collecting", "components");
-        let _indent = LogIndent::new();
-
-        Application::from_raw_apps(source_raw_apps)
-            .and_then(|application| {
-                let component_names: ValidatedResult<BTreeSet<ComponentName>> =
-                    match &config.component_select_mode {
-                        ComponentSelectMode::CurrentDir => match &config.app_source_mode {
-                            ApplicationSourceMode::Automatic => {
-                                let called_from_project_root = calling_working_dir == current_dir;
-                                if called_from_project_root {
-                                    ValidatedResult::Ok(BTreeSet::new())
-                                } else {
-                                    ValidatedResult::Ok(
-                                        application
-                                            .component_names()
-                                            .filter(|component_name| application.component_source_dir(component_name).starts_with(calling_working_dir.as_path()))
-                                            .cloned()
-                                            .collect()
-                                    )
-                                }
-                            }
-                            ApplicationSourceMode::Explicit(_) => ValidatedResult::Ok(BTreeSet::new()),
-                        },
-                        ComponentSelectMode::All => ValidatedResult::Ok(BTreeSet::new()),
-                        ComponentSelectMode::Explicit(component_names) => {
-                            let mut validation = ValidationBuilder::new();
-                            for component_name in component_names {
-                                if !application.contains_component(component_name) {
-                                    validation.add_error(format!(
-                                        "Requested component {} not found, available components: {}",
-                                        component_name.as_str().log_color_error_highlight(),
-                                        application
-                                            .component_names()
-                                            .map(|s| s.as_str().log_color_highlight())
-                                            .join(", ")
-                                    ));
-                                }
-                            }
-                            validation.build(BTreeSet::from_iter(component_names.iter().cloned()))
-                        }
-                    };
-
-                component_names.map(|component_names| (application, component_names))
-            })
-            .inspect(|(application, component_names)| {
-                if application.component_names().next().is_none() {
-                    log_action("Found", "no components")
-                } else {
-                    log_action(
-                        "Found",
-                        format!(
-                            "components: {}",
-                            application
-                                .component_names()
-                                .map(|s| s.as_str().log_color_highlight())
-                                .join(", ")
-                        ),
-                    )
-                }
-
-                if !component_names.is_empty() {
-                    match config.component_select_mode {
-                        ComponentSelectMode::CurrentDir => log_action(
-                            "Selected",
-                            format!(
-                                "components based on current dir: {} ",
-                                component_names
-                                    .iter()
-                                    .map(|s| s.as_str().log_color_highlight())
-                                    .join(", ")
-                            ),
-                        ),
-                        ComponentSelectMode::All => log_action("Selected", "all components"),
-                        ComponentSelectMode::Explicit(_) => log_action(
-                            "Selected",
-                            format!(
-                                "components based on request: {} ",
-                                component_names
-                                    .iter()
-                                    .map(|s| s.as_str().log_color_highlight())
-                                    .join(", ")
-                            ),
-                        ),
-                    }
-                }
-            })
-    })
+    Some(result)
 }
 
-fn collect_sources(mode: &ApplicationSourceMode) -> ValidatedResult<(BTreeSet<PathBuf>, PathBuf)> {
-    let calling_working_dir =
-        std::env::current_dir().expect("Failed to get current working directory");
+fn collect_sources(
+    mode: &ApplicationSourceMode,
+) -> Option<ValidatedResult<(BTreeSet<PathBuf>, PathBuf)>> {
+    let calling_working_dir = std::env::current_dir()
+        .expect("Failed to get current working directory")
+        .canonicalize()
+        .expect("Failed to canonicalize current working directory");
 
-    log_action("Collecting", "sources");
+    log_action("Collecting", "application manifests");
     let _indent = LogIndent::new();
 
-    match mode {
+    let sources = match mode {
         ApplicationSourceMode::Automatic => match find_main_source() {
             Some(source) => {
                 let source_ext = PathExtra::new(&source);
@@ -1075,16 +1114,20 @@ fn collect_sources(mode: &ApplicationSourceMode) -> ValidatedResult<(BTreeSet<Pa
 
                 let includes = includes_from_yaml_file(source.as_path());
                 if includes.is_empty() {
-                    ValidatedResult::Ok(BTreeSet::from([source]))
+                    Some(ValidatedResult::Ok(BTreeSet::from([source])))
                 } else {
-                    ValidatedResult::from_result(compile_and_collect_globs(source_dir, &includes))
+                    Some(
+                        ValidatedResult::from_result(compile_and_collect_globs(
+                            source_dir, &includes,
+                        ))
                         .map(|mut sources| {
                             sources.insert(0, source);
                             sources.into_iter().collect()
-                        })
+                        }),
+                    )
                 }
             }
-            None => ValidatedResult::from_error("No application manifest found!".to_string()),
+            None => None,
         },
         ApplicationSourceMode::Explicit(sources) => {
             let non_unique_source_warns: Vec<_> = sources
@@ -1101,29 +1144,37 @@ fn collect_sources(mode: &ApplicationSourceMode) -> ValidatedResult<(BTreeSet<Pa
                 })
                 .collect();
 
-            ValidatedResult::from_value_and_warns(
+            Some(ValidatedResult::from_value_and_warns(
                 sources.iter().cloned().collect(),
                 non_unique_source_warns,
-            )
+            ))
         }
-    }
-    .inspect(|sources| {
-        if sources.is_empty() {
-            log_action("Found", "no sources");
-        } else {
-            log_action(
-                "Found",
-                format!(
-                    "sources: {}",
-                    sources
-                        .iter()
-                        .map(|source| source.log_color_highlight())
-                        .join(", ")
-                ),
-            );
-        }
-    })
-    .map(|sources| (sources, calling_working_dir))
+    };
+
+    let Some(sources) = sources else {
+        return None;
+    };
+
+    Some(
+        sources
+            .inspect(|sources| {
+                if sources.is_empty() {
+                    log_action("Found", "no sources");
+                } else {
+                    log_action(
+                        "Found",
+                        format!(
+                            "sources: {}",
+                            sources
+                                .iter()
+                                .map(|source| source.log_color_highlight())
+                                .join(", ")
+                        ),
+                    );
+                }
+            })
+            .map(|sources| (sources, calling_working_dir)),
+    )
 }
 
 fn find_main_source() -> Option<PathBuf> {

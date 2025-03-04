@@ -152,13 +152,20 @@ impl GolemCliCommand {
                             _ => None,
                         })
                     }
-                    ErrorKind::MissingSubcommand if fallback_command.positional_args == ["app"] => {
-                        Some(GolemCliCommandPartialMatch::AppMissingSubcommandHelp)
-                    }
-                    ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
-                        if fallback_command.positional_args == ["app"] =>
-                    {
-                        Some(GolemCliCommandPartialMatch::AppMissingSubcommandHelp)
+                    ErrorKind::MissingSubcommand
+                    | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
+                        let positional_args = fallback_command
+                            .positional_args
+                            .iter()
+                            .map(|arg| arg.as_ref())
+                            .collect::<Vec<_>>();
+                        match positional_args.as_slice() {
+                            ["app"] => Some(GolemCliCommandPartialMatch::AppMissingSubcommandHelp),
+                            ["component"] => {
+                                Some(GolemCliCommandPartialMatch::ComponentMissingSubcommandHelp)
+                            }
+                            _ => None,
+                        }
                     }
                     _ => None,
                 };
@@ -298,6 +305,7 @@ pub enum GolemCliCommandPartialMatch {
     AppNewMissingLanguage,
     AppMissingSubcommandHelp,
     ComponentNewMissingLanguage,
+    ComponentMissingSubcommandHelp,
     WorkerInvokeMissingWorkerName,
     WorkerInvokeMissingFunctionName { worker_name: String },
 }
@@ -448,7 +456,7 @@ pub mod component {
 
     #[derive(Debug, Subcommand)]
     pub enum ComponentSubcommand {
-        /// Create new component in the application
+        /// Create new component in the current application
         New {
             component_name: NewComponentName,
             #[command(flatten)]

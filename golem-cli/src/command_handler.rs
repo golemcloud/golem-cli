@@ -1,6 +1,5 @@
 use crate::command::app::AppSubcommand;
 use crate::command::component::ComponentSubcommand;
-use crate::command::shared_args::AppOptionalComponentNames;
 use crate::command::worker::WorkerSubcommand;
 use crate::command::{
     GolemCliCommand, GolemCliCommandParseResult, GolemCliCommandPartialMatch,
@@ -8,18 +7,26 @@ use crate::command::{
 };
 use crate::config::Config;
 use crate::context::{Context, GolemClients};
-use crate::error::{HintError, HintedError};
+use crate::error::{HandledError, HintError};
 use crate::init_tracing;
+use crate::model::app_ext::GolemComponentExtensions;
+use crate::model::ComponentName;
 use anyhow::bail;
 use colored::Colorize;
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use golem_examples::add_component_by_example;
 use golem_examples::model::{ComposableAppGroupName, PackageName};
-use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
+use golem_wasm_rpc_stubgen::commands::app::{
+    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
+};
 use golem_wasm_rpc_stubgen::fs;
 use golem_wasm_rpc_stubgen::log::{
-    log_action, logln, set_log_output, LogColorize, LogIndent, Output,
+    log, log_action, logln, set_log_output, LogColorize, LogIndent, Output,
 };
+use golem_wasm_rpc_stubgen::model::app::ComponentName as AppComponentName;
 use itertools::Itertools;
+use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -42,6 +49,7 @@ impl CommandHandler {
         }
     }
 
+    // TODO: match and enrich "-h" and "--help"
     pub async fn handle_args<I, T>(args_iterator: I) -> ExitCode
     where
         I: IntoIterator<Item = T>,
@@ -63,7 +71,7 @@ impl CommandHandler {
             } => {
                 init_tracing(fallback_command.global_flags.verbosity);
                 debug!(partial_match = ?partial_match, "Partial match");
-                log_parse_error(&error, &fallback_command);
+                debug_log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 
                 Self::new(&fallback_command.global_flags)
@@ -76,7 +84,7 @@ impl CommandHandler {
                 fallback_command,
             } => {
                 init_tracing(fallback_command.global_flags.verbosity);
-                log_parse_error(&error, &fallback_command);
+                debug_log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 
                 Ok(clamp_exit_code(error.exit_code()))
@@ -84,8 +92,10 @@ impl CommandHandler {
         };
 
         result.unwrap_or_else(|error| {
-            // TODO: formatting of "stacktraces"
-            eprintln!("\n{} {}", "error: ".log_color_error(), error);
+            if error.downcast_ref::<HandledError>().is_none() {
+                // TODO: check if this should be display or debug
+                log_error(format!("{}", error));
+            }
             ExitCode::FAILURE
         })
     }
@@ -213,9 +223,15 @@ impl CommandHandler {
                 }
 
                 std::env::set_current_dir(&app_dir)?;
-                let app_ctx = self.ctx.application_context().await?;
+                let Some(app_ctx) = self.ctx.application_context().await? else {
+                    return Ok(());
+                };
+
                 logln("");
-                app_ctx.log_dynamic_help()?;
+                app_ctx.log_dynamic_help(&DynamicHelpSections {
+                    components: true,
+                    custom_commands: true,
+                })?;
 
                 Ok(())
             }
@@ -224,14 +240,13 @@ impl CommandHandler {
                 step,
                 force_build,
             } => {
-                self.ctx
-                    .set_component_select_mode(app_component_select_mode(component_name));
                 self.ctx.set_steps_filter(step.into_iter().collect());
                 self.ctx.set_skip_up_to_date_checks(force_build.force_build);
 
-                let app_ctx = self.ctx.application_context_mut().await?;
-
-                app_ctx.build().await?;
+                self.app_ctx_with_selected_app_components_prefer_all(component_name.component_name)
+                    .await?
+                    .build()
+                    .await?;
 
                 Ok(())
             }
@@ -239,21 +254,18 @@ impl CommandHandler {
                 component_name,
                 force_build,
             } => {
-                self.ctx
-                    .set_component_select_mode(app_component_select_mode(component_name));
                 self.ctx.set_skip_up_to_date_checks(force_build.force_build);
 
-                let _app_ctx = self.ctx.application_context_mut().await?;
+                let _app_ctx = self
+                    .app_ctx_with_selected_app_components_prefer_all(component_name.component_name)
+                    .await?;
 
                 todo!()
             }
             AppSubcommand::Clean { component_name } => {
-                self.ctx
-                    .set_component_select_mode(app_component_select_mode(component_name));
-
-                let app_ctx = self.ctx.application_context_mut().await?;
-
-                app_ctx.clean()?;
+                self.app_ctx_with_selected_app_components_prefer_all(component_name.component_name)
+                    .await?
+                    .clean()?;
 
                 Ok(())
             }
@@ -265,8 +277,10 @@ impl CommandHandler {
                     );
                 }
 
-                let ctx = self.ctx.application_context().await?;
-                ctx.custom_command(&command[0])?;
+                self.ctx
+                    .required_application_context()
+                    .await?
+                    .custom_command(&command[0])?;
 
                 Ok(())
             }
@@ -294,65 +308,84 @@ impl CommandHandler {
     }
 
     async fn handle_partial_match_with_hints(
-        &self,
+        &mut self,
         partial_match: GolemCliCommandPartialMatch,
     ) -> anyhow::Result<()> {
-        self.try_match_hint_errors(self.handle_partial_match(partial_match).await)
-            .await
+        let result = self.handle_partial_match(partial_match).await;
+        self.try_match_hint_errors(result).await
     }
 
     async fn handle_partial_match(
-        &self,
+        &mut self,
         partial_match: GolemCliCommandPartialMatch,
     ) -> anyhow::Result<()> {
         match partial_match {
             GolemCliCommandPartialMatch::AppNewMissingLanguage
             | GolemCliCommandPartialMatch::ComponentNewMissingLanguage => {
-                eprintln!(
-                    "{}",
-                    "\nAvailable languages and templates:".underline().bold()
-                );
+                logln(format!(
+                    "\n{}",
+                    "Available languages and templates:".underline().bold(),
+                ));
                 for (language, templates) in self.ctx.templates() {
-                    eprintln!("- {}", language.to_string().bold());
+                    logln(format!("- {}", language.to_string().bold()));
                     for (group, template) in templates {
                         if group.as_str() != "default" {
                             panic!("TODO: handle non-default groups")
                         }
                         // TODO: strip template names (preferably in golem-examples)
                         for template in template.components.values() {
-                            eprintln!(
+                            logln(format!(
                                 "  - {}: {}",
                                 template.name.as_str().bold(),
-                                template.description
-                            );
+                                template.description,
+                            ));
                         }
                     }
                 }
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
                 set_log_output(Output::None);
-                let Ok(app_ctx) = self.ctx.application_context().await else {
+                let Some(app_ctx) = self.ctx.application_context_mut().await? else {
+                    // TODO: maybe add hint that this command should use app manifest
                     return Ok(());
                 };
-
+                app_ctx.select_components(&ComponentSelectMode::All)?;
                 set_log_output(Output::Stderr);
                 logln("");
-                app_ctx.log_dynamic_help()?;
+                app_ctx.log_dynamic_help(&DynamicHelpSections {
+                    components: true,
+                    custom_commands: true,
+                })?;
+            }
+            GolemCliCommandPartialMatch::ComponentMissingSubcommandHelp => {
+                // TODO: code dup with AppMissingSubcommandHelp?
+                set_log_output(Output::None);
+                let Some(app_ctx) = self.ctx.application_context_mut().await? else {
+                    // TODO: maybe add hint that this command should use app manifest
+                    return Ok(());
+                };
+                app_ctx.select_components(&ComponentSelectMode::CurrentDir)?;
+                set_log_output(Output::Stderr);
+                logln("");
+                app_ctx.log_dynamic_help(&DynamicHelpSections {
+                    components: true,
+                    custom_commands: false,
+                })?;
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName => {
-                eprintln!("{}", "\nExisting workers:".underline().bold());
-                eprintln!("...");
-                eprintln!("To see all workers use.. TODO");
+                logln(format!("\n{}", "Existing workers:".underline().bold()));
+                logln("...");
+                logln("To see all workers use.. TODO");
                 todo!()
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName { worker_name } => {
-                eprintln!(
+                logln(format!(
                     "\n{}",
                     format!("Available functions for {}:", worker_name)
                         .underline()
-                        .bold()
-                );
-                eprintln!("...");
+                        .bold(),
+                ));
+                logln("...");
                 todo!()
             }
         }
@@ -365,7 +398,7 @@ impl CommandHandler {
             Ok(value) => Ok(value),
             Err(error) => match error.downcast_ref::<HintError>() {
                 Some(error) => match self.handle_hint_error(error).await {
-                    Ok(()) => Err(HintedError)?,
+                    Ok(()) => Err(HandledError)?,
                     Err(error) => Err(error),
                 },
                 None => Err(error),
@@ -375,14 +408,137 @@ impl CommandHandler {
 
     async fn handle_hint_error(&self, error: &HintError) -> anyhow::Result<()> {
         match error {
+            HintError::NoApplicationManifestsFound => {
+                log_error("No application manifest(s) found!");
+                logln(format!(
+                    "Switch to a directory that contains an application manifest ({}),",
+                    "golem.yaml".log_color_highlight()
+                ));
+                logln(format!(
+                    "or create a new application with the '{}' subcommand!",
+                    "app new".log_color_highlight(),
+                ));
+                Ok(())
+            }
             HintError::ComponentNotFound(_) => {
                 todo!()
             }
             HintError::WorkerNotFound(worker_name) => {
-                eprintln!("Dynamic help for worker not found: {}", worker_name);
+                logln(format!(
+                    "Dynamic help for worker not found: {}",
+                    worker_name
+                ));
                 Ok(())
             }
         }
+    }
+
+    async fn app_ctx_with_selected_app_components_prefer_all(
+        &mut self,
+        component_names: Vec<ComponentName>,
+    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+        self.app_ctx_with_selected_app_components(component_names, &ComponentSelectMode::All)
+            .await
+    }
+
+    async fn app_ctx_with_selected_app_components_prefer_current_dir(
+        &mut self,
+        component_names: Vec<ComponentName>,
+    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+        self.app_ctx_with_selected_app_components(component_names, &ComponentSelectMode::CurrentDir)
+            .await
+    }
+
+    // TODO: forbid matching the same component multiple times
+    async fn app_ctx_with_selected_app_components(
+        &mut self,
+        component_names: Vec<ComponentName>,
+        default: &ComponentSelectMode,
+    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+        let app_ctx = self.ctx.required_application_context_mut().await?;
+
+        if component_names.is_empty() {
+            app_ctx.select_components(default)?
+        } else {
+            let available_component_names = app_ctx
+                .application
+                .component_names()
+                .map(|cn| cn.to_string())
+                .collect::<HashSet<_>>();
+            let matcher = SkimMatcherV2::default();
+
+            let mut component_names_found =
+                Vec::<AppComponentName>::with_capacity(component_names.len());
+            let mut component_names_not_found = Vec::<(String, Vec<String>)>::new();
+
+            for component_name in component_names {
+                if available_component_names.contains(&component_name.0) {
+                    component_names_found.push(component_name.0.into())
+                } else {
+                    let fuzzy_matches = available_component_names
+                        .iter()
+                        .filter_map(|valid_component_name| {
+                            matcher
+                                .fuzzy_match(
+                                    valid_component_name.as_str(),
+                                    component_name.0.as_str(),
+                                )
+                                .map(|score| (score, valid_component_name))
+                        })
+                        .sorted_by(|(score_a, _), (score_b, _)| Ord::cmp(score_b, score_a))
+                        .collect::<Vec<_>>();
+
+                    if fuzzy_matches.len() == 1 {
+                        component_names_found
+                            .push(fuzzy_matches.iter().next().unwrap().1.as_str().into());
+                    } else {
+                        component_names_not_found.push((
+                            component_name.0.into(),
+                            fuzzy_matches.iter().map(|(_, m)| m.to_string()).collect(),
+                        ));
+                    }
+                }
+            }
+
+            if !component_names_not_found.is_empty() {
+                log_error(format!(
+                    "The following requested component names are not found:\n{}",
+                    component_names_not_found
+                        .iter()
+                        .map(|(component_name, similar_matches)| {
+                            if similar_matches.is_empty() {
+                                format!("  - {}", component_name.as_str().bold())
+                            } else {
+                                format!(
+                                    "  - {}, did you mean one of {}?",
+                                    component_name.as_str().bold(),
+                                    similar_matches
+                                        .iter()
+                                        .map(|cn| cn.log_color_ok_highlight())
+                                        .join(", ")
+                                )
+                            }
+                        })
+                        .join("\n")
+                ));
+                logln(
+                    "Available application components:"
+                        .bold()
+                        .underline()
+                        .to_string(),
+                );
+                for component_name in available_component_names {
+                    logln(format!("  - {}", component_name));
+                }
+                logln("");
+
+                bail!(HandledError);
+            }
+
+            app_ctx.select_components(&ComponentSelectMode::Explicit(component_names_found))?
+        }
+
+        Ok(app_ctx)
     }
 }
 
@@ -396,7 +552,7 @@ fn clamp_exit_code(exit_code: i32) -> ExitCode {
     }
 }
 
-fn log_parse_error(error: &clap::Error, fallback_command: &GolemCliFallbackCommand) {
+fn debug_log_parse_error(error: &clap::Error, fallback_command: &GolemCliFallbackCommand) {
     debug!(fallback_command = ?fallback_command, "Fallback command");
     debug!(error = ?error, "Clap error");
     if tracing::enabled!(Level::DEBUG) {
@@ -406,25 +562,8 @@ fn log_parse_error(error: &clap::Error, fallback_command: &GolemCliFallbackComma
     }
 }
 
-// TODO:
-/*
-fn component_select_mode(component_names: AppOptionalComponentNames) -> ComponentSelectMode {
-    ComponentSelectMode::current_dir_or_explicit(
-        component_names
-            .component_name
-            .into_iter()
-            .map(|cn| cn.0.into())
-            .collect(),
-    )
-}
-*/
-
-fn app_component_select_mode(component_names: AppOptionalComponentNames) -> ComponentSelectMode {
-    ComponentSelectMode::all_or_explicit(
-        component_names
-            .component_name
-            .into_iter()
-            .map(|cn| cn.0.into())
-            .collect(),
-    )
+fn log_error<S: AsRef<str>>(message: S) {
+    log("\nerror: ".log_color_error().to_string());
+    logln(message.as_ref());
+    logln("");
 }

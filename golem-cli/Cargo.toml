@@ -50,6 +50,7 @@ cli-table = { workspace = true }
 colored = { workspace = true }
 dirs = { workspace = true }
 futures-util = { workspace = true }
+fuzzy-matcher = { workspace = true }
 humansize = { workspace = true }
 indoc = { workspace = true }
 inquire = { workspace = true }

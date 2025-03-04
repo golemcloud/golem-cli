@@ -16,7 +16,9 @@ use crate::command::GolemCliGlobalFlags;
 use crate::config::{
     BuildProfileName, ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileName,
 };
+use crate::error::HintError::NoApplicationManifestsFound;
 use crate::model::app_ext::GolemComponentExtensions;
+use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
 use golem_client::api::ApiSecurityClientLive as ApiSecurityClientOss;
@@ -44,9 +46,7 @@ use golem_cloud_client::api::WorkerClientLive as WorkerClientCloud;
 use golem_cloud_client::{Context as ContextCloud, Security};
 use golem_examples::model::{ComposableAppGroupName, GuestLanguage};
 use golem_examples::ComposableAppExample;
-use golem_wasm_rpc_stubgen::commands::app::{
-    ApplicationContext, ApplicationSourceMode, ComponentSelectMode,
-};
+use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ApplicationSourceMode};
 use golem_wasm_rpc_stubgen::log::{set_log_output, Output};
 use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
 use golem_wasm_rpc_stubgen::stub::WasmRpcOverride;
@@ -62,12 +62,11 @@ pub struct Context {
     app_manifest_path: Option<PathBuf>,
     wasm_rpc_override: WasmRpcOverride,
     clients: tokio::sync::OnceCell<Clients>,
-    application_context: tokio::sync::OnceCell<ApplicationContext<GolemComponentExtensions>>,
+    application_context:
+        tokio::sync::OnceCell<Option<ApplicationContext<GolemComponentExtensions>>>,
     templates: std::cell::OnceCell<
         BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppExample>>,
     >,
-    component_select_mode: ComponentSelectMode,
-    component_select_mode_was_set: bool,
     skip_up_to_date_checks: bool,
     skip_up_to_date_checks_was_set: bool,
     build_steps_filter: HashSet<AppBuildStep>,
@@ -90,8 +89,6 @@ impl Context {
             clients: tokio::sync::OnceCell::new(),
             application_context: tokio::sync::OnceCell::new(),
             templates: std::cell::OnceCell::new(),
-            component_select_mode: ComponentSelectMode::CurrentDir,
-            component_select_mode_was_set: false,
             skip_up_to_date_checks: false,
             skip_up_to_date_checks_was_set: false,
             build_steps_filter: HashSet::new(),
@@ -111,7 +108,7 @@ impl Context {
 
     pub async fn application_context(
         &self,
-    ) -> anyhow::Result<&ApplicationContext<GolemComponentExtensions>> {
+    ) -> anyhow::Result<Option<&ApplicationContext<GolemComponentExtensions>>> {
         self.application_context
             .get_or_try_init(|| async {
                 let config = golem_wasm_rpc_stubgen::commands::app::Config {
@@ -121,7 +118,6 @@ impl Context {
                             None => ApplicationSourceMode::Automatic,
                         }
                     },
-                    component_select_mode: self.component_select_mode.clone(),
                     skip_up_to_date_checks: self.skip_up_to_date_checks,
                     profile: self.build_profile.as_ref().map(|p| p.to_string().into()),
                     offline: false, // TODO:
@@ -135,16 +131,33 @@ impl Context {
                 ApplicationContext::new(config)
             })
             .await
+            .map(|app_ctx| app_ctx.as_ref())
+    }
+
+    pub async fn required_application_context(
+        &self,
+    ) -> anyhow::Result<&ApplicationContext<GolemComponentExtensions>> {
+        self.application_context()
+            .await?
+            .ok_or_else(|| anyhow!(NoApplicationManifestsFound))
     }
 
     pub async fn application_context_mut(
         &mut self,
-    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+    ) -> anyhow::Result<Option<&mut ApplicationContext<GolemComponentExtensions>>> {
         let _ = self.application_context().await?;
-        Ok(self.application_context.get_mut().unwrap())
+        Ok(self.application_context.get_mut().unwrap().as_mut())
     }
 
-    fn set_app_ctx_config<T>(
+    pub async fn required_application_context_mut(
+        &mut self,
+    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+        self.application_context_mut()
+            .await?
+            .ok_or_else(|| anyhow!(NoApplicationManifestsFound))
+    }
+
+    fn set_app_ctx_init_config<T>(
         &mut self,
         name: &str,
         get_value_mut: fn(&mut Context) -> &mut T,
@@ -161,17 +174,8 @@ impl Context {
         *get_was_set_mut(self) = true;
     }
 
-    pub fn set_component_select_mode(&mut self, mode: ComponentSelectMode) {
-        self.set_app_ctx_config(
-            "component_select_mode",
-            |ctx| &mut ctx.component_select_mode,
-            |ctx| &mut ctx.component_select_mode_was_set,
-            mode,
-        );
-    }
-
     pub fn set_skip_up_to_date_checks(&mut self, skip: bool) {
-        self.set_app_ctx_config(
+        self.set_app_ctx_init_config(
             "skip_up_to_date_checks",
             |ctx| &mut ctx.skip_up_to_date_checks,
             |ctx| &mut ctx.skip_up_to_date_checks_was_set,
@@ -180,7 +184,7 @@ impl Context {
     }
 
     pub fn set_steps_filter(&mut self, steps_filter: HashSet<AppBuildStep>) {
-        self.set_app_ctx_config(
+        self.set_app_ctx_init_config(
             "steps_filter",
             |ctx| &mut ctx.build_steps_filter,
             |ctx| &mut ctx.build_steps_filter_was_set,

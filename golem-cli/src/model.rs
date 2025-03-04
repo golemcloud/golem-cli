@@ -239,7 +239,7 @@ pub trait HasFormatConfig {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ProjectName(pub String);
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct ComponentName(pub String);
 
 impl From<&str> for ComponentName {
