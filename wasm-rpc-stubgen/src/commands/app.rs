@@ -431,7 +431,6 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
 
         let selected_component_names: ValidatedResult<BTreeSet<ComponentName>> =
             match component_select_mode {
-                // TODO: broken, debug it
                 ComponentSelectMode::CurrentDir => match &self.config.app_source_mode {
                     ApplicationSourceMode::Automatic => {
                         let called_from_project_root = self.calling_working_dir == current_dir;

@@ -25,6 +25,7 @@ pub mod connect_output;
 pub mod context;
 pub mod diagnose;
 pub mod error;
+pub mod fuzzy;
 pub mod init;
 pub mod model;
 

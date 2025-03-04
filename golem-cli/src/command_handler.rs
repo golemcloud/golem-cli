@@ -1,3 +1,17 @@
+// Copyright 2024-2025 Golem Cloud
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::command::app::AppSubcommand;
 use crate::command::component::ComponentSubcommand;
 use crate::command::worker::WorkerSubcommand;
@@ -8,6 +22,7 @@ use crate::command::{
 use crate::config::Config;
 use crate::context::{Context, GolemClients};
 use crate::error::{HandledError, HintError};
+use crate::fuzzy::{FuzzyMatchResult, FuzzySearch};
 use crate::init_tracing;
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::ComponentName;
@@ -26,6 +41,7 @@ use golem_wasm_rpc_stubgen::log::{
 };
 use golem_wasm_rpc_stubgen::model::app::ComponentName as AppComponentName;
 use itertools::Itertools;
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -460,42 +476,24 @@ impl CommandHandler {
         if component_names.is_empty() {
             app_ctx.select_components(default)?
         } else {
-            let available_component_names = app_ctx
-                .application
-                .component_names()
-                .map(|cn| cn.to_string())
-                .collect::<HashSet<_>>();
-            let matcher = SkimMatcherV2::default();
+            let fuzzy_search =
+                FuzzySearch::new(app_ctx.application.component_names().map(|cn| cn.as_str()));
 
             let mut component_names_found =
                 Vec::<AppComponentName>::with_capacity(component_names.len());
             let mut component_names_not_found = Vec::<(String, Vec<String>)>::new();
 
             for component_name in component_names {
-                if available_component_names.contains(&component_name.0) {
-                    component_names_found.push(component_name.0.into())
-                } else {
-                    let fuzzy_matches = available_component_names
-                        .iter()
-                        .filter_map(|valid_component_name| {
-                            matcher
-                                .fuzzy_match(
-                                    valid_component_name.as_str(),
-                                    component_name.0.as_str(),
-                                )
-                                .map(|score| (score, valid_component_name))
-                        })
-                        .sorted_by(|(score_a, _), (score_b, _)| Ord::cmp(score_b, score_a))
-                        .collect::<Vec<_>>();
-
-                    if fuzzy_matches.len() == 1 {
-                        component_names_found
-                            .push(fuzzy_matches.iter().next().unwrap().1.as_str().into());
-                    } else {
-                        component_names_not_found.push((
-                            component_name.0.into(),
-                            fuzzy_matches.iter().map(|(_, m)| m.to_string()).collect(),
-                        ));
+                match fuzzy_search.find(component_name.0.as_str()) {
+                    FuzzyMatchResult::Found { option, .. } => {
+                        component_names_found.push(option.into())
+                    }
+                    FuzzyMatchResult::Ambiguous {
+                        highlighted_options,
+                    } => component_names_not_found
+                        .push((component_name.0.into(), highlighted_options)),
+                    FuzzyMatchResult::NotFound => {
+                        component_names_not_found.push((component_name.0.into(), vec![]))
                     }
                 }
             }
@@ -512,10 +510,7 @@ impl CommandHandler {
                                 format!(
                                     "  - {}, did you mean one of {}?",
                                     component_name.as_str().bold(),
-                                    similar_matches
-                                        .iter()
-                                        .map(|cn| cn.log_color_ok_highlight())
-                                        .join(", ")
+                                    similar_matches.iter().map(|cn| cn.bold()).join(", ")
                                 )
                             }
                         })
@@ -527,7 +522,7 @@ impl CommandHandler {
                         .underline()
                         .to_string(),
                 );
-                for component_name in available_component_names {
+                for component_name in app_ctx.application.component_names() {
                     logln(format!("  - {}", component_name));
                 }
                 logln("");
