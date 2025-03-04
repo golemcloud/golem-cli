@@ -27,7 +27,7 @@ pub struct StartedComponents {
     pub shard_manager: golem_shard_manager::RunDetails,
     pub worker_executor: golem_worker_executor_base::RunDetails,
     pub worker_service: golem_worker_service::TrafficReadyEndpoints,
-    pub prometheus_registy: Registry,
+    pub prometheus_registry: Registry,
 }
 
 #[cfg(test)]
@@ -38,40 +38,4 @@ mod tests {
     use clap::{Command, CommandFactory};
     use golem_cli::command_old::profile::OssProfileAdd;
     use golem_cli::oss::cli::GolemOssCli;
-
-    // TODO: delete before merge
-    #[test]
-    fn dump_commands() {
-        let command = GolemOssCli::<OssProfileAdd, SingleExecutableCommand>::command();
-        dump_command(0, &command);
-    }
-
-    fn dump_command(level: usize, command: &Command) {
-        print!("{}{}", "\t".repeat(level), command.get_name());
-        let (positional, flag_args): (Vec<_>, Vec<_>) =
-            command.get_arguments().partition(|arg| arg.is_positional());
-
-        if !positional.is_empty() {
-            for arg in positional {
-                print!(" <{}>", arg.get_id());
-            }
-        }
-        println!();
-
-        if !flag_args.is_empty() {
-            print!("{}", "\t".repeat(level + 2));
-            for arg in flag_args.clone() {
-                print!(" --{}", arg.get_long().unwrap(),);
-                arg.get_short()
-                    .iter()
-                    .for_each(|short| print!("({})", short));
-            }
-            println!()
-        }
-
-        let subcommand_level = level + 1;
-        for subcommand in command.get_subcommands() {
-            dump_command(subcommand_level, subcommand);
-        }
-    }
 }
