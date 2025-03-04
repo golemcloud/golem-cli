@@ -17,7 +17,6 @@ use crate::config::{
     BuildProfileName, ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileName,
 };
 use crate::model::app_ext::GolemComponentExtensions;
-use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
 use golem_client::api::ApiSecurityClientLive as ApiSecurityClientOss;
@@ -57,7 +56,7 @@ use std::path::PathBuf;
 use tracing::debug;
 
 pub struct Context {
-    profile_name: ProfileName,
+    _profile_name: ProfileName, // TODO
     profile: Profile,
     build_profile: Option<BuildProfileName>,
     app_manifest_path: Option<PathBuf>,
@@ -67,7 +66,6 @@ pub struct Context {
     templates: std::cell::OnceCell<
         BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppExample>>,
     >,
-    missing_templates: BTreeMap<ComposableAppGroupName, ComposableAppExample>,
     component_select_mode: ComponentSelectMode,
     component_select_mode_was_set: bool,
     skip_up_to_date_checks: bool,
@@ -81,7 +79,7 @@ impl Context {
         set_log_output(Output::Stderr);
 
         Self {
-            profile_name: profile.name,
+            _profile_name: profile.name,
             profile: profile.profile,
             build_profile: global_flags.build_profile.clone(),
             app_manifest_path: global_flags.app_manifest_path.clone(),
@@ -92,7 +90,6 @@ impl Context {
             clients: tokio::sync::OnceCell::new(),
             application_context: tokio::sync::OnceCell::new(),
             templates: std::cell::OnceCell::new(),
-            missing_templates: BTreeMap::new(),
             component_select_mode: ComponentSelectMode::CurrentDir,
             component_select_mode_was_set: false,
             skip_up_to_date_checks: false,
@@ -135,7 +132,7 @@ impl Context {
 
                 debug!(config = ?config, "Initializing application context");
 
-                Ok(ApplicationContext::new(config)?)
+                ApplicationContext::new(config)
             })
             .await
     }
@@ -195,16 +192,7 @@ impl Context {
         &self,
     ) -> &BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppExample>> {
         self.templates
-            .get_or_init(|| golem_examples::all_composable_app_examples())
-    }
-
-    fn language_templates(
-        &self,
-        language: GuestLanguage,
-    ) -> &BTreeMap<ComposableAppGroupName, ComposableAppExample> {
-        self.templates()
-            .get(&language)
-            .unwrap_or(&self.missing_templates)
+            .get_or_init(golem_examples::all_composable_app_examples)
     }
 }
 

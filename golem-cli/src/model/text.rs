@@ -704,9 +704,7 @@ pub mod example {
 }
 
 pub mod profile {
-    use crate::config::{
-        CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileName,
-    };
+    use crate::config::ProfileConfig;
     use crate::model::text::fmt::*;
     use crate::model::{ProfileType, ProfileView};
     use colored::Colorize;

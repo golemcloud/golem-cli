@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::cloud::CloudAuthenticationConfig;
-use crate::model::{Format, GolemError, HasFormatConfig, ProfileType};
+use crate::model::{Format, GolemError, HasFormatConfig};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -259,7 +259,7 @@ impl Config {
         config.store_file(config_dir)
     }
 
-    pub fn delete_profile(name: &ProfileName, config_dir: &Path) -> Result<(), GolemError> {
+    pub fn delete_profile(_name: &ProfileName, _config_dir: &Path) -> Result<(), GolemError> {
         /*let mut config = Self::read_from_file(config_dir);
 
         if &config

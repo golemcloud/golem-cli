@@ -1,4 +1,5 @@
 use crate::command::app::AppSubcommand;
+use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::AppOptionalComponentNames;
 use crate::command::worker::WorkerSubcommand;
 use crate::command::{
@@ -9,31 +10,20 @@ use crate::config::Config;
 use crate::context::{Context, GolemClients};
 use crate::error::{HintError, HintedError};
 use crate::init_tracing;
-use crate::model::app_ext::GolemComponentExtensions;
-use crate::model::{ComponentName, WorkerName};
 use anyhow::bail;
-use clap::error::ErrorKind;
 use colored::Colorize;
-use golem_client::api::WorkerClient as WorkerClientOss;
-use golem_cloud_client::api::WorkerClient as WorkerClientCloud;
-use golem_examples::model::{ComposableAppGroupName, GuestLanguage, PackageName};
-use golem_examples::{add_component_by_example, ComposableAppExample};
-use golem_wasm_rpc_stubgen::commands::app::ApplicationSourceMode::Explicit;
-use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ComponentSelectMode};
+use golem_examples::add_component_by_example;
+use golem_examples::model::{ComposableAppGroupName, PackageName};
+use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
 use golem_wasm_rpc_stubgen::fs;
 use golem_wasm_rpc_stubgen::log::{
     log_action, logln, set_log_output, LogColorize, LogIndent, Output,
 };
 use itertools::Itertools;
-use std::collections::BTreeMap;
 use std::ffi::OsString;
-use std::future::Future;
 use std::path::PathBuf;
-use std::process::{exit, ExitCode};
-use std::sync::Arc;
-use strum::IntoEnumIterator;
+use std::process::ExitCode;
 use tracing::{debug, Level};
-use uuid::Uuid;
 
 pub struct CommandHandler {
     ctx: Context,
@@ -43,7 +33,7 @@ impl CommandHandler {
     fn new(global_flags: &GolemCliGlobalFlags) -> Self {
         Self {
             ctx: Context::new(
-                &global_flags,
+                global_flags,
                 Config::get_active_profile(
                     &global_flags.config_dir(),
                     global_flags.profile.clone(),
@@ -106,66 +96,39 @@ impl CommandHandler {
     }
 
     async fn handle_command(&mut self, command: GolemCliCommand) -> anyhow::Result<()> {
-        match command {
-            GolemCliCommand { subcommand, .. } => match subcommand {
-                GolemCliSubcommand::App { subcommand } => {
-                    self.handle_app_subcommand(subcommand).await
-                }
-                GolemCliSubcommand::Component { .. } => {
-                    todo!()
-                }
-                GolemCliSubcommand::Worker { subcommand } => match subcommand {
-                    WorkerSubcommand::Invoke {
-                        worker_name,
-                        function_name,
-                        arguments,
-                        enqueue,
-                    } => {
-                        match self.ctx.golem_clients().await? {
-                            GolemClients::Oss(clients) => {
-                                if enqueue {
-                                    todo!()
-                                } else {
-                                    /*
-                                    clients
-                                    .worker
-                                    .invoke_and_await_function(
-                                        &self.component_id_from_worker_name(worker_name).await?,
-
-                                    )
-                                    println!("lol");
-                                    let component_id =
-                                        self.component_id_from_worker_name(&worker_name).await?;
-                                    Ok(())
-                                    */
-                                    todo!()
-                                }
-                            }
-                            GolemClients::Cloud(clients) => {
-                                todo!()
-                            }
-                        }
+        match command.subcommand {
+            GolemCliSubcommand::App { subcommand } => self.handle_app_subcommand(subcommand).await,
+            GolemCliSubcommand::Component { subcommand } => {
+                self.handle_component_subcommand(subcommand).await
+            }
+            GolemCliSubcommand::Worker { subcommand } => match subcommand {
+                WorkerSubcommand::Invoke { .. } => match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(_) => {
+                        todo!()
+                    }
+                    GolemClients::Cloud(_) => {
+                        todo!()
                     }
                 },
-                GolemCliSubcommand::Api { .. } => {
-                    todo!()
-                }
-                GolemCliSubcommand::Plugin { .. } => {
-                    todo!()
-                }
-                GolemCliSubcommand::Server { .. } => {
-                    todo!()
-                }
-                GolemCliSubcommand::Cloud { .. } => {
-                    todo!()
-                }
-                GolemCliSubcommand::Diagnose => {
-                    todo!()
-                }
-                GolemCliSubcommand::Completion => {
-                    todo!()
-                }
             },
+            GolemCliSubcommand::Api { .. } => {
+                todo!()
+            }
+            GolemCliSubcommand::Plugin { .. } => {
+                todo!()
+            }
+            GolemCliSubcommand::Server { .. } => {
+                todo!()
+            }
+            GolemCliSubcommand::Cloud { .. } => {
+                todo!()
+            }
+            GolemCliSubcommand::Diagnose => {
+                todo!()
+            }
+            GolemCliSubcommand::Completion => {
+                todo!()
+            }
         }
     }
 
@@ -280,7 +243,7 @@ impl CommandHandler {
                     .set_component_select_mode(app_component_select_mode(component_name));
                 self.ctx.set_skip_up_to_date_checks(force_build.force_build);
 
-                let app_ctx = self.ctx.application_context_mut().await?;
+                let _app_ctx = self.ctx.application_context_mut().await?;
 
                 todo!()
             }
@@ -306,6 +269,26 @@ impl CommandHandler {
                 ctx.custom_command(&command[0])?;
 
                 Ok(())
+            }
+        }
+    }
+
+    async fn handle_component_subcommand(
+        &mut self,
+        subcommand: ComponentSubcommand,
+    ) -> anyhow::Result<()> {
+        match subcommand {
+            ComponentSubcommand::New { .. } => {
+                todo!()
+            }
+            ComponentSubcommand::Build { .. } => {
+                todo!()
+            }
+            ComponentSubcommand::Deploy { .. } => {
+                todo!()
+            }
+            ComponentSubcommand::Clean { .. } => {
+                todo!()
             }
         }
     }
@@ -401,13 +384,6 @@ impl CommandHandler {
             }
         }
     }
-
-    async fn component_id_from_worker_name(
-        &self,
-        worker_name: &WorkerName,
-    ) -> anyhow::Result<Uuid> {
-        Err(HintError::WorkerNotFound(worker_name.clone()))?
-    }
 }
 
 fn clamp_exit_code(exit_code: i32) -> ExitCode {
@@ -430,6 +406,8 @@ fn log_parse_error(error: &clap::Error, fallback_command: &GolemCliFallbackComma
     }
 }
 
+// TODO:
+/*
 fn component_select_mode(component_names: AppOptionalComponentNames) -> ComponentSelectMode {
     ComponentSelectMode::current_dir_or_explicit(
         component_names
@@ -439,6 +417,7 @@ fn component_select_mode(component_names: AppOptionalComponentNames) -> Componen
             .collect(),
     )
 }
+*/
 
 fn app_component_select_mode(component_names: AppOptionalComponentNames) -> ComponentSelectMode {
     ComponentSelectMode::all_or_explicit(

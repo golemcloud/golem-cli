@@ -21,7 +21,6 @@ use golem_client::model::{
 };
 use golem_common::model::component_metadata::DynamicLinkedInstance;
 use golem_common::model::trim_date::TrimDateTime;
-use golem_common::model::ComponentId;
 use golem_wasm_ast::analysis::wave::DisplayNamedFunc;
 use golem_wasm_ast::analysis::{
     AnalysedExport, AnalysedFunction, AnalysedFunctionResult, AnalysedInstance,
@@ -31,7 +30,7 @@ use golem_wasm_ast::analysis::{
 use rib::{ParsedFunctionName, ParsedFunctionSite};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tracing::{info, Instrument};
+use tracing::info;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Component {

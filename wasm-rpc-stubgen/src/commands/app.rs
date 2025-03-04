@@ -2,8 +2,7 @@ use crate::cargo::regenerate_cargo_package_component;
 use crate::fs;
 use crate::fs::PathExtra;
 use crate::log::{
-    log_action, log_skipping_up_to_date, log_warn_action, logln, set_log_output, LogColorize,
-    LogIndent, Output,
+    log_action, log_skipping_up_to_date, log_warn_action, logln, LogColorize, LogIndent,
 };
 use crate::model::app::{
     includes_from_yaml_file, AppBuildStep, Application, BuildProfileName, ComponentName,
@@ -905,7 +904,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
             let _indent = LogIndent::new();
 
             for step in &command.value {
-                execute_external_command(&self, &command.source, step)?;
+                execute_external_command(self, &command.source, step)?;
             }
         }
 
@@ -926,7 +925,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
 
                 for step in custom_command {
                     execute_external_command(
-                        &self,
+                        self,
                         self.application.component_source_dir(component_name),
                         step,
                     )?;

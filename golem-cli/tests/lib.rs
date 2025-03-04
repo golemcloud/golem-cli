@@ -2,7 +2,6 @@ use assert2::{assert, check};
 use colored::Colorize;
 use golem_common::tracing::{init_tracing_with_default_debug_env_filter, TracingConfig};
 use golem_examples::model::GuestLanguage;
-use golem_test_framework::components::ChildProcessLogger;
 use itertools::Itertools;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -10,7 +9,7 @@ use std::process::{Command, ExitStatus};
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 use test_r::{test, test_dep};
-use tracing::{debug, info};
+use tracing::info;
 
 test_r::enable!();
 
@@ -148,7 +147,7 @@ fn app_new_language_hints(_tracing: &Tracing) {
     check!(outputs.stderr_contains("Available languages and templates:"));
 
     let languages_without_templates = GuestLanguage::iter()
-        .filter(|language| !outputs.stderr_contains(&format!("- {}", language)))
+        .filter(|language| !outputs.stderr_contains(format!("- {}", language)))
         .collect::<Vec<_>>();
 
     assert!(
@@ -169,6 +168,8 @@ impl Output {
         self.status.success()
     }
 
+    // TODO:
+    #[allow(dead_code)]
     fn stdout_contains<S: AsRef<str>>(&self, text: S) -> bool {
         self.stdout.iter().any(|line| line.contains(text.as_ref()))
     }
@@ -198,10 +199,10 @@ impl From<std::process::Output> for Output {
 
 #[derive(Debug)]
 struct TestContext {
-    golem_path: PathBuf,
+    _golem_path: PathBuf, // TODO:
     golem_cli_path: PathBuf,
-    test_dir: TempDir,
-    config_dir: TempDir,
+    _test_dir: TempDir,
+    _config_dir: TempDir, // TODO:
     working_dir: PathBuf,
 }
 
@@ -211,14 +212,14 @@ impl TestContext {
         let working_dir = test_dir.path().to_path_buf();
 
         let ctx = Self {
-            golem_path: PathBuf::from("../target/debug/golem")
+            _golem_path: PathBuf::from("../target/debug/golem")
                 .canonicalize()
                 .unwrap(),
             golem_cli_path: PathBuf::from("../target/debug/golem-cli")
                 .canonicalize()
                 .unwrap(),
-            test_dir,
-            config_dir: TempDir::new().unwrap(),
+            _test_dir: test_dir,
+            _config_dir: TempDir::new().unwrap(),
             working_dir,
         };
 
@@ -251,7 +252,7 @@ impl TestContext {
 
         let output: Output = Command::new(&self.golem_cli_path)
             .args(args)
-            .current_dir(&working_dir)
+            .current_dir(working_dir)
             .output()
             .unwrap()
             .into();

@@ -7,10 +7,9 @@ use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
-use clap::{self, CommandFactory, FromArgMatches, Subcommand};
+use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
 use clap_verbosity_flag::Verbosity;
-use golem_wasm_rpc_stubgen::log::LogColorize;
 use lenient_bool::LenientBool;
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -660,9 +659,9 @@ pub mod server {
 #[cfg(test)]
 mod test {
     use crate::command::GolemCliCommand;
-    use assert2::{assert, check};
+    use assert2::assert;
     use clap::builder::StyledStr;
-    use clap::{Command, CommandFactory, Parser};
+    use clap::{Command, CommandFactory};
     use itertools::Itertools;
     use std::collections::{BTreeMap, BTreeSet};
     use test_r::test;
@@ -677,7 +676,7 @@ mod test {
             path.push(command.get_name().to_string());
             let key = path.iter().join(" ");
 
-            doc_by_cmd_path.insert(key.clone(), command.get_about().map(|s| s.clone()));
+            doc_by_cmd_path.insert(key.clone(), command.get_about().cloned());
 
             for arg in command.get_arguments() {
                 doc_by_cmd_path.insert(
@@ -686,7 +685,7 @@ mod test {
                     } else {
                         format!("{} --{}", key, arg.get_id())
                     },
-                    arg.get_help().map(|s| s.clone()),
+                    arg.get_help().cloned(),
                 );
             }
 
@@ -703,7 +702,7 @@ mod test {
 
         let elems_without_about = doc_by_cmd_path
             .into_iter()
-            .filter_map(|(path, about)| about.is_none().then(|| path))
+            .filter_map(|(path, about)| about.is_none().then_some(path))
             .collect::<Vec<_>>();
 
         assert!(

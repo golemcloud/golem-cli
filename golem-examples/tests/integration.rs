@@ -60,7 +60,7 @@ mod examples {
 #[cfg(test)]
 mod app {
     use assert2::{assert, let_assert};
-    use std::path::PathBuf;
+
     use std::process::Command;
     use test_r::test;
 

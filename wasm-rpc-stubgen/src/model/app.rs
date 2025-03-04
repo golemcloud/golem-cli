@@ -765,9 +765,9 @@ mod app_builder {
     use crate::fs::PathExtra;
     use crate::log::LogColorize;
     use crate::model::app::{
-        Application, Component, ComponentName, ComponentProperties, ComponentPropertiesExtensions,
-        DependencyType, DependentComponent, BuildProfileName, ResolvedComponentProperties, TemplateName,
-        WithSource,
+        Application, BuildProfileName, Component, ComponentName, ComponentProperties,
+        ComponentPropertiesExtensions, DependencyType, DependentComponent,
+        ResolvedComponentProperties, TemplateName, WithSource,
     };
     use crate::model::app_raw;
     use crate::validation::{ValidatedResult, ValidationBuilder};
@@ -1446,7 +1446,10 @@ mod app_builder {
             valid.then(|| ResolvedComponentProperties::Profiles {
                 template_name: None,
                 any_template_overrides: Default::default(),
-                default_profile: component.default_profile.map(BuildProfileName::from).unwrap(),
+                default_profile: component
+                    .default_profile
+                    .map(BuildProfileName::from)
+                    .unwrap(),
                 profiles: {
                     component
                         .profiles
@@ -1460,8 +1463,9 @@ mod app_builder {
                                     )
                                 },
                             );
-                            properties
-                                .map(|properties| (BuildProfileName::from(profile_name), properties))
+                            properties.map(|properties| {
+                                (BuildProfileName::from(profile_name), properties)
+                            })
                         })
                         .collect()
                 },

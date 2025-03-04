@@ -32,4 +32,3 @@ pub const GOLEM_RPC_WIT_VERSION: &str = "0.1.3";
 
 #[cfg(test)]
 test_r::enable!();
-

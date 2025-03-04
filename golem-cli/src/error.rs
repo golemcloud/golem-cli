@@ -24,7 +24,7 @@ impl Error for HintError {}
 pub struct HintedError;
 
 impl Display for HintedError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
         //NOP
         Ok(())
     }
