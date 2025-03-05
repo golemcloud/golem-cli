@@ -158,7 +158,7 @@ mod tests {
                 component_id: Uuid::max(),
                 version: 0,
             },
-            component_name: String::new(),
+            component_name: "".into(),
             component_size: 0,
             component_type: ComponentType::Durable,
             metadata: ComponentMetadata {

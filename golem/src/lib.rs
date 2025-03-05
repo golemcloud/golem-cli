@@ -27,5 +27,15 @@ pub struct StartedComponents {
     pub shard_manager: golem_shard_manager::RunDetails,
     pub worker_executor: golem_worker_executor_base::RunDetails,
     pub worker_service: golem_worker_service::TrafficReadyEndpoints,
-    pub prometheus_registy: Registry,
+    pub prometheus_registry: Registry,
+}
+
+#[cfg(test)]
+mod tests {
+    use test_r::test;
+
+    use crate::command::SingleExecutableCommand;
+    use clap::{Command, CommandFactory};
+    use golem_cli::command_old::profile::OssProfileAdd;
+    use golem_cli::oss::cli::GolemOssCli;
 }

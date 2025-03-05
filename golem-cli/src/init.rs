@@ -12,26 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{CloudProfile, Config, OssProfile, Profile, ProfileConfig, ProfileName};
+use crate::config::ProfileName;
 use crate::model::{Format, GolemError};
 use async_trait::async_trait;
 use colored::Colorize;
-use indoc::formatdoc;
-use inquire::{Confirm, CustomType, Select};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use url::{ParseError, Url};
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum CliKind {
-    Universal,
-    Oss,
-    Cloud,
-}
 
 #[async_trait]
 pub trait ProfileAuth {
@@ -56,6 +46,8 @@ impl ProfileAuth for DummyProfileAuth {
     }
 }
 
+// TODO:
+/*
 fn validate_profile_override(
     profile_name: &ProfileName,
     config_dir: &Path,
@@ -81,6 +73,7 @@ fn validate_profile_override(
         Ok(())
     }
 }
+*/
 
 #[derive(Debug, Clone, Copy, EnumIter)]
 enum ProfileType {
@@ -109,20 +102,6 @@ impl Display for ProfileType {
             ),
         }
     }
-}
-
-fn select_type() -> Result<ProfileType, GolemError> {
-    let options = ProfileType::iter().collect::<Vec<_>>();
-    Select::new("Select profile type:", options)
-        .prompt()
-        .map_err(|err| GolemError(format!("Unexpected error: {err}")))
-}
-
-fn select_oss_type() -> Result<ProfileType, GolemError> {
-    let options = vec![ProfileType::OssDefaultCompose, ProfileType::OssCustom];
-    Select::new("Select profile type:", options)
-        .prompt()
-        .map_err(|err| GolemError(format!("Unexpected error: {err}")))
 }
 
 #[derive(Debug, Copy, Clone, EnumIter)]
@@ -173,6 +152,8 @@ impl FromStr for InitFormat {
     }
 }
 
+// TODO
+/*
 fn make_profile_config() -> Result<ProfileConfig, GolemError> {
     let options = InitFormat::iter().collect::<Vec<_>>();
     let default_format = Select::new("Default output format:", options)
@@ -183,45 +164,31 @@ fn make_profile_config() -> Result<ProfileConfig, GolemError> {
     Ok(ProfileConfig { default_format })
 }
 
-fn make_cloud_profile() -> Result<Profile, GolemError> {
-    let mut profile = CloudProfile::default();
+fn set_active_profile(profile_name: &ProfileName, config_dir: &Path) -> Result<(), GolemError> {
+    // TODO: local / cloud handling
+    let active_profile = Config::get_active_profile(config_dir, None).name;
 
-    let config = make_profile_config()?;
+    if &active_profile == profile_name {
+        return Ok(());
+    }
 
-    profile.config = config;
+    // TODO: no interactive is needed for this, rather we should check if the profile exists...
+    let question = formatdoc!(
+        "
+        Current active profile is '{active_profile}'.
+        Do you want to switch active profile to '{profile_name}'?
+        "
+    );
 
-    Ok(Profile::GolemCloud(profile))
-}
+    let ans = Confirm::new(&question)
+        .with_default(true)
+        .prompt()
+        .map_err(|err| GolemError(format!("Unexpected error: {err}")))?;
 
-fn set_active_profile(
-    cli_kind: CliKind,
-    profile_name: &ProfileName,
-    config_dir: &Path,
-) -> Result<(), GolemError> {
-    let active_profile = Config::get_active_profile(cli_kind, config_dir).map(|p| p.name);
-
-    match active_profile {
-        None => Config::set_active_profile_name(profile_name.clone(), cli_kind, config_dir),
-        Some(active_profile) if &active_profile == profile_name => Ok(()),
-        Some(active_profile) => {
-            let question = formatdoc!(
-                "
-                Current active profile is '{active_profile}'.
-                Do you want to switch active profile to '{profile_name}'?
-                "
-            );
-
-            let ans = Confirm::new(&question)
-                .with_default(true)
-                .prompt()
-                .map_err(|err| GolemError(format!("Unexpected error: {err}")))?;
-
-            if ans {
-                Config::set_active_profile_name(profile_name.clone(), cli_kind, config_dir)
-            } else {
-                Ok(())
-            }
-        }
+    if ans {
+        Config::set_active_profile_name(profile_name.clone(), config_dir)
+    } else {
+        Ok(())
     }
 }
 
@@ -243,6 +210,7 @@ fn ask_for_component_url() -> Result<Url, GolemError> {
         .prompt()
         .map_err(|err| GolemError(format!("Unexpected error: {err}")))
 }
+*/
 
 #[derive(Debug, Clone)]
 struct OptionalUrl(Option<Url>);
@@ -268,6 +236,10 @@ impl FromStr for OptionalUrl {
     }
 }
 
+pub const DEFAULT_OSS_URL: &str = "http://localhost:9881";
+
+// TODO:
+/*
 fn ask_for_worker_url() -> Result<Option<Url>, GolemError> {
     CustomType::<OptionalUrl>::new("Worker service URL (empty to use component service url):")
         .with_error_message("Please type a valid URL. For instance: http://localhost:9876")
@@ -275,6 +247,7 @@ fn ask_for_worker_url() -> Result<Option<Url>, GolemError> {
         .map(|o| o.0)
         .map_err(|err| GolemError(format!("Unexpected error: {err}")))
 }
+
 
 fn make_oss_custom_profile() -> Result<Profile, GolemError> {
     let url = ask_for_component_url()?;
@@ -302,8 +275,6 @@ fn make_oss_custom_profile() -> Result<Profile, GolemError> {
     }))
 }
 
-pub const DEFAULT_OSS_URL: &str = "http://localhost:9881";
-
 fn make_oss_default_profile() -> Result<Profile, GolemError> {
     let url = Url::parse(DEFAULT_OSS_URL).unwrap();
 
@@ -316,6 +287,7 @@ fn make_oss_default_profile() -> Result<Profile, GolemError> {
         config,
     }))
 }
+*/
 
 pub struct InitResult {
     pub profile_name: ProfileName,
@@ -323,11 +295,11 @@ pub struct InitResult {
 }
 
 pub async fn init_profile(
-    cli_kind: CliKind,
-    profile_name: ProfileName,
-    config_dir: &Path,
-    profile_auth: &(dyn ProfileAuth + Send + Sync),
+    _profile_name: ProfileName,
+    _config_dir: &Path,
+    _profile_auth: &(dyn ProfileAuth + Send + Sync),
 ) -> Result<InitResult, GolemError> {
+    /*
     validate_profile_override(&profile_name, config_dir)?;
     let typ = match cli_kind {
         CliKind::Universal => select_type()?,
@@ -359,4 +331,6 @@ pub async fn init_profile(
         profile_name,
         auth_required,
     })
+    */
+    todo!()
 }
