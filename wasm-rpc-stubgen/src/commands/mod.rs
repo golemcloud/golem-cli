@@ -15,9 +15,6 @@
 /// Top level commands for generating stub WASM components
 pub mod generate;
 
-/// Top level commands for managing dependencies on stubs
-pub mod dependencies;
-
 /// Top level commands for composing stubs with user components
 pub mod composition;
 
