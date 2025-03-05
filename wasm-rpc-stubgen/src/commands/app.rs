@@ -1,6 +1,6 @@
 use crate::cargo::regenerate_cargo_package_component;
 use crate::fs;
-use crate::fs::PathExtra;
+use crate::fs::{resolve_relative_glob, PathExtra};
 use crate::log::{
     log_action, log_skipping_up_to_date, log_warn_action, logln, LogColorize, LogIndent,
 };
@@ -18,19 +18,22 @@ use crate::wit_generate::{
 use crate::wit_resolve::{ResolvedWitApplication, WitDepsResolver};
 use crate::{commands, naming};
 use anyhow::{anyhow, bail, Context, Error};
+use chrono::{DateTime, Utc};
 use colored::control::SHOULD_COLORIZE;
 use colored::Colorize;
 use golem_wasm_rpc::WASM_RPC_VERSION;
 use itertools::Itertools;
+use pretty_env_logger::env_logger::fmt::Timestamp;
 use serde::Serialize;
 use std::cell::OnceCell;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::time::SystemTime;
+use tracing::debug;
 use walkdir::WalkDir;
 use wax::{Glob, LinkBehavior, WalkBehavior};
 
@@ -1244,6 +1247,7 @@ where
     FT: FnOnce() -> T,
 {
     if skip_check {
+        debug!("skipping up-to-date check");
         return false;
     }
 
@@ -1268,6 +1272,12 @@ where
             }
         }
 
+        debug!(
+            path = %path.display(),
+            max_modified = max_modified.map(|d| DateTime::<Utc>::from(d).to_string()),
+            "max modified"
+        );
+
         max_modified
     }
 
@@ -1289,7 +1299,10 @@ where
 
     let max_target_modified = match max_target_modified {
         Some(modified) => modified,
-        None => return false,
+        None => {
+            debug!("missing targets, not up-to-date");
+            return false;
+        }
     };
 
     let sources = sources();
@@ -1298,22 +1311,31 @@ where
 
     match max_source_modified {
         Some(max_source_modified) => {
-            max_source_modified.cmp(&max_target_modified) == Ordering::Less
+            let up_to_date = max_source_modified.cmp(&max_target_modified) == Ordering::Less;
+            debug!(up_to_date, "up to date result based on timestamps");
+            up_to_date
         }
-        None => false,
+        None => {
+            debug!("missing sources, not up-to-date");
+            false
+        }
     }
 }
 
 fn compile_and_collect_globs(root_dir: &Path, globs: &[String]) -> Result<Vec<PathBuf>, Error> {
     Ok(globs
         .iter()
-        .map(|pattern| {
-            Glob::new(pattern)
+        .map(|pattern| resolve_relative_glob(root_dir, pattern))
+        .collect::<Result<Vec<_>, _>>()?
+        .iter()
+        .map(|(root_dir, pattern)| {
+            Glob::new(&pattern)
                 .with_context(|| anyhow!("Failed to compile glob expression: {}", pattern))
+                .map(|pattern| (root_dir, pattern))
         })
         .collect::<Result<Vec<_>, _>>()?
         .iter()
-        .flat_map(|glob| {
+        .flat_map(|(root_dir, glob)| {
             glob.walk_with_behavior(
                 root_dir,
                 WalkBehavior {
@@ -1757,6 +1779,10 @@ fn execute_external_command<CPE: ComponentPropertiesExtensions>(
     let skip_up_to_date_checks =
         ctx.config.skip_up_to_date_checks || !task_result_marker.is_up_to_date();
 
+    debug!(
+        command = ?command,
+        "execute external command"
+    );
     if !command.sources.is_empty() && !command.targets.is_empty() {
         let sources = compile_and_collect_globs(&build_dir, &command.sources)?;
         let targets = compile_and_collect_globs(&build_dir, &command.targets)?;
