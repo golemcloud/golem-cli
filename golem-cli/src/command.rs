@@ -373,6 +373,7 @@ pub mod shared_args {
     use crate::model::ComponentName;
     use clap::Args;
     use golem_examples::model::GuestLanguage;
+    use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
 
     // TODO: move names to model
     pub type ApplicationName = String;
@@ -384,7 +385,7 @@ pub mod shared_args {
     #[derive(Debug, Args)]
     pub struct ComponentOptionalComponentNames {
         /// Optional component names, if not specified components are selected based on the current directory
-        component_name: Vec<ComponentName>,
+        pub component_name: Vec<ComponentName>,
     }
 
     #[derive(Debug, Args)]
@@ -416,14 +417,23 @@ pub mod shared_args {
         #[clap(long, short, default_value = "false")]
         pub force_build: bool,
     }
+
+    #[derive(Debug, Args)]
+    pub struct BuildArgs {
+        /// Select specific build step(s)
+        #[clap(long, short)]
+        pub step: Vec<AppBuildStep>,
+        #[command(flatten)]
+        pub force_build: ForceBuildArg,
+    }
 }
 
 pub mod app {
     use crate::command::shared_args::{
-        AppOptionalComponentNames, ApplicationName, ForceBuildArg, LanguagesPositionalArg,
+        AppOptionalComponentNames, ApplicationName, BuildArgs, ForceBuildArg,
+        LanguagesPositionalArg,
     };
     use clap::Subcommand;
-    use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
 
     #[derive(Debug, Subcommand)]
     pub enum AppSubcommand {
@@ -439,11 +449,8 @@ pub mod app {
         Build {
             #[command(flatten)]
             component_name: AppOptionalComponentNames,
-            /// Select specific build step(s)
-            #[clap(long, short)]
-            step: Vec<AppBuildStep>,
             #[command(flatten)]
-            force_build: ForceBuildArg,
+            build: BuildArgs,
         },
         /// Deploy all or selected components in the application, includes building
         Deploy {
@@ -464,7 +471,7 @@ pub mod app {
 }
 
 pub mod component {
-    use crate::command::shared_args::ComponentOptionalComponentNames;
+    use crate::command::shared_args::{BuildArgs, ComponentOptionalComponentNames, ForceBuildArg};
     use crate::command::shared_args::{LanguagePositionalArg, NewComponentName};
     use clap::Subcommand;
 
@@ -482,11 +489,15 @@ pub mod component {
         Build {
             #[command(flatten)]
             component_name: ComponentOptionalComponentNames,
+            #[command(flatten)]
+            build: BuildArgs,
         },
         /// Deploy component(s) based on the current directory or by selection
         Deploy {
             #[command(flatten)]
             component_name: ComponentOptionalComponentNames,
+            #[command(flatten)]
+            force_build: ForceBuildArg,
         },
         /// Clean component(s) based on the current directory or by selection
         Clean {

@@ -49,6 +49,7 @@ use golem_examples::ComposableAppExample;
 use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ApplicationSourceMode};
 use golem_wasm_rpc_stubgen::log::{set_log_output, Output};
 use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
+use golem_wasm_rpc_stubgen::model::app::BuildProfileName as AppBuildProfileName;
 use golem_wasm_rpc_stubgen::stub::WasmRpcOverride;
 use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
@@ -58,7 +59,7 @@ use tracing::debug;
 pub struct Context {
     _profile_name: ProfileName, // TODO
     profile: Profile,
-    build_profile: Option<BuildProfileName>,
+    build_profile: Option<AppBuildProfileName>,
     app_manifest_path: Option<PathBuf>,
     wasm_rpc_override: WasmRpcOverride,
     clients: tokio::sync::OnceCell<Clients>,
@@ -80,7 +81,10 @@ impl Context {
         Self {
             _profile_name: profile.name,
             profile: profile.profile,
-            build_profile: global_flags.build_profile.clone(),
+            build_profile: global_flags
+                .build_profile
+                .as_ref()
+                .map(|bp| bp.0.clone().into()),
             app_manifest_path: global_flags.app_manifest_path.clone(),
             wasm_rpc_override: WasmRpcOverride {
                 wasm_rpc_path_override: global_flags.wasm_rpc_path.clone(),
@@ -94,6 +98,10 @@ impl Context {
             build_steps_filter: HashSet::new(),
             build_steps_filter_was_set: false,
         }
+    }
+
+    pub fn build_profile(&self) -> Option<&AppBuildProfileName> {
+        self.build_profile.as_ref()
     }
 
     pub async fn clients(&self) -> anyhow::Result<&Clients> {

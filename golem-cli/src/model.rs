@@ -108,7 +108,7 @@ where
         match format {
             Format::Json => println!("{}", serde_json::to_string_pretty(self).unwrap()),
             Format::Yaml => println!("{}", serde_yaml::to_string(self).unwrap()),
-            Format::Text => self.print(),
+            Format::Text => self.log(),
         }
     }
 
@@ -116,7 +116,7 @@ where
         match format {
             Format::Json => println!("{}", serde_json::to_string(self).unwrap()),
             Format::Yaml => println!("---\n{}", serde_yaml::to_string(self).unwrap()),
-            Format::Text => self.print(),
+            Format::Text => self.log(),
         }
     }
 }

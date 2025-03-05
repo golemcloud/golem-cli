@@ -17,12 +17,13 @@ pub mod fmt {
     use colored::control::SHOULD_COLORIZE;
     use colored::Colorize;
     use golem_client::model::WorkerStatus;
+    use golem_wasm_rpc_stubgen::log::logln;
     use itertools::Itertools;
     use regex::Regex;
     use std::collections::BTreeMap;
 
     pub trait TextFormat {
-        fn print(&self);
+        fn log(&self);
     }
 
     pub trait TableWrapper: Sized {
@@ -31,9 +32,9 @@ pub mod fmt {
     }
 
     impl<T: TableWrapper> TextFormat for Vec<T> {
-        fn print(&self) {
+        fn log(&self) {
             let table = T::from_vec(self);
-            table.print();
+            table.log();
         }
     }
 
@@ -43,8 +44,9 @@ pub mod fmt {
     }
 
     impl<T: MessageWithFields> TextFormat for T {
-        fn print(&self) {
-            println!("{}\n", self.message());
+        fn log(&self) {
+            logln(self.message());
+            logln("");
 
             let fields = self.fields();
             let padding = fields.iter().map(|(name, _)| name.len()).max().unwrap_or(0) + 1;
@@ -52,11 +54,11 @@ pub mod fmt {
             for (name, value) in self.fields() {
                 let lines: Vec<_> = value.lines().collect();
                 if lines.len() == 1 {
-                    println!("{:<padding$} {}", format!("{}:", name), lines[0]);
+                    logln(format!("{:<padding$} {}", format!("{}:", name), lines[0]));
                 } else {
-                    println!("{}:", name);
+                    logln(format!("{}:", name));
                     for line in lines {
-                        println!("  {}", line)
+                        logln(format!("  {}", line))
                     }
                 }
             }
@@ -297,7 +299,7 @@ pub mod api_security {
     use indoc::printdoc;
 
     impl TextFormat for ApiSecurityScheme {
-        fn print(&self) {
+        fn log(&self) {
             printdoc!(
                     "
                     API Security Scheme: ID: {}, scopes: {}, client ID: {}, client secret: {}, redirect URL: {}
@@ -489,7 +491,7 @@ pub mod api_definition {
     }
 
     impl TextFormat for Vec<HttpApiDefinitionResponseData> {
-        fn print(&self) {
+        fn log(&self) {
             print_table::<_, HttpApiDefinitionTableView>(self);
         }
     }
@@ -509,7 +511,7 @@ pub mod api_deployment {
     }
 
     impl TextFormat for ApiDeployment {
-        fn print(&self) {
+        fn log(&self) {
             for api_defs in &self.api_definitions {
                 printdoc!(
                     "
@@ -534,7 +536,7 @@ pub mod api_deployment {
     }
 
     impl TextFormat for Vec<ApiDeployment> {
-        fn print(&self) {
+        fn log(&self) {
             print_stdout(
                 self.iter()
                     .flat_map(|deployment| {
@@ -586,7 +588,7 @@ pub mod component {
     }
 
     impl TextFormat for Vec<ComponentView> {
-        fn print(&self) {
+        fn log(&self) {
             print_stdout(
                 self.iter()
                     .map(ComponentTableView::from)
@@ -617,13 +619,14 @@ pub mod component {
         fields.build()
     }
 
+    // TODO: rename all "add" to "create"
     #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ComponentAddView(pub ComponentView);
+    pub struct ComponentCreateView(pub ComponentView);
 
-    impl MessageWithFields for ComponentAddView {
+    impl MessageWithFields for ComponentCreateView {
         fn message(&self) -> String {
             format!(
-                "Added new component {}",
+                "Created new component {}",
                 format_message_highlight(&self.0.component_name)
             )
         }
@@ -697,7 +700,7 @@ pub mod example {
     }
 
     impl TextFormat for Vec<ExampleDescription> {
-        fn print(&self) {
+        fn log(&self) {
             print_table::<_, ExampleDescriptionTableView>(self);
         }
     }
@@ -708,10 +711,11 @@ pub mod profile {
     use crate::model::text::fmt::*;
     use crate::model::{ProfileType, ProfileView};
     use colored::Colorize;
+    use golem_wasm_rpc_stubgen::log::logln;
     use itertools::Itertools;
 
     impl TextFormat for Vec<ProfileView> {
-        fn print(&self) {
+        fn log(&self) {
             let res = self
                 .iter()
                 .map(|p| {
@@ -723,7 +727,7 @@ pub mod profile {
                 })
                 .join("\n");
 
-            println!("{}", res)
+            logln(res)
         }
     }
 
@@ -772,11 +776,11 @@ pub mod profile {
     }
 
     impl TextFormat for ProfileConfig {
-        fn print(&self) {
-            println!(
+        fn log(&self) {
+            logln(format!(
                 "Default output format: {}",
-                format_message_highlight(&self.default_format)
-            )
+                format_message_highlight(&self.default_format),
+            ))
         }
     }
 }
@@ -800,6 +804,7 @@ pub mod worker {
     };
     use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
     use golem_wasm_rpc::{print_type_annotated_value, ValueAndType};
+    use golem_wasm_rpc_stubgen::log::logln;
     use indoc::{formatdoc, indoc, printdoc};
     use itertools::Itertools;
     use serde::{Deserialize, Serialize};
@@ -926,15 +931,14 @@ pub mod worker {
     }
 
     impl TextFormat for WorkersMetadataResponseView {
-        fn print(&self) {
+        fn log(&self) {
             print_table::<_, WorkerMetadataTableView>(&self.workers);
 
             if let Some(cursor) = &self.cursor {
                 let layer = cursor.layer;
                 let cursor = cursor.cursor;
 
-                println!(
-                    "{}",
+                logln(
                     formatdoc!(
                         "
 
@@ -944,14 +948,15 @@ pub mod worker {
                         "
                     )
                     .yellow()
+                    .to_string(),
                 );
             }
         }
     }
 
     impl TextFormat for IdempotencyKey {
-        fn print(&self) {
-            printdoc!(
+        fn log(&self) {
+            logln(formatdoc!(
                 "
                 Idempotency key: {}
 
@@ -960,392 +965,523 @@ pub mod worker {
 
                 ",
                 format_main_id(&self.0),
-                format!("invoke-and-await --idempotency-key {} ...", self.0).cyan()
-            )
+                format!("invoke-and-await --idempotency-key {} ...", self.0).cyan() // TODO: also review for other outdated hints like this
+            ))
         }
     }
 
     impl TextFormat for TryUpdateAllWorkersResult {
-        fn print(&self) {
+        fn log(&self) {
             if !self.triggered.is_empty() {
-                println!("Triggered update for the following workers:");
+                logln("Triggered update for the following workers:");
                 self.triggered.iter().for_each(|worker_name| {
-                    println!("  - {}", worker_name);
+                    logln(format!("  - {}", worker_name));
                 });
             }
 
             if !self.failed.is_empty() {
-                println!(
-                    "{}",
-                    format_warn("Failed to trigger update for the following workers:")
-                );
+                logln(format_warn(
+                    "Failed to trigger update for the following workers:",
+                ));
                 self.failed.iter().for_each(|worker_name| {
-                    println!("  - {}", worker_name);
+                    logln(format!("  - {}", worker_name));
                 });
             }
         }
     }
 
     impl TextFormat for InvokeResultView {
-        fn print(&self) {
+        fn log(&self) {
             fn print_results_format(format: &str) {
-                println!(
+                logln(format!(
                     "Invocation results in {} format:",
-                    format_message_highlight(format)
-                )
+                    format_message_highlight(format),
+                ))
             }
 
             match self {
                 InvokeResultView::Wave(wave) => {
                     if wave.is_empty() {
-                        println!("Empty result.")
+                        logln("Empty result.")
                     } else {
                         print_results_format("WAVE");
-                        println!("{}", serde_yaml::to_string(wave).unwrap());
+                        logln(format!("{}", serde_yaml::to_string(wave).unwrap()));
                     }
                 }
                 InvokeResultView::Json(json) => {
-                    eprintln!(
-                        "{}",
-                        format_warn(indoc!(
-                            "
+                    logln(format_warn(indoc!(
+                        "
                             Failed to convert invocation result to WAVE format.
                             At the moment WAVE does not support Handle (aka Resource) data type.
 
                             Use -vvv flags to get detailed logs.
 
                             "
-                        ))
-                    );
+                    )));
 
                     print_results_format("JSON");
-                    println!("{}", serde_json::to_string_pretty(json).unwrap());
+                    logln(format!("{}", serde_json::to_string_pretty(json).unwrap()));
                 }
             }
         }
     }
 
     impl TextFormat for Vec<(u64, PublicOplogEntry)> {
-        fn print(&self) {
+        fn log(&self) {
             for (idx, entry) in self {
                 print!("{}: ", format_main_id(&format!("#{idx:0>5}")));
-                entry.print()
+                entry.log()
             }
         }
     }
 
     impl TextFormat for PublicOplogEntry {
-        fn print(&self) {
+        fn log(&self) {
             let pad = "          ";
             match self {
                 PublicOplogEntry::Create(params) => {
-                    println!("{}", format_message_highlight("CREATE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("CREATE")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}component version: {}",
-                        format_id(&params.component_version)
-                    );
-                    println!(
+                        format_id(&params.component_version),
+                    ));
+                    logln(format!(
                         "{pad}args:              {}",
-                        format_id(&params.args.join(", "))
-                    );
-                    println!("{pad}env:");
+                        format_id(&params.args.join(", ")),
+                    ));
+                    logln("{pad}env:");
                     for (k, v) in &params.env {
-                        println!("{pad}  - {}: {}", k, format_id(&v));
+                        logln(format!("{pad}  - {}: {}", k, format_id(&v)));
                     }
                     if let Some(parent) = params.parent.as_ref() {
-                        println!("{pad}parent:            {}", format_id(parent));
+                        logln(format!("{pad}parent:            {}", format_id(parent)));
                     }
-                    println!("{pad}initial active plugins:");
+                    logln("{pad}initial active plugins:");
                     for plugin in &params.initial_active_plugins {
-                        println!(
+                        logln(format!(
                             "{pad}  - installation id: {}",
                             format_id(&plugin.installation_id)
-                        );
+                        ));
                         let inner_pad = format!("{pad}    ");
                         print_plugin_description(&inner_pad, plugin);
                     }
                 }
                 PublicOplogEntry::ImportedFunctionInvoked(params) => {
-                    println!(
+                    logln(format!(
                         "{} {}",
                         format_message_highlight("CALL"),
-                        format_id(&params.function_name)
-                    );
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!("{pad}input:             {}", print_value(&params.request));
-                    println!("{pad}result:            {}", print_value(&params.response));
+                        format_id(&params.function_name),
+                    ));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
+                        "{pad}input:             {}",
+                        print_value(&params.request)
+                    ));
+                    logln(format!(
+                        "{pad}result:            {}",
+                        print_value(&params.response)
+                    ));
                 }
                 PublicOplogEntry::ExportedFunctionInvoked(params) => {
-                    println!(
+                    logln(format!(
                         "{} {}",
                         format_message_highlight("INVOKE"),
-                        format_id(&params.function_name)
-                    );
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                        format_id(&params.function_name),
+                    ));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}idempotency key:   {}",
-                        format_id(&params.idempotency_key)
-                    );
-                    println!("{pad}input:");
+                        format_id(&params.idempotency_key),
+                    ));
+                    logln("{pad}input:");
                     for param in &params.request {
-                        println!("{pad}  - {}", print_value(param));
+                        logln(format!("{pad}  - {}", print_value(param)));
                     }
                 }
                 PublicOplogEntry::ExportedFunctionCompleted(params) => {
-                    println!("{}", format_message_highlight("INVOKE COMPLETED"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("INVOKE COMPLETED")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}consumed fuel:     {}",
-                        format_id(&params.consumed_fuel)
-                    );
-                    println!("{pad}result:            {}", print_value(&params.response));
+                        format_id(&params.consumed_fuel),
+                    ));
+                    logln(format!(
+                        "{pad}result:            {}",
+                        print_value(&params.response)
+                    ));
                 }
                 PublicOplogEntry::Suspend(params) => {
-                    println!("{}", format_message_highlight("SUSPEND"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
+                    logln(format!("{}", format_message_highlight("SUSPEND")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
                 }
                 PublicOplogEntry::Error(params) => {
-                    println!("{}", format_message_highlight("ERROR"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!("{pad}error:             {}", format_error(&params.error));
+                    logln(format!("{}", format_message_highlight("ERROR")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
+                        "{pad}error:             {}",
+                        format_error(&params.error)
+                    ));
                 }
                 PublicOplogEntry::NoOp(params) => {
-                    println!("{}", format_message_highlight("NOP"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
+                    logln(format!("{}", format_message_highlight("NOP")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
                 }
                 PublicOplogEntry::Jump(params) => {
-                    println!("{}", format_message_highlight("JUMP"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!("{pad}from:              {}", format_id(&params.jump.start));
-                    println!("{pad}to:                {}", format_id(&params.jump.end));
+                    logln(format!("{}", format_message_highlight("JUMP")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
+                        "{pad}from:              {}",
+                        format_id(&params.jump.start)
+                    ));
+                    logln(format!(
+                        "{pad}to:                {}",
+                        format_id(&params.jump.end)
+                    ));
                 }
                 PublicOplogEntry::Interrupted(params) => {
-                    println!("{}", format_message_highlight("INTERRUPTED"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
+                    logln(format!("{}", format_message_highlight("INTERRUPTED")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
                 }
                 PublicOplogEntry::Exited(params) => {
-                    println!("{}", format_message_highlight("EXITED"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
+                    logln(format!("{}", format_message_highlight("EXITED")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
                 }
                 PublicOplogEntry::ChangeRetryPolicy(params) => {
-                    println!("{}", format_message_highlight("CHANGE RETRY POLICY"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!(
+                        "{}",
+                        format_message_highlight("CHANGE RETRY POLICY")
+                    ));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}max attempts:      {}",
-                        format_id(&params.new_policy.max_attempts)
-                    );
-                    println!(
+                        format_id(&params.new_policy.max_attempts),
+                    ));
+                    logln(format!(
                         "{pad}min delay:         {} ms",
-                        format_id(&params.new_policy.min_delay.as_millis())
-                    );
-                    println!(
+                        format_id(&params.new_policy.min_delay.as_millis()),
+                    ));
+                    logln(format!(
                         "{pad}max delay:         {} ms",
-                        format_id(&params.new_policy.max_delay.as_millis())
-                    );
-                    println!(
+                        format_id(&params.new_policy.max_delay.as_millis()),
+                    ));
+                    logln(format!(
                         "{pad}multiplier:        {}",
-                        format_id(&params.new_policy.multiplier)
-                    );
-                    println!(
+                        format_id(&params.new_policy.multiplier),
+                    ));
+                    logln(format!(
                         "{pad}max jitter factor: {}",
                         format_id(
                             &params
                                 .new_policy
                                 .max_jitter_factor
                                 .map(|x| x.to_string())
-                                .unwrap_or("-".to_string())
-                        )
-                    );
+                                .unwrap_or("-".to_string()),
+                        ),
+                    ));
                 }
                 PublicOplogEntry::BeginAtomicRegion(params) => {
-                    println!("{}", format_message_highlight("BEGIN ATOMIC REGION"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
+                    logln(format!(
+                        "{}",
+                        format_message_highlight("BEGIN ATOMIC REGION")
+                    ));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
                 }
                 PublicOplogEntry::EndAtomicRegion(params) => {
-                    println!("{}", format_message_highlight("END ATOMIC REGION"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!("{pad}begin index:       {}", format_id(&params.begin_index));
+                    logln(format!("{}", format_message_highlight("END ATOMIC REGION")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
+                        "{pad}begin index:       {}",
+                        format_id(&params.begin_index)
+                    ));
                 }
                 PublicOplogEntry::BeginRemoteWrite(params) => {
-                    println!("{}", format_message_highlight("BEGIN REMOTE WRITE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
+                    logln(format!(
+                        "{}",
+                        format_message_highlight("BEGIN REMOTE WRITE")
+                    ));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
                 }
                 PublicOplogEntry::EndRemoteWrite(params) => {
-                    println!("{}", format_message_highlight("END REMOTE WRITE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!("{pad}begin index:       {}", format_id(&params.begin_index));
+                    logln(format!("{}", format_message_highlight("END REMOTE WRITE")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
+                        "{pad}begin index:       {}",
+                        format_id(&params.begin_index)
+                    ));
                 }
                 PublicOplogEntry::PendingWorkerInvocation(params) => match &params.invocation {
                     PublicWorkerInvocation::ExportedFunction(inner_params) => {
-                        println!(
+                        logln(format!(
                             "{} {}",
                             format_message_highlight("ENQUEUED INVOCATION"),
-                            format_id(&inner_params.full_function_name)
-                        );
-                        println!("{pad}at:                {}", format_id(&params.timestamp));
-                        println!(
+                            format_id(&inner_params.full_function_name),
+                        ));
+                        logln(format!(
+                            "{pad}at:                {}",
+                            format_id(&params.timestamp)
+                        ));
+                        logln(format!(
                             "{pad}idempotency key:   {}",
-                            format_id(&inner_params.idempotency_key)
-                        );
+                            format_id(&inner_params.idempotency_key),
+                        ));
                         if let Some(input) = &inner_params.function_input {
-                            println!("{pad}input:");
+                            logln("{pad}input:");
                             for param in input {
-                                println!("{pad}  - {}", print_value(param));
+                                logln(format!("{pad}  - {}", print_value(param)));
                             }
                         }
                     }
                     PublicWorkerInvocation::ManualUpdate(inner_params) => {
-                        println!("{}", format_message_highlight("ENQUEUED MANUAL UPDATE"));
-                        println!("{pad}at:                {}", format_id(&params.timestamp));
-                        println!(
+                        logln(format!(
+                            "{}",
+                            format_message_highlight("ENQUEUED MANUAL UPDATE")
+                        ));
+                        logln(format!(
+                            "{pad}at:                {}",
+                            format_id(&params.timestamp)
+                        ));
+                        logln(format!(
                             "{pad}target version: {}",
-                            format_id(&inner_params.target_version)
-                        );
+                            format_id(&inner_params.target_version),
+                        ));
                     }
                 },
                 PublicOplogEntry::PendingUpdate(params) => {
-                    println!("{}", format_message_highlight("ENQUEUED UPDATE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("ENQUEUED UPDATE")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}target version:    {}",
-                        format_id(&params.target_version)
-                    );
+                        format_id(&params.target_version),
+                    ));
                     match &params.description {
                         PublicUpdateDescription::Automatic(_) => {
-                            println!("{pad}type:              {}", format_id("automatic"));
+                            logln(format!(
+                                "{pad}type:              {}",
+                                format_id("automatic")
+                            ));
                         }
                         PublicUpdateDescription::SnapshotBased(inner_params) => {
-                            println!("{pad}type:              {}", format_id("snapshot based"));
-                            println!(
+                            logln(format!(
+                                "{pad}type:              {}",
+                                format_id("snapshot based")
+                            ));
+                            logln(format!(
                                 "{pad}snapshot:          {}",
-                                BASE64_STANDARD.encode(&inner_params.payload)
-                            );
+                                BASE64_STANDARD.encode(&inner_params.payload),
+                            ));
                         }
                     }
                 }
                 PublicOplogEntry::SuccessfulUpdate(params) => {
-                    println!("{}", format_message_highlight("SUCCESSFUL UPDATE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("SUCCESSFUL UPDATE")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}target version:    {}",
-                        format_id(&params.target_version)
-                    );
-                    println!("{pad}new active plugins:");
+                        format_id(&params.target_version),
+                    ));
+                    logln(format!("{pad}new active plugins:"));
                     for plugin in &params.new_active_plugins {
-                        println!(
+                        logln(format!(
                             "{pad}  - installation id: {}",
-                            format_id(&plugin.installation_id)
-                        );
+                            format_id(&plugin.installation_id),
+                        ));
                         let inner_pad = format!("{pad}    ");
                         print_plugin_description(&inner_pad, plugin);
                     }
                 }
                 PublicOplogEntry::FailedUpdate(params) => {
-                    println!("{}", format_message_highlight("FAILED UPDATE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("FAILED UPDATE")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}target version:    {}",
-                        format_id(&params.target_version)
-                    );
+                        format_id(&params.target_version),
+                    ));
                     if let Some(details) = &params.details {
-                        println!("{pad}error:             {}", format_error(details));
+                        logln(format!("{pad}error:             {}", format_error(details)));
                     }
                 }
                 PublicOplogEntry::GrowMemory(params) => {
-                    println!("{}", format_message_highlight("GROW MEMORY"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("GROW MEMORY")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}increase:          {}",
-                        format_id(&format_binary_size(&params.delta))
-                    );
+                        format_id(&format_binary_size(&params.delta)),
+                    ));
                 }
                 PublicOplogEntry::CreateResource(params) => {
-                    println!("{}", format_message_highlight("CREATE RESOURCE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!("{pad}resource id:       {}", format_id(&params.id));
+                    logln(format!("{}", format_message_highlight("CREATE RESOURCE")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!("{pad}resource id:       {}", format_id(&params.id)));
                 }
                 PublicOplogEntry::DropResource(params) => {
-                    println!("{}", format_message_highlight("DROP RESOURCE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!("{pad}resource id:       {}", format_id(&params.id));
+                    logln(format!("{}", format_message_highlight("DROP RESOURCE")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!("{pad}resource id:       {}", format_id(&params.id)));
                 }
                 PublicOplogEntry::DescribeResource(params) => {
-                    println!("{}", format_message_highlight("DESCRIBE RESOURCE"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!("{pad}resource id:       {}", format_id(&params.id));
-                    println!(
+                    logln(format!("{}", format_message_highlight("DESCRIBE RESOURCE")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!("{pad}resource id:       {}", format_id(&params.id)));
+                    logln(format!(
                         "{pad}resource name:     {}",
-                        format_id(&params.resource_name)
-                    );
-                    println!("{pad}resource parameters:");
+                        format_id(&params.resource_name),
+                    ));
+                    logln(format!("{pad}resource parameters:"));
                     for value in &params.resource_params {
-                        println!("{pad}  - {}", print_value(value));
+                        logln(format!("{pad}  - {}", print_value(value)));
                     }
                 }
                 PublicOplogEntry::Log(params) => {
-                    println!("{}", format_message_highlight("LOG"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("LOG")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}level:             {}",
-                        format_id(&format!("{:?}", params.level))
-                    );
-                    println!("{pad}message:           {}", params.message);
+                        format_id(&format!("{:?}", params.level)),
+                    ));
+                    logln(format!("{pad}message:           {}", params.message));
                 }
                 PublicOplogEntry::Restart(params) => {
-                    println!("{}", format_message_highlight("RESTART"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
+                    logln(format!("{}", format_message_highlight("RESTART")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
                 }
                 PublicOplogEntry::ActivatePlugin(params) => {
-                    println!("{}", format_message_highlight("ACTIVATE PLUGIN"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("ACTIVATE PLUGIN")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}installation id:   {}",
-                        format_id(&params.plugin.installation_id)
-                    );
+                        format_id(&params.plugin.installation_id),
+                    ));
                     print_plugin_description(pad, &params.plugin);
                 }
                 PublicOplogEntry::DeactivatePlugin(params) => {
-                    println!("{}", format_message_highlight("DEACTIVATE PLUGIN"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("DEACTIVATE PLUGIN")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}installation id:   {}",
-                        format_id(&params.plugin.installation_id)
-                    );
+                        format_id(&params.plugin.installation_id),
+                    ));
                     print_plugin_description(pad, &params.plugin);
                 }
                 PublicOplogEntry::Revert(params) => {
-                    println!("{}", format_message_highlight("REVERT"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("REVERT")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}to oplog index:    {}",
-                        format_id(&params.dropped_region.start.previous())
-                    );
+                        format_id(&params.dropped_region.start.previous()),
+                    ));
                 }
                 PublicOplogEntry::CancelInvocation(params) => {
-                    println!("{}", format_message_highlight("CANCEL INVOCATION"));
-                    println!("{pad}at:                {}", format_id(&params.timestamp));
-                    println!(
+                    logln(format!("{}", format_message_highlight("CANCEL INVOCATION")));
+                    logln(format!(
+                        "{pad}at:                {}",
+                        format_id(&params.timestamp)
+                    ));
+                    logln(format!(
                         "{pad}idempotency key:   {}",
-                        format_id(&params.idempotency_key)
-                    );
+                        format_id(&params.idempotency_key),
+                    ));
                 }
             }
         }
     }
 
     fn print_plugin_description(pad: &str, value: &PluginInstallationDescription) {
-        println!("{pad}plugin name:       {}", format_id(&value.plugin_name));
-        println!(
+        logln(format!(
+            "{pad}plugin name:       {}",
+            format_id(&value.plugin_name)
+        ));
+        logln(format!(
             "{pad}plugin version:    {}",
-            format_id(&value.plugin_version)
-        );
-        println!(
+            format_id(&value.plugin_version),
+        ));
+        logln(format!(
             "{pad}plugin parameters:    {}",
-            format_id(&value.plugin_version)
-        );
+            format_id(&value.plugin_version),
+        ));
         for (k, v) in &value.parameters {
-            println!("{pad}  - {}: {}", k, format_id(&v));
+            logln(format!("{pad}  - {}: {}", k, format_id(&v)));
         }
     }
 
@@ -1419,7 +1555,7 @@ pub mod plugin {
     }
 
     impl TextFormat for PluginDefinitionTable {
-        fn print(&self) {
+        fn log(&self) {
             print_stdout(
                 self.0
                     .iter()
@@ -1524,7 +1660,7 @@ pub mod plugin {
     }
 
     impl TextFormat for Vec<PluginInstallation> {
-        fn print(&self) {
+        fn log(&self) {
             print_stdout(
                 self.iter()
                     .map(PluginInstallationTableView::from)
