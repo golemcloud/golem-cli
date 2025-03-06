@@ -23,14 +23,13 @@ use colored::control::SHOULD_COLORIZE;
 use colored::Colorize;
 use golem_wasm_rpc::WASM_RPC_VERSION;
 use itertools::Itertools;
-use pretty_env_logger::env_logger::fmt::Timestamp;
 use serde::Serialize;
 use std::cell::OnceCell;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::marker::PhantomData;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::SystemTime;
 use tracing::debug;
@@ -1077,20 +1076,19 @@ fn delete_path(context: &str, path: &Path) -> anyhow::Result<()> {
 fn load_app<CPE: ComponentPropertiesExtensions>(
     config: &Config<CPE>,
 ) -> Option<ValidatedResult<(Application<CPE>, PathBuf)>> {
-    let Some(sources) = collect_sources(&config.app_source_mode) else {
-        return None;
-    };
-
-    let result = sources.and_then(|(sources, calling_working_dir)| {
-        sources
-            .into_iter()
-            .map(|source| {
-                ValidatedResult::from_result(app_raw::ApplicationWithSource::from_yaml_file(source))
-            })
-            .collect::<ValidatedResult<Vec<_>>>()
-            .and_then(Application::from_raw_apps)
-            .map(|app| (app, calling_working_dir))
-    });
+    let result =
+        collect_sources(&config.app_source_mode)?.and_then(|(sources, calling_working_dir)| {
+            sources
+                .into_iter()
+                .map(|source| {
+                    ValidatedResult::from_result(app_raw::ApplicationWithSource::from_yaml_file(
+                        source,
+                    ))
+                })
+                .collect::<ValidatedResult<Vec<_>>>()
+                .and_then(Application::from_raw_apps)
+                .map(|app| (app, calling_working_dir))
+        });
 
     Some(result)
 }
@@ -1153,11 +1151,7 @@ fn collect_sources(
         }
     };
 
-    let Some(sources) = sources else {
-        return None;
-    };
-
-    Some(
+    sources.map(|sources| {
         sources
             .inspect(|sources| {
                 if sources.is_empty() {
@@ -1175,8 +1169,8 @@ fn collect_sources(
                     );
                 }
             })
-            .map(|sources| (sources, calling_working_dir)),
-    )
+            .map(|sources| (sources, calling_working_dir))
+    })
 }
 
 fn find_main_source() -> Option<PathBuf> {
@@ -1329,7 +1323,7 @@ fn compile_and_collect_globs(root_dir: &Path, globs: &[String]) -> Result<Vec<Pa
         .collect::<Result<Vec<_>, _>>()?
         .iter()
         .map(|(root_dir, pattern)| {
-            Glob::new(&pattern)
+            Glob::new(pattern)
                 .with_context(|| anyhow!("Failed to compile glob expression: {}", pattern))
                 .map(|pattern| (root_dir, pattern))
         })

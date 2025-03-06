@@ -2,7 +2,6 @@ use crate::fs::{OverwriteSafeAction, OverwriteSafeActionPlan, PathExtra};
 use colored::{ColoredString, Colorize};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, RwLock};
-use tracing::debug;
 
 static LOG_STATE: LazyLock<RwLock<LogState>> = LazyLock::new(RwLock::default);
 

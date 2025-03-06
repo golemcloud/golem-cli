@@ -14,11 +14,9 @@
 
 use crate::command::GolemCliGlobalFlags;
 use crate::config::{
-    BuildProfileName, ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind,
-    ProfileName,
+    ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
 };
 use crate::model::app_ext::GolemComponentExtensions;
-use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
 use golem_client::api::ApiSecurityClientLive as ApiSecurityClientOss;

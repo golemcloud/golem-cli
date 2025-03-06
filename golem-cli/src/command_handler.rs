@@ -14,7 +14,7 @@
 
 use crate::command::app::AppSubcommand;
 use crate::command::component::ComponentSubcommand;
-use crate::command::shared_args::{AppOptionalComponentNames, BuildArgs, ForceBuildArg};
+use crate::command::shared_args::{BuildArgs, ForceBuildArg};
 use crate::command::worker::WorkerSubcommand;
 use crate::command::{
     GolemCliCommand, GolemCliCommandParseResult, GolemCliCommandPartialMatch,
@@ -26,22 +26,19 @@ use crate::error::NonSuccessfulExit;
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::init_tracing;
 use crate::model::app_ext::GolemComponentExtensions;
-use crate::model::component::{Component, ComponentView};
+use crate::model::component::Component;
 use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
 use crate::model::text::fmt::TextFormat;
 use crate::model::{ComponentName, WorkerName};
 use anyhow::Context as AnyhowContext;
 use anyhow::{anyhow, bail};
 use colored::Colorize;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use golem_client::api::ComponentClient;
 use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
 use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
 use golem_examples::add_component_by_example;
 use golem_examples::model::{ComposableAppGroupName, PackageName};
-use golem_wasm_ast::analysis::analysed_type::option;
 use golem_wasm_rpc_stubgen::commands::app::{
     ApplicationContext, ComponentSelectMode, DynamicHelpSections,
 };
@@ -52,9 +49,8 @@ use golem_wasm_rpc_stubgen::log::{
 use golem_wasm_rpc_stubgen::model::app::{ComponentName as AppComponentName, DependencyType};
 use itertools::Itertools;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use serde::Serialize;
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -437,7 +433,7 @@ impl CommandHandler {
         self.ctx
             .application_context()
             .await?
-            .ok_or_else(|| no_application_manifest_found())
+            .ok_or_else(no_application_manifest_found)
     }
 
     pub async fn required_application_context_mut(
@@ -446,7 +442,7 @@ impl CommandHandler {
         self.ctx
             .application_context_mut()
             .await?
-            .ok_or_else(|| no_application_manifest_found())
+            .ok_or_else(no_application_manifest_found)
     }
 
     async fn required_app_ctx_with_selection_mut(
@@ -456,7 +452,7 @@ impl CommandHandler {
     ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
         self.app_ctx_with_selection_mut(component_names, default)
             .await?
-            .ok_or_else(|| no_application_manifest_found())
+            .ok_or_else(no_application_manifest_found)
     }
 
     // TODO: forbid matching the same component multiple times
@@ -566,7 +562,7 @@ impl CommandHandler {
                 step: vec![],
                 force_build,
             },
-            &default_component_select_mode,
+            default_component_select_mode,
         )
         .await?;
 
@@ -693,7 +689,7 @@ impl CommandHandler {
                     .await
                     .map_err(map_service_error)?;
                 debug!(components = ?components, "component_id_by_name");
-                if components.len() >= 1 {
+                if !components.is_empty() {
                     Ok(Some(components[0].versioned_component_id.component_id))
                 } else {
                     Ok(None)

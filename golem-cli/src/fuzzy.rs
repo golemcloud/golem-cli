@@ -98,7 +98,7 @@ impl<'a> FuzzySearch<'a> {
                 highlighted_options: fuzzy_matches
                     .into_iter()
                     .map(|(_, indices, option)| {
-                        let indices = HashSet::<usize>::from_iter(indices.into_iter());
+                        let indices = HashSet::<usize>::from_iter(indices);
                         let mut highlighted_option = String::with_capacity(option.len() * 2);
                         for (idx, char) in option.chars().enumerate() {
                             if indices.contains(&idx) {

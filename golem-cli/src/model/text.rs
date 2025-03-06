@@ -805,7 +805,7 @@ pub mod worker {
     use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
     use golem_wasm_rpc::{print_type_annotated_value, ValueAndType};
     use golem_wasm_rpc_stubgen::log::logln;
-    use indoc::{formatdoc, indoc, printdoc};
+    use indoc::{formatdoc, indoc};
     use itertools::Itertools;
     use serde::{Deserialize, Serialize};
 
@@ -1005,7 +1005,7 @@ pub mod worker {
                         logln("Empty result.")
                     } else {
                         print_results_format("WAVE");
-                        logln(format!("{}", serde_yaml::to_string(wave).unwrap()));
+                        logln(serde_yaml::to_string(wave).unwrap());
                     }
                 }
                 InvokeResultView::Json(json) => {
@@ -1020,7 +1020,7 @@ pub mod worker {
                     )));
 
                     print_results_format("JSON");
-                    logln(format!("{}", serde_json::to_string_pretty(json).unwrap()));
+                    logln(serde_json::to_string_pretty(json).unwrap());
                 }
             }
         }
@@ -1040,7 +1040,7 @@ pub mod worker {
             let pad = "          ";
             match self {
                 PublicOplogEntry::Create(params) => {
-                    logln(format!("{}", format_message_highlight("CREATE")));
+                    logln(format_message_highlight("CREATE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1109,7 +1109,7 @@ pub mod worker {
                     }
                 }
                 PublicOplogEntry::ExportedFunctionCompleted(params) => {
-                    logln(format!("{}", format_message_highlight("INVOKE COMPLETED")));
+                    logln(format_message_highlight("INVOKE COMPLETED"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1124,14 +1124,14 @@ pub mod worker {
                     ));
                 }
                 PublicOplogEntry::Suspend(params) => {
-                    logln(format!("{}", format_message_highlight("SUSPEND")));
+                    logln(format_message_highlight("SUSPEND"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
                     ));
                 }
                 PublicOplogEntry::Error(params) => {
-                    logln(format!("{}", format_message_highlight("ERROR")));
+                    logln(format_message_highlight("ERROR"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1142,14 +1142,14 @@ pub mod worker {
                     ));
                 }
                 PublicOplogEntry::NoOp(params) => {
-                    logln(format!("{}", format_message_highlight("NOP")));
+                    logln(format_message_highlight("NOP"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
                     ));
                 }
                 PublicOplogEntry::Jump(params) => {
-                    logln(format!("{}", format_message_highlight("JUMP")));
+                    logln(format_message_highlight("JUMP"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1164,24 +1164,21 @@ pub mod worker {
                     ));
                 }
                 PublicOplogEntry::Interrupted(params) => {
-                    logln(format!("{}", format_message_highlight("INTERRUPTED")));
+                    logln(format_message_highlight("INTERRUPTED"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
                     ));
                 }
                 PublicOplogEntry::Exited(params) => {
-                    logln(format!("{}", format_message_highlight("EXITED")));
+                    logln(format_message_highlight("EXITED"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
                     ));
                 }
                 PublicOplogEntry::ChangeRetryPolicy(params) => {
-                    logln(format!(
-                        "{}",
-                        format_message_highlight("CHANGE RETRY POLICY")
-                    ));
+                    logln(format_message_highlight("CHANGE RETRY POLICY"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1214,17 +1211,14 @@ pub mod worker {
                     ));
                 }
                 PublicOplogEntry::BeginAtomicRegion(params) => {
-                    logln(format!(
-                        "{}",
-                        format_message_highlight("BEGIN ATOMIC REGION")
-                    ));
+                    logln(format_message_highlight("BEGIN ATOMIC REGION"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
                     ));
                 }
                 PublicOplogEntry::EndAtomicRegion(params) => {
-                    logln(format!("{}", format_message_highlight("END ATOMIC REGION")));
+                    logln(format_message_highlight("END ATOMIC REGION"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1235,17 +1229,14 @@ pub mod worker {
                     ));
                 }
                 PublicOplogEntry::BeginRemoteWrite(params) => {
-                    logln(format!(
-                        "{}",
-                        format_message_highlight("BEGIN REMOTE WRITE")
-                    ));
+                    logln(format_message_highlight("BEGIN REMOTE WRITE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
                     ));
                 }
                 PublicOplogEntry::EndRemoteWrite(params) => {
-                    logln(format!("{}", format_message_highlight("END REMOTE WRITE")));
+                    logln(format_message_highlight("END REMOTE WRITE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1278,10 +1269,7 @@ pub mod worker {
                         }
                     }
                     PublicWorkerInvocation::ManualUpdate(inner_params) => {
-                        logln(format!(
-                            "{}",
-                            format_message_highlight("ENQUEUED MANUAL UPDATE")
-                        ));
+                        logln(format_message_highlight("ENQUEUED MANUAL UPDATE"));
                         logln(format!(
                             "{pad}at:                {}",
                             format_id(&params.timestamp)
@@ -1293,7 +1281,7 @@ pub mod worker {
                     }
                 },
                 PublicOplogEntry::PendingUpdate(params) => {
-                    logln(format!("{}", format_message_highlight("ENQUEUED UPDATE")));
+                    logln(format_message_highlight("ENQUEUED UPDATE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1322,7 +1310,7 @@ pub mod worker {
                     }
                 }
                 PublicOplogEntry::SuccessfulUpdate(params) => {
-                    logln(format!("{}", format_message_highlight("SUCCESSFUL UPDATE")));
+                    logln(format_message_highlight("SUCCESSFUL UPDATE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1342,7 +1330,7 @@ pub mod worker {
                     }
                 }
                 PublicOplogEntry::FailedUpdate(params) => {
-                    logln(format!("{}", format_message_highlight("FAILED UPDATE")));
+                    logln(format_message_highlight("FAILED UPDATE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1356,7 +1344,7 @@ pub mod worker {
                     }
                 }
                 PublicOplogEntry::GrowMemory(params) => {
-                    logln(format!("{}", format_message_highlight("GROW MEMORY")));
+                    logln(format_message_highlight("GROW MEMORY"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1367,7 +1355,7 @@ pub mod worker {
                     ));
                 }
                 PublicOplogEntry::CreateResource(params) => {
-                    logln(format!("{}", format_message_highlight("CREATE RESOURCE")));
+                    logln(format_message_highlight("CREATE RESOURCE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1375,7 +1363,7 @@ pub mod worker {
                     logln(format!("{pad}resource id:       {}", format_id(&params.id)));
                 }
                 PublicOplogEntry::DropResource(params) => {
-                    logln(format!("{}", format_message_highlight("DROP RESOURCE")));
+                    logln(format_message_highlight("DROP RESOURCE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1383,7 +1371,7 @@ pub mod worker {
                     logln(format!("{pad}resource id:       {}", format_id(&params.id)));
                 }
                 PublicOplogEntry::DescribeResource(params) => {
-                    logln(format!("{}", format_message_highlight("DESCRIBE RESOURCE")));
+                    logln(format_message_highlight("DESCRIBE RESOURCE"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1399,7 +1387,7 @@ pub mod worker {
                     }
                 }
                 PublicOplogEntry::Log(params) => {
-                    logln(format!("{}", format_message_highlight("LOG")));
+                    logln(format_message_highlight("LOG"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1411,14 +1399,14 @@ pub mod worker {
                     logln(format!("{pad}message:           {}", params.message));
                 }
                 PublicOplogEntry::Restart(params) => {
-                    logln(format!("{}", format_message_highlight("RESTART")));
+                    logln(format_message_highlight("RESTART"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
                     ));
                 }
                 PublicOplogEntry::ActivatePlugin(params) => {
-                    logln(format!("{}", format_message_highlight("ACTIVATE PLUGIN")));
+                    logln(format_message_highlight("ACTIVATE PLUGIN"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1430,7 +1418,7 @@ pub mod worker {
                     print_plugin_description(pad, &params.plugin);
                 }
                 PublicOplogEntry::DeactivatePlugin(params) => {
-                    logln(format!("{}", format_message_highlight("DEACTIVATE PLUGIN")));
+                    logln(format_message_highlight("DEACTIVATE PLUGIN"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1442,7 +1430,7 @@ pub mod worker {
                     print_plugin_description(pad, &params.plugin);
                 }
                 PublicOplogEntry::Revert(params) => {
-                    logln(format!("{}", format_message_highlight("REVERT")));
+                    logln(format_message_highlight("REVERT"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
@@ -1453,7 +1441,7 @@ pub mod worker {
                     ));
                 }
                 PublicOplogEntry::CancelInvocation(params) => {
-                    logln(format!("{}", format_message_highlight("CANCEL INVOCATION")));
+                    logln(format_message_highlight("CANCEL INVOCATION"));
                     logln(format!(
                         "{pad}at:                {}",
                         format_id(&params.timestamp)
