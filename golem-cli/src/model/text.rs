@@ -355,8 +355,6 @@ pub mod api_definition {
         pub path: String,
         #[table(title = "Component Name")]
         pub component_name: ComponentName,
-        #[table(title = "Worker Name")]
-        pub worker_name: WorkerName,
     }
 
     impl From<&RouteResponseData> for RouteTableView {
@@ -373,12 +371,6 @@ pub mod api_definition {
                         id.component_id.to_string()
                     })
                     .unwrap_or("<NA>".to_string())
-                    .into(),
-                worker_name: value
-                    .binding
-                    .worker_name
-                    .clone()
-                    .unwrap_or("<NA/ephemeral>".to_string())
                     .into(),
             }
         }
