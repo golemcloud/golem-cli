@@ -184,6 +184,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                 .application
                 .component_effective_property_source(component_name, self.profile());
 
+            // TODO: simplify this
             let message = match (
                 selection.profile,
                 selection.template_name,
@@ -192,19 +193,19 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
             ) {
                 (None, None, false, _) => {
                     format!(
-                        "default build for {}",
+                        "default build profile for {}",
                         component_name.as_str().log_color_highlight()
                     )
                 }
                 (None, None, true, _) => {
                     format!(
-                        "default build for {}, component has no profiles",
+                        "default build profile for {}, component has no profiles",
                         component_name.as_str().log_color_highlight()
                     )
                 }
                 (None, Some(template), false, _) => {
                     format!(
-                        "default build for {} using template {}{}",
+                        "default build profile for {} using template {}{}",
                         component_name.as_str().log_color_highlight(),
                         template.as_str().log_color_highlight(),
                         if selection.any_template_overrides {
@@ -216,7 +217,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                 }
                 (None, Some(template), true, _) => {
                     format!(
-                        "default build for {} using template {}{}, component has no profiles",
+                        "default build profile for {} using template {}{}, component has no profiles",
                         component_name.as_str().log_color_highlight(),
                         template.as_str().log_color_highlight(),
                         if selection.any_template_overrides {
@@ -228,21 +229,21 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                 }
                 (Some(profile), None, false, false) => {
                     format!(
-                        "default profile {} for {}",
+                        "default build profile {} for {}",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight()
                     )
                 }
                 (Some(profile), None, true, false) => {
                     format!(
-                        "default profile {} for {}, component has no matching requested profile",
+                        "default build profile {} for {}, component has no matching requested profile",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight()
                     )
                 }
                 (Some(profile), Some(template), false, false) => {
                     format!(
-                        "default profile {} for {} using template {}{}",
+                        "default build profile {} for {} using template {}{}",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight(),
                         template.as_str().log_color_highlight(),
@@ -255,7 +256,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                 }
                 (Some(profile), Some(template), true, false) => {
                     format!(
-                        "default profile {} for {} using template {}{}, component has no matching requested profile",
+                        "default build profile {} for {} using template {}{}, component has no matching requested profile",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight(),
                         template.as_str().log_color_highlight(),
@@ -268,21 +269,21 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                 }
                 (Some(profile), None, false, true) => {
                     format!(
-                        "profile {} for {}",
+                        "build profile {} for {}",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight()
                     )
                 }
                 (Some(profile), None, true, true) => {
                     format!(
-                        "requested profile {} for {}",
+                        "requested build profile {} for {}",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight()
                     )
                 }
                 (Some(profile), Some(template), false, true) => {
                     format!(
-                        "profile {} for {} using template {}{}",
+                        "build profile {} for {} using template {}{}",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight(),
                         template.as_str().log_color_highlight(),
@@ -295,7 +296,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                 }
                 (Some(profile), Some(template), true, true) => {
                     format!(
-                        "requested profile {} for {} using template {}{}",
+                        "build requested profile {} for {} using template {}{}",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight(),
                         template.as_str().log_color_highlight(),

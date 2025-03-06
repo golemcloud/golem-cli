@@ -123,23 +123,7 @@ impl From<&Component> for ComponentView {
             component_size: value.component_size,
             created_at: value.created_at,
             project_id: value.project_id,
-            exports: value
-                .metadata
-                .exports
-                .iter()
-                .flat_map(|exp| match exp {
-                    AnalysedExport::Instance(AnalysedInstance { name, functions }) => {
-                        let fs: Vec<String> = functions
-                            .iter()
-                            .map(|f| show_exported_function(Some(name), f))
-                            .collect();
-                        fs
-                    }
-                    AnalysedExport::Function(f) => {
-                        vec![show_exported_function(None, f)]
-                    }
-                })
-                .collect(),
+            exports: show_exported_functions(&value.metadata.exports),
             dynamic_linking: value
                 .metadata
                 .dynamic_linking
@@ -228,6 +212,24 @@ fn render_type(typ: &AnalysedType) -> String {
 
 fn render_result(r: &AnalysedFunctionResult) -> String {
     render_type(&r.typ)
+}
+
+pub fn show_exported_functions(exports: &[AnalysedExport]) -> Vec<String> {
+    exports
+        .iter()
+        .flat_map(|exp| match exp {
+            AnalysedExport::Instance(AnalysedInstance { name, functions }) => {
+                let fs: Vec<String> = functions
+                    .iter()
+                    .map(|f| show_exported_function(Some(name), f))
+                    .collect();
+                fs
+            }
+            AnalysedExport::Function(f) => {
+                vec![show_exported_function(None, f)]
+            }
+        })
+        .collect()
 }
 
 pub fn show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> String {

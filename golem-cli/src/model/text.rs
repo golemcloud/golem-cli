@@ -17,7 +17,7 @@ pub mod fmt {
     use colored::control::SHOULD_COLORIZE;
     use colored::Colorize;
     use golem_client::model::WorkerStatus;
-    use golem_wasm_rpc_stubgen::log::logln;
+    use golem_wasm_rpc_stubgen::log::{logln, LogIndent};
     use itertools::Itertools;
     use regex::Regex;
     use std::collections::BTreeMap;
@@ -41,6 +41,9 @@ pub mod fmt {
     pub trait MessageWithFields {
         fn message(&self) -> String;
         fn fields(&self) -> Vec<(String, String)>;
+        fn indent_fields() -> bool {
+            false
+        }
         fn format_field_name(name: String) -> String {
             name
         }
@@ -53,6 +56,8 @@ pub mod fmt {
 
             let fields = self.fields();
             let padding = fields.iter().map(|(name, _)| name.len()).max().unwrap_or(0) + 1;
+
+            let _indent = Self::indent_fields().then(|| LogIndent::new());
 
             for (name, value) in self.fields() {
                 let lines: Vec<_> = value.lines().collect();
@@ -1661,7 +1666,7 @@ pub mod plugin {
 
 // Shared help messages
 pub mod help {
-    use crate::model::text::fmt::{FieldsBuilder, MessageWithFields, TextView};
+    use crate::model::text::fmt::{format_export, FieldsBuilder, MessageWithFields, TextView};
     use colored::Colorize;
     use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
     use golem_wasm_rpc_stubgen::model::app::ComponentName as AppComponentName;
@@ -1680,44 +1685,57 @@ pub mod help {
             let mut fields = FieldsBuilder::new();
 
             fields.field(
-                "<WORKER_NAME>",
+                "<WORKER>",
                 &indoc!(
                     "
-                    Standalone worker name, usable when only one component is selected
-                    based on the current application directory.
+                    Standalone worker name, usable when only one component is selected based on the
+                    current application directory.
+
                     For ephemeral workers or for random worker name generation \"-\" can be used.
+
                     "
                 ),
             );
             fields.field(
-                "<COMPONENT_NAME>/<WORKER_NAME>",
+                "<COMPONENT>/<WORKER>",
                 &indoc!(
                     "
-                    Component specific worker name, the component name must be a deployed component name.
-                    When used in an application (sub)directory the given component name is fuzzy matched
-                    against the application component names. When used in a directory without
-                    application manifest(s) the full component name is expected.
+                    Component specific worker name.
+
+                    When used in an application (sub)directory then the given component name is fuzzy
+                    matched against the application component names. If no matches are found, then
+                    a the component name is used as is.
+
+                    When used in a directory without application manifest(s), then the full component
+                    name is expected.
+
                     "
                 ),
             );
             fields.field(
-                "<PROJECT_NAME>/<COMPONENT_NAME>/<WORKER_NAME>",
+                "<PROJECT>/<COMPONENT>/<WORKER>",
                 &indoc!(
                     "
                     TODO
+
                     "
                 ),
             );
             fields.field(
-                "<ACCOUNT_NAME>/<PROJECT_NAME>/<COMPONENT_NAME>/<WORKER_NAME>",
+                "<ACCOUNT>/<PROJECT>/<COMPONENT>/<WORKER>",
                 &indoc!(
                     "
                     TODO
+
                     "
                 ),
             );
 
             fields.build()
+        }
+
+        fn indent_fields() -> bool {
+            true
         }
 
         fn format_field_name(name: String) -> String {
@@ -1730,6 +1748,11 @@ pub mod help {
     impl TextView for AvailableComponentNamesHelp {
         fn log(&self) {
             if self.0.is_empty() {
+                logln(
+                    "The application contains no components."
+                        .log_color_warn()
+                        .to_string(),
+                );
                 return;
             }
 
@@ -1741,6 +1764,41 @@ pub mod help {
             );
             for component_name in &self.0 {
                 logln(format!("  - {}", component_name));
+            }
+            logln("");
+        }
+    }
+
+    pub struct AvailableFunctionNamesHelp {
+        pub component_name: String,
+        pub function_names: Vec<String>,
+    }
+
+    impl TextView for AvailableFunctionNamesHelp {
+        fn log(&self) {
+            if self.function_names.is_empty() {
+                logln(
+                    format!(
+                        "No functions are available for component {}.",
+                        self.component_name.log_color_highlight()
+                    )
+                    .log_color_warn()
+                    .to_string(),
+                );
+                return;
+            }
+
+            logln(
+                format!(
+                    "Available function names for component {}:",
+                    self.component_name
+                )
+                .bold()
+                .underline()
+                .to_string(),
+            );
+            for function_name in &self.function_names {
+                logln(format!("  - {}", format_export(function_name)));
             }
             logln("");
         }

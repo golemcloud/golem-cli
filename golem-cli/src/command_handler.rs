@@ -26,10 +26,12 @@ use crate::error::NonSuccessfulExit;
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::init_tracing;
 use crate::model::app_ext::GolemComponentExtensions;
-use crate::model::component::Component;
+use crate::model::component::{show_exported_functions, Component};
 use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
-use crate::model::text::fmt::TextView;
-use crate::model::text::help::{AvailableComponentNamesHelp, WorkerNameHelp};
+use crate::model::text::fmt::{format_export, TextView};
+use crate::model::text::help::{
+    AvailableComponentNamesHelp, AvailableFunctionNamesHelp, WorkerNameHelp,
+};
 use crate::model::{ComponentName, WorkerName};
 use anyhow::Context as AnyhowContext;
 use anyhow::{anyhow, bail};
@@ -52,7 +54,7 @@ use golem_wasm_rpc_stubgen::model::app::{ComponentName as AppComponentName, Depe
 use indoc::formatdoc;
 use itertools::Itertools;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::fmt::Debug;
@@ -264,7 +266,7 @@ impl CommandHandler {
             } => {
                 self.build(
                     component_name.component_name,
-                    build,
+                    Some(build),
                     &ComponentSelectMode::All,
                 )
                 .await
@@ -275,7 +277,7 @@ impl CommandHandler {
             } => {
                 self.deploy(
                     component_name.component_name,
-                    force_build,
+                    Some(force_build),
                     &ComponentSelectMode::All,
                 )
                 .await
@@ -315,7 +317,7 @@ impl CommandHandler {
             } => {
                 self.build(
                     component_name.component_name,
-                    build,
+                    Some(build),
                     &ComponentSelectMode::CurrentDir,
                 )
                 .await
@@ -326,7 +328,7 @@ impl CommandHandler {
             } => {
                 self.deploy(
                     component_name.component_name,
-                    force_build,
+                    Some(force_build),
                     &ComponentSelectMode::CurrentDir,
                 )
                 .await
@@ -352,10 +354,111 @@ impl CommandHandler {
                 arguments,
                 enqueue,
             } => {
-                let (component_name, worker_name) = self.match_worker_name(worker_name).await?;
+                self.ctx.silence_application_context_init();
+
+                let (component_match_kind, component_name, worker_name) =
+                    self.match_worker_name(worker_name).await?;
+
+                let component = match self.service_component_by_name(&component_name.0).await? {
+                    Some(component) => component,
+                    None => {
+                        let should_deploy = match component_match_kind {
+                            ComponentNameMatchKind::AppCurrentDir => true,
+                            ComponentNameMatchKind::App => true,
+                            ComponentNameMatchKind::Unknown => false,
+                        };
+
+                        if !should_deploy {
+                            logln("");
+                            log_error(format!(
+                                "Component {} not found, and not part of the current application",
+                                component_name.0.log_color_highlight()
+                            ));
+                            // TODO: fuzzy match from service to list components
+                            bail!(NonSuccessfulExit)
+                        }
+
+                        // TODO: we need hashes to reliably detect if "update" deploy is needed
+                        //       and for now we should not blindly keep updating, so for now
+                        //       only missing one are handled
+                        log_action(
+                            "Auto deploying",
+                            format!(
+                                "missing component {}",
+                                component_name.0.log_color_highlight()
+                            ),
+                        );
+                        self.deploy(
+                            vec![component_name.clone()],
+                            None,
+                            &ComponentSelectMode::CurrentDir,
+                        )
+                        .await?;
+                        self.service_component_by_name(&component_name.0)
+                            .await?
+                            .ok_or_else(|| {
+                                anyhow!("Component ({}) not found after deployment", component_name)
+                            })?
+                    }
+                };
+
+                let component_functions = show_exported_functions(&component.metadata.exports);
+                let fuzzy_search = FuzzySearch::new(component_functions.iter().map(|s| s.as_str()));
+                let function_name = match fuzzy_search.find(&function_name) {
+                    Ok(function_name) => function_name.option,
+                    Err(error) => {
+                        // TODO: extract common ambiguous messages?
+                        match error {
+                            Error::Ambiguous {
+                                highlighted_options,
+                                ..
+                            } => {
+                                logln("");
+                                log_error(format!(
+                                    "The requested function name ({}) is ambiguous.",
+                                    function_name.log_color_error_highlight()
+                                ));
+                                logln("");
+                                logln("Did you mean one of".to_string());
+                                for option in highlighted_options {
+                                    logln(format!(" - {}", option.bold()));
+                                }
+                                logln("?");
+                                logln("");
+                                log_text_view(&AvailableFunctionNamesHelp {
+                                    component_name: component_name.0,
+                                    function_names: component_functions,
+                                });
+
+                                bail!(NonSuccessfulExit);
+                            }
+                            Error::NotFound { .. } => {
+                                todo!("NotFound")
+                            }
+                        }
+                    }
+                };
+
+                log_action(
+                    "Invoking",
+                    format!(
+                        "worker {} / {} / {} ",
+                        component_name.0.blue().bold(),
+                        worker_name
+                            .as_ref()
+                            .map(|wn| wn.0.as_str())
+                            .unwrap_or("-")
+                            .green()
+                            .bold(),
+                        format_export(&function_name)
+                    ),
+                );
 
                 match self.ctx.golem_clients().await? {
-                    GolemClients::Oss(clients) => {}
+                    GolemClients::Oss(clients) => match worker_name {
+                        Some(worker_name) => {}
+                        None => {}
+                    },
                     GolemClients::Cloud(_) => {
                         todo!()
                     }
@@ -430,35 +533,54 @@ impl CommandHandler {
                 }
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName => {
-                /*
-                logln(format!("\n{}", "Existing workers:".underline().bold()));
-                logln("...");
-                logln("To see all workers use.. TODO");
-                */
-                todo!()
+                logln("");
+                log_text_view(&WorkerNameHelp);
+                logln("");
+                // TODO: maybe also show available component names from app?
+                Ok(())
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName { worker_name } => {
                 self.ctx.silence_application_context_init();
                 logln("");
                 log_action(
-                    "Validating",
+                    "Checking",
                     format!(
                         "provided worker name: {}",
                         worker_name.0.log_color_highlight()
                     ),
                 );
-                let _indent = Self::nested_text_view_ident();
-                let (component_name, worker_name) = self.match_worker_name(worker_name).await?;
-                logln(format!(
-                    "[{}] component name: {} / worker_name: {}",
-                    "ok".green(),
-                    component_name.0.log_color_highlight(),
-                    worker_name
-                        .as_ref()
-                        .map(|s| s.0.as_str())
-                        .unwrap_or("-")
-                        .log_color_highlight()
-                ));
+                let component_name = {
+                    let _indent = Self::nested_text_view_ident();
+                    let (component_name_match_kind, component_name, worker_name) =
+                        self.match_worker_name(worker_name).await?;
+                    logln(format!(
+                        "[{}] component name: {} / worker_name: {}, {}",
+                        "ok".green(),
+                        component_name.0.log_color_highlight(),
+                        worker_name
+                            .as_ref()
+                            .map(|s| s.0.as_str())
+                            .unwrap_or("-")
+                            .log_color_highlight(),
+                        match component_name_match_kind {
+                            ComponentNameMatchKind::AppCurrentDir =>
+                                "component was selected based on current dir",
+                            ComponentNameMatchKind::App =>
+                                "component was selected from current application",
+                            ComponentNameMatchKind::Unknown => "",
+                        }
+                    ));
+                    component_name
+                };
+                logln("");
+                if let Ok(Some(component)) = self.service_component_by_name(&component_name.0).await
+                {
+                    log_text_view(&AvailableFunctionNamesHelp {
+                        component_name: component_name.0,
+                        function_names: show_exported_functions(&component.metadata.exports),
+                    });
+                    logln("");
+                }
                 Ok(())
             }
         }
@@ -557,12 +679,14 @@ impl CommandHandler {
     async fn build(
         &mut self,
         component_names: Vec<ComponentName>,
-        build: BuildArgs,
+        build: Option<BuildArgs>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.ctx.set_steps_filter(build.step.into_iter().collect());
-        self.ctx
-            .set_skip_up_to_date_checks(build.force_build.force_build);
+        if let Some(build) = build {
+            self.ctx.set_steps_filter(build.step.into_iter().collect());
+            self.ctx
+                .set_skip_up_to_date_checks(build.force_build.force_build);
+        }
 
         self.required_app_ctx_with_selection_mut(component_names, default_component_select_mode)
             .await?
@@ -587,15 +711,15 @@ impl CommandHandler {
     async fn deploy(
         &mut self,
         component_names: Vec<ComponentName>,
-        force_build: ForceBuildArg,
+        force_build: Option<ForceBuildArg>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
         self.build(
             component_names,
-            BuildArgs {
+            force_build.map(|force_build| BuildArgs {
                 step: vec![],
                 force_build,
-            },
+            }),
             default_component_select_mode,
         )
         .await?;
@@ -610,12 +734,12 @@ impl CommandHandler {
             .cloned()
             .collect::<Vec<_>>();
 
-        log_action("Updating", "components");
+        log_action("Deploying", "components");
 
         for component_name in &selected_component_names {
             let _indent = LogIndent::new();
 
-            let component_id = self.component_id_by_name(component_name).await?;
+            let component_id = self.component_id_by_name(component_name.as_str()).await?;
             let app_ctx = self.required_application_context().await?;
             let component_linked_wasm_path = app_ctx
                 .application
@@ -711,20 +835,20 @@ impl CommandHandler {
     // TODO: we might want to have a filter for batch name lookups on the server side
     // TODO: also the search returns all versions
     // TODO: maybe add transient or persistent cache for all the meta
-    async fn component_id_by_name(
+    async fn service_component_by_name(
         &self,
-        component_name: &AppComponentName,
-    ) -> anyhow::Result<Option<Uuid>> {
+        component_name: &str,
+    ) -> anyhow::Result<Option<Component>> {
         match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => {
-                let components = clients
+                let mut components = clients
                     .component
-                    .get_components(Some(component_name.as_str()))
+                    .get_components(Some(component_name))
                     .await
                     .map_err(map_service_error)?;
-                debug!(components = ?components, "component_id_by_name");
+                debug!(components = ?components, "service_component_by_name");
                 if !components.is_empty() {
-                    Ok(Some(components[0].versioned_component_id.component_id))
+                    Ok(Some(Component::from(components.pop().unwrap())))
                 } else {
                     Ok(None)
                 }
@@ -733,6 +857,13 @@ impl CommandHandler {
                 todo!()
             }
         }
+    }
+
+    async fn component_id_by_name(&self, component_name: &str) -> anyhow::Result<Option<Uuid>> {
+        Ok(self
+            .service_component_by_name(component_name)
+            .await?
+            .map(|c| c.versioned_component_id.component_id))
     }
 
     async fn app_component_dynamic_linking_oss(
@@ -776,14 +907,14 @@ impl CommandHandler {
     async fn match_worker_name(
         &mut self,
         worker_name: WorkerName,
-    ) -> anyhow::Result<(ComponentName, Option<WorkerName>)> {
+    ) -> anyhow::Result<(ComponentNameMatchKind, ComponentName, Option<WorkerName>)> {
         fn to_opt_worker_name(worker_name: &str) -> Option<WorkerName> {
             (worker_name != "-").then(|| worker_name.into())
         }
 
         let segments = worker_name.0.split("/").collect::<Vec<&str>>();
         match segments.len() {
-            // <WORKER_NAME>
+            // <WORKER>
             1 => {
                 let worker_name = segments[0];
 
@@ -814,6 +945,7 @@ impl CommandHandler {
                         }
 
                         Ok((
+                            ComponentNameMatchKind::AppCurrentDir,
                             selected_component_names
                                 .iter()
                                 .next()
@@ -838,10 +970,28 @@ impl CommandHandler {
                     }
                 }
             }
-            // <COMPONENT_NAME>/<WORKER_NAME>
+            // <COMPONENT>/<WORKER>
             2 => {
                 let component_name = segments[0];
                 let worker_name = segments[1];
+
+                if worker_name.is_empty() {
+                    logln("");
+                    log_error("Missing component part in worker name!");
+                    logln("");
+                    log_text_view(&WorkerNameHelp);
+                    logln("");
+                    bail!(NonSuccessfulExit);
+                }
+
+                if worker_name.is_empty() {
+                    logln("");
+                    log_error("Missing worker part in worker name!");
+                    logln("");
+                    log_text_view(&WorkerNameHelp);
+                    logln("");
+                    bail!(NonSuccessfulExit);
+                }
 
                 let app_ctx = self
                     .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::All)
@@ -852,9 +1002,11 @@ impl CommandHandler {
                             app_ctx.application.component_names().map(|cn| cn.as_str()),
                         );
                         match fuzzy_search.find(component_name) {
-                            Ok(match_) => {
-                                Ok((match_.option.into(), to_opt_worker_name(worker_name)))
-                            }
+                            Ok(match_) => Ok((
+                                ComponentNameMatchKind::App,
+                                match_.option.into(),
+                                to_opt_worker_name(worker_name),
+                            )),
                             Err(error) => match error {
                                 Error::Ambiguous {
                                     highlighted_options,
@@ -866,10 +1018,11 @@ impl CommandHandler {
                                         component_name.log_color_error_highlight()
                                     ));
                                     logln("");
-                                    logln(format!(
-                                        "Did you mean one of {}?",
-                                        highlighted_options.iter().map(|cn| cn.bold()).join(", ")
-                                    ));
+                                    logln("Did you mean one of".to_string());
+                                    for option in highlighted_options {
+                                        logln(format!(" - {}", option.bold()));
+                                    }
+                                    logln("?");
                                     logln("");
                                     log_text_view(&WorkerNameHelp);
                                     logln("");
@@ -881,17 +1034,25 @@ impl CommandHandler {
                                 }
                                 Error::NotFound { .. } => {
                                     // Assuming non-app component
-                                    Ok((component_name.into(), to_opt_worker_name(worker_name)))
+                                    Ok((
+                                        ComponentNameMatchKind::Unknown,
+                                        component_name.into(),
+                                        to_opt_worker_name(worker_name),
+                                    ))
                                 }
                             },
                         }
                     }
-                    None => Ok((component_name.into(), to_opt_worker_name(worker_name))),
+                    None => Ok((
+                        ComponentNameMatchKind::Unknown,
+                        component_name.into(),
+                        to_opt_worker_name(worker_name),
+                    )),
                 }
             }
-            // <PROJECT_NAME>/<COMPONENT_NAME>/<WORKER_NAME>
+            // <PROJECT>/<COMPONENT>/<WORKER>
             3 => todo!(),
-            // <ACCOUNT_NAME>/<PROJECT_NAME>/<COMPONENT_NAME>/<WORKER_NAME>
+            // <ACCOUNT>/<PROJECT>/<COMPONENT>/<WORKER>
             4 => todo!(),
             _ => {
                 logln("");
@@ -944,6 +1105,13 @@ impl Drop for NestedTextViewIndent {
             logln("╚═");
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ComponentNameMatchKind {
+    AppCurrentDir,
+    App,
+    Unknown,
 }
 
 fn clamp_exit_code(exit_code: i32) -> ExitCode {
