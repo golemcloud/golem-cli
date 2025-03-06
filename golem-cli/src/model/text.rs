@@ -353,7 +353,7 @@ pub mod api_definition {
         #[table(title = "Path")]
         pub path: String,
         #[table(title = "Component URN", justify = "Justify::Right")]
-        pub component_urn: String
+        pub component_urn: String,
     }
 
     impl From<&RouteResponseData> for RouteTableView {
@@ -372,7 +372,7 @@ pub mod api_definition {
                         .to_string()
                     })
                     .unwrap_or("NA".to_string())
-                    .to_string()
+                    .to_string(),
             }
         }
     }
