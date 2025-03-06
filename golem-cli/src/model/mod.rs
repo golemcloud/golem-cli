@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: move to mod.rs
 pub mod app_ext;
 pub mod app_ext_raw;
 pub mod component;
