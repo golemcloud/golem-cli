@@ -28,7 +28,8 @@ use crate::init_tracing;
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::component::Component;
 use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
-use crate::model::text::fmt::TextFormat;
+use crate::model::text::fmt::TextView;
+use crate::model::text::help::{AvailableComponentNamesHelp, WorkerNameHelp};
 use crate::model::{ComponentName, WorkerName};
 use anyhow::Context as AnyhowContext;
 use anyhow::{anyhow, bail};
@@ -43,22 +44,28 @@ use golem_wasm_rpc_stubgen::commands::app::{
     ApplicationContext, ComponentSelectMode, DynamicHelpSections,
 };
 use golem_wasm_rpc_stubgen::fs;
+use golem_wasm_rpc_stubgen::log::Output::Stdout;
 use golem_wasm_rpc_stubgen::log::{
-    log, log_action, logln, set_log_output, LogColorize, LogIndent, Output,
+    log_action, logln, set_log_output, LogColorize, LogIndent, LogOutput, Output,
 };
 use golem_wasm_rpc_stubgen::model::app::{ComponentName as AppComponentName, DependencyType};
+use indoc::formatdoc;
 use itertools::Itertools;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::fmt::Debug;
+use std::future::Future;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use tokio::fs::File;
 use tracing::{debug, Level};
+use tracing_subscriber::fmt::format;
 use uuid::Uuid;
 
+// CommandHandle is responsible for matching commands and producing CLI output using Context,
+// but NOT responsible for storing state (apart from Context itself), those should be part of Context
 pub struct CommandHandler {
     ctx: Context,
 }
@@ -121,6 +128,7 @@ impl CommandHandler {
         result.unwrap_or_else(|error| {
             if error.downcast_ref::<NonSuccessfulExit>().is_none() {
                 // TODO: check if this should be display or debug
+                logln("");
                 log_error(format!("{}", error));
             }
             ExitCode::FAILURE
@@ -133,21 +141,9 @@ impl CommandHandler {
             GolemCliSubcommand::Component { subcommand } => {
                 self.handle_component_subcommand(subcommand).await
             }
-            GolemCliSubcommand::Worker { subcommand } => match subcommand {
-                WorkerSubcommand::Invoke {
-                    worker_name,
-                    function_name,
-                    arguments,
-                    enqueue,
-                } => match self.ctx.golem_clients().await? {
-                    GolemClients::Oss(_) => {
-                        todo!()
-                    }
-                    GolemClients::Cloud(_) => {
-                        todo!()
-                    }
-                },
-            },
+            GolemCliSubcommand::Worker { subcommand } => {
+                self.handle_worker_subcommand(subcommand).await
+            }
             GolemCliSubcommand::Api { .. } => {
                 todo!()
             }
@@ -345,6 +341,31 @@ impl CommandHandler {
         }
     }
 
+    async fn handle_worker_subcommand(
+        &mut self,
+        subcommand: WorkerSubcommand,
+    ) -> anyhow::Result<()> {
+        match subcommand {
+            WorkerSubcommand::Invoke {
+                worker_name,
+                function_name,
+                arguments,
+                enqueue,
+            } => {
+                let (component_name, worker_name) = self.match_worker_name(worker_name).await?;
+
+                match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => {}
+                    GolemClients::Cloud(_) => {
+                        todo!()
+                    }
+                }
+
+                Ok(())
+            }
+        }
+    }
+
     async fn handle_partial_match(
         &mut self,
         partial_match: GolemCliCommandPartialMatch,
@@ -372,35 +393,41 @@ impl CommandHandler {
                         }
                     }
                 }
+                Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
-                set_log_output(Output::None);
-                let Some(app_ctx) = self.ctx.application_context_mut().await? else {
-                    // TODO: maybe add hint that this command should use app manifest
-                    return Ok(());
-                };
-                app_ctx.select_components(&ComponentSelectMode::All)?;
-                set_log_output(Output::Stderr);
+                self.ctx.silence_application_context_init();
                 logln("");
-                app_ctx.log_dynamic_help(&DynamicHelpSections {
-                    components: true,
-                    custom_commands: true,
-                })?;
+                match self
+                    .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::All)
+                    .await?
+                {
+                    Some(app_ctx) => app_ctx.log_dynamic_help(&DynamicHelpSections {
+                        components: true,
+                        custom_commands: true,
+                    }),
+                    None => {
+                        // TODO: maybe add hint that this command should use app manifest
+                        Ok(())
+                    }
+                }
             }
             GolemCliCommandPartialMatch::ComponentMissingSubcommandHelp => {
-                // TODO: code dup with AppMissingSubcommandHelp?
-                set_log_output(Output::None);
-                let Some(app_ctx) = self.ctx.application_context_mut().await? else {
-                    // TODO: maybe add hint that this command should use app manifest
-                    return Ok(());
-                };
-                app_ctx.select_components(&ComponentSelectMode::CurrentDir)?;
-                set_log_output(Output::Stderr);
+                self.ctx.silence_application_context_init();
                 logln("");
-                app_ctx.log_dynamic_help(&DynamicHelpSections {
-                    components: true,
-                    custom_commands: false,
-                })?;
+                match self
+                    .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::All)
+                    .await?
+                {
+                    Some(app_ctx) => app_ctx.log_dynamic_help(&DynamicHelpSections {
+                        components: true,
+                        custom_commands: false,
+                    }),
+                    None => {
+                        // TODO: maybe add hint that this command should use app manifest
+                        Ok(())
+                    }
+                }
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName => {
                 /*
@@ -411,20 +438,30 @@ impl CommandHandler {
                 todo!()
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName { worker_name } => {
-                // TODO: search by selected component workers, then by all workers
-
+                self.ctx.silence_application_context_init();
+                logln("");
+                log_action(
+                    "Validating",
+                    format!(
+                        "provided worker name: {}",
+                        worker_name.0.log_color_highlight()
+                    ),
+                );
+                let _indent = Self::nested_text_view_ident();
+                let (component_name, worker_name) = self.match_worker_name(worker_name).await?;
                 logln(format!(
-                    "\n{}",
-                    format!("Available functions for {}:", worker_name)
-                        .underline()
-                        .bold(),
+                    "[{}] component name: {} / worker_name: {}",
+                    "ok".green(),
+                    component_name.0.log_color_highlight(),
+                    worker_name
+                        .as_ref()
+                        .map(|s| s.0.as_str())
+                        .unwrap_or("-")
+                        .log_color_highlight()
                 ));
-                logln("...");
-                todo!()
+                Ok(())
             }
         }
-
-        Ok(())
     }
 
     pub async fn required_application_context(
@@ -433,7 +470,7 @@ impl CommandHandler {
         self.ctx
             .application_context()
             .await?
-            .ok_or_else(no_application_manifest_found)
+            .ok_or_else(no_application_manifest_found_error)
     }
 
     pub async fn required_application_context_mut(
@@ -442,7 +479,7 @@ impl CommandHandler {
         self.ctx
             .application_context_mut()
             .await?
-            .ok_or_else(no_application_manifest_found)
+            .ok_or_else(no_application_manifest_found_error)
     }
 
     async fn required_app_ctx_with_selection_mut(
@@ -452,7 +489,7 @@ impl CommandHandler {
     ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
         self.app_ctx_with_selection_mut(component_names, default)
             .await?
-            .ok_or_else(no_application_manifest_found)
+            .ok_or_else(no_application_manifest_found_error)
     }
 
     // TODO: forbid matching the same component multiple times
@@ -461,11 +498,13 @@ impl CommandHandler {
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
     ) -> anyhow::Result<Option<&mut ApplicationContext<GolemComponentExtensions>>> {
+        let silent_selection = self.ctx.silent_application_context_init();
         let Some(app_ctx) = self.ctx.application_context_mut().await? else {
             return Ok(None);
         };
 
         if component_names.is_empty() {
+            let _log_output = silent_selection.then(|| LogOutput::new(Output::None));
             app_ctx.select_components(default)?
         } else {
             let fuzzy_search =
@@ -474,9 +513,10 @@ impl CommandHandler {
             let (found, not_found) =
                 fuzzy_search.find_many(component_names.iter().map(|cn| cn.0.as_str()));
 
-            if !found.is_empty() {
+            if !not_found.is_empty() {
+                logln("");
                 log_error(format!(
-                    "The following requested component names are not found:\n{}",
+                    "The following requested component names were not found:\n{}",
                     not_found
                         .iter()
                         .map(|error| {
@@ -498,25 +538,19 @@ impl CommandHandler {
                         })
                         .join("\n")
                 ));
-                logln(
-                    "Available application components:"
-                        .bold()
-                        .underline()
-                        .to_string(),
-                );
-                for component_name in app_ctx.application.component_names() {
-                    logln(format!("  - {}", component_name));
-                }
                 logln("");
+                log_text_view(&AvailableComponentNamesHelp(
+                    app_ctx.application.component_names().cloned().collect(),
+                ));
 
                 bail!(NonSuccessfulExit);
             }
 
+            let _log_output = silent_selection.then(|| LogOutput::new(Output::None));
             app_ctx.select_components(&ComponentSelectMode::Explicit(
                 found.into_iter().map(|m| m.option.into()).collect(),
             ))?
         }
-
         Ok(Some(app_ctx))
     }
 
@@ -739,31 +773,140 @@ impl CommandHandler {
         }
     }
 
-    async fn parse_worker_name(&mut self, worker_name: &WorkerName) -> anyhow::Result<()> {
-        /*let worker_name_segments = worker_name.0.split("/").collect::<Vec<&str>>();
-        match worker_name_segments.len() {
+    async fn match_worker_name(
+        &mut self,
+        worker_name: WorkerName,
+    ) -> anyhow::Result<(ComponentName, Option<WorkerName>)> {
+        fn to_opt_worker_name(worker_name: &str) -> Option<WorkerName> {
+            (worker_name != "-").then(|| worker_name.into())
+        }
+
+        let segments = worker_name.0.split("/").collect::<Vec<&str>>();
+        match segments.len() {
+            // <WORKER_NAME>
             1 => {
+                let worker_name = segments[0];
+
                 let app_ctx = self
                     .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::CurrentDir)
                     .await?;
                 match app_ctx {
                     Some(app_ctx) => {
                         let selected_component_names = app_ctx.selected_component_names();
-                        selected_component_names
+
+                        if selected_component_names.len() != 1 {
+                            logln("");
+                            log_error(
+                                format!("Multiple components were selected based on the current directory: {}",
+                                        selected_component_names.iter().map(|cn| cn.as_str().log_color_highlight()).join(", ")),
+                            );
+                            logln("");
+                            logln(
+                                "Switch to a different directory with only one component or specify the full or partial component name as part of the worker name!",
+                            );
+                            logln("");
+                            log_text_view(&WorkerNameHelp);
+                            logln("");
+                            log_text_view(&AvailableComponentNamesHelp(
+                                app_ctx.application.component_names().cloned().collect(),
+                            ));
+                            bail!(NonSuccessfulExit);
+                        }
+
+                        Ok((
+                            selected_component_names
+                                .iter()
+                                .next()
+                                .unwrap()
+                                .as_str()
+                                .into(),
+                            to_opt_worker_name(worker_name),
+                        ))
                     }
-                    None => {}
+                    None => {
+                        logln("");
+                        log_error(
+                            "Cannot infer the component name for the worker as the current directory is not part of an application."
+                        );
+                        logln(
+                            "Switch to an application directory or specify the full component name as part of the worker name!",
+                        );
+                        logln("");
+                        log_text_view(&WorkerNameHelp);
+                        // TODO: hint for deployed component names?
+                        bail!(NonSuccessfulExit);
+                    }
                 }
             }
-            2 => {}
-            3 => todo!(),
-            4 => todo!(),
-            _ => todo!(),
-        }*/
+            // <COMPONENT_NAME>/<WORKER_NAME>
+            2 => {
+                let component_name = segments[0];
+                let worker_name = segments[1];
 
-        todo!()
+                let app_ctx = self
+                    .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::All)
+                    .await?;
+                match app_ctx {
+                    Some(app_ctx) => {
+                        let fuzzy_search = FuzzySearch::new(
+                            app_ctx.application.component_names().map(|cn| cn.as_str()),
+                        );
+                        match fuzzy_search.find(component_name) {
+                            Ok(match_) => {
+                                Ok((match_.option.into(), to_opt_worker_name(worker_name)))
+                            }
+                            Err(error) => match error {
+                                Error::Ambiguous {
+                                    highlighted_options,
+                                    ..
+                                } => {
+                                    logln("");
+                                    log_error(format!(
+                                        "The requested application component name ({}) is ambiguous.",
+                                        component_name.log_color_error_highlight()
+                                    ));
+                                    logln("");
+                                    logln(format!(
+                                        "Did you mean one of {}?",
+                                        highlighted_options.iter().map(|cn| cn.bold()).join(", ")
+                                    ));
+                                    logln("");
+                                    log_text_view(&WorkerNameHelp);
+                                    logln("");
+                                    log_text_view(&AvailableComponentNamesHelp(
+                                        app_ctx.application.component_names().cloned().collect(),
+                                    ));
+
+                                    bail!(NonSuccessfulExit);
+                                }
+                                Error::NotFound { .. } => {
+                                    // Assuming non-app component
+                                    Ok((component_name.into(), to_opt_worker_name(worker_name)))
+                                }
+                            },
+                        }
+                    }
+                    None => Ok((component_name.into(), to_opt_worker_name(worker_name))),
+                }
+            }
+            // <PROJECT_NAME>/<COMPONENT_NAME>/<WORKER_NAME>
+            3 => todo!(),
+            // <ACCOUNT_NAME>/<PROJECT_NAME>/<COMPONENT_NAME>/<WORKER_NAME>
+            4 => todo!(),
+            _ => {
+                logln("");
+                log_error(format!(
+                    "Cannot parse worker name: {}",
+                    worker_name.0.log_color_error_highlight()
+                ));
+                logln("");
+                log_text_view(&WorkerNameHelp);
+                bail!(NonSuccessfulExit);
+            }
+        }
     }
 
-    fn log_view<View: TextFormat + Serialize + DeserializeOwned>(&self, view: &View) {
+    fn log_view<View: TextView + Serialize + DeserializeOwned>(&self, view: &View) {
         // TODO: handle formats
         view.log();
     }
@@ -772,6 +915,11 @@ impl CommandHandler {
         // TODO: make it format dependent
         NestedTextViewIndent::new()
     }
+}
+
+// Unlike CommandHandler::log_view, always use text format regardless of "context", useful for error messages
+fn log_text_view<View: TextView>(view: &View) {
+    view.log();
 }
 
 struct NestedTextViewIndent {
@@ -819,9 +967,11 @@ fn debug_log_parse_error(error: &clap::Error, fallback_command: &GolemCliFallbac
 }
 
 fn log_error<S: AsRef<str>>(message: S) {
-    log("\nerror: ".log_color_error().to_string());
-    logln(message.as_ref());
-    logln("");
+    logln(format!(
+        "{} {}",
+        "error:".log_color_error().to_string(),
+        message.as_ref()
+    ));
 }
 
 // TODO: convert to hintable service error ("port" the current GolemError "From" instances)
@@ -829,7 +979,8 @@ fn map_service_error<E: Debug>(error: E) -> anyhow::Error {
     anyhow!(format!("Service error: {:#?}", error))
 }
 
-fn no_application_manifest_found() -> anyhow::Error {
+fn no_application_manifest_found_error() -> anyhow::Error {
+    logln("");
     log_error("No application manifest(s) found!");
     logln(format!(
         "Switch to a directory that contains an application manifest ({}),",

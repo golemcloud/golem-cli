@@ -23,7 +23,7 @@ pub mod wave;
 
 use crate::cloud::AccountId;
 use crate::config::{CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileName};
-use crate::model::text::fmt::TextFormat;
+use crate::model::text::fmt::TextView;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use clap::builder::{StringValueParser, TypedValueParser};
@@ -102,7 +102,7 @@ pub trait PrintRes {
 impl<T> PrintRes for T
 where
     T: Serialize,
-    T: TextFormat,
+    T: TextView,
 {
     fn println(&self, format: Format) {
         match format {

@@ -1,7 +1,9 @@
 use crate::fs::{OverwriteSafeAction, OverwriteSafeActionPlan, PathExtra};
 use colored::{ColoredString, Colorize};
+use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, RwLock};
+use tracing::debug;
 
 static LOG_STATE: LazyLock<RwLock<LogState>> = LazyLock::new(RwLock::default);
 
@@ -13,40 +15,36 @@ pub enum Output {
 }
 
 struct LogState {
-    indent_count: usize,
-    indent_prefix: String,
-    custom_prefix: String,
+    indents: Vec<Option<String>>,
+    calculated_indent: String,
     output: Output,
 }
 
 impl LogState {
     pub fn new() -> Self {
         Self {
-            indent_count: 0,
-            indent_prefix: "".to_string(),
-            custom_prefix: "".to_string(),
+            indents: Vec::new(),
+            calculated_indent: String::new(),
             output: Output::Stdout,
         }
     }
 
-    pub fn set_custom_prefix(&mut self, custom_prefix: &str) {
-        self.custom_prefix = custom_prefix.to_string();
-        self.regen_indent_prefix();
-    }
-
-    pub fn inc_indent(&mut self, custom_prefix: &str) {
-        self.indent_count += 1;
-        self.custom_prefix = custom_prefix.to_string();
+    pub fn inc_indent(&mut self, custom_prefix: Option<&str>) {
+        self.indents.push(custom_prefix.map(|p| p.to_string()));
         self.regen_indent_prefix();
     }
 
     pub fn dec_indent(&mut self) {
-        self.indent_count -= 1;
+        self.indents.pop();
         self.regen_indent_prefix()
     }
 
     fn regen_indent_prefix(&mut self) {
-        self.indent_prefix = format!("{}{}", "  ".repeat(self.indent_count), self.custom_prefix);
+        self.calculated_indent = String::with_capacity(self.indents.len() * 2);
+        for indent in &self.indents {
+            self.calculated_indent
+                .push_str(indent.as_ref().map(|s| s.as_str()).unwrap_or("  "))
+        }
     }
 
     fn set_output(&mut self, output: Output) {
@@ -60,27 +58,17 @@ impl Default for LogState {
     }
 }
 
-pub struct LogIndent {
-    dec_on_drop: bool,
-}
+pub struct LogIndent;
 
 impl LogIndent {
     pub fn new() -> Self {
-        LOG_STATE.write().unwrap().inc_indent("");
-        Self { dec_on_drop: true }
-    }
-
-    pub fn with_prefix<S: AsRef<str>>(prefix: S) -> Self {
-        LOG_STATE.write().unwrap().inc_indent(prefix.as_ref());
-        Self { dec_on_drop: true }
+        LOG_STATE.write().unwrap().inc_indent(None);
+        Self
     }
 
     pub fn prefix<S: AsRef<str>>(prefix: S) -> Self {
-        LOG_STATE
-            .write()
-            .unwrap()
-            .set_custom_prefix(prefix.as_ref());
-        Self { dec_on_drop: false }
+        LOG_STATE.write().unwrap().inc_indent(Some(prefix.as_ref()));
+        Self
     }
 }
 
@@ -93,10 +81,7 @@ impl Default for LogIndent {
 impl Drop for LogIndent {
     fn drop(&mut self) {
         let mut state = LOG_STATE.write().unwrap();
-        if self.dec_on_drop {
-            state.dec_indent();
-        }
-        state.set_custom_prefix("");
+        state.dec_indent();
     }
 }
 
@@ -119,6 +104,7 @@ impl Drop for LogOutput {
 }
 
 pub fn set_log_output(output: Output) {
+    debug!(output=?output, "set log output");
     LOG_STATE.write().unwrap().set_output(output);
 }
 
@@ -126,7 +112,7 @@ pub fn log_action<T: AsRef<str>>(action: &str, subject: T) {
     let state = LOG_STATE.read().unwrap();
     let message = format!(
         "{}{} {}",
-        state.indent_prefix,
+        state.calculated_indent,
         action.log_color_action(),
         subject.as_ref()
     );
@@ -137,35 +123,17 @@ pub fn log_warn_action<T: AsRef<str>>(action: &str, subject: T) {
     let state = LOG_STATE.read().unwrap();
     let message = format!(
         "{}{} {}",
-        LOG_STATE.read().unwrap().indent_prefix,
+        state.calculated_indent,
         action.log_color_warn(),
         subject.as_ref(),
     );
     logln_internal(state.output, &message);
 }
 
-pub fn log<T: AsRef<str>>(message: T) {
-    let state = LOG_STATE.read().unwrap();
-    let message = format!("{}{}", state.indent_prefix, message.as_ref());
-    log_internal(state.output, &message);
-}
-
 pub fn logln<T: AsRef<str>>(message: T) {
     let state = LOG_STATE.read().unwrap();
-    let message = format!("{}{}", state.indent_prefix, message.as_ref());
+    let message = format!("{}{}", state.calculated_indent, message.as_ref());
     logln_internal(state.output, &message);
-}
-
-pub fn log_internal(output: Output, message: &str) {
-    match output {
-        Output::Stdout => {
-            print!("{}", message)
-        }
-        Output::Stderr => {
-            eprint!("{}", message)
-        }
-        Output::None => {}
-    }
 }
 
 pub fn logln_internal(output: Output, message: &str) {
@@ -289,7 +257,7 @@ pub trait LogColorize {
     }
 
     fn log_color_error(&self) -> ColoredString {
-        self.as_str().red()
+        self.as_str().red().bold()
     }
 
     fn log_color_highlight(&self) -> ColoredString {

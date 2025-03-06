@@ -22,16 +22,16 @@ pub mod fmt {
     use regex::Regex;
     use std::collections::BTreeMap;
 
-    pub trait TextFormat {
+    pub trait TextView {
         fn log(&self);
     }
 
     pub trait TableWrapper: Sized {
-        type Table: TextFormat;
+        type Table: TextView;
         fn from_vec(vec: &[Self]) -> Self::Table;
     }
 
-    impl<T: TableWrapper> TextFormat for Vec<T> {
+    impl<T: TableWrapper> TextView for Vec<T> {
         fn log(&self) {
             let table = T::from_vec(self);
             table.log();
@@ -41,9 +41,12 @@ pub mod fmt {
     pub trait MessageWithFields {
         fn message(&self) -> String;
         fn fields(&self) -> Vec<(String, String)>;
+        fn format_field_name(name: String) -> String {
+            name
+        }
     }
 
-    impl<T: MessageWithFields> TextFormat for T {
+    impl<T: MessageWithFields> TextView for T {
         fn log(&self) {
             logln(self.message());
             logln("");
@@ -54,9 +57,13 @@ pub mod fmt {
             for (name, value) in self.fields() {
                 let lines: Vec<_> = value.lines().collect();
                 if lines.len() == 1 {
-                    logln(format!("{:<padding$} {}", format!("{}:", name), lines[0]));
+                    logln(format!(
+                        "{:<padding$} {}",
+                        format!("{}:", Self::format_field_name(name)),
+                        lines[0]
+                    ));
                 } else {
-                    logln(format!("{}:", name));
+                    logln(format!("{}:", Self::format_field_name(name)));
                     for line in lines {
                         logln(format!("  {}", line))
                     }
@@ -298,7 +305,7 @@ pub mod api_security {
     use golem_client::model::SecuritySchemeData;
     use indoc::printdoc;
 
-    impl TextFormat for ApiSecurityScheme {
+    impl TextView for ApiSecurityScheme {
         fn log(&self) {
             printdoc!(
                     "
@@ -342,7 +349,7 @@ pub mod api_security {
 
 pub mod api_definition {
     use crate::model::text::fmt::*;
-    use crate::model::{ComponentName, WorkerName};
+    use crate::model::ComponentName;
     use cli_table::{format::Justify, Table};
     use golem_client::model::{HttpApiDefinitionResponseData, RouteResponseData};
     use serde::{Deserialize, Serialize};
@@ -482,7 +489,7 @@ pub mod api_definition {
         }
     }
 
-    impl TextFormat for Vec<HttpApiDefinitionResponseData> {
+    impl TextView for Vec<HttpApiDefinitionResponseData> {
         fn log(&self) {
             print_table::<_, HttpApiDefinitionTableView>(self);
         }
@@ -502,7 +509,7 @@ pub mod api_deployment {
         }
     }
 
-    impl TextFormat for ApiDeployment {
+    impl TextView for ApiDeployment {
         fn log(&self) {
             for api_defs in &self.api_definitions {
                 printdoc!(
@@ -527,7 +534,7 @@ pub mod api_deployment {
         pub version: String,
     }
 
-    impl TextFormat for Vec<ApiDeployment> {
+    impl TextView for Vec<ApiDeployment> {
         fn log(&self) {
             print_stdout(
                 self.iter()
@@ -579,7 +586,7 @@ pub mod component {
         }
     }
 
-    impl TextFormat for Vec<ComponentView> {
+    impl TextView for Vec<ComponentView> {
         fn log(&self) {
             print_stdout(
                 self.iter()
@@ -691,7 +698,7 @@ pub mod example {
         }
     }
 
-    impl TextFormat for Vec<ExampleDescription> {
+    impl TextView for Vec<ExampleDescription> {
         fn log(&self) {
             print_table::<_, ExampleDescriptionTableView>(self);
         }
@@ -706,7 +713,7 @@ pub mod profile {
     use golem_wasm_rpc_stubgen::log::logln;
     use itertools::Itertools;
 
-    impl TextFormat for Vec<ProfileView> {
+    impl TextView for Vec<ProfileView> {
         fn log(&self) {
             let res = self
                 .iter()
@@ -767,7 +774,7 @@ pub mod profile {
         }
     }
 
-    impl TextFormat for ProfileConfig {
+    impl TextView for ProfileConfig {
         fn log(&self) {
             logln(format!(
                 "Default output format: {}",
@@ -922,7 +929,7 @@ pub mod worker {
         }
     }
 
-    impl TextFormat for WorkersMetadataResponseView {
+    impl TextView for WorkersMetadataResponseView {
         fn log(&self) {
             print_table::<_, WorkerMetadataTableView>(&self.workers);
 
@@ -946,7 +953,7 @@ pub mod worker {
         }
     }
 
-    impl TextFormat for IdempotencyKey {
+    impl TextView for IdempotencyKey {
         fn log(&self) {
             logln(formatdoc!(
                 "
@@ -962,7 +969,7 @@ pub mod worker {
         }
     }
 
-    impl TextFormat for TryUpdateAllWorkersResult {
+    impl TextView for TryUpdateAllWorkersResult {
         fn log(&self) {
             if !self.triggered.is_empty() {
                 logln("Triggered update for the following workers:");
@@ -982,7 +989,7 @@ pub mod worker {
         }
     }
 
-    impl TextFormat for InvokeResultView {
+    impl TextView for InvokeResultView {
         fn log(&self) {
             fn print_results_format(format: &str) {
                 logln(format!(
@@ -1018,7 +1025,7 @@ pub mod worker {
         }
     }
 
-    impl TextFormat for Vec<(u64, PublicOplogEntry)> {
+    impl TextView for Vec<(u64, PublicOplogEntry)> {
         fn log(&self) {
             for (idx, entry) in self {
                 print!("{}: ", format_main_id(&format!("#{idx:0>5}")));
@@ -1027,7 +1034,7 @@ pub mod worker {
         }
     }
 
-    impl TextFormat for PublicOplogEntry {
+    impl TextView for PublicOplogEntry {
         fn log(&self) {
             let pad = "          ";
             match self {
@@ -1474,7 +1481,7 @@ pub mod worker {
 pub mod plugin {
     use crate::model::text::fmt::{
         format_id, format_main_id, format_message_highlight, FieldsBuilder, MessageWithFields,
-        TableWrapper, TextFormat,
+        TableWrapper, TextView,
     };
     use cli_table::{print_stdout, Table, WithTitle};
     use golem_client::model::{
@@ -1534,7 +1541,7 @@ pub mod plugin {
         }
     }
 
-    impl TextFormat for PluginDefinitionTable {
+    impl TextView for PluginDefinitionTable {
         fn log(&self) {
             print_stdout(
                 self.0
@@ -1639,7 +1646,7 @@ pub mod plugin {
         }
     }
 
-    impl TextFormat for Vec<PluginInstallation> {
+    impl TextView for Vec<PluginInstallation> {
         fn log(&self) {
             print_stdout(
                 self.iter()
@@ -1648,6 +1655,94 @@ pub mod plugin {
                     .with_title(),
             )
             .unwrap()
+        }
+    }
+}
+
+// Shared help messages
+pub mod help {
+    use crate::model::text::fmt::{FieldsBuilder, MessageWithFields, TextView};
+    use colored::Colorize;
+    use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
+    use golem_wasm_rpc_stubgen::model::app::ComponentName as AppComponentName;
+    use indoc::indoc;
+
+    pub struct WorkerNameHelp;
+
+    impl MessageWithFields for WorkerNameHelp {
+        fn message(&self) -> String {
+            "Accepted worker name formats:"
+                .log_color_help_group()
+                .to_string()
+        }
+
+        fn fields(&self) -> Vec<(String, String)> {
+            let mut fields = FieldsBuilder::new();
+
+            fields.field(
+                "<WORKER_NAME>",
+                &indoc!(
+                    "
+                    Standalone worker name, usable when only one component is selected
+                    based on the current application directory.
+                    For ephemeral workers or for random worker name generation \"-\" can be used.
+                    "
+                ),
+            );
+            fields.field(
+                "<COMPONENT_NAME>/<WORKER_NAME>",
+                &indoc!(
+                    "
+                    Component specific worker name, the component name must be a deployed component name.
+                    When used in an application (sub)directory the given component name is fuzzy matched
+                    against the application component names. When used in a directory without
+                    application manifest(s) the full component name is expected.
+                    "
+                ),
+            );
+            fields.field(
+                "<PROJECT_NAME>/<COMPONENT_NAME>/<WORKER_NAME>",
+                &indoc!(
+                    "
+                    TODO
+                    "
+                ),
+            );
+            fields.field(
+                "<ACCOUNT_NAME>/<PROJECT_NAME>/<COMPONENT_NAME>/<WORKER_NAME>",
+                &indoc!(
+                    "
+                    TODO
+                    "
+                ),
+            );
+
+            fields.build()
+        }
+
+        fn format_field_name(name: String) -> String {
+            name.log_color_highlight().to_string()
+        }
+    }
+
+    pub struct AvailableComponentNamesHelp(pub Vec<AppComponentName>);
+
+    impl TextView for AvailableComponentNamesHelp {
+        fn log(&self) {
+            if self.0.is_empty() {
+                return;
+            }
+
+            logln(
+                "Available application components:"
+                    .bold()
+                    .underline()
+                    .to_string(),
+            );
+            for component_name in &self.0 {
+                logln(format!("  - {}", component_name));
+            }
+            logln("");
         }
     }
 }

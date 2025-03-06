@@ -20,6 +20,7 @@ use crate::command::plugin::PluginSubcommand;
 use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
+use crate::model::WorkerName;
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
@@ -226,7 +227,7 @@ impl GolemCliCommand {
                 missing_positional_arg: "function_name",
                 to_partial_match: |args| {
                     GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName {
-                        worker_name: args[0].clone(),
+                        worker_name: args[0].clone().into(),
                     }
                 },
             },
@@ -321,7 +322,7 @@ pub enum GolemCliCommandPartialMatch {
     ComponentNewMissingLanguage,
     ComponentMissingSubcommandHelp,
     WorkerInvokeMissingWorkerName,
-    WorkerInvokeMissingFunctionName { worker_name: String },
+    WorkerInvokeMissingFunctionName { worker_name: WorkerName },
 }
 
 #[derive(Debug, Subcommand)]

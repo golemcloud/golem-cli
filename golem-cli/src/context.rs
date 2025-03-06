@@ -45,7 +45,7 @@ use golem_cloud_client::{Context as ContextCloud, Security};
 use golem_examples::model::{ComposableAppGroupName, GuestLanguage};
 use golem_examples::ComposableAppExample;
 use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ApplicationSourceMode};
-use golem_wasm_rpc_stubgen::log::{set_log_output, Output};
+use golem_wasm_rpc_stubgen::log::{set_log_output, LogOutput, Output};
 use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
 use golem_wasm_rpc_stubgen::model::app::BuildProfileName as AppBuildProfileName;
 use golem_wasm_rpc_stubgen::stub::WasmRpcOverride;
@@ -54,6 +54,8 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 use tracing::debug;
 
+// Context is responsible for storing the CLI state,
+// but NOT responsible for producing CLI output, those should be part of the CommandHandler
 pub struct Context {
     _profile_name: ProfileName, // TODO
     profile_kind: ProfileKind,
@@ -62,6 +64,7 @@ pub struct Context {
     app_manifest_path: Option<PathBuf>,
     wasm_rpc_override: WasmRpcOverride,
     clients: tokio::sync::OnceCell<Clients>,
+    silent_application_context_init: std::sync::RwLock<bool>,
     application_context:
         tokio::sync::OnceCell<Option<ApplicationContext<GolemComponentExtensions>>>,
     templates: std::cell::OnceCell<
@@ -91,6 +94,7 @@ impl Context {
                 wasm_rpc_version_override: global_flags.wasm_rpc_version.clone(),
             },
             clients: tokio::sync::OnceCell::new(),
+            silent_application_context_init: std::sync::RwLock::new(false),
             application_context: tokio::sync::OnceCell::new(),
             templates: std::cell::OnceCell::new(),
             skip_up_to_date_checks: false,
@@ -98,6 +102,14 @@ impl Context {
             build_steps_filter: HashSet::new(),
             build_steps_filter_was_set: false,
         }
+    }
+
+    pub fn silent_application_context_init(&self) -> bool {
+        *self.silent_application_context_init.write().unwrap()
+    }
+
+    pub fn silence_application_context_init(&self) {
+        *self.silent_application_context_init.write().unwrap() = true
     }
 
     pub fn profile_kind(&self) -> ProfileKind {
@@ -123,6 +135,12 @@ impl Context {
     ) -> anyhow::Result<Option<&ApplicationContext<GolemComponentExtensions>>> {
         self.application_context
             .get_or_try_init(|| async {
+                // Locking with write, so no interleave can happen when changing log outputs
+                let silent_application_context_init =
+                    self.silent_application_context_init.write().unwrap();
+                let _log_output =
+                    silent_application_context_init.then(|| LogOutput::new(Output::None));
+
                 let config = golem_wasm_rpc_stubgen::commands::app::Config {
                     app_source_mode: {
                         match &self.app_manifest_path {
