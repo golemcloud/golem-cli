@@ -15,17 +15,26 @@
 use colored::Colorize;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
-use golem_wasm_rpc_stubgen::log::LogColorize;
-use itertools::Itertools;
-use std::borrow::Cow;
+use itertools::{Either, Itertools};
 use std::collections::HashSet;
 use std::fmt::Write;
 
-pub enum FuzzyMatchResult<'a> {
-    Found { option: &'a str, exact_match: bool },
-    Ambiguous { highlighted_options: Vec<String> },
-    NotFound,
+pub struct Match {
+    pub option: String,
+    pub exact_match: bool,
 }
+
+pub enum Error {
+    Ambiguous {
+        pattern: String,
+        highlighted_options: Vec<String>,
+    },
+    NotFound {
+        pattern: String,
+    },
+}
+
+pub type Result = std::result::Result<Match, Error>;
 
 pub struct FuzzySearch<'a> {
     options: HashSet<&'a str>,
@@ -41,13 +50,13 @@ impl<'a> FuzzySearch<'a> {
         }
     }
 
-    pub fn find(&self, pattern: &str) -> FuzzyMatchResult<'a> {
+    pub fn find(&self, pattern: &str) -> Result {
         // Exact matches
         if let Some(option) = self.options.get(pattern) {
-            return FuzzyMatchResult::Found {
-                option: *option,
+            return Ok(Match {
+                option: option.to_string(),
                 exact_match: true,
-            };
+            });
         }
 
         // Contains matches
@@ -58,10 +67,10 @@ impl<'a> FuzzySearch<'a> {
             .collect::<Vec<_>>();
 
         if contains_matches.len() == 1 {
-            return FuzzyMatchResult::Found {
-                option: *contains_matches[0],
+            return Ok(Match {
+                option: contains_matches[0].to_string(),
                 exact_match: false,
-            };
+            });
         }
 
         // Fuzzy matches
@@ -77,12 +86,15 @@ impl<'a> FuzzySearch<'a> {
             .collect::<Vec<_>>();
 
         match fuzzy_matches.len() {
-            0 => FuzzyMatchResult::NotFound,
-            1 => FuzzyMatchResult::Found {
-                option: fuzzy_matches[0].2,
+            0 => Err(Error::NotFound {
+                pattern: pattern.to_string(),
+            }),
+            1 => Ok(Match {
+                option: fuzzy_matches[0].2.to_string(),
                 exact_match: false,
-            },
-            _ => FuzzyMatchResult::Ambiguous {
+            }),
+            _ => Err(Error::Ambiguous {
+                pattern: pattern.to_string(),
                 highlighted_options: fuzzy_matches
                     .into_iter()
                     .map(|(_, indices, option)| {
@@ -103,7 +115,16 @@ impl<'a> FuzzySearch<'a> {
                         highlighted_option
                     })
                     .collect(),
-            },
+            }),
         }
+    }
+
+    pub fn find_many<I: Iterator<Item = &'a str>>(&self, patterns: I) -> (Vec<Match>, Vec<Error>) {
+        patterns
+            .map(|pattern| self.find(pattern))
+            .partition_map(|result| match result {
+                Ok(match_) => Either::Left(match_),
+                Err(error) => Either::Right(error),
+            })
     }
 }

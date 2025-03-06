@@ -25,6 +25,9 @@ use std::time::Duration;
 use tracing::warn;
 use url::Url;
 
+// TODO: review and separate model, config and serialization parts
+// TODO: when doing the serialization we can do a legacy migration
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub profiles: HashMap<ProfileName, Profile>,
@@ -83,6 +86,13 @@ pub struct NamedProfile {
     pub profile: Profile,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum ProfileKind {
+    Oss,
+    Cloud,
+}
+
+// TODO: cannot rename this currently, as it is part of serialization
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Profile {
     Golem(OssProfile),
@@ -108,6 +118,13 @@ impl Profile {
         match self {
             Profile::Golem(p) => &mut p.config,
             Profile::GolemCloud(p) => &mut p.config,
+        }
+    }
+
+    pub fn kind(&self) -> ProfileKind {
+        match self {
+            Profile::Golem(_) => ProfileKind::Oss,
+            Profile::GolemCloud(_) => ProfileKind::Cloud,
         }
     }
 }

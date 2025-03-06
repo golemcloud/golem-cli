@@ -14,9 +14,9 @@
 
 use crate::command::GolemCliGlobalFlags;
 use crate::config::{
-    BuildProfileName, ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileName,
+    BuildProfileName, ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind,
+    ProfileName,
 };
-use crate::error::HintError::NoApplicationManifestsFound;
 use crate::model::app_ext::GolemComponentExtensions;
 use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
@@ -58,6 +58,7 @@ use tracing::debug;
 
 pub struct Context {
     _profile_name: ProfileName, // TODO
+    profile_kind: ProfileKind,
     profile: Profile,
     build_profile: Option<AppBuildProfileName>,
     app_manifest_path: Option<PathBuf>,
@@ -80,6 +81,7 @@ impl Context {
 
         Self {
             _profile_name: profile.name,
+            profile_kind: profile.profile.kind(),
             profile: profile.profile,
             build_profile: global_flags
                 .build_profile
@@ -98,6 +100,10 @@ impl Context {
             build_steps_filter: HashSet::new(),
             build_steps_filter_was_set: false,
         }
+    }
+
+    pub fn profile_kind(&self) -> ProfileKind {
+        self.profile_kind
     }
 
     pub fn build_profile(&self) -> Option<&AppBuildProfileName> {
@@ -142,27 +148,11 @@ impl Context {
             .map(|app_ctx| app_ctx.as_ref())
     }
 
-    pub async fn required_application_context(
-        &self,
-    ) -> anyhow::Result<&ApplicationContext<GolemComponentExtensions>> {
-        self.application_context()
-            .await?
-            .ok_or_else(|| anyhow!(NoApplicationManifestsFound))
-    }
-
     pub async fn application_context_mut(
         &mut self,
     ) -> anyhow::Result<Option<&mut ApplicationContext<GolemComponentExtensions>>> {
         let _ = self.application_context().await?;
         Ok(self.application_context.get_mut().unwrap().as_mut())
-    }
-
-    pub async fn required_application_context_mut(
-        &mut self,
-    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
-        self.application_context_mut()
-            .await?
-            .ok_or_else(|| anyhow!(NoApplicationManifestsFound))
     }
 
     fn set_app_ctx_init_config<T>(

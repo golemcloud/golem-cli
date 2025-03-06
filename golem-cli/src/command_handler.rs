@@ -22,15 +22,14 @@ use crate::command::{
 };
 use crate::config::Config;
 use crate::context::{Context, GolemClients};
-use crate::error::HintError::NoApplicationManifestsFound;
-use crate::error::{HandledError, HintError};
-use crate::fuzzy::{FuzzyMatchResult, FuzzySearch};
+use crate::error::NonSuccessfulExit;
+use crate::fuzzy::{Error, FuzzySearch};
 use crate::init_tracing;
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::component::{Component, ComponentView};
 use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
 use crate::model::text::fmt::TextFormat;
-use crate::model::ComponentName;
+use crate::model::{ComponentName, WorkerName};
 use anyhow::Context as AnyhowContext;
 use anyhow::{anyhow, bail};
 use colored::Colorize;
@@ -42,6 +41,7 @@ use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
 use golem_examples::add_component_by_example;
 use golem_examples::model::{ComposableAppGroupName, PackageName};
+use golem_wasm_ast::analysis::analysed_type::option;
 use golem_wasm_rpc_stubgen::commands::app::{
     ApplicationContext, ComponentSelectMode, DynamicHelpSections,
 };
@@ -91,7 +91,7 @@ impl CommandHandler {
                 init_tracing(command.global_flags.verbosity);
 
                 Self::new(&command.global_flags)
-                    .handle_command_with_hints(command)
+                    .handle_command(command)
                     .await
                     .map(|_| ExitCode::SUCCESS)
             }
@@ -106,7 +106,7 @@ impl CommandHandler {
                 error.print().unwrap();
 
                 Self::new(&fallback_command.global_flags)
-                    .handle_partial_match_with_hints(partial_match)
+                    .handle_partial_match(partial_match)
                     .await
                     .map(|_| clamp_exit_code(error.exit_code()))
             }
@@ -123,17 +123,12 @@ impl CommandHandler {
         };
 
         result.unwrap_or_else(|error| {
-            if error.downcast_ref::<HandledError>().is_none() {
+            if error.downcast_ref::<NonSuccessfulExit>().is_none() {
                 // TODO: check if this should be display or debug
                 log_error(format!("{}", error));
             }
             ExitCode::FAILURE
         })
-    }
-
-    async fn handle_command_with_hints(&mut self, command: GolemCliCommand) -> anyhow::Result<()> {
-        let result = self.handle_command(command).await;
-        self.try_match_hint_errors(result).await
     }
 
     async fn handle_command(&mut self, command: GolemCliCommand) -> anyhow::Result<()> {
@@ -148,37 +143,14 @@ impl CommandHandler {
                     function_name,
                     arguments,
                     enqueue,
-                } => {
-                    let worker_name_segments = worker_name.0.split("/").collect::<Vec<&str>>();
-                    match worker_name_segments.len() {
-                        1 => {
-                            let app_ctx = self
-                                .app_ctx_with_selection_mut(
-                                    vec![],
-                                    &ComponentSelectMode::CurrentDir,
-                                )
-                                .await?;
-                            match app_ctx {
-                                Some(app_ctx) => {
-                                    let selected_component_names =
-                                        app_ctx.selected_component_names();
-                                }
-                                None => {}
-                            }
-                        }
-                        2 => {}
-                        _ => todo!(),
+                } => match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(_) => {
+                        todo!()
                     }
-
-                    match self.ctx.golem_clients().await? {
-                        GolemClients::Oss(_) => {
-                            todo!()
-                        }
-                        GolemClients::Cloud(_) => {
-                            todo!()
-                        }
+                    GolemClients::Cloud(_) => {
+                        todo!()
                     }
-                }
+                },
             },
             GolemCliSubcommand::Api { .. } => {
                 todo!()
@@ -328,8 +300,7 @@ impl CommandHandler {
                     );
                 }
 
-                self.ctx
-                    .required_application_context()
+                self.required_application_context()
                     .await?
                     .custom_command(&command[0])?;
 
@@ -376,14 +347,6 @@ impl CommandHandler {
                 .await
             }
         }
-    }
-
-    async fn handle_partial_match_with_hints(
-        &mut self,
-        partial_match: GolemCliCommandPartialMatch,
-    ) -> anyhow::Result<()> {
-        let result = self.handle_partial_match(partial_match).await;
-        self.try_match_hint_errors(result).await
     }
 
     async fn handle_partial_match(
@@ -468,41 +431,22 @@ impl CommandHandler {
         Ok(())
     }
 
-    async fn try_match_hint_errors(&self, result: anyhow::Result<()>) -> anyhow::Result<()> {
-        match result {
-            Ok(value) => Ok(value),
-            Err(error) => match error.downcast_ref::<HintError>() {
-                Some(error) => match self.handle_hint_error(error).await {
-                    Ok(()) => Err(HandledError)?,
-                    Err(error) => Err(error),
-                },
-                None => Err(error),
-            },
-        }
+    pub async fn required_application_context(
+        &self,
+    ) -> anyhow::Result<&ApplicationContext<GolemComponentExtensions>> {
+        self.ctx
+            .application_context()
+            .await?
+            .ok_or_else(|| no_application_manifest_found())
     }
 
-    async fn handle_hint_error(&self, error: &HintError) -> anyhow::Result<()> {
-        match error {
-            HintError::NoApplicationManifestsFound => {
-                log_error("No application manifest(s) found!");
-                logln(format!(
-                    "Switch to a directory that contains an application manifest ({}),",
-                    "golem.yaml".log_color_highlight()
-                ));
-                logln(format!(
-                    "or create a new application with the '{}' subcommand!",
-                    "app new".log_color_highlight(),
-                ));
-                Ok(())
-            }
-            HintError::WorkerNotFound(worker_name) => {
-                logln(format!(
-                    "Dynamic help for worker not found: {}",
-                    worker_name
-                ));
-                Ok(())
-            }
-        }
+    pub async fn required_application_context_mut(
+        &mut self,
+    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+        self.ctx
+            .application_context_mut()
+            .await?
+            .ok_or_else(|| no_application_manifest_found())
     }
 
     async fn required_app_ctx_with_selection_mut(
@@ -512,7 +456,7 @@ impl CommandHandler {
     ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
         self.app_ctx_with_selection_mut(component_names, default)
             .await?
-            .ok_or_else(|| anyhow!(NoApplicationManifestsFound))
+            .ok_or_else(|| no_application_manifest_found())
     }
 
     // TODO: forbid matching the same component multiple times
@@ -531,39 +475,29 @@ impl CommandHandler {
             let fuzzy_search =
                 FuzzySearch::new(app_ctx.application.component_names().map(|cn| cn.as_str()));
 
-            let mut component_names_found =
-                Vec::<AppComponentName>::with_capacity(component_names.len());
-            let mut component_names_not_found = Vec::<(String, Vec<String>)>::new();
+            let (found, not_found) =
+                fuzzy_search.find_many(component_names.iter().map(|cn| cn.0.as_str()));
 
-            for component_name in component_names {
-                match fuzzy_search.find(component_name.0.as_str()) {
-                    FuzzyMatchResult::Found { option, .. } => {
-                        component_names_found.push(option.into())
-                    }
-                    FuzzyMatchResult::Ambiguous {
-                        highlighted_options,
-                    } => component_names_not_found
-                        .push((component_name.0.into(), highlighted_options)),
-                    FuzzyMatchResult::NotFound => {
-                        component_names_not_found.push((component_name.0.into(), vec![]))
-                    }
-                }
-            }
-
-            if !component_names_not_found.is_empty() {
+            if !found.is_empty() {
                 log_error(format!(
                     "The following requested component names are not found:\n{}",
-                    component_names_not_found
+                    not_found
                         .iter()
-                        .map(|(component_name, similar_matches)| {
-                            if similar_matches.is_empty() {
-                                format!("  - {}", component_name.as_str().bold())
-                            } else {
-                                format!(
-                                    "  - {}, did you mean one of {}?",
-                                    component_name.as_str().bold(),
-                                    similar_matches.iter().map(|cn| cn.bold()).join(", ")
-                                )
+                        .map(|error| {
+                            match error {
+                                Error::Ambiguous {
+                                    pattern,
+                                    highlighted_options,
+                                } => {
+                                    format!(
+                                        "  - {}, did you mean one of {}?",
+                                        pattern.as_str().bold(),
+                                        highlighted_options.iter().map(|cn| cn.bold()).join(", ")
+                                    )
+                                }
+                                Error::NotFound { pattern } => {
+                                    format!("  - {}", pattern.as_str().bold())
+                                }
                             }
                         })
                         .join("\n")
@@ -579,10 +513,12 @@ impl CommandHandler {
                 }
                 logln("");
 
-                bail!(HandledError);
+                bail!(NonSuccessfulExit);
             }
 
-            app_ctx.select_components(&ComponentSelectMode::Explicit(component_names_found))?
+            app_ctx.select_components(&ComponentSelectMode::Explicit(
+                found.into_iter().map(|m| m.option.into()).collect(),
+            ))?
         }
 
         Ok(Some(app_ctx))
@@ -637,7 +573,6 @@ impl CommandHandler {
         // TODO: hash <-> version check for skipping deploy
 
         let selected_component_names = self
-            .ctx
             .required_application_context()
             .await?
             .selected_component_names()
@@ -651,7 +586,7 @@ impl CommandHandler {
             let _indent = LogIndent::new();
 
             let component_id = self.component_id_by_name(component_name).await?;
-            let app_ctx = self.ctx.required_application_context().await?;
+            let app_ctx = self.required_application_context().await?;
             let component_linked_wasm_path = app_ctx
                 .application
                 .component_linked_wasm(component_name, self.ctx.build_profile());
@@ -774,7 +709,7 @@ impl CommandHandler {
         &mut self,
         component_name: &AppComponentName,
     ) -> anyhow::Result<Option<DynamicLinkingOss>> {
-        let app_ctx = self.ctx.required_application_context_mut().await?;
+        let app_ctx = self.required_application_context_mut().await?;
 
         let mut mapping = Vec::new();
 
@@ -808,6 +743,30 @@ impl CommandHandler {
         }
     }
 
+    async fn parse_worker_name(&mut self, worker_name: &WorkerName) -> anyhow::Result<()> {
+        /*let worker_name_segments = worker_name.0.split("/").collect::<Vec<&str>>();
+        match worker_name_segments.len() {
+            1 => {
+                let app_ctx = self
+                    .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::CurrentDir)
+                    .await?;
+                match app_ctx {
+                    Some(app_ctx) => {
+                        let selected_component_names = app_ctx.selected_component_names();
+                        selected_component_names
+                    }
+                    None => {}
+                }
+            }
+            2 => {}
+            3 => todo!(),
+            4 => todo!(),
+            _ => todo!(),
+        }*/
+
+        todo!()
+    }
+
     fn log_view<View: TextFormat + Serialize + DeserializeOwned>(&self, view: &View) {
         // TODO: handle formats
         view.log();
@@ -816,6 +775,30 @@ impl CommandHandler {
     fn nested_text_view_ident() -> NestedTextViewIndent {
         // TODO: make it format dependent
         NestedTextViewIndent::new()
+    }
+}
+
+struct NestedTextViewIndent {
+    log_indent: Option<LogIndent>,
+}
+
+// TODO: make it format dependent
+// TODO: make it not using unicode on NO_COLOR?
+impl NestedTextViewIndent {
+    fn new() -> Self {
+        logln("╔═");
+        Self {
+            log_indent: Some(LogIndent::prefix("║ ")),
+        }
+    }
+}
+
+impl Drop for NestedTextViewIndent {
+    fn drop(&mut self) {
+        if let Some(ident) = self.log_indent.take() {
+            drop(ident);
+            logln("╚═");
+        }
     }
 }
 
@@ -850,26 +833,15 @@ fn map_service_error<E: Debug>(error: E) -> anyhow::Error {
     anyhow!(format!("Service error: {:#?}", error))
 }
 
-struct NestedTextViewIndent {
-    log_indent: Option<LogIndent>,
-}
-
-// TODO: make it format dependent
-// TODO: make it not using unicode on NO_COLOR?
-impl NestedTextViewIndent {
-    fn new() -> Self {
-        logln("╔═");
-        Self {
-            log_indent: Some(LogIndent::prefix("║ ")),
-        }
-    }
-}
-
-impl Drop for NestedTextViewIndent {
-    fn drop(&mut self) {
-        if let Some(ident) = self.log_indent.take() {
-            drop(ident);
-            logln("╚═");
-        }
-    }
+fn no_application_manifest_found() -> anyhow::Error {
+    log_error("No application manifest(s) found!");
+    logln(format!(
+        "Switch to a directory that contains an application manifest ({}),",
+        "golem.yaml".log_color_highlight()
+    ));
+    logln(format!(
+        "or create a new application with the '{}' subcommand!",
+        "app new".log_color_highlight(),
+    ));
+    anyhow!(NonSuccessfulExit)
 }
