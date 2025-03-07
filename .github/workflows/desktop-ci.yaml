@@ -15,6 +15,7 @@ on:
 
 jobs:
   test-tauri:
+    runs-on: blacksmith-16vcpu-ubuntu-2204
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +39,6 @@ jobs:
           - target: ''
             artifact_path: ./desktop-app/src-tauri/target/release/bundle/
 
-    runs-on: ${{ matrix.platform }}
     steps:
     - uses: actions/checkout@v4
 
