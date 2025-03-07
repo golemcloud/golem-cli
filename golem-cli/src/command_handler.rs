@@ -26,22 +26,29 @@ use crate::error::NonSuccessfulExit;
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::init_tracing;
 use crate::model::app_ext::GolemComponentExtensions;
-use crate::model::component::{show_exported_functions, Component};
+use crate::model::component::{function_params_types, show_exported_functions, Component};
+use crate::model::invoke_result_view::InvokeResultView;
 use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
 use crate::model::text::fmt::{format_export, TextView};
 use crate::model::text::help::{
-    AvailableComponentNamesHelp, AvailableFunctionNamesHelp, WorkerNameHelp,
+    ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp,
+    ParameterErrorTableView, WorkerNameHelp,
 };
 use crate::model::{ComponentName, WorkerName};
 use anyhow::Context as AnyhowContext;
 use anyhow::{anyhow, bail};
 use colored::Colorize;
-use golem_client::api::ComponentClient;
-use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
-use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
+use golem_client::api::{ComponentClient as ComponentClientOss, WorkerClient as WorkerClientOss};
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
+use golem_client::model::{AnalysedType, DynamicLinkedInstance as DynamicLinkedInstanceOss};
+use golem_client::model::{
+    DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss, InvokeParameters as InvokeParametersOss,
+};
 use golem_examples::add_component_by_example;
 use golem_examples::model::{ComposableAppGroupName, PackageName};
+use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
+use golem_wasm_rpc::parse_type_annotated_value;
+use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
 use golem_wasm_rpc_stubgen::commands::app::{
     ApplicationContext, ComponentSelectMode, DynamicHelpSections,
 };
@@ -52,7 +59,8 @@ use golem_wasm_rpc_stubgen::log::{
 };
 use golem_wasm_rpc_stubgen::model::app::{ComponentName as AppComponentName, DependencyType};
 use indoc::formatdoc;
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
+use log::error;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -67,7 +75,7 @@ use tracing_subscriber::fmt::format;
 use uuid::Uuid;
 
 // CommandHandle is responsible for matching commands and producing CLI output using Context,
-// but NOT responsible for storing state (apart from Context itself), those should be part of Context
+// but NOT responsible for storing state (apart from Context itself), those should be part of Context.
 pub struct CommandHandler {
     ctx: Context,
 }
@@ -433,34 +441,143 @@ impl CommandHandler {
                                 bail!(NonSuccessfulExit);
                             }
                             Error::NotFound { .. } => {
-                                todo!("NotFound")
+                                logln("");
+                                log_error(format!(
+                                    "The requested function name ({}) was not found.",
+                                    function_name.log_color_error_highlight()
+                                ));
+                                logln("");
+                                log_text_view(&AvailableFunctionNamesHelp {
+                                    component_name: component_name.0,
+                                    function_names: component_functions,
+                                });
+
+                                bail!(NonSuccessfulExit);
                             }
                         }
                     }
                 };
 
-                log_action(
-                    "Invoking",
-                    format!(
-                        "worker {} / {} / {} ",
-                        component_name.0.blue().bold(),
-                        worker_name
-                            .as_ref()
-                            .map(|wn| wn.0.as_str())
-                            .unwrap_or("-")
-                            .green()
-                            .bold(),
-                        format_export(&function_name)
-                    ),
-                );
+                if enqueue {
+                    log_action(
+                        "Enqueueing",
+                        format!(
+                            "invocation for worker {} / {} / {} ",
+                            component_name.0.blue().bold(),
+                            worker_name
+                                .as_ref()
+                                .map(|wn| wn.0.as_str())
+                                .unwrap_or("-")
+                                .green()
+                                .bold(),
+                            format_export(&function_name)
+                        ),
+                    );
+                } else {
+                    log_action(
+                        "Invoking",
+                        format!(
+                            "worker {} / {} / {} ",
+                            component_name.0.blue().bold(),
+                            worker_name
+                                .as_ref()
+                                .map(|wn| wn.0.as_str())
+                                .unwrap_or("-")
+                                .green()
+                                .bold(),
+                            format_export(&function_name)
+                        ),
+                    );
+                }
 
-                match self.ctx.golem_clients().await? {
-                    GolemClients::Oss(clients) => match worker_name {
-                        Some(worker_name) => {}
-                        None => {}
-                    },
+                let arguments = wave_args_to_invoke_args(&component, &function_name, arguments)?;
+
+                let result_view = match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => {
+                        let result = match worker_name {
+                            Some(worker_name) => {
+                                if enqueue {
+                                    clients
+                                        .worker
+                                        .invoke_function(
+                                            &component.versioned_component_id.component_id,
+                                            worker_name.0.as_str(),
+                                            None, // TODO: idempotency key
+                                            function_name.as_str(),
+                                            &InvokeParametersOss { params: arguments },
+                                        )
+                                        .await
+                                        .map_err(to_service_error)?;
+                                    None
+                                } else {
+                                    Some(
+                                        clients
+                                            .worker
+                                            .invoke_and_await_function(
+                                                &component.versioned_component_id.component_id,
+                                                worker_name.0.as_str(),
+                                                None, // TODO: idempotency key
+                                                function_name.as_str(),
+                                                &InvokeParametersOss { params: arguments },
+                                            )
+                                            .await
+                                            .map_err(to_service_error)?,
+                                    )
+                                }
+                            }
+                            None => {
+                                if enqueue {
+                                    clients
+                                        .worker
+                                        .invoke_function_without_name(
+                                            &component.versioned_component_id.component_id,
+                                            None, // TODO: idempotency key
+                                            function_name.as_str(),
+                                            &InvokeParametersOss { params: arguments },
+                                        )
+                                        .await
+                                        .map_err(to_service_error)?;
+                                    None
+                                } else {
+                                    Some(
+                                        clients
+                                            .worker
+                                            .invoke_and_await_function_without_name(
+                                                &component.versioned_component_id.component_id,
+                                                None, // TODO: idempotency key
+                                                function_name.as_str(),
+                                                &InvokeParametersOss { params: arguments },
+                                            )
+                                            .await
+                                            .map_err(to_service_error)?,
+                                    )
+                                }
+                            }
+                        };
+                        // TODO: handle json format
+                        result
+                            .map(|result| {
+                                InvokeResultView::try_parse_or_json(
+                                    result,
+                                    &component,
+                                    function_name.as_str(),
+                                )
+                            })
+                            .transpose()?
+                    }
                     GolemClients::Cloud(_) => {
                         todo!()
+                    }
+                };
+
+                match result_view {
+                    Some(view) => {
+                        logln("");
+                        self.log_view(&view);
+                    }
+                    None => {
+                        logln("");
+                        log_action("Enqueued", "invocation");
                     }
                 }
 
@@ -788,7 +905,7 @@ impl CommandHandler {
                                     component_dynamic_linking.as_ref(),
                                 )
                                 .await
-                                .map_err(map_service_error)?;
+                                .map_err(to_service_error)?;
                             self.log_view(&ComponentUpdateView(Component::from(component).into()));
                         }
                         GolemClients::Cloud(_) => {
@@ -818,7 +935,7 @@ impl CommandHandler {
                                     component_dynamic_linking.as_ref(),
                                 )
                                 .await
-                                .map_err(map_service_error)?;
+                                .map_err(to_service_error)?;
                             self.log_view(&ComponentCreateView(Component::from(component).into()));
                         }
                         GolemClients::Cloud(_) => {
@@ -845,7 +962,7 @@ impl CommandHandler {
                     .component
                     .get_components(Some(component_name))
                     .await
-                    .map_err(map_service_error)?;
+                    .map_err(to_service_error)?;
                 debug!(components = ?components, "service_component_by_name");
                 if !components.is_empty() {
                     Ok(Some(Component::from(components.pop().unwrap())))
@@ -960,6 +1077,7 @@ impl CommandHandler {
                         log_error(
                             "Cannot infer the component name for the worker as the current directory is not part of an application."
                         );
+                        logln("");
                         logln(
                             "Switch to an application directory or specify the full component name as part of the worker name!",
                         );
@@ -1143,7 +1261,7 @@ fn log_error<S: AsRef<str>>(message: S) {
 }
 
 // TODO: convert to hintable service error ("port" the current GolemError "From" instances)
-fn map_service_error<E: Debug>(error: E) -> anyhow::Error {
+fn to_service_error<E: Debug>(error: E) -> anyhow::Error {
     anyhow!(format!("Service error: {:#?}", error))
 }
 
@@ -1159,4 +1277,90 @@ fn no_application_manifest_found_error() -> anyhow::Error {
         "app new".log_color_highlight(),
     ));
     anyhow!(NonSuccessfulExit)
+}
+
+fn wave_args_to_invoke_args(
+    component: &Component,
+    function_name: &str,
+    wave_args: Vec<String>,
+) -> anyhow::Result<Vec<OptionallyTypeAnnotatedValueJson>> {
+    let types = function_params_types(&component, function_name)?;
+
+    if types.len() != wave_args.len() {
+        logln("");
+        log_error(format!(
+            "Wrong number of parameters: expected {}, got {}",
+            types.len(),
+            wave_args.len()
+        ));
+        logln("");
+        log_text_view(&ParameterErrorTableView(
+            types
+                .into_iter()
+                .zip_longest(wave_args)
+                .into_iter()
+                .map(|zipped| match zipped {
+                    EitherOrBoth::Both(typ, value) => ArgumentError {
+                        type_: Some(typ.clone()),
+                        value: Some(value),
+                        error: None,
+                    },
+                    EitherOrBoth::Left(typ) => ArgumentError {
+                        type_: Some(typ.clone()),
+                        value: None,
+                        error: Some("missing argument".log_color_error().to_string()),
+                    },
+                    EitherOrBoth::Right(value) => ArgumentError {
+                        type_: None,
+                        value: Some(value),
+                        error: Some("extra argument".log_color_error().to_string()),
+                    },
+                })
+                .collect::<Vec<_>>(),
+        ));
+        logln("");
+        bail!(NonSuccessfulExit);
+    }
+
+    let type_annotated_values = wave_args
+        .iter()
+        .zip(types.iter())
+        .map(|(wave, typ)| parse_type_annotated_value(typ, wave))
+        .collect::<Vec<_>>();
+
+    if type_annotated_values
+        .iter()
+        .any(|parse_result| parse_result.is_err())
+    {
+        logln("");
+        log_error("Argument WAVE parse error(s)!");
+        logln("");
+        log_text_view(&ParameterErrorTableView(
+            type_annotated_values
+                .into_iter()
+                .zip(types)
+                .zip(wave_args)
+                .map(|((parsed, typ), value)| (parsed, typ, value))
+                .into_iter()
+                .map(|(parsed, typ, value)| ArgumentError {
+                    type_: Some(typ.clone()),
+                    value: Some(value),
+                    error: parsed
+                        .err()
+                        .map(|err| err.log_color_error_highlight().to_string()),
+                })
+                .collect::<Vec<_>>(),
+        ));
+        logln("");
+        bail!(NonSuccessfulExit);
+    }
+
+    Ok(type_annotated_values
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| anyhow!(err))?
+        .into_iter()
+        .map(|tav| tav.try_into())
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| anyhow!("Failed to convert type annotated value: {err}"))?)
 }

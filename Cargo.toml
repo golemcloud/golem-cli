@@ -23,7 +23,7 @@ golem-common = "=1.1.21"
 golem-rib = "=1.1.21"
 golem-service-base = "=1.1.21"
 golem-test-framework = "=1.1.21"
-golem-wasm-ast = { version = "=1.1.21", default-features = false, features = ["analysis"] }
+golem-wasm-ast = { version = "=1.1.21", default-features = false, features = ["analysis", "wave"] }
 golem-wasm-rpc = { version = "=1.1.21", default-features = false, features = ["host"] }
 
 # Golem cloud deps
@@ -112,6 +112,7 @@ uuid = "1.13.2"
 version-compare = "0.2.0"
 wac-graph = "=0.6.1"
 walkdir = "2.5.0"
+wasm-wave = "0.222.1"
 wax = "0.6.0"
 wit-bindgen-rust = "=0.26.0"
 wit-encoder = "=0.221.2"

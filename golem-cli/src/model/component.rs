@@ -23,9 +23,8 @@ use golem_common::model::component_metadata::DynamicLinkedInstance;
 use golem_common::model::trim_date::TrimDateTime;
 use golem_wasm_ast::analysis::wave::DisplayNamedFunc;
 use golem_wasm_ast::analysis::{
-    AnalysedExport, AnalysedFunction, AnalysedFunctionResult, AnalysedInstance,
-    AnalysedResourceMode, NameOptionTypePair, NameTypePair, TypeEnum, TypeFlags, TypeRecord,
-    TypeTuple, TypeVariant,
+    AnalysedExport, AnalysedFunction, AnalysedInstance, AnalysedResourceMode, NameOptionTypePair,
+    NameTypePair, TypeEnum, TypeFlags, TypeRecord, TypeTuple, TypeVariant,
 };
 use rib::{ParsedFunctionName, ParsedFunctionSite};
 use serde::{Deserialize, Serialize};
@@ -145,7 +144,7 @@ impl From<&Component> for ComponentView {
     }
 }
 
-fn render_type(typ: &AnalysedType) -> String {
+pub fn render_type(typ: &AnalysedType) -> String {
     match typ {
         AnalysedType::Variant(TypeVariant { cases }) => {
             let cases_str = cases
@@ -210,10 +209,6 @@ fn render_type(typ: &AnalysedType) -> String {
     }
 }
 
-fn render_result(r: &AnalysedFunctionResult) -> String {
-    render_type(&r.typ)
-}
-
 pub fn show_exported_functions(exports: &[AnalysedExport]) -> Vec<String> {
     exports
         .iter()
@@ -221,18 +216,21 @@ pub fn show_exported_functions(exports: &[AnalysedExport]) -> Vec<String> {
             AnalysedExport::Instance(AnalysedInstance { name, functions }) => {
                 let fs: Vec<String> = functions
                     .iter()
-                    .map(|f| show_exported_function(Some(name), f))
+                    .map(|f| render_exported_function(Some(name), f))
                     .collect();
                 fs
             }
             AnalysedExport::Function(f) => {
-                vec![show_exported_function(None, f)]
+                vec![render_exported_function(None, f)]
             }
         })
         .collect()
 }
 
-pub fn show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> String {
+pub fn render_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> String {
+    // TODO: now that the formatter is implemented, and wave still not supports handles
+    //       is there a point in using the customized wave formatter?
+    //       Or maybe it should handled in the customized DisplayNamedFunc?
     if function_wave_compatible(f) {
         DisplayNamedFunc {
             name: format_function_name(prefix, &f.name),
@@ -240,11 +238,14 @@ pub fn show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> Str
         }
         .to_string()
     } else {
-        custom_show_exported_function(prefix, f)
+        render_non_wave_compatible_exported_function(prefix, f)
     }
 }
 
-fn custom_show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> String {
+fn render_non_wave_compatible_exported_function(
+    prefix: Option<&str>,
+    f: &AnalysedFunction,
+) -> String {
     let params = f
         .parameters
         .iter()
@@ -252,7 +253,11 @@ fn custom_show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> 
         .collect::<Vec<String>>()
         .join(", ");
 
-    let results = f.results.iter().map(render_result).collect::<Vec<String>>();
+    let results = f
+        .results
+        .iter()
+        .map(|res| render_type(&res.typ))
+        .collect::<Vec<String>>();
 
     let res_str = results.join(", ");
 
@@ -342,7 +347,7 @@ pub fn function_params_types<'t>(
 mod tests {
     use test_r::test;
 
-    use crate::model::component::show_exported_function;
+    use crate::model::component::render_exported_function;
     use golem_wasm_ast::analysis::analysed_type::{
         bool, case, chr, f32, f64, field, flags, handle, list, option, r#enum, record, result,
         result_err, result_ok, s16, s32, s64, s8, str, tuple, u16, u32, u64, u8, unit_case,
@@ -363,7 +368,7 @@ mod tests {
                 typ: handle(AnalysedResourceId(1), AnalysedResourceMode::Borrowed),
             }],
         };
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "n() -> &handle<1>")
     }
@@ -376,7 +381,7 @@ mod tests {
             results: vec![],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc()")
     }
@@ -392,7 +397,7 @@ mod tests {
             results: vec![],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc(n: handle<1>)")
     }
@@ -408,7 +413,7 @@ mod tests {
             }],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc() -> bool")
     }
@@ -424,7 +429,7 @@ mod tests {
             }],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc() -> handle<1>")
     }
@@ -455,7 +460,7 @@ mod tests {
             ],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc(n1: bool, n2: bool) -> (bool, bool)")
     }
@@ -486,7 +491,7 @@ mod tests {
             ],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc(n1: bool, n2: handle<1>) -> (bool, bool)")
     }
@@ -503,7 +508,7 @@ mod tests {
                 typ: typ.clone(),
             }],
         };
-        let wave_res = show_exported_function(None, &wave_f);
+        let wave_res = render_exported_function(None, &wave_f);
         assert_eq!(wave_res, expected_wave);
 
         let custom_f = AnalysedFunction {
@@ -517,7 +522,7 @@ mod tests {
                 ]),
             }],
         };
-        let custom_res = show_exported_function(None, &custom_f);
+        let custom_res = render_exported_function(None, &custom_f);
         assert_eq!(custom_res, expected_custom);
     }
 

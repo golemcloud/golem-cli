@@ -36,7 +36,7 @@ impl InvokeResultView {
         res: InvokeResult,
         component: &Component,
         function: &str,
-    ) -> Result<InvokeResultView, GolemError> {
+    ) -> anyhow::Result<InvokeResultView> {
         Ok(
             Self::try_parse(&res.result, component, function).unwrap_or_else(|_| {
                 let json = serde_json::to_value(&res.result).unwrap();

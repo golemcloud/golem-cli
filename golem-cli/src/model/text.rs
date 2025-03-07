@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod fmt {
-    use cli_table::{print_stdout, Row, Title, WithTitle};
+    use cli_table::{Row, Title, WithTitle};
     use colored::control::SHOULD_COLORIZE;
     use colored::Colorize;
     use golem_client::model::WorkerStatus;
@@ -290,17 +290,6 @@ pub mod fmt {
                 .expect("Failed to display table")
         )
     }
-
-    pub fn print_table<E, R>(table: &[E])
-    where
-        R: Title + 'static + for<'b> From<&'b E>,
-        for<'a> &'a R: Row,
-    {
-        let rows: Vec<R> = table.iter().map(R::from).collect();
-        let rows = &rows;
-
-        print_stdout(rows.with_title()).expect("Failed to print table");
-    }
 }
 
 pub mod api_security {
@@ -357,6 +346,7 @@ pub mod api_definition {
     use crate::model::ComponentName;
     use cli_table::{format::Justify, Table};
     use golem_client::model::{HttpApiDefinitionResponseData, RouteResponseData};
+    use golem_wasm_rpc_stubgen::log::logln;
     use serde::{Deserialize, Serialize};
 
     #[derive(Table)]
@@ -496,7 +486,7 @@ pub mod api_definition {
 
     impl TextView for Vec<HttpApiDefinitionResponseData> {
         fn log(&self) {
-            print_table::<_, HttpApiDefinitionTableView>(self);
+            logln(format_table::<_, HttpApiDefinitionTableView>(self));
         }
     }
 }
@@ -504,7 +494,9 @@ pub mod api_definition {
 pub mod api_deployment {
     use crate::model::text::fmt::*;
     use crate::model::ApiDeployment;
-    use cli_table::{print_stdout, Table, WithTitle};
+    use cli_table::Table;
+    use golem_client::model::ApiDefinitionInfo;
+    use golem_wasm_rpc_stubgen::log::logln;
     use indoc::printdoc;
 
     pub fn format_site(api_deployment: &ApiDeployment) -> String {
@@ -539,24 +531,30 @@ pub mod api_deployment {
         pub version: String,
     }
 
+    impl From<&(&ApiDeployment, &ApiDefinitionInfo)> for ApiDeploymentTableView {
+        fn from(value: &(&ApiDeployment, &ApiDefinitionInfo)) -> Self {
+            let (deployment, def) = value;
+            ApiDeploymentTableView {
+                site: format_site(deployment),
+                id: def.id.to_string(),
+                version: def.version.to_string(),
+            }
+        }
+    }
+
     impl TextView for Vec<ApiDeployment> {
         fn log(&self) {
-            print_stdout(
+            logln(format_table::<_, ApiDeploymentTableView>(
                 self.iter()
                     .flat_map(|deployment| {
                         deployment
                             .api_definitions
                             .iter()
-                            .map(move |def| ApiDeploymentTableView {
-                                site: format_site(deployment),
-                                id: def.id.to_string(),
-                                version: def.version.to_string(),
-                            })
+                            .map(move |def| (deployment, def))
                     })
                     .collect::<Vec<_>>()
-                    .with_title(),
-            )
-            .unwrap()
+                    .as_slice(),
+            ));
         }
     }
 }
@@ -565,7 +563,8 @@ pub mod component {
     use crate::model::component::ComponentView;
     use crate::model::text::fmt::*;
     use crate::model::ComponentName;
-    use cli_table::{format::Justify, print_stdout, Table, WithTitle};
+    use cli_table::{format::Justify, Table};
+    use golem_wasm_rpc_stubgen::log::logln;
     use serde::{Deserialize, Serialize};
 
     #[derive(Table)]
@@ -593,13 +592,7 @@ pub mod component {
 
     impl TextView for Vec<ComponentView> {
         fn log(&self) {
-            print_stdout(
-                self.iter()
-                    .map(ComponentTableView::from)
-                    .collect::<Vec<_>>()
-                    .with_title(),
-            )
-            .unwrap()
+            logln(format_table::<_, ComponentTableView>(self.as_slice()))
         }
     }
 
@@ -679,6 +672,7 @@ pub mod example {
     use crate::model::ExampleDescription;
     use cli_table::Table;
     use golem_examples::model::{ExampleName, GuestLanguage, GuestLanguageTier};
+    use golem_wasm_rpc_stubgen::log::logln;
 
     #[derive(Table)]
     pub struct ExampleDescriptionTableView {
@@ -705,7 +699,7 @@ pub mod example {
 
     impl TextView for Vec<ExampleDescription> {
         fn log(&self) {
-            print_table::<_, ExampleDescriptionTableView>(self);
+            logln(format_table::<_, ExampleDescriptionTableView>(self));
         }
     }
 }
@@ -936,7 +930,7 @@ pub mod worker {
 
     impl TextView for WorkersMetadataResponseView {
         fn log(&self) {
-            print_table::<_, WorkerMetadataTableView>(&self.workers);
+            logln(format_table::<_, WorkerMetadataTableView>(&self.workers));
 
             if let Some(cursor) = &self.cursor {
                 let layer = cursor.layer;
@@ -1004,15 +998,18 @@ pub mod worker {
             }
 
             match self {
-                InvokeResultView::Wave(wave) => {
-                    if wave.is_empty() {
+                InvokeResultView::Wave(wave_values) => {
+                    if wave_values.is_empty() {
                         logln("Empty result.")
                     } else {
                         print_results_format("WAVE");
-                        logln(serde_yaml::to_string(wave).unwrap());
+                        for wave in wave_values {
+                            logln(format!("  - {}", wave));
+                        }
                     }
                 }
                 InvokeResultView::Json(json) => {
+                    // TODO: do we have an issue or plan for this?
                     logln(format_warn(indoc!(
                         "
                             Failed to convert invocation result to WAVE format.
@@ -1485,14 +1482,15 @@ pub mod worker {
 
 pub mod plugin {
     use crate::model::text::fmt::{
-        format_id, format_main_id, format_message_highlight, FieldsBuilder, MessageWithFields,
-        TableWrapper, TextView,
+        format_id, format_main_id, format_message_highlight, format_table, FieldsBuilder,
+        MessageWithFields, TableWrapper, TextView,
     };
-    use cli_table::{print_stdout, Table, WithTitle};
+    use cli_table::Table;
     use golem_client::model::{
         DefaultPluginScope, PluginDefinitionDefaultPluginOwnerDefaultPluginScope,
         PluginInstallation, PluginTypeSpecificDefinition,
     };
+    use golem_wasm_rpc_stubgen::log::logln;
     use itertools::Itertools;
 
     #[derive(Table)]
@@ -1548,14 +1546,9 @@ pub mod plugin {
 
     impl TextView for PluginDefinitionTable {
         fn log(&self) {
-            print_stdout(
-                self.0
-                    .iter()
-                    .map(PluginDefinitionTableView::from)
-                    .collect::<Vec<_>>()
-                    .with_title(),
-            )
-            .unwrap()
+            logln(format_table::<_, PluginDefinitionTableView>(
+                self.0.as_slice(),
+            ))
         }
     }
 
@@ -1653,21 +1646,22 @@ pub mod plugin {
 
     impl TextView for Vec<PluginInstallation> {
         fn log(&self) {
-            print_stdout(
-                self.iter()
-                    .map(PluginInstallationTableView::from)
-                    .collect::<Vec<_>>()
-                    .with_title(),
-            )
-            .unwrap()
+            logln(format_table::<_, PluginInstallationTableView>(
+                self.as_slice(),
+            ));
         }
     }
 }
 
 // Shared help messages
 pub mod help {
-    use crate::model::text::fmt::{format_export, FieldsBuilder, MessageWithFields, TextView};
+    use crate::model::component::render_type;
+    use crate::model::text::fmt::{
+        format_export, format_table, FieldsBuilder, MessageWithFields, TextView,
+    };
+    use cli_table::Table;
     use colored::Colorize;
+    use golem_wasm_ast::analysis::AnalysedType;
     use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
     use golem_wasm_rpc_stubgen::model::app::ComponentName as AppComponentName;
     use indoc::indoc;
@@ -1801,6 +1795,41 @@ pub mod help {
                 logln(format!("  - {}", format_export(function_name)));
             }
             logln("");
+        }
+    }
+
+    pub struct ArgumentError {
+        pub type_: Option<AnalysedType>,
+        pub value: Option<String>,
+        pub error: Option<String>,
+    }
+
+    // TODO: limit long values
+    #[derive(Table)]
+    pub struct ParameterErrorTable {
+        #[table(title = "Parameter type")]
+        pub parameter_type_: String,
+        #[table(title = "Argument value")]
+        pub argument_value: String,
+        #[table(title = "Error")]
+        pub error: String,
+    }
+
+    impl From<&ArgumentError> for ParameterErrorTable {
+        fn from(value: &ArgumentError) -> Self {
+            Self {
+                parameter_type_: value.type_.as_ref().map(render_type).unwrap_or_default(),
+                argument_value: value.value.clone().unwrap_or_default(),
+                error: value.error.clone().unwrap_or_default(),
+            }
+        }
+    }
+
+    pub struct ParameterErrorTableView(pub Vec<ArgumentError>);
+
+    impl TextView for ParameterErrorTableView {
+        fn log(&self) {
+            logln(format_table::<_, ParameterErrorTable>(self.0.as_slice()));
         }
     }
 }

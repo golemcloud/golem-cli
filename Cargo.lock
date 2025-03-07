@@ -3340,6 +3340,7 @@ dependencies = [
  "uuid",
  "version-compare",
  "walkdir",
+ "wasm-wave",
 ]
 
 [[package]]
