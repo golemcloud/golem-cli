@@ -18,21 +18,10 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 pub trait Log {
-    fn base(&self) -> &CommandHandler;
-    fn base_mut(&mut self) -> &mut CommandHandler;
-
     fn log_view<View: TextView + Serialize + DeserializeOwned>(&self, view: &View) {
         // TODO: handle formats
         view.log();
     }
 }
 
-impl Log for CommandHandler {
-    fn base(&self) -> &CommandHandler {
-        self
-    }
-
-    fn base_mut(&mut self) -> &mut CommandHandler {
-        self
-    }
-}
+impl Log for CommandHandler {}
