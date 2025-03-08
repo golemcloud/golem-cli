@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -15,3 +16,8 @@ impl Display for NonSuccessfulExit {
 }
 
 impl Error for NonSuccessfulExit {}
+
+// TODO: convert to hintable service error ("port" the current GolemError "From" instances)
+pub fn to_service_error<E: Debug>(error: E) -> anyhow::Error {
+    anyhow!(format!("Service error: {:#?}", error))
+}

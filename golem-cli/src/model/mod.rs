@@ -826,3 +826,10 @@ impl ProfileView {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComponentNameMatchKind {
+    AppCurrentDir,
+    App,
+    Unknown,
+}

@@ -17,7 +17,7 @@ pub mod fmt {
     use colored::control::SHOULD_COLORIZE;
     use colored::Colorize;
     use golem_client::model::WorkerStatus;
-    use golem_wasm_rpc_stubgen::log::{logln, LogIndent};
+    use golem_wasm_rpc_stubgen::log::{logln, LogColorize, LogIndent};
     use itertools::Itertools;
     use regex::Regex;
     use std::collections::BTreeMap;
@@ -290,6 +290,50 @@ pub mod fmt {
                 .expect("Failed to display table")
         )
     }
+
+    pub fn log_table<E, R>(table: &[E])
+    where
+        R: Title + 'static + for<'b> From<&'b E>,
+        for<'a> &'a R: Row,
+    {
+        logln(format_table(table));
+    }
+
+    pub fn log_text_view<View: TextView>(view: &View) {
+        view.log();
+    }
+
+    pub fn log_error<S: AsRef<str>>(message: S) {
+        logln(format!(
+            "{} {}",
+            "error:".log_color_error().to_string(),
+            message.as_ref()
+        ));
+    }
+
+    pub struct NestedTextViewIndent {
+        log_indent: Option<LogIndent>,
+    }
+
+    // TODO: make it format dependent
+    // TODO: make it not using unicode on NO_COLOR?
+    impl NestedTextViewIndent {
+        pub fn new() -> Self {
+            logln("╔═");
+            Self {
+                log_indent: Some(LogIndent::prefix("║ ")),
+            }
+        }
+    }
+
+    impl Drop for NestedTextViewIndent {
+        fn drop(&mut self) {
+            if let Some(ident) = self.log_indent.take() {
+                drop(ident);
+                logln("╚═");
+            }
+        }
+    }
 }
 
 pub mod api_security {
@@ -486,7 +530,7 @@ pub mod api_definition {
 
     impl TextView for Vec<HttpApiDefinitionResponseData> {
         fn log(&self) {
-            logln(format_table::<_, HttpApiDefinitionTableView>(self));
+            log_table::<_, HttpApiDefinitionTableView>(self);
         }
     }
 }
@@ -544,7 +588,7 @@ pub mod api_deployment {
 
     impl TextView for Vec<ApiDeployment> {
         fn log(&self) {
-            logln(format_table::<_, ApiDeploymentTableView>(
+            log_table::<_, ApiDeploymentTableView>(
                 self.iter()
                     .flat_map(|deployment| {
                         deployment
@@ -554,7 +598,7 @@ pub mod api_deployment {
                     })
                     .collect::<Vec<_>>()
                     .as_slice(),
-            ));
+            );
         }
     }
 }
@@ -592,7 +636,7 @@ pub mod component {
 
     impl TextView for Vec<ComponentView> {
         fn log(&self) {
-            logln(format_table::<_, ComponentTableView>(self.as_slice()))
+            log_table::<_, ComponentTableView>(self.as_slice())
         }
     }
 
@@ -699,7 +743,7 @@ pub mod example {
 
     impl TextView for Vec<ExampleDescription> {
         fn log(&self) {
-            logln(format_table::<_, ExampleDescriptionTableView>(self));
+            log_table::<_, ExampleDescriptionTableView>(self);
         }
     }
 }
@@ -930,7 +974,7 @@ pub mod worker {
 
     impl TextView for WorkersMetadataResponseView {
         fn log(&self) {
-            logln(format_table::<_, WorkerMetadataTableView>(&self.workers));
+            log_table::<_, WorkerMetadataTableView>(&self.workers);
 
             if let Some(cursor) = &self.cursor {
                 let layer = cursor.layer;
@@ -1482,8 +1526,8 @@ pub mod worker {
 
 pub mod plugin {
     use crate::model::text::fmt::{
-        format_id, format_main_id, format_message_highlight, format_table, FieldsBuilder,
-        MessageWithFields, TableWrapper, TextView,
+        format_id, format_main_id, format_message_highlight, format_table, log_table,
+        FieldsBuilder, MessageWithFields, TableWrapper, TextView,
     };
     use cli_table::Table;
     use golem_client::model::{
@@ -1546,9 +1590,7 @@ pub mod plugin {
 
     impl TextView for PluginDefinitionTable {
         fn log(&self) {
-            logln(format_table::<_, PluginDefinitionTableView>(
-                self.0.as_slice(),
-            ))
+            log_table::<_, PluginDefinitionTableView>(self.0.as_slice())
         }
     }
 
@@ -1646,9 +1688,7 @@ pub mod plugin {
 
     impl TextView for Vec<PluginInstallation> {
         fn log(&self) {
-            logln(format_table::<_, PluginInstallationTableView>(
-                self.as_slice(),
-            ));
+            log_table::<_, PluginInstallationTableView>(self.as_slice())
         }
     }
 }
@@ -1657,7 +1697,7 @@ pub mod plugin {
 pub mod help {
     use crate::model::component::render_type;
     use crate::model::text::fmt::{
-        format_export, format_table, FieldsBuilder, MessageWithFields, TextView,
+        format_export, format_table, log_table, FieldsBuilder, MessageWithFields, TextView,
     };
     use cli_table::Table;
     use colored::Colorize;
@@ -1829,7 +1869,7 @@ pub mod help {
 
     impl TextView for ParameterErrorTableView {
         fn log(&self) {
-            logln(format_table::<_, ParameterErrorTable>(self.0.as_slice()));
+            log_table::<_, ParameterErrorTable>(self.0.as_slice());
         }
     }
 }

@@ -15,10 +15,13 @@
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{BuildArgs, ForceBuildArg};
 use crate::command_handler::app::AppCommandHandler;
-use crate::command_handler::{to_service_error, CommandHandler};
+use crate::command_handler::log::Log;
+use crate::command_handler::CommandHandler;
 use crate::context::GolemClients;
+use crate::error::to_service_error;
 use crate::model::component::Component;
 use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
+use crate::model::text::fmt::NestedTextViewIndent;
 use crate::model::ComponentName;
 use anyhow::{anyhow, Context};
 use golem_client::api::ComponentClient as ComponentClientOss;
@@ -144,7 +147,7 @@ pub trait ComponentCommandHandler {
                             component_name.as_str().log_color_highlight()
                         ),
                     );
-                    let _indent = CommandHandler::nested_text_view_indent();
+                    let _indent = NestedTextViewIndent::new();
                     match self.base().ctx.golem_clients().await? {
                         GolemClients::Oss(clients) => {
                             let component = clients
@@ -175,7 +178,7 @@ pub trait ComponentCommandHandler {
                             component_name.as_str().log_color_highlight()
                         ),
                     );
-                    let _indent = CommandHandler::nested_text_view_indent();
+                    let _indent = NestedTextViewIndent::new();
                     match self.base().ctx.golem_clients().await? {
                         GolemClients::Oss(clients) => {
                             let component = clients

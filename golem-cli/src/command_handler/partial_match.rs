@@ -13,11 +13,14 @@
 // limitations under the License.
 
 use crate::command::GolemCliCommandPartialMatch;
+use crate::command_handler::app::AppCommandHandler;
 use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::worker::WorkerCommandHandler;
-use crate::command_handler::{log_text_view, CommandHandler, ComponentNameMatchKind};
+use crate::command_handler::CommandHandler;
 use crate::model::component::show_exported_functions;
+use crate::model::text::fmt::{log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
+use crate::model::ComponentNameMatchKind;
 use colored::Colorize;
 use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
@@ -109,7 +112,7 @@ pub trait PartialMatchHandler {
                     ),
                 );
                 let component_name = {
-                    let _indent = CommandHandler::nested_text_view_indent();
+                    let _indent = NestedTextViewIndent::new();
                     let (component_name_match_kind, component_name, worker_name) =
                         self.base_mut().match_worker_name(worker_name).await?;
                     logln(format!(

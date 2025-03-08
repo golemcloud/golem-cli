@@ -13,21 +13,21 @@
 // limitations under the License.
 
 use crate::command::worker::WorkerSubcommand;
+use crate::command_handler::app::AppCommandHandler;
 use crate::command_handler::component::ComponentCommandHandler;
-use crate::command_handler::{
-    log_error, log_text_view, to_service_error, CommandHandler, ComponentNameMatchKind,
-};
+use crate::command_handler::log::Log;
+use crate::command_handler::CommandHandler;
 use crate::context::GolemClients;
-use crate::error::NonSuccessfulExit;
+use crate::error::{to_service_error, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::model::component::{function_params_types, show_exported_functions, Component};
 use crate::model::invoke_result_view::InvokeResultView;
-use crate::model::text::fmt::format_export;
+use crate::model::text::fmt::{format_export, log_error, log_text_view};
 use crate::model::text::help::{
     ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp,
     ParameterErrorTableView, WorkerNameHelp,
 };
-use crate::model::{ComponentName, WorkerName};
+use crate::model::{ComponentName, ComponentNameMatchKind, WorkerName};
 use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_client::api::WorkerClient as WorkerClientOss;
