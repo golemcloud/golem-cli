@@ -576,7 +576,6 @@ impl CommandHandler {
                         self.log_view(&view);
                     }
                     None => {
-                        logln("");
                         log_action("Enqueued", "invocation");
                     }
                 }
