@@ -15,8 +15,8 @@
 use crate::command::app::AppSubcommand;
 use crate::command::shared_args::BuildArgs;
 use crate::command_handler::component::ComponentCommandHandler;
-use crate::command_handler::CommandHandler;
-use crate::context::ApplicationContextState;
+use crate::command_handler::{CommandHandler, GetHandler};
+use crate::context::{ApplicationContextState, Context};
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::model::app_ext::GolemComponentExtensions;
@@ -40,12 +40,21 @@ use golem_wasm_rpc_stubgen::model::app::DependencyType;
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-pub trait AppCommandHandler {
-    fn base(&self) -> &CommandHandler;
-    fn base_mut(&mut self) -> &mut CommandHandler;
+pub struct AppCommandHandler {
+    ctx: Arc<Context>,
+}
 
-    async fn handle_app_subcommand(&mut self, subcommand: AppSubcommand) -> anyhow::Result<()> {
+impl AppCommandHandler {
+    pub fn new(ctx: Arc<Context>) -> Self {
+        Self { ctx }
+    }
+
+    pub(crate) async fn handle_app_subcommand(
+        &mut self,
+        subcommand: AppSubcommand,
+    ) -> anyhow::Result<()> {
         match subcommand {
             AppSubcommand::New {
                 application_name,
@@ -73,12 +82,11 @@ pub trait AppCommandHandler {
                 {
                     let _indent = LogIndent::new();
                     for language in language.language {
-                        let Some(language_examples) = self.base().ctx.templates().get(&language)
-                        else {
+                        let Some(language_examples) = self.ctx.templates().get(&language) else {
                             bail!(
                                 "No template found for {}, currently supported languages: {}",
                                 language.to_string().log_color_error_highlight(),
-                                self.base().ctx.templates().keys().join(", ")
+                                self.ctx.templates().keys().join(", ")
                             );
                         };
 
@@ -127,7 +135,7 @@ pub trait AppCommandHandler {
                 }
 
                 std::env::set_current_dir(&app_dir)?;
-                let app_ctx = self.base().ctx.app_context();
+                let app_ctx = self.ctx.app_context();
                 let Some(app_ctx) = app_ctx.opt()? else {
                     return Ok(());
                 };
@@ -152,7 +160,8 @@ pub trait AppCommandHandler {
                 component_name,
                 force_build,
             } => {
-                self.base_mut()
+                self.ctx
+                    .component_handler()
                     .deploy(
                         component_name.component_name,
                         Some(force_build),
@@ -171,7 +180,7 @@ pub trait AppCommandHandler {
                     );
                 }
 
-                let app_ctx = self.base().ctx.app_context();
+                let app_ctx = self.ctx.app_context();
                 app_ctx.some_or_err()?.custom_command(&command[0])?;
 
                 Ok(())
@@ -179,30 +188,27 @@ pub trait AppCommandHandler {
         }
     }
 
-    fn build(
+    pub fn build(
         &mut self,
         component_names: Vec<ComponentName>,
         build: Option<BuildArgs>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
         if let Some(build) = build {
-            self.base_mut()
-                .ctx
-                .set_steps_filter(build.step.into_iter().collect());
-            self.base_mut()
-                .ctx
+            self.ctx.set_steps_filter(build.step.into_iter().collect());
+            self.ctx
                 .set_skip_up_to_date_checks(build.force_build.force_build);
         }
         self.must_select_app_components(component_names, default_component_select_mode)
     }
 
-    fn clean(
+    pub(crate) fn clean(
         &mut self,
         component_names: Vec<ComponentName>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
         self.must_select_app_components(component_names, default_component_select_mode)?;
-        let app_ctx = self.base_mut().ctx.app_context();
+        let app_ctx = self.ctx.app_context();
         app_ctx.some_or_err()?.clean()?;
 
         Ok(())
@@ -219,12 +225,12 @@ pub trait AppCommandHandler {
     }
 
     // TODO: forbid matching the same component multiple times
-    fn opt_select_app_components(
+    pub(crate) fn opt_select_app_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
     ) -> anyhow::Result<bool> {
-        let mut app_ctx = self.base_mut().ctx.app_context_mut();
+        let mut app_ctx = self.ctx.app_context_mut();
         let silent_selection = app_ctx.silent_init;
         let Some(app_ctx) = app_ctx.opt_mut()? else {
             return Ok(false);
@@ -279,16 +285,6 @@ pub trait AppCommandHandler {
             ))?
         }
         Ok(true)
-    }
-}
-
-impl AppCommandHandler for CommandHandler {
-    fn base(&self) -> &CommandHandler {
-        &self
-    }
-
-    fn base_mut(&mut self) -> &mut CommandHandler {
-        self
     }
 }
 

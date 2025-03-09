@@ -21,7 +21,6 @@ use crate::command::{
     GolemCliFallbackCommand, GolemCliGlobalFlags, GolemCliSubcommand,
 };
 use crate::command_handler::app::AppCommandHandler;
-use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::partial_match::PartialMatchHandler;
 use crate::command_handler::worker::WorkerCommandHandler;
 use crate::config::Config;
@@ -44,6 +43,8 @@ use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_client::api::{ComponentClient as ComponentClientOss, WorkerClient as WorkerClientOss};
 
+use crate::command_handler::component::ComponentCommandHandler;
+use crate::command_handler::log::LogHandler;
 use golem_examples::add_component_by_example;
 use golem_examples::model::{ComposableAppGroupName, PackageName};
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
@@ -68,6 +69,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 use tokio::fs::File;
 use tracing::{debug, Level};
 use tracing_subscriber::fmt::format;
@@ -82,20 +84,16 @@ mod worker;
 // CommandHandle is responsible for matching commands and producing CLI output using Context,
 // but NOT responsible for storing state (apart from Context itself), those should be part of Context.
 pub struct CommandHandler {
-    pub(crate) ctx: Context,
+    ctx: Arc<Context>,
 }
 
 impl CommandHandler {
     fn new(global_flags: &GolemCliGlobalFlags) -> Self {
-        Self {
-            ctx: Context::new(
-                global_flags,
-                Config::get_active_profile(
-                    &global_flags.config_dir(),
-                    global_flags.profile.clone(),
-                ),
-            ),
-        }
+        let ctx = Arc::new(Context::new(
+            global_flags,
+            Config::get_active_profile(&global_flags.config_dir(), global_flags.profile.clone()),
+        ));
+        Self { ctx: ctx.clone() }
     }
 
     // TODO: match and enrich "-h" and "--help"
@@ -125,6 +123,8 @@ impl CommandHandler {
                 error.print().unwrap();
 
                 Self::new(&fallback_command.global_flags)
+                    .ctx
+                    .partial_match_handler()
                     .handle_partial_match(partial_match)
                     .await
                     .map(|_| clamp_exit_code(error.exit_code()))
@@ -153,12 +153,23 @@ impl CommandHandler {
 
     async fn handle_command(&mut self, command: GolemCliCommand) -> anyhow::Result<()> {
         match command.subcommand {
-            GolemCliSubcommand::App { subcommand } => self.handle_app_subcommand(subcommand).await,
+            GolemCliSubcommand::App { subcommand } => {
+                self.ctx
+                    .app_handler()
+                    .handle_app_subcommand(subcommand)
+                    .await
+            }
             GolemCliSubcommand::Component { subcommand } => {
-                self.handle_component_subcommand(subcommand).await
+                self.ctx
+                    .component_handler()
+                    .handle_component_subcommand(subcommand)
+                    .await
             }
             GolemCliSubcommand::Worker { subcommand } => {
-                self.handle_worker_subcommand(subcommand).await
+                self.ctx
+                    .worker_handler()
+                    .handle_worker_subcommand(subcommand)
+                    .await
             }
             GolemCliSubcommand::Api { .. } => {
                 todo!()
@@ -179,6 +190,39 @@ impl CommandHandler {
                 todo!()
             }
         }
+    }
+}
+
+// NOTE: for now every handler can access any other handler, but this can be restricted
+//       by moving this simple factory methods on the specific handler on demand,
+//       if the need ever arises
+trait GetHandler {
+    fn app_handler(&self) -> AppCommandHandler;
+    fn component_handler(&self) -> ComponentCommandHandler;
+    fn log_handler(&self) -> LogHandler;
+    fn partial_match_handler(&self) -> PartialMatchHandler;
+    fn worker_handler(&self) -> WorkerCommandHandler;
+}
+
+impl GetHandler for Arc<Context> {
+    fn app_handler(&self) -> AppCommandHandler {
+        AppCommandHandler::new(Arc::clone(self))
+    }
+
+    fn component_handler(&self) -> ComponentCommandHandler {
+        ComponentCommandHandler::new(Arc::clone(self))
+    }
+
+    fn log_handler(&self) -> LogHandler {
+        LogHandler::new(Arc::clone(self))
+    }
+
+    fn partial_match_handler(&self) -> PartialMatchHandler {
+        PartialMatchHandler::new(Arc::clone(self))
+    }
+
+    fn worker_handler(&self) -> WorkerCommandHandler {
+        WorkerCommandHandler::new(Arc::clone(self))
     }
 }
 

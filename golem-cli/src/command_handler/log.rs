@@ -13,15 +13,23 @@
 // limitations under the License.
 
 use crate::command_handler::CommandHandler;
+use crate::context::Context;
 use crate::model::text::fmt::TextView;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::sync::Arc;
 
-pub trait Log {
-    fn log_view<View: TextView + Serialize + DeserializeOwned>(&self, view: &View) {
+pub struct LogHandler {
+    ctx: Arc<Context>,
+}
+
+impl LogHandler {
+    pub fn new(ctx: Arc<Context>) -> Self {
+        Self { ctx }
+    }
+
+    pub(crate) fn log_view<View: TextView + Serialize + DeserializeOwned>(&self, view: &View) {
         // TODO: handle formats
         view.log();
     }
 }
-
-impl Log for CommandHandler {}

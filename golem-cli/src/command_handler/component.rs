@@ -15,16 +15,16 @@
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{BuildArgs, ForceBuildArg};
 use crate::command_handler::app::AppCommandHandler;
-use crate::command_handler::log::Log;
-use crate::command_handler::CommandHandler;
-use crate::context::GolemClients;
+use crate::command_handler::log::LogHandler;
+use crate::command_handler::{CommandHandler, GetHandler};
+use crate::context::{Context, GolemClients};
 use crate::error::to_service_error;
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::component::Component;
 use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
 use crate::model::text::fmt::NestedTextViewIndent;
 use crate::model::ComponentName;
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
 use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
 use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
@@ -36,15 +36,21 @@ use golem_wasm_rpc_stubgen::model::app::DependencyType;
 use golem_wasm_rpc_stubgen::model::app::{BuildProfileName, ComponentName as AppComponentName};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::fs::File;
 use tracing::debug;
 use uuid::Uuid;
 
-pub trait ComponentCommandHandler {
-    fn base(&self) -> &CommandHandler;
-    fn base_mut(&mut self) -> &mut CommandHandler;
+pub struct ComponentCommandHandler {
+    ctx: Arc<Context>,
+}
 
-    async fn handle_component_subcommand(
+impl ComponentCommandHandler {
+    pub fn new(ctx: Arc<Context>) -> Self {
+        Self { ctx }
+    }
+
+    pub(crate) async fn handle_component_subcommand(
         &mut self,
         subcommand: ComponentSubcommand,
     ) -> anyhow::Result<()> {
@@ -55,7 +61,7 @@ pub trait ComponentCommandHandler {
             ComponentSubcommand::Build {
                 component_name,
                 build: build_args,
-            } => self.base_mut().build(
+            } => self.ctx.app_handler().build(
                 component_name.component_name,
                 Some(build_args),
                 &ComponentSelectMode::CurrentDir,
@@ -64,28 +70,27 @@ pub trait ComponentCommandHandler {
                 component_name,
                 force_build,
             } => {
-                self.base_mut()
-                    .deploy(
-                        component_name.component_name,
-                        Some(force_build),
-                        &ComponentSelectMode::CurrentDir,
-                    )
-                    .await
+                self.deploy(
+                    component_name.component_name,
+                    Some(force_build),
+                    &ComponentSelectMode::CurrentDir,
+                )
+                .await
             }
-            ComponentSubcommand::Clean { component_name } => self.base_mut().clean(
+            ComponentSubcommand::Clean { component_name } => self.ctx.app_handler().clean(
                 component_name.component_name,
                 &ComponentSelectMode::CurrentDir,
             ),
         }
     }
 
-    async fn deploy(
+    pub async fn deploy(
         &mut self,
         component_names: Vec<ComponentName>,
         force_build: Option<ForceBuildArg>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.base_mut().build(
+        self.ctx.app_handler().build(
             component_names,
             force_build.map(|force_build| BuildArgs {
                 step: vec![],
@@ -97,7 +102,7 @@ pub trait ComponentCommandHandler {
         // TODO: hash <-> version check for skipping deploy
 
         let selected_component_names = {
-            let app_ctx = self.base_mut().ctx.app_context();
+            let app_ctx = self.ctx.app_context();
             app_ctx
                 .some_or_err()?
                 .selected_component_names()
@@ -105,7 +110,7 @@ pub trait ComponentCommandHandler {
                 .cloned()
                 .collect::<Vec<_>>()
         };
-        let build_profile = self.base().ctx.build_profile().cloned();
+        let build_profile = self.ctx.build_profile().cloned();
 
         log_action("Deploying", "components");
 
@@ -114,7 +119,7 @@ pub trait ComponentCommandHandler {
 
             let component_id = self.component_id_by_name(component_name.as_str()).await?;
             let deploy_properties = {
-                let mut app_ctx = self.base_mut().ctx.app_context_mut();
+                let mut app_ctx = self.ctx.app_context_mut();
                 let app_ctx = app_ctx.some_or_err_mut()?;
                 component_deploy_properties(app_ctx, component_name, build_profile.clone()).await?
             };
@@ -129,7 +134,7 @@ pub trait ComponentCommandHandler {
                         ),
                     );
                     let _indent = NestedTextViewIndent::new();
-                    match self.base().ctx.golem_clients().await? {
+                    match self.ctx.golem_clients().await? {
                         GolemClients::Oss(clients) => {
                             let component = clients
                                 .component
@@ -143,7 +148,8 @@ pub trait ComponentCommandHandler {
                                 )
                                 .await
                                 .map_err(to_service_error)?;
-                            self.base()
+                            self.ctx
+                                .log_handler()
                                 .log_view(&ComponentUpdateView(Component::from(component).into()));
                         }
                         GolemClients::Cloud(_) => {
@@ -160,7 +166,7 @@ pub trait ComponentCommandHandler {
                         ),
                     );
                     let _indent = NestedTextViewIndent::new();
-                    match self.base().ctx.golem_clients().await? {
+                    match self.ctx.golem_clients().await? {
                         GolemClients::Oss(clients) => {
                             let component = clients
                                 .component
@@ -174,7 +180,8 @@ pub trait ComponentCommandHandler {
                                 )
                                 .await
                                 .map_err(to_service_error)?;
-                            self.base()
+                            self.ctx
+                                .log_handler()
                                 .log_view(&ComponentCreateView(Component::from(component).into()));
                         }
                         GolemClients::Cloud(_) => {
@@ -191,11 +198,11 @@ pub trait ComponentCommandHandler {
     // TODO: we might want to have a filter for batch name lookups on the server side
     // TODO: also the search returns all versions
     // TODO: maybe add transient or persistent cache for all the meta
-    async fn service_component_by_name(
+    pub(crate) async fn service_component_by_name(
         &self,
         component_name: &str,
     ) -> anyhow::Result<Option<Component>> {
-        match self.base().ctx.golem_clients().await? {
+        match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => {
                 let mut components = clients
                     .component
@@ -220,16 +227,6 @@ pub trait ComponentCommandHandler {
             .service_component_by_name(component_name)
             .await?
             .map(|c| c.versioned_component_id.component_id))
-    }
-}
-
-impl ComponentCommandHandler for CommandHandler {
-    fn base(&self) -> &CommandHandler {
-        self
-    }
-
-    fn base_mut(&mut self) -> &mut CommandHandler {
-        self
     }
 }
 

@@ -101,7 +101,7 @@ impl Context {
         }
     }
 
-    pub fn silence_app_context_init(&mut self) {
+    pub fn silence_app_context_init(&self) {
         self.app_context_mut().silent_init = true;
     }
 
@@ -139,31 +139,31 @@ impl Context {
         self.app_context_state.read().unwrap()
     }
 
-    pub fn app_context_mut(&mut self) -> RwLockWriteGuard<'_, ApplicationContextState> {
+    pub fn app_context_mut(&self) -> RwLockWriteGuard<'_, ApplicationContextState> {
         let mut state = self.app_context_state.write().unwrap();
         state.init(&self.app_context_config);
         state
     }
 
     fn set_app_ctx_init_config<T>(
-        &mut self,
+        &self,
         name: &str,
         value_mut: fn(&mut ApplicationContextState) -> &mut T,
         was_set_mut: fn(&mut ApplicationContextState) -> &mut bool,
         value: T,
     ) {
-        let state = self.app_context_state.get_mut().unwrap();
-        if *was_set_mut(state) {
+        let mut state = self.app_context_state.write().unwrap();
+        if *was_set_mut(&mut *state) {
             panic!("{} can be set only once, was already set", name);
         }
         if state.app_context.is_some() {
             panic!("cannot change {} after application context init", name);
         }
-        *value_mut(state) = value;
-        *was_set_mut(state) = true;
+        *value_mut(&mut *state) = value;
+        *was_set_mut(&mut *state) = true;
     }
 
-    pub fn set_skip_up_to_date_checks(&mut self, skip: bool) {
+    pub fn set_skip_up_to_date_checks(&self, skip: bool) {
         self.set_app_ctx_init_config(
             "skip_up_to_date_checks",
             |ctx| &mut ctx.skip_up_to_date_checks,
@@ -172,7 +172,7 @@ impl Context {
         )
     }
 
-    pub fn set_steps_filter(&mut self, steps_filter: HashSet<AppBuildStep>) {
+    pub fn set_steps_filter(&self, steps_filter: HashSet<AppBuildStep>) {
         self.set_app_ctx_init_config(
             "steps_filter",
             |ctx| &mut ctx.build_steps_filter,

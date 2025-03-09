@@ -16,7 +16,8 @@ use crate::command::GolemCliCommandPartialMatch;
 use crate::command_handler::app::AppCommandHandler;
 use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::worker::WorkerCommandHandler;
-use crate::command_handler::CommandHandler;
+use crate::command_handler::{CommandHandler, GetHandler};
+use crate::context::Context;
 use crate::model::component::show_exported_functions;
 use crate::model::text::fmt::{log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
@@ -24,12 +25,18 @@ use crate::model::ComponentNameMatchKind;
 use colored::Colorize;
 use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
+use std::sync::Arc;
 
-pub trait PartialMatchHandler {
-    fn base(&self) -> &CommandHandler;
-    fn base_mut(&mut self) -> &mut CommandHandler;
+pub struct PartialMatchHandler {
+    ctx: Arc<Context>,
+}
 
-    async fn handle_partial_match(
+impl PartialMatchHandler {
+    pub fn new(ctx: Arc<Context>) -> Self {
+        Self { ctx }
+    }
+
+    pub(crate) async fn handle_partial_match(
         &mut self,
         partial_match: GolemCliCommandPartialMatch,
     ) -> anyhow::Result<()> {
@@ -40,7 +47,7 @@ pub trait PartialMatchHandler {
                     "\n{}",
                     "Available languages and templates:".underline().bold(),
                 ));
-                for (language, templates) in self.base().ctx.templates() {
+                for (language, templates) in self.ctx.templates() {
                     logln(format!("- {}", language.to_string().bold()));
                     for (group, template) in templates {
                         if group.as_str() != "default" {
@@ -59,11 +66,12 @@ pub trait PartialMatchHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
-                self.base_mut().ctx.silence_app_context_init();
-                self.base_mut()
+                self.ctx.silence_app_context_init();
+                self.ctx
+                    .app_handler()
                     .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
 
-                let app_ctx = self.base().ctx.app_context();
+                let app_ctx = self.ctx.app_context();
                 if let Some(app_ctx) = app_ctx.opt()? {
                     logln("");
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
@@ -77,11 +85,12 @@ pub trait PartialMatchHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::ComponentMissingSubcommandHelp => {
-                self.base_mut().ctx.silence_app_context_init();
-                self.base_mut()
+                self.ctx.silence_app_context_init();
+                self.ctx
+                    .app_handler()
                     .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
 
-                let app_ctx = self.base().ctx.app_context();
+                let app_ctx = self.ctx.app_context();
                 if let Some(app_ctx) = app_ctx.opt()? {
                     logln("");
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
@@ -102,7 +111,7 @@ pub trait PartialMatchHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName { worker_name } => {
-                self.base_mut().ctx.silence_app_context_init();
+                self.ctx.silence_app_context_init();
                 logln("");
                 log_action(
                     "Checking",
@@ -113,8 +122,11 @@ pub trait PartialMatchHandler {
                 );
                 let component_name = {
                     let _indent = NestedTextViewIndent::new();
-                    let (component_name_match_kind, component_name, worker_name) =
-                        self.base_mut().match_worker_name(worker_name).await?;
+                    let (component_name_match_kind, component_name, worker_name) = self
+                        .ctx
+                        .worker_handler()
+                        .match_worker_name(worker_name)
+                        .await?;
                     logln(format!(
                         "[{}] component name: {} / worker_name: {}, {}",
                         "ok".green(),
@@ -136,7 +148,8 @@ pub trait PartialMatchHandler {
                 };
                 logln("");
                 if let Ok(Some(component)) = self
-                    .base()
+                    .ctx
+                    .component_handler()
                     .service_component_by_name(&component_name.0)
                     .await
                 {
@@ -149,15 +162,5 @@ pub trait PartialMatchHandler {
                 Ok(())
             }
         }
-    }
-}
-
-impl PartialMatchHandler for CommandHandler {
-    fn base(&self) -> &CommandHandler {
-        self
-    }
-
-    fn base_mut(&mut self) -> &mut CommandHandler {
-        self
     }
 }

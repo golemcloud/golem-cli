@@ -15,9 +15,8 @@
 use crate::command::worker::WorkerSubcommand;
 use crate::command_handler::app::AppCommandHandler;
 use crate::command_handler::component::ComponentCommandHandler;
-use crate::command_handler::log::Log;
-use crate::command_handler::CommandHandler;
-use crate::context::GolemClients;
+use crate::command_handler::{CommandHandler, GetHandler};
+use crate::context::{Context, GolemClients};
 use crate::error::{to_service_error, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::model::component::{function_params_types, show_exported_functions, Component};
@@ -37,12 +36,18 @@ use golem_wasm_rpc::parse_type_annotated_value;
 use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
 use itertools::{EitherOrBoth, Itertools};
+use std::sync::Arc;
 
-pub trait WorkerCommandHandler {
-    fn base(&self) -> &CommandHandler;
-    fn base_mut(&mut self) -> &mut CommandHandler;
+pub struct WorkerCommandHandler {
+    ctx: Arc<Context>,
+}
 
-    async fn handle_worker_subcommand(
+impl WorkerCommandHandler {
+    pub fn new(ctx: Arc<Context>) -> Self {
+        Self { ctx }
+    }
+
+    pub(crate) async fn handle_worker_subcommand(
         &mut self,
         subcommand: WorkerSubcommand,
     ) -> anyhow::Result<()> {
@@ -53,13 +58,14 @@ pub trait WorkerCommandHandler {
                 arguments,
                 enqueue,
             } => {
-                self.base_mut().ctx.silence_app_context_init();
+                self.ctx.silence_app_context_init();
 
                 let (component_match_kind, component_name, worker_name) =
                     self.match_worker_name(worker_name).await?;
 
                 let component = match self
-                    .base()
+                    .ctx
+                    .component_handler()
                     .service_component_by_name(&component_name.0)
                     .await?
                 {
@@ -91,14 +97,16 @@ pub trait WorkerCommandHandler {
                                 component_name.0.log_color_highlight()
                             ),
                         );
-                        self.base_mut()
+                        self.ctx
+                            .component_handler()
                             .deploy(
                                 vec![component_name.clone()],
                                 None,
                                 &ComponentSelectMode::CurrentDir,
                             )
                             .await?;
-                        self.base()
+                        self.ctx
+                            .component_handler()
                             .service_component_by_name(&component_name.0)
                             .await?
                             .ok_or_else(|| {
@@ -189,7 +197,7 @@ pub trait WorkerCommandHandler {
 
                 let arguments = wave_args_to_invoke_args(&component, &function_name, arguments)?;
 
-                let result_view = match self.base().ctx.golem_clients().await? {
+                let result_view = match self.ctx.golem_clients().await? {
                     GolemClients::Oss(clients) => {
                         let result = match worker_name {
                             Some(worker_name) => {
@@ -270,7 +278,7 @@ pub trait WorkerCommandHandler {
                 match result_view {
                     Some(view) => {
                         logln("");
-                        self.base().log_view(&view);
+                        self.ctx.log_handler().log_view(&view);
                     }
                     None => {
                         log_action("Enqueued", "invocation");
@@ -282,7 +290,7 @@ pub trait WorkerCommandHandler {
         }
     }
 
-    async fn match_worker_name(
+    pub(crate) async fn match_worker_name(
         &mut self,
         worker_name: WorkerName,
     ) -> anyhow::Result<(ComponentNameMatchKind, ComponentName, Option<WorkerName>)> {
@@ -296,10 +304,11 @@ pub trait WorkerCommandHandler {
             1 => {
                 let worker_name = segments[0];
 
-                self.base_mut()
+                self.ctx
+                    .app_handler()
                     .opt_select_app_components(vec![], &ComponentSelectMode::CurrentDir)?;
 
-                let app_ctx = self.base_mut().ctx.app_context();
+                let app_ctx = self.ctx.app_context();
                 let app_ctx = app_ctx.opt()?;
                 match app_ctx {
                     Some(app_ctx) => {
@@ -374,10 +383,11 @@ pub trait WorkerCommandHandler {
                     bail!(NonSuccessfulExit);
                 }
 
-                self.base_mut()
+                self.ctx
+                    .app_handler()
                     .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
 
-                let app_ctx = self.base_mut().ctx.app_context();
+                let app_ctx = self.ctx.app_context();
                 let app_ctx = app_ctx.opt()?;
                 match app_ctx {
                     Some(app_ctx) => {
@@ -535,14 +545,4 @@ fn wave_args_to_invoke_args(
         .map(|tav| tav.try_into())
         .collect::<Result<Vec<_>, _>>()
         .map_err(|err| anyhow!("Failed to convert type annotated value: {err}"))?)
-}
-
-impl WorkerCommandHandler for CommandHandler {
-    fn base(&self) -> &CommandHandler {
-        self
-    }
-
-    fn base_mut(&mut self) -> &mut CommandHandler {
-        self
-    }
 }
