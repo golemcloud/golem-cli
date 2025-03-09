@@ -21,7 +21,7 @@ env:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest-xlarge
+    runs-on: blacksmith-16vcpu-ubuntu-2204
     env:
       CARGO_BUILD_JOBS: 6
     steps:
@@ -61,7 +61,7 @@ jobs:
     - uses: acifani/setup-tinygo@v2.0.0
       with:
         tinygo-version: '0.35.0'
-    - uses: Swatinem/rust-cache@v2
+    - uses: useblacksmith/rust-cache@v3
       with:
         shared-key: debug
         cache-all-crates: true
