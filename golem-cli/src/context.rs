@@ -16,7 +16,9 @@ use crate::command::GolemCliGlobalFlags;
 use crate::config::{
     ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
 };
+use crate::error::HintError;
 use crate::model::app_ext::GolemComponentExtensions;
+use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
 use golem_client::api::ApiSecurityClientLive as ApiSecurityClientOss;
@@ -52,28 +54,26 @@ use golem_wasm_rpc_stubgen::stub::WasmRpcOverride;
 use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
 use std::path::PathBuf;
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 use tracing::debug;
 
 // Context is responsible for storing the CLI state,
-// but NOT responsible for producing CLI output, those should be part of the CommandHandler
+// but NOT responsible for producing CLI output, those should be part of the CommandHandler(s)
 pub struct Context {
+    // Readonly
     _profile_name: ProfileName, // TODO
     profile_kind: ProfileKind,
     profile: Profile,
-    build_profile: Option<AppBuildProfileName>,
-    app_manifest_path: Option<PathBuf>,
-    wasm_rpc_override: WasmRpcOverride,
+    app_context_config: ApplicationContextConfig,
+
+    // Lazy initialized
     clients: tokio::sync::OnceCell<Clients>,
-    silent_application_context_init: std::sync::RwLock<bool>,
-    application_context:
-        tokio::sync::OnceCell<Option<ApplicationContext<GolemComponentExtensions>>>,
-    templates: std::cell::OnceCell<
+    templates: std::sync::OnceLock<
         BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppExample>>,
     >,
-    skip_up_to_date_checks: bool,
-    skip_up_to_date_checks_was_set: bool,
-    build_steps_filter: HashSet<AppBuildStep>,
-    build_steps_filter_was_set: bool,
+
+    // Directly mutable
+    app_context_state: std::sync::RwLock<ApplicationContextState>,
 }
 
 impl Context {
@@ -84,32 +84,25 @@ impl Context {
             _profile_name: profile.name,
             profile_kind: profile.profile.kind(),
             profile: profile.profile,
-            build_profile: global_flags
-                .build_profile
-                .as_ref()
-                .map(|bp| bp.0.clone().into()),
-            app_manifest_path: global_flags.app_manifest_path.clone(),
-            wasm_rpc_override: WasmRpcOverride {
-                wasm_rpc_path_override: global_flags.wasm_rpc_path.clone(),
-                wasm_rpc_version_override: global_flags.wasm_rpc_version.clone(),
+            app_context_config: ApplicationContextConfig {
+                build_profile: global_flags
+                    .build_profile
+                    .as_ref()
+                    .map(|bp| bp.0.clone().into()),
+                app_manifest_path: global_flags.app_manifest_path.clone(),
+                wasm_rpc_override: WasmRpcOverride {
+                    wasm_rpc_path_override: global_flags.wasm_rpc_path.clone(),
+                    wasm_rpc_version_override: global_flags.wasm_rpc_version.clone(),
+                },
             },
             clients: tokio::sync::OnceCell::new(),
-            silent_application_context_init: std::sync::RwLock::new(false),
-            application_context: tokio::sync::OnceCell::new(),
-            templates: std::cell::OnceCell::new(),
-            skip_up_to_date_checks: false,
-            skip_up_to_date_checks_was_set: false,
-            build_steps_filter: HashSet::new(),
-            build_steps_filter_was_set: false,
+            templates: std::sync::OnceLock::new(),
+            app_context_state: std::sync::RwLock::default(),
         }
     }
 
-    pub fn silent_application_context_init(&self) -> bool {
-        *self.silent_application_context_init.write().unwrap()
-    }
-
-    pub fn silence_application_context_init(&self) {
-        *self.silent_application_context_init.write().unwrap() = true
+    pub fn silence_app_context_init(&mut self) {
+        self.app_context_mut().silent_init = true;
     }
 
     pub fn profile_kind(&self) -> ProfileKind {
@@ -117,7 +110,7 @@ impl Context {
     }
 
     pub fn build_profile(&self) -> Option<&AppBuildProfileName> {
-        self.build_profile.as_ref()
+        self.app_context_config.build_profile.as_ref()
     }
 
     pub async fn clients(&self) -> anyhow::Result<&Clients> {
@@ -130,62 +123,44 @@ impl Context {
         Ok(&self.clients().await?.golem)
     }
 
-    pub async fn application_context(
-        &self,
-    ) -> anyhow::Result<Option<&ApplicationContext<GolemComponentExtensions>>> {
-        self.application_context
-            .get_or_try_init(|| async {
-                // Locking with write, so no interleave can happen when changing log outputs
-                let silent_application_context_init =
-                    self.silent_application_context_init.write().unwrap();
-                let _log_output =
-                    silent_application_context_init.then(|| LogOutput::new(Output::None));
+    pub fn app_context(&self) -> RwLockReadGuard<'_, ApplicationContextState> {
+        {
+            let state = self.app_context_state.read().unwrap();
+            if state.app_context.is_some() {
+                return state;
+            }
+        }
 
-                let config = golem_wasm_rpc_stubgen::commands::app::Config {
-                    app_source_mode: {
-                        match &self.app_manifest_path {
-                            Some(path) => ApplicationSourceMode::Explicit(vec![path.clone()]),
-                            None => ApplicationSourceMode::Automatic,
-                        }
-                    },
-                    skip_up_to_date_checks: self.skip_up_to_date_checks,
-                    profile: self.build_profile.as_ref().map(|p| p.to_string().into()),
-                    offline: false, // TODO:
-                    extensions: PhantomData::<GolemComponentExtensions>,
-                    steps_filter: self.build_steps_filter.clone(),
-                    wasm_rpc_override: self.wasm_rpc_override.clone(),
-                };
+        {
+            let mut state = self.app_context_state.write().unwrap();
+            state.init(&self.app_context_config);
+        }
 
-                debug!(config = ?config, "Initializing application context");
-
-                ApplicationContext::new(config)
-            })
-            .await
-            .map(|app_ctx| app_ctx.as_ref())
+        self.app_context_state.read().unwrap()
     }
 
-    pub async fn application_context_mut(
-        &mut self,
-    ) -> anyhow::Result<Option<&mut ApplicationContext<GolemComponentExtensions>>> {
-        let _ = self.application_context().await?;
-        Ok(self.application_context.get_mut().unwrap().as_mut())
+    pub fn app_context_mut(&mut self) -> RwLockWriteGuard<'_, ApplicationContextState> {
+        let mut state = self.app_context_state.write().unwrap();
+        state.init(&self.app_context_config);
+        state
     }
 
     fn set_app_ctx_init_config<T>(
         &mut self,
         name: &str,
-        get_value_mut: fn(&mut Context) -> &mut T,
-        get_was_set_mut: fn(&mut Context) -> &mut bool,
+        value_mut: fn(&mut ApplicationContextState) -> &mut T,
+        was_set_mut: fn(&mut ApplicationContextState) -> &mut bool,
         value: T,
     ) {
-        if *get_was_set_mut(self) {
+        let state = self.app_context_state.get_mut().unwrap();
+        if *was_set_mut(state) {
             panic!("{} can be set only once, was already set", name);
         }
-        if self.application_context.get().is_some() {
+        if state.app_context.is_some() {
             panic!("cannot change {} after application context init", name);
         }
-        *get_value_mut(self) = value;
-        *get_was_set_mut(self) = true;
+        *value_mut(state) = value;
+        *was_set_mut(state) = true;
     }
 
     pub fn set_skip_up_to_date_checks(&mut self, skip: bool) {
@@ -383,6 +358,92 @@ pub struct GolemClientsCloud {
     pub project_policy: ProjectPolicyClientCloud,
     pub token: TokenClientCloud,
     pub worker: WorkerClientCloud,
+}
+
+struct ApplicationContextConfig {
+    app_manifest_path: Option<PathBuf>,
+    build_profile: Option<AppBuildProfileName>,
+    wasm_rpc_override: WasmRpcOverride,
+}
+
+#[derive(Default)]
+pub struct ApplicationContextState {
+    pub silent_init: bool,
+    pub skip_up_to_date_checks: bool,
+    skip_up_to_date_checks_was_set: bool,
+    pub build_steps_filter: HashSet<AppBuildStep>,
+    build_steps_filter_was_set: bool,
+
+    app_context: Option<anyhow::Result<Option<ApplicationContext<GolemComponentExtensions>>>>,
+}
+
+impl ApplicationContextState {
+    fn init(&mut self, config: &ApplicationContextConfig) {
+        if self.app_context.is_none() {
+            return;
+        }
+
+        let _log_output = self.silent_init.then(|| LogOutput::new(Output::None));
+
+        let config = golem_wasm_rpc_stubgen::commands::app::Config {
+            app_source_mode: {
+                match &config.app_manifest_path {
+                    Some(path) => ApplicationSourceMode::Explicit(vec![path.clone()]),
+                    None => ApplicationSourceMode::Automatic,
+                }
+            },
+            skip_up_to_date_checks: self.skip_up_to_date_checks,
+            profile: config.build_profile.as_ref().map(|p| p.to_string().into()),
+            offline: false, // TODO:
+            extensions: PhantomData::<GolemComponentExtensions>,
+            steps_filter: self.build_steps_filter.clone(),
+            wasm_rpc_override: config.wasm_rpc_override.clone(),
+        };
+
+        debug!(config = ?config, "Initializing application context");
+
+        self.app_context = Some(ApplicationContext::new(config))
+    }
+
+    pub fn opt(&self) -> anyhow::Result<Option<&ApplicationContext<GolemComponentExtensions>>> {
+        match &self.app_context {
+            Some(Ok(None)) => Ok(None),
+            Some(Ok(Some(app_ctx))) => Ok(Some(app_ctx)),
+            Some(Err(err)) => Err(anyhow!("{err}")),
+            None => panic!("Uninitialized application context"),
+        }
+    }
+
+    pub fn opt_mut(
+        &mut self,
+    ) -> anyhow::Result<Option<&mut ApplicationContext<GolemComponentExtensions>>> {
+        match &mut self.app_context {
+            Some(Ok(None)) => Ok(None),
+            Some(Ok(Some(app_ctx))) => Ok(Some(app_ctx)),
+            Some(Err(err)) => Err(anyhow!("{err}")),
+            None => panic!("Uninitialized application context"),
+        }
+    }
+
+    pub fn some_or_err(&self) -> anyhow::Result<&ApplicationContext<GolemComponentExtensions>> {
+        match &self.app_context {
+            Some(Ok(None)) => Err(anyhow!(HintError::NoApplicationManifestFound)),
+            Some(Ok(Some(app_ctx))) => Ok(app_ctx),
+            Some(Err(err)) => Err(anyhow!("{err}")),
+            None => panic!("Uninitialized application context"),
+        }
+    }
+
+    pub fn some_or_err_mut(
+        &mut self,
+    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+        match &mut self.app_context {
+            Some(Ok(None)) => Err(anyhow!(HintError::NoApplicationManifestFound)),
+            Some(Ok(Some(app_ctx))) => Ok(app_ctx),
+            Some(Err(err)) => Err(anyhow!("{err}")),
+            None => panic!("Uninitialized application context"),
+        }
+    }
 }
 
 fn new_reqwest_client(config: &HttpClientConfig) -> anyhow::Result<reqwest::Client> {

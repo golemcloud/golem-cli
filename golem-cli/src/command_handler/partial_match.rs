@@ -59,40 +59,40 @@ pub trait PartialMatchHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
-                self.base_mut().ctx.silence_application_context_init();
-                logln("");
-                match self
-                    .base_mut()
-                    .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::All)
-                    .await?
-                {
-                    Some(app_ctx) => app_ctx.log_dynamic_help(&DynamicHelpSections {
+                self.base_mut().ctx.silence_app_context_init();
+                self.base_mut()
+                    .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
+
+                let app_ctx = self.base().ctx.app_context();
+                if let Some(app_ctx) = app_ctx.opt()? {
+                    logln("");
+                    app_ctx.log_dynamic_help(&DynamicHelpSections {
                         components: true,
                         custom_commands: true,
-                    }),
-                    None => {
-                        // TODO: maybe add hint that this command should use app manifest
-                        Ok(())
-                    }
+                    })?
+                } else {
+                    // TODO: maybe add hint that this command should use app manifest
                 }
+
+                Ok(())
             }
             GolemCliCommandPartialMatch::ComponentMissingSubcommandHelp => {
-                self.base_mut().ctx.silence_application_context_init();
-                logln("");
-                match self
-                    .base_mut()
-                    .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::All)
-                    .await?
-                {
-                    Some(app_ctx) => app_ctx.log_dynamic_help(&DynamicHelpSections {
+                self.base_mut().ctx.silence_app_context_init();
+                self.base_mut()
+                    .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
+
+                let app_ctx = self.base().ctx.app_context();
+                if let Some(app_ctx) = app_ctx.opt()? {
+                    logln("");
+                    app_ctx.log_dynamic_help(&DynamicHelpSections {
                         components: true,
                         custom_commands: false,
-                    }),
-                    None => {
-                        // TODO: maybe add hint that this command should use app manifest
-                        Ok(())
-                    }
+                    })?
+                } else {
+                    // TODO: maybe add hint that this command should use app manifest
                 }
+
+                Ok(())
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName => {
                 logln("");
@@ -102,7 +102,7 @@ pub trait PartialMatchHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName { worker_name } => {
-                self.base_mut().ctx.silence_application_context_init();
+                self.base_mut().ctx.silence_app_context_init();
                 logln("");
                 log_action(
                     "Checking",

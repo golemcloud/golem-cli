@@ -108,6 +108,7 @@ impl CommandHandler {
             GolemCliCommandParseResult::FullMatch(command) => {
                 init_tracing(command.global_flags.verbosity);
 
+                // TODO: handle hint errors
                 Self::new(&command.global_flags)
                     .handle_command(command)
                     .await

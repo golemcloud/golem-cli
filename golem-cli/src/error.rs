@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use strum_macros::Display;
 
 // NonSuccessfulExit is used to signal that an error got resolved with hints or error messages
 // already on the command line, thus nothing should be printed in the main error handler,
@@ -16,6 +17,14 @@ impl Display for NonSuccessfulExit {
 }
 
 impl Error for NonSuccessfulExit {}
+
+// Errors that should be handled by the command handler with showing hints or error messages
+#[derive(Debug, Display)]
+pub enum HintError {
+    NoApplicationManifestFound,
+}
+
+impl Error for HintError {}
 
 // TODO: convert to hintable service error ("port" the current GolemError "From" instances)
 pub fn to_service_error<E: Debug>(error: E) -> anyhow::Error {

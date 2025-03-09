@@ -53,7 +53,7 @@ pub trait WorkerCommandHandler {
                 arguments,
                 enqueue,
             } => {
-                self.base_mut().ctx.silence_application_context_init();
+                self.base_mut().ctx.silence_app_context_init();
 
                 let (component_match_kind, component_name, worker_name) =
                     self.match_worker_name(worker_name).await?;
@@ -296,10 +296,11 @@ pub trait WorkerCommandHandler {
             1 => {
                 let worker_name = segments[0];
 
-                let app_ctx = self
-                    .base_mut()
-                    .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::CurrentDir)
-                    .await?;
+                self.base_mut()
+                    .opt_select_app_components(vec![], &ComponentSelectMode::CurrentDir)?;
+
+                let app_ctx = self.base_mut().ctx.app_context();
+                let app_ctx = app_ctx.opt()?;
                 match app_ctx {
                     Some(app_ctx) => {
                         let selected_component_names = app_ctx.selected_component_names();
@@ -373,10 +374,11 @@ pub trait WorkerCommandHandler {
                     bail!(NonSuccessfulExit);
                 }
 
-                let app_ctx = self
-                    .base_mut()
-                    .app_ctx_with_selection_mut(vec![], &ComponentSelectMode::All)
-                    .await?;
+                self.base_mut()
+                    .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
+
+                let app_ctx = self.base_mut().ctx.app_context();
+                let app_ctx = app_ctx.opt()?;
                 match app_ctx {
                     Some(app_ctx) => {
                         let fuzzy_search = FuzzySearch::new(

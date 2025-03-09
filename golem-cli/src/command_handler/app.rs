@@ -16,7 +16,8 @@ use crate::command::app::AppSubcommand;
 use crate::command::shared_args::BuildArgs;
 use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::CommandHandler;
-use crate::error::NonSuccessfulExit;
+use crate::context::ApplicationContextState;
+use crate::error::{HintError, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::text::fmt::{log_error, log_text_view};
@@ -126,7 +127,8 @@ pub trait AppCommandHandler {
                 }
 
                 std::env::set_current_dir(&app_dir)?;
-                let Some(app_ctx) = self.base().ctx.application_context().await? else {
+                let app_ctx = self.base().ctx.app_context();
+                let Some(app_ctx) = app_ctx.opt()? else {
                     return Ok(());
                 };
 
@@ -141,14 +143,11 @@ pub trait AppCommandHandler {
             AppSubcommand::Build {
                 component_name,
                 build: build_args,
-            } => {
-                self.build(
-                    component_name.component_name,
-                    Some(build_args),
-                    &ComponentSelectMode::All,
-                )
-                .await
-            }
+            } => self.build(
+                component_name.component_name,
+                Some(build_args),
+                &ComponentSelectMode::All,
+            ),
             AppSubcommand::Deploy {
                 component_name,
                 force_build,
@@ -163,7 +162,6 @@ pub trait AppCommandHandler {
             }
             AppSubcommand::Clean { component_name } => {
                 self.clean(component_name.component_name, &ComponentSelectMode::All)
-                    .await
             }
             AppSubcommand::CustomCommand(command) => {
                 if command.len() != 1 {
@@ -173,17 +171,15 @@ pub trait AppCommandHandler {
                     );
                 }
 
-                self.base()
-                    .required_application_context()
-                    .await?
-                    .custom_command(&command[0])?;
+                let app_ctx = self.base().ctx.app_context();
+                app_ctx.some_or_err()?.custom_command(&command[0])?;
 
                 Ok(())
             }
         }
     }
 
-    async fn build(
+    fn build(
         &mut self,
         component_names: Vec<ComponentName>,
         build: Option<BuildArgs>,
@@ -197,68 +193,41 @@ pub trait AppCommandHandler {
                 .ctx
                 .set_skip_up_to_date_checks(build.force_build.force_build);
         }
-
-        self.base_mut()
-            .required_app_ctx_with_selection_mut(component_names, default_component_select_mode)
-            .await?
-            .build()
-            .await?;
-
-        Ok(())
+        self.must_select_app_components(component_names, default_component_select_mode)
     }
 
-    async fn clean(
+    fn clean(
         &mut self,
         component_names: Vec<ComponentName>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.base_mut()
-            .required_app_ctx_with_selection_mut(component_names, default_component_select_mode)
-            .await?
-            .clean()?;
+        self.must_select_app_components(component_names, default_component_select_mode)?;
+        let app_ctx = self.base_mut().ctx.app_context();
+        app_ctx.some_or_err()?.clean()?;
 
         Ok(())
     }
 
-    async fn required_application_context(
-        &self,
-    ) -> anyhow::Result<&ApplicationContext<GolemComponentExtensions>> {
-        self.base()
-            .ctx
-            .application_context()
-            .await?
-            .ok_or_else(no_application_manifest_found_error)
-    }
-
-    async fn required_application_context_mut(
-        &mut self,
-    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
-        self.base_mut()
-            .ctx
-            .application_context_mut()
-            .await?
-            .ok_or_else(no_application_manifest_found_error)
-    }
-
-    async fn required_app_ctx_with_selection_mut(
+    fn must_select_app_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
-    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
-        self.app_ctx_with_selection_mut(component_names, default)
-            .await?
-            .ok_or_else(no_application_manifest_found_error)
+    ) -> anyhow::Result<()> {
+        self.opt_select_app_components(component_names, default)?
+            .then_some(())
+            .ok_or(anyhow!(HintError::NoApplicationManifestFound))
     }
 
     // TODO: forbid matching the same component multiple times
-    async fn app_ctx_with_selection_mut(
+    fn opt_select_app_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
-    ) -> anyhow::Result<Option<&mut ApplicationContext<GolemComponentExtensions>>> {
-        let silent_selection = self.base_mut().ctx.silent_application_context_init();
-        let Some(app_ctx) = self.base_mut().ctx.application_context_mut().await? else {
-            return Ok(None);
+    ) -> anyhow::Result<bool> {
+        let mut app_ctx = self.base_mut().ctx.app_context_mut();
+        let silent_selection = app_ctx.silent_init;
+        let Some(app_ctx) = app_ctx.opt_mut()? else {
+            return Ok(false);
         };
 
         if component_names.is_empty() {
@@ -309,45 +278,7 @@ pub trait AppCommandHandler {
                 found.into_iter().map(|m| m.option.into()).collect(),
             ))?
         }
-        Ok(Some(app_ctx))
-    }
-
-    async fn app_component_dynamic_linking_oss(
-        &mut self,
-        component_name: &AppComponentName,
-    ) -> anyhow::Result<Option<DynamicLinkingOss>> {
-        let app_ctx = self.required_application_context_mut().await?;
-
-        let mut mapping = Vec::new();
-
-        let wasm_rpc_deps = app_ctx
-            .application
-            .component_wasm_rpc_dependencies(component_name)
-            .iter()
-            .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc)
-            .cloned()
-            .collect::<Vec<_>>();
-
-        for wasm_rpc_dep in wasm_rpc_deps {
-            mapping.push(app_ctx.component_stub_interfaces(&wasm_rpc_dep.name)?);
-        }
-
-        if mapping.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(DynamicLinkingOss {
-                dynamic_linking: HashMap::from_iter(mapping.into_iter().map(|stub_interfaces| {
-                    (
-                        stub_interfaces.stub_interface_name,
-                        DynamicLinkedInstanceOss::WasmRpc(DynamicLinkedWasmRpcOss {
-                            target_interface_name: HashMap::from_iter(
-                                stub_interfaces.exported_interfaces_per_stub_resource,
-                            ),
-                        }),
-                    )
-                })),
-            }))
-        }
+        Ok(true)
     }
 }
 
