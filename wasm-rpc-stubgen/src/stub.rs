@@ -20,9 +20,9 @@ use anyhow::{anyhow, Context};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use proc_macro2::Span;
-use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use wit_parser::{
     Function, FunctionKind, Interface, InterfaceId, Package, PackageId, PackageName, Resolve,
     Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, World, WorldId, WorldItem, WorldKey,
@@ -52,9 +52,9 @@ pub struct StubDefinition {
     source_world_id: WorldId,
     package_sources: IndexMap<PackageId, PackageSource>,
 
-    stub_imported_interfaces: OnceCell<Vec<InterfaceStub>>,
-    stub_used_type_defs: OnceCell<Vec<InterfaceStubTypeDef>>,
-    stub_dep_package_ids: OnceCell<HashSet<PackageId>>,
+    stub_imported_interfaces: OnceLock<Vec<InterfaceStub>>,
+    stub_used_type_defs: OnceLock<Vec<InterfaceStubTypeDef>>,
+    stub_dep_package_ids: OnceLock<HashSet<PackageId>>,
 
     pub source_package_id: PackageId,
     pub source_package_name: PackageName,
@@ -91,9 +91,9 @@ impl StubDefinition {
             resolve: resolved_source.resolve,
             source_world_id,
             package_sources: resolved_source.package_sources,
-            stub_imported_interfaces: OnceCell::new(),
-            stub_used_type_defs: OnceCell::new(),
-            stub_dep_package_ids: OnceCell::new(),
+            stub_imported_interfaces: OnceLock::new(),
+            stub_used_type_defs: OnceLock::new(),
+            stub_dep_package_ids: OnceLock::new(),
             source_package_id: resolved_source.package_id,
             source_package_name,
         })

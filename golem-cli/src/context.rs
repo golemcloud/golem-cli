@@ -477,7 +477,7 @@ mod test {
 
     #[test]
     fn test_context_is_send_sync() {
-        // TODO let _ = CheckSend::<Context>(PhantomData); // Compile error if not Send
-        // TODO let _ = CheckSync::<Context>(PhantomData);
+        let _ = CheckSend::<Context>(PhantomData);
+        let _ = CheckSync::<Context>(PhantomData);
     }
 }

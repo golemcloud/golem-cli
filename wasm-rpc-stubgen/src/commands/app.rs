@@ -24,13 +24,13 @@ use colored::Colorize;
 use golem_wasm_rpc::WASM_RPC_VERSION;
 use itertools::Itertools;
 use serde::Serialize;
-use std::cell::OnceCell;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
 use std::time::SystemTime;
 use tracing::debug;
 use walkdir::WalkDir;
@@ -108,7 +108,7 @@ pub struct ApplicationContext<CPE: ComponentPropertiesExtensions> {
     pub wit: ResolvedWitApplication,
     calling_working_dir: PathBuf,
     component_stub_defs: HashMap<ComponentName, StubDefinition>,
-    common_wit_deps: OnceCell<anyhow::Result<WitDepsResolver>>,
+    common_wit_deps: OnceLock<anyhow::Result<WitDepsResolver>>,
     component_generated_base_wit_deps: HashMap<ComponentName, WitDepsResolver>,
     selected_component_names: BTreeSet<ComponentName>,
 }
@@ -129,7 +129,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                         wit,
                         calling_working_dir,
                         component_stub_defs: HashMap::new(),
-                        common_wit_deps: OnceCell::new(),
+                        common_wit_deps: OnceLock::new(),
                         component_generated_base_wit_deps: HashMap::new(),
                         selected_component_names: BTreeSet::new(),
                     }
