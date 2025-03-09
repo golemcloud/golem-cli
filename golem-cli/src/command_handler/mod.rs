@@ -161,7 +161,7 @@ impl CommandHandler {
 }
 
 // NOTE: for now every handler can access any other handler, but this can be restricted
-//       by moving this simple factory methods on the specific handler on demand,
+//       by moving these simple factory methods into the specific handlers on demand,
 //       if the need ever arises
 trait GetHandler {
     fn app_handler(&self) -> AppCommandHandler;
