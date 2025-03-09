@@ -57,7 +57,7 @@ pub mod fmt {
             let fields = self.fields();
             let padding = fields.iter().map(|(name, _)| name.len()).max().unwrap_or(0) + 1;
 
-            let _indent = Self::indent_fields().then(|| LogIndent::new());
+            let _indent = Self::indent_fields().then(LogIndent::new);
 
             for (name, value) in self.fields() {
                 let lines: Vec<_> = value.lines().collect();
@@ -306,7 +306,7 @@ pub mod fmt {
     pub fn log_error<S: AsRef<str>>(message: S) {
         logln(format!(
             "{} {}",
-            "error:".log_color_error().to_string(),
+            "error:".log_color_error(),
             message.as_ref()
         ));
     }
@@ -317,6 +317,12 @@ pub mod fmt {
 
     // TODO: make it format dependent
     // TODO: make it not using unicode on NO_COLOR?
+    impl Default for NestedTextViewIndent {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl NestedTextViewIndent {
         pub fn new() -> Self {
             logln("╔═");
@@ -390,7 +396,7 @@ pub mod api_definition {
     use crate::model::ComponentName;
     use cli_table::{format::Justify, Table};
     use golem_client::model::{HttpApiDefinitionResponseData, RouteResponseData};
-    use golem_wasm_rpc_stubgen::log::logln;
+
     use serde::{Deserialize, Serialize};
 
     #[derive(Table)]
@@ -540,7 +546,7 @@ pub mod api_deployment {
     use crate::model::ApiDeployment;
     use cli_table::Table;
     use golem_client::model::ApiDefinitionInfo;
-    use golem_wasm_rpc_stubgen::log::logln;
+
     use indoc::printdoc;
 
     pub fn format_site(api_deployment: &ApiDeployment) -> String {
@@ -608,7 +614,7 @@ pub mod component {
     use crate::model::text::fmt::*;
     use crate::model::ComponentName;
     use cli_table::{format::Justify, Table};
-    use golem_wasm_rpc_stubgen::log::logln;
+
     use serde::{Deserialize, Serialize};
 
     #[derive(Table)]
@@ -716,7 +722,6 @@ pub mod example {
     use crate::model::ExampleDescription;
     use cli_table::Table;
     use golem_examples::model::{ExampleName, GuestLanguage, GuestLanguageTier};
-    use golem_wasm_rpc_stubgen::log::logln;
 
     #[derive(Table)]
     pub struct ExampleDescriptionTableView {
@@ -1526,15 +1531,15 @@ pub mod worker {
 
 pub mod plugin {
     use crate::model::text::fmt::{
-        format_id, format_main_id, format_message_highlight, format_table, log_table,
-        FieldsBuilder, MessageWithFields, TableWrapper, TextView,
+        format_id, format_main_id, format_message_highlight, log_table, FieldsBuilder,
+        MessageWithFields, TableWrapper, TextView,
     };
     use cli_table::Table;
     use golem_client::model::{
         DefaultPluginScope, PluginDefinitionDefaultPluginOwnerDefaultPluginScope,
         PluginInstallation, PluginTypeSpecificDefinition,
     };
-    use golem_wasm_rpc_stubgen::log::logln;
+
     use itertools::Itertools;
 
     #[derive(Table)]
@@ -1697,7 +1702,7 @@ pub mod plugin {
 pub mod help {
     use crate::model::component::render_type;
     use crate::model::text::fmt::{
-        format_export, format_table, log_table, FieldsBuilder, MessageWithFields, TextView,
+        format_export, log_table, FieldsBuilder, MessageWithFields, TextView,
     };
     use cli_table::Table;
     use colored::Colorize;

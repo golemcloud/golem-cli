@@ -14,9 +14,7 @@
 
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{BuildArgs, ForceBuildArg};
-use crate::command_handler::app::AppCommandHandler;
-use crate::command_handler::log::LogHandler;
-use crate::command_handler::{CommandHandler, GetHandler};
+use crate::command_handler::GetHandler;
 use crate::context::{Context, GolemClients};
 use crate::error::to_service_error;
 use crate::model::app_ext::GolemComponentExtensions;
@@ -50,7 +48,7 @@ impl ComponentCommandHandler {
         Self { ctx }
     }
 
-    pub(crate) async fn handle_component_subcommand(
+    pub(crate) async fn handle_command(
         &mut self,
         subcommand: ComponentSubcommand,
     ) -> anyhow::Result<()> {
@@ -121,8 +119,21 @@ impl ComponentCommandHandler {
             let deploy_properties = {
                 let mut app_ctx = self.ctx.app_context_mut();
                 let app_ctx = app_ctx.some_or_err_mut()?;
-                component_deploy_properties(app_ctx, component_name, build_profile.clone()).await?
+                component_deploy_properties(app_ctx, component_name, build_profile.clone())?
             };
+
+            let linked_wasm = File::open(&deploy_properties.linked_wasm_path)
+                .await
+                .with_context(|| {
+                    anyhow!(
+                        "Failed to open component linked WASM at {}",
+                        deploy_properties
+                            .linked_wasm_path
+                            .display()
+                            .to_string()
+                            .log_color_error_highlight()
+                    )
+                })?;
 
             match &component_id {
                 Some(component_id) => {
@@ -141,7 +152,7 @@ impl ComponentCommandHandler {
                                 .update_component(
                                     component_id,
                                     Some(&deploy_properties.component_type),
-                                    deploy_properties.linked_wasm,
+                                    linked_wasm,
                                     None,         // TODO:
                                     None::<File>, // TODO:
                                     deploy_properties.dynamic_linking.as_ref(),
@@ -173,7 +184,7 @@ impl ComponentCommandHandler {
                                 .create_component(
                                     component_name.as_str(),
                                     Some(&deploy_properties.component_type),
-                                    deploy_properties.linked_wasm,
+                                    linked_wasm,
                                     None,         // TODO:
                                     None::<File>, // TODO:
                                     deploy_properties.dynamic_linking.as_ref(),
@@ -198,7 +209,7 @@ impl ComponentCommandHandler {
     // TODO: we might want to have a filter for batch name lookups on the server side
     // TODO: also the search returns all versions
     // TODO: maybe add transient or persistent cache for all the meta
-    pub(crate) async fn service_component_by_name(
+    pub(crate) async fn component_by_name(
         &self,
         component_name: &str,
     ) -> anyhow::Result<Option<Component>> {
@@ -224,7 +235,7 @@ impl ComponentCommandHandler {
 
     async fn component_id_by_name(&self, component_name: &str) -> anyhow::Result<Option<Uuid>> {
         Ok(self
-            .service_component_by_name(component_name)
+            .component_by_name(component_name)
             .await?
             .map(|c| c.versioned_component_id.component_id))
     }
@@ -234,12 +245,10 @@ impl ComponentCommandHandler {
 struct ComponentDeployProperties {
     component_type: ComponentType,
     linked_wasm_path: PathBuf,
-    linked_wasm: File,
-    // TODO: ifs
     dynamic_linking: Option<DynamicLinkingOss>,
 }
 
-async fn component_deploy_properties(
+fn component_deploy_properties(
     app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
     component_name: &AppComponentName,
     build_profile: Option<BuildProfileName>,
@@ -247,16 +256,6 @@ async fn component_deploy_properties(
     let linked_wasm_path = app_ctx
         .application
         .component_linked_wasm(component_name, build_profile.as_ref());
-    let linked_wasm = File::open(&linked_wasm_path).await.with_context(|| {
-        anyhow!(
-            "Failed to open component linked WASM at {}",
-            linked_wasm_path
-                .display()
-                .to_string()
-                .log_color_error_highlight()
-        )
-    })?;
-
     let component_properties = &app_ctx
         .application
         .component_properties(component_name, build_profile.as_ref());
@@ -265,9 +264,8 @@ async fn component_deploy_properties(
     let dynamic_linking = app_component_dynamic_linking_oss(app_ctx, component_name)?;
 
     Ok(ComponentDeployProperties {
-        linked_wasm_path,
         component_type,
-        linked_wasm,
+        linked_wasm_path,
         dynamic_linking,
     })
 }

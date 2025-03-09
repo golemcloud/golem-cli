@@ -14,31 +14,21 @@
 
 use crate::command::app::AppSubcommand;
 use crate::command::shared_args::BuildArgs;
-use crate::command_handler::component::ComponentCommandHandler;
-use crate::command_handler::{CommandHandler, GetHandler};
-use crate::context::{ApplicationContextState, Context};
+use crate::command_handler::GetHandler;
+use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
-use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::text::fmt::{log_error, log_text_view};
 use crate::model::text::help::AvailableComponentNamesHelp;
 use crate::model::ComponentName;
 use anyhow::{anyhow, bail};
 use colored::Colorize;
-use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
-use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
-use golem_client::model::DynamicLinking as DynamicLinkingOss;
 use golem_examples::add_component_by_example;
 use golem_examples::model::{ComposableAppGroupName, PackageName};
-use golem_wasm_rpc_stubgen::commands::app::{
-    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
-};
+use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
 use golem_wasm_rpc_stubgen::fs;
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent, LogOutput, Output};
-use golem_wasm_rpc_stubgen::model::app::ComponentName as AppComponentName;
-use golem_wasm_rpc_stubgen::model::app::DependencyType;
 use itertools::Itertools;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -51,10 +41,7 @@ impl AppCommandHandler {
         Self { ctx }
     }
 
-    pub(crate) async fn handle_app_subcommand(
-        &mut self,
-        subcommand: AppSubcommand,
-    ) -> anyhow::Result<()> {
+    pub(crate) async fn handle_command(&mut self, subcommand: AppSubcommand) -> anyhow::Result<()> {
         match subcommand {
             AppSubcommand::New {
                 application_name,
@@ -199,7 +186,7 @@ impl AppCommandHandler {
             self.ctx
                 .set_skip_up_to_date_checks(build.force_build.force_build);
         }
-        self.must_select_app_components(component_names, default_component_select_mode)
+        self.must_components(component_names, default_component_select_mode)
     }
 
     pub(crate) fn clean(
@@ -207,25 +194,25 @@ impl AppCommandHandler {
         component_names: Vec<ComponentName>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.must_select_app_components(component_names, default_component_select_mode)?;
+        self.must_components(component_names, default_component_select_mode)?;
         let app_ctx = self.ctx.app_context();
         app_ctx.some_or_err()?.clean()?;
 
         Ok(())
     }
 
-    fn must_select_app_components(
+    fn must_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.opt_select_app_components(component_names, default)?
+        self.opt_select_components(component_names, default)?
             .then_some(())
             .ok_or(anyhow!(HintError::NoApplicationManifestFound))
     }
 
     // TODO: forbid matching the same component multiple times
-    pub(crate) fn opt_select_app_components(
+    pub(crate) fn opt_select_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
@@ -286,18 +273,4 @@ impl AppCommandHandler {
         }
         Ok(true)
     }
-}
-
-fn no_application_manifest_found_error() -> anyhow::Error {
-    logln("");
-    log_error("No application manifest(s) found!");
-    logln(format!(
-        "Switch to a directory that contains an application manifest ({}),",
-        "golem.yaml".log_color_highlight()
-    ));
-    logln(format!(
-        "or create a new application with the '{}' subcommand!",
-        "app new".log_color_highlight(),
-    ));
-    anyhow!(NonSuccessfulExit)
 }

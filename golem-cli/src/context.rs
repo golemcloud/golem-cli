@@ -153,14 +153,14 @@ impl Context {
         value: T,
     ) {
         let mut state = self.app_context_state.write().unwrap();
-        if *was_set_mut(&mut *state) {
+        if *was_set_mut(&mut state) {
             panic!("{} can be set only once, was already set", name);
         }
         if state.app_context.is_some() {
             panic!("cannot change {} after application context init", name);
         }
-        *value_mut(&mut *state) = value;
-        *was_set_mut(&mut *state) = true;
+        *value_mut(&mut state) = value;
+        *was_set_mut(&mut state) = true;
     }
 
     pub fn set_skip_up_to_date_checks(&self, skip: bool) {
@@ -464,4 +464,20 @@ fn new_reqwest_client(config: &HttpClientConfig) -> anyhow::Result<reqwest::Clie
     }
 
     Ok(builder.connection_verbose(true).build()?)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::context::Context;
+    use std::marker::PhantomData;
+    use test_r::test;
+
+    struct CheckSend<T: Send>(PhantomData<T>);
+    struct CheckSync<T: Sync>(PhantomData<T>);
+
+    #[test]
+    fn test_context_is_send_sync() {
+        // TODO let _ = CheckSend::<Context>(PhantomData); // Compile error if not Send
+        // TODO let _ = CheckSync::<Context>(PhantomData);
+    }
 }

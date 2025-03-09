@@ -12,68 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::app::AppSubcommand;
-use crate::command::component::ComponentSubcommand;
-use crate::command::shared_args::{BuildArgs, ForceBuildArg};
-use crate::command::worker::WorkerSubcommand;
 use crate::command::{
-    GolemCliCommand, GolemCliCommandParseResult, GolemCliCommandPartialMatch,
-    GolemCliFallbackCommand, GolemCliGlobalFlags, GolemCliSubcommand,
+    GolemCliCommand, GolemCliCommandParseResult, GolemCliFallbackCommand, GolemCliGlobalFlags,
+    GolemCliSubcommand,
 };
 use crate::command_handler::app::AppCommandHandler;
-use crate::command_handler::partial_match::PartialMatchHandler;
-use crate::command_handler::worker::WorkerCommandHandler;
-use crate::config::Config;
-use crate::context::{Context, GolemClients};
-use crate::error::NonSuccessfulExit;
-use crate::fuzzy::{Error, FuzzySearch};
-use crate::init_tracing;
-use crate::model::app_ext::GolemComponentExtensions;
-use crate::model::component::{function_params_types, show_exported_functions, Component};
-use crate::model::invoke_result_view::InvokeResultView;
-use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
-use crate::model::text::fmt::{format_export, log_error, TextView};
-use crate::model::text::help::{
-    ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp,
-    ParameterErrorTableView, WorkerNameHelp,
-};
-use crate::model::{ComponentName, WorkerName};
-use anyhow::Context as AnyhowContext;
-use anyhow::{anyhow, bail};
-use colored::Colorize;
-use golem_client::api::{ComponentClient as ComponentClientOss, WorkerClient as WorkerClientOss};
-
 use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::log::LogHandler;
-use golem_examples::add_component_by_example;
-use golem_examples::model::{ComposableAppGroupName, PackageName};
-use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
-use golem_wasm_rpc::parse_type_annotated_value;
-use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
-use golem_wasm_rpc_stubgen::commands::app::{
-    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
-};
-use golem_wasm_rpc_stubgen::fs;
-use golem_wasm_rpc_stubgen::log::Output::Stdout;
-use golem_wasm_rpc_stubgen::log::{
-    log_action, logln, set_log_output, LogColorize, LogIndent, LogOutput, Output,
-};
-use golem_wasm_rpc_stubgen::model::app::{ComponentName as AppComponentName, DependencyType};
-use indoc::formatdoc;
-use itertools::{EitherOrBoth, Itertools};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use crate::command_handler::partial_match::ErrorHandler;
+use crate::command_handler::worker::WorkerCommandHandler;
+use crate::config::Config;
+use crate::context::Context;
+use crate::error::{HintError, NonSuccessfulExit};
+use crate::init_tracing;
+use crate::model::text::fmt::log_error;
+use golem_wasm_rpc_stubgen::log::logln;
 use std::ffi::OsString;
-use std::fmt::Debug;
-use std::future::Future;
-use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
-use tokio::fs::File;
 use tracing::{debug, Level};
-use tracing_subscriber::fmt::format;
-use uuid::Uuid;
 
 mod app;
 mod component;
@@ -106,11 +63,27 @@ impl CommandHandler {
             GolemCliCommandParseResult::FullMatch(command) => {
                 init_tracing(command.global_flags.verbosity);
 
+                let mut handler = Self::new(&command.global_flags);
                 // TODO: handle hint errors
-                Self::new(&command.global_flags)
+                let result = handler
                     .handle_command(command)
                     .await
-                    .map(|_| ExitCode::SUCCESS)
+                    .map(|()| ExitCode::SUCCESS);
+
+                match result {
+                    Ok(result) => Ok(result),
+                    Err(error) => {
+                        if let Some(hint_error) = error.downcast_ref::<HintError>() {
+                            handler
+                                .ctx
+                                .error_handler()
+                                .handle_hint_errors(hint_error)
+                                .map(|()| ExitCode::FAILURE)
+                        } else {
+                            Err(error)
+                        }
+                    }
+                }
             }
             GolemCliCommandParseResult::ErrorWithPartialMatch {
                 error,
@@ -124,7 +97,7 @@ impl CommandHandler {
 
                 Self::new(&fallback_command.global_flags)
                     .ctx
-                    .partial_match_handler()
+                    .error_handler()
                     .handle_partial_match(partial_match)
                     .await
                     .map(|_| clamp_exit_code(error.exit_code()))
@@ -154,22 +127,16 @@ impl CommandHandler {
     async fn handle_command(&mut self, command: GolemCliCommand) -> anyhow::Result<()> {
         match command.subcommand {
             GolemCliSubcommand::App { subcommand } => {
-                self.ctx
-                    .app_handler()
-                    .handle_app_subcommand(subcommand)
-                    .await
+                self.ctx.app_handler().handle_command(subcommand).await
             }
             GolemCliSubcommand::Component { subcommand } => {
                 self.ctx
                     .component_handler()
-                    .handle_component_subcommand(subcommand)
+                    .handle_command(subcommand)
                     .await
             }
             GolemCliSubcommand::Worker { subcommand } => {
-                self.ctx
-                    .worker_handler()
-                    .handle_worker_subcommand(subcommand)
-                    .await
+                self.ctx.worker_handler().handle_command(subcommand).await
             }
             GolemCliSubcommand::Api { .. } => {
                 todo!()
@@ -200,7 +167,7 @@ trait GetHandler {
     fn app_handler(&self) -> AppCommandHandler;
     fn component_handler(&self) -> ComponentCommandHandler;
     fn log_handler(&self) -> LogHandler;
-    fn partial_match_handler(&self) -> PartialMatchHandler;
+    fn error_handler(&self) -> ErrorHandler;
     fn worker_handler(&self) -> WorkerCommandHandler;
 }
 
@@ -217,8 +184,8 @@ impl GetHandler for Arc<Context> {
         LogHandler::new(Arc::clone(self))
     }
 
-    fn partial_match_handler(&self) -> PartialMatchHandler {
-        PartialMatchHandler::new(Arc::clone(self))
+    fn error_handler(&self) -> ErrorHandler {
+        ErrorHandler::new(Arc::clone(self))
     }
 
     fn worker_handler(&self) -> WorkerCommandHandler {

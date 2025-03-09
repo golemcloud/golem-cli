@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use crate::command::worker::WorkerSubcommand;
-use crate::command_handler::app::AppCommandHandler;
-use crate::command_handler::component::ComponentCommandHandler;
-use crate::command_handler::{CommandHandler, GetHandler};
+use crate::command_handler::GetHandler;
 use crate::context::{Context, GolemClients};
 use crate::error::{to_service_error, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
@@ -47,7 +45,7 @@ impl WorkerCommandHandler {
         Self { ctx }
     }
 
-    pub(crate) async fn handle_worker_subcommand(
+    pub(crate) async fn handle_command(
         &mut self,
         subcommand: WorkerSubcommand,
     ) -> anyhow::Result<()> {
@@ -66,7 +64,7 @@ impl WorkerCommandHandler {
                 let component = match self
                     .ctx
                     .component_handler()
-                    .service_component_by_name(&component_name.0)
+                    .component_by_name(&component_name.0)
                     .await?
                 {
                     Some(component) => component,
@@ -107,7 +105,7 @@ impl WorkerCommandHandler {
                             .await?;
                         self.ctx
                             .component_handler()
-                            .service_component_by_name(&component_name.0)
+                            .component_by_name(&component_name.0)
                             .await?
                             .ok_or_else(|| {
                                 anyhow!("Component ({}) not found after deployment", component_name)
@@ -132,7 +130,7 @@ impl WorkerCommandHandler {
                                     function_name.log_color_error_highlight()
                                 ));
                                 logln("");
-                                logln("Did you mean one of".to_string());
+                                logln("Did you mean one of");
                                 for option in highlighted_options {
                                     logln(format!(" - {}", option.bold()));
                                 }
@@ -306,7 +304,7 @@ impl WorkerCommandHandler {
 
                 self.ctx
                     .app_handler()
-                    .opt_select_app_components(vec![], &ComponentSelectMode::CurrentDir)?;
+                    .opt_select_components(vec![], &ComponentSelectMode::CurrentDir)?;
 
                 let app_ctx = self.ctx.app_context();
                 let app_ctx = app_ctx.opt()?;
@@ -385,7 +383,7 @@ impl WorkerCommandHandler {
 
                 self.ctx
                     .app_handler()
-                    .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
+                    .opt_select_components(vec![], &ComponentSelectMode::All)?;
 
                 let app_ctx = self.ctx.app_context();
                 let app_ctx = app_ctx.opt()?;
@@ -411,7 +409,7 @@ impl WorkerCommandHandler {
                                         component_name.log_color_error_highlight()
                                     ));
                                     logln("");
-                                    logln("Did you mean one of".to_string());
+                                    logln("Did you mean one of");
                                     for option in highlighted_options {
                                         logln(format!(" - {}", option.bold()));
                                     }
@@ -466,7 +464,7 @@ fn wave_args_to_invoke_args(
     function_name: &str,
     wave_args: Vec<String>,
 ) -> anyhow::Result<Vec<OptionallyTypeAnnotatedValueJson>> {
-    let types = function_params_types(&component, function_name)?;
+    let types = function_params_types(component, function_name)?;
 
     if types.len() != wave_args.len() {
         logln("");
@@ -480,7 +478,6 @@ fn wave_args_to_invoke_args(
             types
                 .into_iter()
                 .zip_longest(wave_args)
-                .into_iter()
                 .map(|zipped| match zipped {
                     EitherOrBoth::Both(typ, value) => ArgumentError {
                         type_: Some(typ.clone()),
@@ -523,7 +520,6 @@ fn wave_args_to_invoke_args(
                 .zip(types)
                 .zip(wave_args)
                 .map(|((parsed, typ), value)| (parsed, typ, value))
-                .into_iter()
                 .map(|(parsed, typ, value)| ArgumentError {
                     type_: Some(typ.clone()),
                     value: Some(value),
@@ -537,12 +533,12 @@ fn wave_args_to_invoke_args(
         bail!(NonSuccessfulExit);
     }
 
-    Ok(type_annotated_values
+    type_annotated_values
         .into_iter()
         .collect::<Result<Vec<_>, _>>()
         .map_err(|err| anyhow!(err))?
         .into_iter()
         .map(|tav| tav.try_into())
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| anyhow!("Failed to convert type annotated value: {err}"))?)
+        .map_err(|err| anyhow!("Failed to convert type annotated value: {err}"))
 }

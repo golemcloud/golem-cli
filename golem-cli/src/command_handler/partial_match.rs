@@ -13,13 +13,11 @@
 // limitations under the License.
 
 use crate::command::GolemCliCommandPartialMatch;
-use crate::command_handler::app::AppCommandHandler;
-use crate::command_handler::component::ComponentCommandHandler;
-use crate::command_handler::worker::WorkerCommandHandler;
-use crate::command_handler::{CommandHandler, GetHandler};
+use crate::command_handler::GetHandler;
 use crate::context::Context;
+use crate::error::HintError;
 use crate::model::component::show_exported_functions;
-use crate::model::text::fmt::{log_text_view, NestedTextViewIndent};
+use crate::model::text::fmt::{log_error, log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
 use crate::model::ComponentNameMatchKind;
 use colored::Colorize;
@@ -27,11 +25,11 @@ use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSect
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
 use std::sync::Arc;
 
-pub struct PartialMatchHandler {
+pub struct ErrorHandler {
     ctx: Arc<Context>,
 }
 
-impl PartialMatchHandler {
+impl ErrorHandler {
     pub fn new(ctx: Arc<Context>) -> Self {
         Self { ctx }
     }
@@ -69,7 +67,7 @@ impl PartialMatchHandler {
                 self.ctx.silence_app_context_init();
                 self.ctx
                     .app_handler()
-                    .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
+                    .opt_select_components(vec![], &ComponentSelectMode::All)?;
 
                 let app_ctx = self.ctx.app_context();
                 if let Some(app_ctx) = app_ctx.opt()? {
@@ -88,7 +86,7 @@ impl PartialMatchHandler {
                 self.ctx.silence_app_context_init();
                 self.ctx
                     .app_handler()
-                    .opt_select_app_components(vec![], &ComponentSelectMode::All)?;
+                    .opt_select_components(vec![], &ComponentSelectMode::All)?;
 
                 let app_ctx = self.ctx.app_context();
                 if let Some(app_ctx) = app_ctx.opt()? {
@@ -150,7 +148,7 @@ impl PartialMatchHandler {
                 if let Ok(Some(component)) = self
                     .ctx
                     .component_handler()
-                    .service_component_by_name(&component_name.0)
+                    .component_by_name(&component_name.0)
                     .await
                 {
                     log_text_view(&AvailableFunctionNamesHelp {
@@ -159,6 +157,24 @@ impl PartialMatchHandler {
                     });
                     logln("");
                 }
+                Ok(())
+            }
+        }
+    }
+
+    pub fn handle_hint_errors(&self, hint_error: &HintError) -> anyhow::Result<()> {
+        match hint_error {
+            HintError::NoApplicationManifestFound => {
+                logln("");
+                log_error("No application manifest(s) found!");
+                logln(format!(
+                    "Switch to a directory that contains an application manifest ({}),",
+                    "golem.yaml".log_color_highlight()
+                ));
+                logln(format!(
+                    "or create a new application with the '{}' subcommand!",
+                    "app new".log_color_highlight(),
+                ));
                 Ok(())
             }
         }

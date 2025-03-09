@@ -1,6 +1,5 @@
 use crate::fs::{OverwriteSafeAction, OverwriteSafeActionPlan, PathExtra};
 use colored::{ColoredString, Colorize};
-use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, RwLock};
 use tracing::debug;

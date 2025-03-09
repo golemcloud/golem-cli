@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command_handler::CommandHandler;
 use crate::context::Context;
 use crate::model::text::fmt::TextView;
 use serde::de::DeserializeOwned;
@@ -20,12 +19,12 @@ use serde::Serialize;
 use std::sync::Arc;
 
 pub struct LogHandler {
-    ctx: Arc<Context>,
+    _ctx: Arc<Context>,
 }
 
 impl LogHandler {
     pub fn new(ctx: Arc<Context>) -> Self {
-        Self { ctx }
+        Self { _ctx: ctx }
     }
 
     pub(crate) fn log_view<View: TextView + Serialize + DeserializeOwned>(&self, view: &View) {
