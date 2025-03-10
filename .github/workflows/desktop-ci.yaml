@@ -78,7 +78,7 @@ jobs:
         projectPath: "./desktop-app"
 
     - name: Upload artifacts
-      if: startsWith(github.ref, 'refs/tags/') # commented out for now to test the artifact upload
+      if: startsWith(github.ref, 'refs/tags/')
       uses: actions/upload-artifact@v4
       with:
         name: golem-app-${{ matrix.platform }}-${{ matrix.target || 'default' }}
