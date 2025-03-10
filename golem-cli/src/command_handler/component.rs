@@ -399,7 +399,7 @@ impl ComponentCommandHandler {
             .ctx
             .app_handler()
             .opt_select_components_allow_not_found(
-                component_name.into_iter().map(|cn| cn.clone()).collect(),
+                component_name.into_iter().cloned().collect(),
                 &ComponentSelectMode::CurrentDir,
             )?;
 

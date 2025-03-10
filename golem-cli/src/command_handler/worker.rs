@@ -203,7 +203,7 @@ impl WorkerCommandHandler {
 
         let component_functions = show_exported_functions(&component.metadata.exports);
         let fuzzy_search = FuzzySearch::new(component_functions.iter().map(|s| s.as_str()));
-        let function_name = match fuzzy_search.find(&function_name) {
+        let function_name = match fuzzy_search.find(function_name) {
             Ok(match_) => {
                 log_fuzzy_match(&match_);
                 match_.option

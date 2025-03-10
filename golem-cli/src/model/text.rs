@@ -330,7 +330,7 @@ pub mod fmt {
     pub fn log_fuzzy_matches(matches: &[Match]) {
         for m in matches {
             if !m.exact_match {
-                log_fuzzy_match(&m);
+                log_fuzzy_match(m);
             }
         }
     }

@@ -283,6 +283,12 @@ impl Display for WorkerName {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct IdempotencyKey(pub String);
 
+impl Default for IdempotencyKey {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IdempotencyKey {
     pub fn new() -> Self {
         IdempotencyKey(Uuid::new_v4().to_string())
