@@ -21,7 +21,7 @@ use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::component::{Component, ComponentView};
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
 use crate::model::text::fmt::{log_error, log_warn, NestedTextViewIndent};
-use crate::model::ComponentName;
+use crate::model::{ComponentName, ComponentNameMatchKind};
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
 use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
@@ -401,6 +401,59 @@ impl ComponentCommandHandler {
         }
 
         Ok(selected_component_names)
+    }
+
+    pub(crate) async fn component_by_name_with_auto_deploy(
+        &self,
+        component_match_kind: ComponentNameMatchKind,
+        component_name: &ComponentName,
+    ) -> anyhow::Result<Component> {
+        match self.component_by_name(&component_name.0).await? {
+            Some(component) => Ok(component),
+            None => {
+                let should_deploy = match component_match_kind {
+                    ComponentNameMatchKind::AppCurrentDir => true,
+                    ComponentNameMatchKind::App => true,
+                    ComponentNameMatchKind::Unknown => false,
+                };
+
+                if !should_deploy {
+                    logln("");
+                    log_error(format!(
+                        "Component {} not found, and not part of the current application",
+                        component_name.0.log_color_highlight()
+                    ));
+                    // TODO: fuzzy match from service to list components
+                    bail!(NonSuccessfulExit)
+                }
+
+                // TODO: we will need hashes to reliably detect if "update" deploy is needed
+                //       and for now we should not blindly keep updating, so for now
+                //       only missing one are handled
+                log_action(
+                    "Auto deploying",
+                    format!(
+                        "missing component {}",
+                        component_name.0.log_color_highlight()
+                    ),
+                );
+                self.ctx
+                    .component_handler()
+                    .deploy(
+                        vec![component_name.clone()],
+                        None,
+                        &ComponentSelectMode::CurrentDir,
+                    )
+                    .await?;
+                self.ctx
+                    .component_handler()
+                    .component_by_name(&component_name.0)
+                    .await?
+                    .ok_or_else(|| {
+                        anyhow!("Component ({}) not found after deployment", component_name)
+                    })
+            }
+        }
     }
 
     // TODO: we might want to have a filter for batch name lookups on the server side

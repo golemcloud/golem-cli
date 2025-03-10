@@ -875,18 +875,23 @@ pub mod worker {
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct WorkerAddView {
+    pub struct WorkerCreateView {
         pub component_name: ComponentName,
         pub worker_name: Option<WorkerName>,
     }
 
-    impl MessageWithFields for WorkerAddView {
+    impl MessageWithFields for WorkerCreateView {
         fn message(&self) -> String {
             if let Some(worker_name) = &self.worker_name {
-                format!("Added worker {}", format_message_highlight(&worker_name))
-            } else {
                 format!(
-                    "Added worker with a {}",
+                    "Created new worker {}",
+                    format_message_highlight(&worker_name)
+                )
+            } else {
+                // TODO: review: do we really want to hide the worker name? it is provided now
+                //       in "worker new"
+                format!(
+                    "Created new worker with a {}",
                     format_message_highlight("random generated name")
                 )
             }
@@ -900,6 +905,10 @@ pub mod worker {
                 .fmt_field_option("Worker name", &self.worker_name, format_main_id);
 
             fields.build()
+        }
+
+        fn nest_ident_fields() -> bool {
+            true
         }
     }
 

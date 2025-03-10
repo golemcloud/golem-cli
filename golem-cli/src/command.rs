@@ -21,10 +21,12 @@ use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use crate::model::{Format, WorkerName};
+use anyhow::anyhow;
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
 use clap_verbosity_flag::Verbosity;
+use golem_wasm_rpc_stubgen::log::LogColorize;
 use lenient_bool::LenientBool;
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -381,7 +383,7 @@ pub enum GolemCliSubcommand {
 }
 
 pub mod shared_args {
-    use crate::model::ComponentName;
+    use crate::model::{ComponentName, WorkerName};
     use clap::Args;
     use golem_examples::model::GuestLanguage;
     use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
@@ -391,6 +393,7 @@ pub mod shared_args {
     pub type ProjectName = String;
     pub type NewComponentName = String;
     pub type WorkerFunctionArgument = String;
+    pub type NewWorkerArgument = String;
     pub type WorkerFunctionName = String;
 
     #[derive(Debug, Args)]
@@ -442,6 +445,11 @@ pub mod shared_args {
         pub step: Vec<AppBuildStep>,
         #[command(flatten)]
         pub force_build: ForceBuildArg,
+    }
+
+    #[derive(Debug, Args)]
+    pub struct WorkerNameArg {
+        pub worker_name: WorkerName,
     }
 }
 
@@ -540,18 +548,35 @@ pub mod component {
 }
 
 pub mod worker {
-    use crate::command::shared_args::{WorkerFunctionArgument, WorkerFunctionName};
-    use crate::model::WorkerName;
+    use crate::command::parse_key_val;
+    use crate::command::shared_args::{
+        NewWorkerArgument, WorkerFunctionArgument, WorkerFunctionName, WorkerNameArg,
+    };
+    use crate::model::IdempotencyKey;
     use clap::Subcommand;
 
     #[derive(Debug, Subcommand)]
     pub enum WorkerSubcommand {
+        New {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+            arguments: Vec<NewWorkerArgument>,
+            #[arg(short, long, value_parser = parse_key_val, value_name = "ENV=VAL")]
+            env: Vec<(String, String)>,
+        },
+        // TODO: json args
+        // TODO: connect
         Invoke {
-            worker_name: WorkerName,
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
             function_name: WorkerFunctionName,
             arguments: Vec<WorkerFunctionArgument>,
+            /// Enqueue invocation, and do not wait for it
             #[clap(long, short, default_value = "false")]
             enqueue: bool,
+            /// Set idempotency key for the call, use "-" for auto generated key
+            #[clap(long, short)]
+            idempotency_key: Option<IdempotencyKey>,
         },
     }
 }
@@ -850,4 +875,17 @@ mod test {
                 .join("\n")
         )
     }
+}
+
+fn parse_key_val(key_and_val: &str) -> anyhow::Result<(String, String)> {
+    let pos = key_and_val.find('=').ok_or_else(|| {
+        anyhow!(
+            "invalid KEY=VALUE: no `=` found in `{}`",
+            key_and_val.log_color_error_highlight()
+        )
+    })?;
+    Ok((
+        key_and_val[..pos].to_string(),
+        key_and_val[pos + 1..].to_string(),
+    ))
 }

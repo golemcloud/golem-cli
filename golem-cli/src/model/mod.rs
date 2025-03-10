@@ -285,8 +285,14 @@ impl Display for WorkerName {
 pub struct IdempotencyKey(pub String);
 
 impl IdempotencyKey {
-    pub fn fresh() -> Self {
+    pub fn new() -> Self {
         IdempotencyKey(Uuid::new_v4().to_string())
+    }
+}
+
+impl From<&str> for IdempotencyKey {
+    fn from(value: &str) -> Self {
+        IdempotencyKey(value.to_string())
     }
 }
 

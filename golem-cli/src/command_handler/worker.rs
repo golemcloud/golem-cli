@@ -24,17 +24,21 @@ use crate::model::text::help::{
     ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp,
     ParameterErrorTableView, WorkerNameHelp,
 };
-use crate::model::{ComponentName, ComponentNameMatchKind, WorkerName};
+use crate::model::text::worker::WorkerCreateView;
+use crate::model::{ComponentName, ComponentNameMatchKind, IdempotencyKey, WorkerName};
 use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_client::api::WorkerClient as WorkerClientOss;
-use golem_client::model::InvokeParameters as InvokeParametersOss;
+use golem_client::model::{
+    InvokeParameters as InvokeParametersOss, WorkerCreationRequest as WorkerCreationRequestOss,
+};
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
 use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
 use itertools::{EitherOrBoth, Itertools};
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub struct WorkerCommandHandler {
     ctx: Arc<Context>,
@@ -50,68 +54,103 @@ impl WorkerCommandHandler {
         subcommand: WorkerSubcommand,
     ) -> anyhow::Result<()> {
         match subcommand {
-            WorkerSubcommand::Invoke {
+            WorkerSubcommand::New {
                 worker_name,
-                function_name,
                 arguments,
-                enqueue,
+                env,
             } => {
+                let worker_name = worker_name.worker_name;
+
                 self.ctx.silence_app_context_init();
 
                 let (component_match_kind, component_name, worker_name) =
                     self.match_worker_name(worker_name).await?;
 
-                let component = match self
+                let component = self
                     .ctx
                     .component_handler()
-                    .component_by_name(&component_name.0)
-                    .await?
-                {
-                    Some(component) => component,
-                    None => {
-                        let should_deploy = match component_match_kind {
-                            ComponentNameMatchKind::AppCurrentDir => true,
-                            ComponentNameMatchKind::App => true,
-                            ComponentNameMatchKind::Unknown => false,
-                        };
+                    .component_by_name_with_auto_deploy(component_match_kind, &component_name)
+                    .await?;
 
-                        if !should_deploy {
-                            logln("");
-                            log_error(format!(
-                                "Component {} not found, and not part of the current application",
-                                component_name.0.log_color_highlight()
-                            ));
-                            // TODO: fuzzy match from service to list components
-                            bail!(NonSuccessfulExit)
-                        }
+                // TODO: should we fail on explicit names for ephemeral?
+                let worker_name = worker_name.unwrap_or_else(|| Uuid::new_v4().to_string().into());
 
-                        // TODO: we will need hashes to reliably detect if "update" deploy is needed
-                        //       and for now we should not blindly keep updating, so for now
-                        //       only missing one are handled
-                        log_action(
-                            "Auto deploying",
-                            format!(
-                                "missing component {}",
-                                component_name.0.log_color_highlight()
-                            ),
-                        );
-                        self.ctx
-                            .component_handler()
-                            .deploy(
-                                vec![component_name.clone()],
-                                None,
-                                &ComponentSelectMode::CurrentDir,
-                            )
-                            .await?;
-                        self.ctx
-                            .component_handler()
-                            .component_by_name(&component_name.0)
-                            .await?
-                            .ok_or_else(|| {
-                                anyhow!("Component ({}) not found after deployment", component_name)
-                            })?
+                // TODO: log args / env?
+                log_action(
+                    "Creating",
+                    format!(
+                        "new worker {} / {}",
+                        component_name.0.blue().bold(),
+                        worker_name.0.green().bold(),
+                    ),
+                );
+
+                // TODO: should use the returned API response? (like component version)
+                let _ = match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => clients
+                        .worker
+                        .launch_new_worker(
+                            &component.versioned_component_id.component_id,
+                            &WorkerCreationRequestOss {
+                                name: worker_name.0.clone(),
+                                args: arguments,
+                                env: env.into_iter().collect(),
+                            },
+                        )
+                        .await
+                        .map_err(to_service_error)?,
+                    GolemClients::Cloud(_) => {
+                        todo!()
                     }
                 };
+
+                logln("");
+                self.ctx.log_handler().log_view(&WorkerCreateView {
+                    component_name,
+                    worker_name: Some(worker_name),
+                });
+
+                Ok(())
+            }
+            WorkerSubcommand::Invoke {
+                worker_name,
+                function_name,
+                arguments,
+                enqueue,
+                idempotency_key,
+            } => {
+                let worker_name = worker_name.worker_name;
+
+                self.ctx.silence_app_context_init();
+
+                let idempotency_key = idempotency_key.map(|key| {
+                    if key.0 == "-" {
+                        let key = IdempotencyKey::new();
+                        log_action(
+                            "Using",
+                            format!(
+                                "auto generated idempotency key: {}",
+                                key.0.log_color_highlight()
+                            ),
+                        );
+                        key.0
+                    } else {
+                        log_action(
+                            "Using",
+                            format!("requested idempotency key: {}", key.0.log_color_highlight()),
+                        );
+                        key.0
+                    }
+                });
+
+                let (component_match_kind, component_name, worker_name) =
+                    self.match_worker_name(worker_name).await?;
+
+                let component = self
+                    .ctx
+                    .component_handler()
+                    .component_by_name_with_auto_deploy(component_match_kind, &component_name)
+                    .await?;
 
                 let component_functions = show_exported_functions(&component.metadata.exports);
                 let fuzzy_search = FuzzySearch::new(component_functions.iter().map(|s| s.as_str()));
@@ -205,7 +244,7 @@ impl WorkerCommandHandler {
                                         .invoke_function(
                                             &component.versioned_component_id.component_id,
                                             worker_name.0.as_str(),
-                                            None, // TODO: idempotency key
+                                            idempotency_key.as_deref(),
                                             function_name.as_str(),
                                             &InvokeParametersOss { params: arguments },
                                         )
@@ -219,7 +258,7 @@ impl WorkerCommandHandler {
                                             .invoke_and_await_function(
                                                 &component.versioned_component_id.component_id,
                                                 worker_name.0.as_str(),
-                                                None, // TODO: idempotency key
+                                                idempotency_key.as_deref(),
                                                 function_name.as_str(),
                                                 &InvokeParametersOss { params: arguments },
                                             )
@@ -234,7 +273,7 @@ impl WorkerCommandHandler {
                                         .worker
                                         .invoke_function_without_name(
                                             &component.versioned_component_id.component_id,
-                                            None, // TODO: idempotency key
+                                            idempotency_key.as_deref(),
                                             function_name.as_str(),
                                             &InvokeParametersOss { params: arguments },
                                         )
@@ -247,7 +286,7 @@ impl WorkerCommandHandler {
                                             .worker
                                             .invoke_and_await_function_without_name(
                                                 &component.versioned_component_id.component_id,
-                                                None, // TODO: idempotency key
+                                                idempotency_key.as_deref(),
                                                 function_name.as_str(),
                                                 &InvokeParametersOss { params: arguments },
                                             )
@@ -257,7 +296,7 @@ impl WorkerCommandHandler {
                                 }
                             }
                         };
-                        // TODO: handle json format
+                        // TODO: handle json format and include idempotency key in it
                         result
                             .map(|result| {
                                 InvokeResultView::try_parse_or_json(
