@@ -37,7 +37,7 @@ jobs:
     - uses: davidB/rust-cargo-make@v1
     - uses: cargo-bins/cargo-binstall@main
     - name: Install cargo-component
-      run: cargo install --no-confirm cargo-component@0.20.0
+      run: cargo install cargo-component@0.20.0
     - name: Install wasm-tools
       run: cargo install --force --locked wasm-tools@1.223.0
     - name: Install wit-bindgen
