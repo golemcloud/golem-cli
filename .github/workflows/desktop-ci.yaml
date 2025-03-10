@@ -2,10 +2,9 @@ name: "Desktop CI"
 
 on:
   pull_request:
-    branches:
-      - main
     paths:
     - 'desktop-app/**'
+    - '.github/workflows/desktop-ci.yaml'
   push:
     branches:
     - main
@@ -14,6 +13,7 @@ on:
     # - "v*.*.*"
     paths:
     - 'desktop-app/**'
+    - '.github/workflows/desktop-ci.yaml'
 
 jobs:
   test-tauri:
@@ -55,7 +55,7 @@ jobs:
         targets: ${{ matrix.targets }}
 
     - name: Setup Rust cache
-      uses: Swatinem/rust-cache@v2
+      uses: useblacksmith/rust-cache@v3
       with:
         workspaces: "./desktop-app/src-tauri -> target"
 
