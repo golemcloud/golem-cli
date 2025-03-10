@@ -6,11 +6,13 @@ use tracing::debug;
 
 static LOG_STATE: LazyLock<RwLock<LogState>> = LazyLock::new(RwLock::default);
 
+// TODO: let's add another output for tracing debug and use that for silent mode in cli
 #[derive(Debug, Clone, Copy)]
 pub enum Output {
     Stdout,
     Stderr,
     None,
+    TracingDebug,
 }
 
 struct LogState {
@@ -144,6 +146,9 @@ pub fn logln_internal(output: Output, message: &str) {
             eprintln!("{}", message)
         }
         Output::None => {}
+        Output::TracingDebug => {
+            debug!("{}", message);
+        }
     }
 }
 

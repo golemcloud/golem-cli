@@ -13,12 +13,13 @@
 // limitations under the License.
 
 pub mod fmt {
+    use crate::fuzzy::Match;
     use crate::model::Format;
     use cli_table::{Row, Title, WithTitle};
     use colored::control::SHOULD_COLORIZE;
     use colored::Colorize;
     use golem_client::model::WorkerStatus;
-    use golem_wasm_rpc_stubgen::log::{logln, LogColorize, LogIndent};
+    use golem_wasm_rpc_stubgen::log::{log_warn_action, logln, LogColorize, LogIndent};
     use itertools::Itertools;
     use regex::Regex;
     use std::collections::BTreeMap;
@@ -324,6 +325,25 @@ pub mod fmt {
 
     pub fn log_warn<S: AsRef<str>>(message: S) {
         logln(format!("{} {}", "warn:".log_color_warn(), message.as_ref()));
+    }
+
+    pub fn log_fuzzy_matches(matches: &[Match]) {
+        for m in matches {
+            if !m.exact_match {
+                log_fuzzy_match(&m);
+            }
+        }
+    }
+
+    pub fn log_fuzzy_match(m: &Match) {
+        log_warn_action(
+            "Fuzzy matched",
+            format!(
+                "pattern {} as {}",
+                m.pattern.log_color_highlight(),
+                m.option.log_color_ok_highlight()
+            ),
+        );
     }
 
     pub struct NestedTextViewIndent {
@@ -882,7 +902,7 @@ pub mod worker {
     };
     use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
     use golem_wasm_rpc::{print_type_annotated_value, ValueAndType};
-    use golem_wasm_rpc_stubgen::log::logln;
+    use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
     use indoc::{formatdoc, indoc};
     use itertools::Itertools;
     use serde::{Deserialize, Serialize};
@@ -1025,22 +1045,15 @@ pub mod worker {
         fn log(&self) {
             log_table::<_, WorkerMetadataTableView>(&self.workers);
 
-            if let Some(cursor) = &self.cursor {
-                let layer = cursor.layer;
-                let cursor = cursor.cursor;
-
-                logln(
-                    formatdoc!(
-                        "
-
-                        There are more workers to display.
-                        To fetch next page use cursor {layer}/{cursor} this way:
-                        worker list --cursor {layer}/{cursor} ...
-                        "
-                    )
-                    .yellow()
-                    .to_string(),
-                );
+            if !self.cursors.is_empty() {
+                logln("");
+            }
+            for (component_name, cursor) in &self.cursors {
+                logln(format!(
+                    "Cursor for more results for component {}: {}",
+                    component_name.log_color_highlight(),
+                    cursor.log_color_highlight()
+                ));
             }
         }
     }

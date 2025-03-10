@@ -22,14 +22,15 @@ use crate::error::{to_service_error, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::model::component::{function_params_types, show_exported_functions, Component};
 use crate::model::invoke_result_view::InvokeResultView;
-use crate::model::text::fmt::{format_export, log_error, log_text_view};
+use crate::model::text::fmt::{format_export, log_error, log_fuzzy_match, log_text_view, log_warn};
 use crate::model::text::help::{
     ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp,
     ParameterErrorTableView, WorkerNameHelp,
 };
 use crate::model::text::worker::{WorkerCreateView, WorkerGetView};
 use crate::model::{
-    ComponentName, ComponentNameMatchKind, IdempotencyKey, WorkerMetadata, WorkerName,
+    ComponentName, ComponentNameMatchKind, IdempotencyKey, WorkerMetadata, WorkerMetadataView,
+    WorkerName, WorkersMetadataResponseView,
 };
 use anyhow::{anyhow, bail};
 use colored::Colorize;
@@ -83,14 +84,14 @@ impl WorkerCommandHandler {
                 component_name,
                 filters,
                 cursor,
-                limit,
+                count,
                 precise,
             } => {
                 self.list(
                     component_name.component_name,
                     filters,
                     cursor,
-                    limit,
+                    count,
                     precise,
                 )
                 .await
@@ -203,7 +204,10 @@ impl WorkerCommandHandler {
         let component_functions = show_exported_functions(&component.metadata.exports);
         let fuzzy_search = FuzzySearch::new(component_functions.iter().map(|s| s.as_str()));
         let function_name = match fuzzy_search.find(&function_name) {
-            Ok(function_name) => function_name.option,
+            Ok(match_) => {
+                log_fuzzy_match(&match_);
+                match_.option
+            }
             Err(error) => {
                 // TODO: extract common ambiguous messages?
                 match error {
@@ -416,7 +420,7 @@ impl WorkerCommandHandler {
                     .await
                     .map_err(to_service_error)?;
 
-                WorkerMetadata::from(result)
+                WorkerMetadata::new(component_name, result)
             }
             GolemClients::Cloud(_) => {
                 todo!()
@@ -435,10 +439,96 @@ impl WorkerCommandHandler {
         component_name: Option<ComponentName>,
         filters: Vec<String>,
         cursor: Option<ScanCursor>,
-        limit: Option<u64>,
+        count: Option<u64>,
         precise: bool,
     ) -> anyhow::Result<()> {
-        todo!()
+        let selected_components = self
+            .ctx
+            .component_handler()
+            .must_select_by_app_or_name(component_name.as_ref())?;
+
+        if cursor.is_some() && selected_components.len() != 1 {
+            log_error(format!(
+                "Cursor cannot be used with multiple components selected! ({})",
+                selected_components
+                    .iter()
+                    .map(|cn| cn.log_color_highlight())
+                    .join(", ")
+            ));
+            logln("");
+            logln("Switch to an application directory with only one component or explicitly specify the requested component name.");
+            logln("");
+            bail!(NonSuccessfulExit);
+        }
+
+        let cursor = cursor.as_ref().map(scan_cursor_to_string);
+
+        let mut view = WorkersMetadataResponseView::default();
+
+        for component_name in selected_components {
+            match self
+                .ctx
+                .component_handler()
+                .component_by_name(&component_name)
+                .await?
+            {
+                Some(component) => match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => {
+                        let mut current_cursor = cursor.clone();
+                        loop {
+                            let results = clients
+                                .worker
+                                .get_workers_metadata(
+                                    &component.versioned_component_id.component_id,
+                                    Some(&filters),
+                                    current_cursor.as_deref(),
+                                    count.or(Some(50)),
+                                    Some(precise),
+                                )
+                                .await
+                                .map_err(to_service_error)?;
+
+                            view.workers.extend(results.workers.into_iter().map(|meta| {
+                                WorkerMetadataView::from(WorkerMetadata::new(
+                                    component_name.clone().into(),
+                                    meta,
+                                ))
+                            }));
+
+                            match results.cursor {
+                                Some(next_cursor) => {
+                                    if count.is_none() {
+                                        current_cursor = Some(scan_cursor_to_string(&next_cursor));
+                                    } else {
+                                        view.cursors.insert(
+                                            component_name.to_string().clone(),
+                                            scan_cursor_to_string(&next_cursor),
+                                        );
+                                        break;
+                                    }
+                                }
+                                None => {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    GolemClients::Cloud(_) => {
+                        todo!()
+                    }
+                },
+                None => {
+                    log_warn(format!(
+                        "Component not found: {}",
+                        component_name.log_color_error_highlight()
+                    ));
+                }
+            }
+        }
+
+        self.ctx.log_handler().log_view(&view);
+
+        Ok(())
     }
 
     pub async fn match_worker_name(
@@ -546,11 +636,14 @@ impl WorkerCommandHandler {
                             app_ctx.application.component_names().map(|cn| cn.as_str()),
                         );
                         match fuzzy_search.find(component_name) {
-                            Ok(match_) => Ok((
-                                ComponentNameMatchKind::App,
-                                match_.option.into(),
-                                to_opt_worker_name(worker_name),
-                            )),
+                            Ok(match_) => {
+                                log_fuzzy_match(&match_);
+                                Ok((
+                                    ComponentNameMatchKind::App,
+                                    match_.option.into(),
+                                    to_opt_worker_name(worker_name),
+                                ))
+                            }
                             Err(error) => match error {
                                 Error::Ambiguous {
                                     highlighted_options,
@@ -694,4 +787,8 @@ fn wave_args_to_invoke_args(
         .map(|tav| tav.try_into())
         .collect::<Result<Vec<_>, _>>()
         .map_err(|err| anyhow!("Failed to convert type annotated value: {err}"))
+}
+
+fn scan_cursor_to_string(cursor: &ScanCursor) -> String {
+    format!("{}/{}", cursor.layer, cursor.cursor)
 }

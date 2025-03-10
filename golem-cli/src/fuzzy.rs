@@ -21,6 +21,7 @@ use std::fmt::Write;
 
 pub struct Match {
     pub option: String,
+    pub pattern: String,
     pub exact_match: bool,
 }
 
@@ -55,6 +56,7 @@ impl<'a> FuzzySearch<'a> {
         if let Some(option) = self.options.get(pattern) {
             return Ok(Match {
                 option: option.to_string(),
+                pattern: pattern.to_string(),
                 exact_match: true,
             });
         }
@@ -69,6 +71,7 @@ impl<'a> FuzzySearch<'a> {
         if contains_matches.len() == 1 {
             return Ok(Match {
                 option: contains_matches[0].to_string(),
+                pattern: pattern.to_string(),
                 exact_match: false,
             });
         }
@@ -91,6 +94,7 @@ impl<'a> FuzzySearch<'a> {
             }),
             1 => Ok(Match {
                 option: fuzzy_matches[0].2.to_string(),
+                pattern: pattern.to_string(),
                 exact_match: false,
             }),
             _ => Err(Error::Ambiguous {

@@ -30,14 +30,13 @@ use clap::builder::{StringValueParser, TypedValueParser};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{Arg, Error, ValueEnum};
 use clap_verbosity_flag::Verbosity;
-use golem_client::model::{ApiDefinitionInfo, ApiSite, Provider, ScanCursor};
+use golem_client::model::{ApiDefinitionInfo, ApiSite, Provider};
 use golem_common::model::trim_date::TrimDateTime;
 use golem_common::model::ComponentId;
 use golem_examples::model::{Example, ExampleName, GuestLanguage, GuestLanguageTier};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::fmt::{Debug, Display, Formatter};
 use std::path::PathBuf;
@@ -598,11 +597,11 @@ pub struct WorkerMetadata {
     pub owned_resources: HashMap<String, golem_client::model::ResourceMetadata>,
 }
 
-impl From<golem_client::model::WorkerMetadata> for WorkerMetadata {
-    fn from(value: golem_client::model::WorkerMetadata) -> Self {
+impl WorkerMetadata {
+    pub fn new(component_name: ComponentName, value: golem_client::model::WorkerMetadata) -> Self {
         WorkerMetadata {
             worker_id: value.worker_id,
-            component_name: "TODO".into(), // TODO
+            component_name,
             account_id: None,
             args: value.args,
             env: value.env,
@@ -620,10 +619,10 @@ impl From<golem_client::model::WorkerMetadata> for WorkerMetadata {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkersMetadataResponseView {
     pub workers: Vec<WorkerMetadataView>,
-    pub cursor: Option<ScanCursor>,
+    pub cursors: BTreeMap<String, String>,
 }
 
 impl TrimDateTime for WorkersMetadataResponseView {
@@ -631,32 +630,6 @@ impl TrimDateTime for WorkersMetadataResponseView {
         Self {
             workers: self.workers.trim_date_time_ms(),
             ..self
-        }
-    }
-}
-
-impl From<WorkersMetadataResponse> for WorkersMetadataResponseView {
-    fn from(value: WorkersMetadataResponse) -> Self {
-        let WorkersMetadataResponse { workers, cursor } = value;
-
-        WorkersMetadataResponseView {
-            workers: workers.into_iter().map_into().collect(),
-            cursor,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct WorkersMetadataResponse {
-    pub workers: Vec<WorkerMetadata>,
-    pub cursor: Option<ScanCursor>,
-}
-
-impl From<golem_client::model::WorkersMetadataResponse> for WorkersMetadataResponse {
-    fn from(value: golem_client::model::WorkersMetadataResponse) -> Self {
-        WorkersMetadataResponse {
-            cursor: value.cursor,
-            workers: value.workers.into_iter().map(|m| m.into()).collect(),
         }
     }
 }

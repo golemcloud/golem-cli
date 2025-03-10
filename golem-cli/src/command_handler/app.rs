@@ -18,7 +18,7 @@ use crate::command_handler::GetHandler;
 use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
-use crate::model::text::fmt::{log_error, log_text_view};
+use crate::model::text::fmt::{log_error, log_fuzzy_matches, log_text_view};
 use crate::model::text::help::AvailableComponentNamesHelp;
 use crate::model::ComponentName;
 use anyhow::{anyhow, bail};
@@ -231,6 +231,7 @@ impl AppCommandHandler {
     }
 
     // TODO: forbid matching the same component multiple times
+    // Returns false if there is no app
     pub fn opt_select_components_internal(
         &mut self,
         component_names: Vec<ComponentName>,
@@ -244,7 +245,7 @@ impl AppCommandHandler {
         };
 
         if component_names.is_empty() {
-            let _log_output = silent_selection.then(|| LogOutput::new(Output::None));
+            let _log_output = silent_selection.then(|| LogOutput::new(Output::TracingDebug));
             app_ctx.select_components(default)?
         } else {
             let fuzzy_search =
@@ -290,7 +291,9 @@ impl AppCommandHandler {
                 bail!(NonSuccessfulExit);
             }
 
-            let _log_output = silent_selection.then(|| LogOutput::new(Output::None));
+            log_fuzzy_matches(&found);
+
+            let _log_output = silent_selection.then(|| LogOutput::new(Output::TracingDebug));
             app_ctx.select_components(&ComponentSelectMode::Explicit(
                 found.into_iter().map(|m| m.option.into()).collect(),
             ))?

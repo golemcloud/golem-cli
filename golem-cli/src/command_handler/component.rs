@@ -82,8 +82,8 @@ impl ComponentCommandHandler {
                 component_name.component_name,
                 &ComponentSelectMode::CurrentDir,
             ),
-            ComponentSubcommand::Versions { component_name } => {
-                self.versions(component_name.component_name).await
+            ComponentSubcommand::List { component_name } => {
+                self.list(component_name.component_name).await
             }
             ComponentSubcommand::Get {
                 component_name,
@@ -219,33 +219,55 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    async fn versions(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
-        // TODO: list "all" on no matches? maybe as a HintError
-        let selected_component_names = self.selection_by_app_or_name(component_name.as_ref())?;
+    async fn list(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
+        let selected_component_names = self.opt_select_by_app_or_name(component_name.as_ref())?;
 
         let mut component_views = Vec::<ComponentView>::new();
 
-        for component_name in selected_component_names {
+        if selected_component_names.is_empty() {
+            // TODO: there is no pagination for components
             match self.ctx.golem_clients().await? {
                 GolemClients::Oss(clients) => {
                     let results = clients
                         .component
-                        .get_components(Some(component_name.as_str()))
+                        .get_components(None)
                         .await
                         .map_err(to_service_error)?;
-                    if results.is_empty() {
-                        log_warn(format!(
-                            "No versions found for component {}",
-                            component_name.as_str().log_color_highlight()
-                        ));
-                    } else {
-                        for result in results {
-                            component_views.push(Component::from(result).into());
-                        }
-                    }
+                    component_views.extend(
+                        results
+                            .into_iter()
+                            .map(|meta| ComponentView::from(Component::from(meta))),
+                    );
                 }
                 GolemClients::Cloud(_) => {
                     todo!()
+                }
+            }
+        } else {
+            for component_name in selected_component_names {
+                match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => {
+                        let results = clients
+                            .component
+                            .get_components(Some(component_name.as_str()))
+                            .await
+                            .map_err(to_service_error)?;
+                        if results.is_empty() {
+                            log_warn(format!(
+                                "No versions found for component {}",
+                                component_name.as_str().log_color_highlight()
+                            ));
+                        } else {
+                            component_views.extend(
+                                results
+                                    .into_iter()
+                                    .map(|meta| ComponentView::from(Component::from(meta))),
+                            );
+                        }
+                    }
+                    GolemClients::Cloud(_) => {
+                        todo!()
+                    }
                 }
             }
         }
@@ -259,10 +281,10 @@ impl ComponentCommandHandler {
             )?;
         }
 
-        self.ctx.log_handler().log_view(&component_views);
-
         if component_views.is_empty() {
             bail!(NonSuccessfulExit)
+        } else {
+            self.ctx.log_handler().log_view(&component_views);
         }
 
         Ok(())
@@ -273,7 +295,7 @@ impl ComponentCommandHandler {
         component_name: Option<ComponentName>,
         version: Option<u64>,
     ) -> anyhow::Result<()> {
-        let selected_component_names = self.selection_by_app_or_name(component_name.as_ref())?;
+        let selected_component_names = self.must_select_by_app_or_name(component_name.as_ref())?;
 
         if version.is_some() && selected_component_names.len() > 1 {
             log_error("Version cannot be specific when multiple components are selected!");
@@ -353,9 +375,24 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    fn selection_by_app_or_name(
+    pub fn opt_select_by_app_or_name(
         &self,
         component_name: Option<&ComponentName>,
+    ) -> anyhow::Result<Vec<String>> {
+        self.select_by_app_or_name_internal(component_name, true)
+    }
+
+    pub fn must_select_by_app_or_name(
+        &self,
+        component_name: Option<&ComponentName>,
+    ) -> anyhow::Result<Vec<String>> {
+        self.select_by_app_or_name_internal(component_name, false)
+    }
+
+    fn select_by_app_or_name_internal(
+        &self,
+        component_name: Option<&ComponentName>,
+        allow_no_matches: bool,
     ) -> anyhow::Result<Vec<String>> {
         self.ctx.silence_app_context_init();
         let app_select_success = self
@@ -389,7 +426,7 @@ impl ComponentCommandHandler {
             }
         };
 
-        if selected_component_names.is_empty() && component_name.is_none() {
+        if selected_component_names.is_empty() && component_name.is_none() && !allow_no_matches {
             log_error("No components were selected based on the current directory an no component was requested.");
             logln("");
             logln(

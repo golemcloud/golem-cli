@@ -399,7 +399,9 @@ impl ApplicationContextState {
             return;
         }
 
-        let _log_output = self.silent_init.then(|| LogOutput::new(Output::None));
+        let _log_output = self
+            .silent_init
+            .then(|| LogOutput::new(Output::TracingDebug));
 
         let config = golem_wasm_rpc_stubgen::commands::app::Config {
             app_source_mode: {

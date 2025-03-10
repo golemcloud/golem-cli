@@ -547,7 +547,7 @@ pub mod component {
             component_name: ComponentOptionalComponentNames,
         },
         /// List deployed component versions' metadata
-        Versions {
+        List {
             #[command(flatten)]
             component_name: ComponentOptionalComponentName,
         },
@@ -620,9 +620,10 @@ pub mod worker {
             #[arg(long, short, value_parser = parse_cursor)]
             cursor: Option<ScanCursor>,
 
-            /// Limits the number of returned workers, returns all values is not specified
+            /// The maximum the number of returned workers, returns all values is not specified.
+            /// When multiple component is selected, then the limit it is applied separately
             #[arg(long, short)]
-            limit: Option<u64>,
+            count: Option<u64>,
 
             /// When set to true it queries for most up-to-date status for each worker, default is false
             #[arg(long, default_value_t = false)]
