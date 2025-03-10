@@ -437,7 +437,7 @@ impl WorkerCommandHandler {
         cursor: Option<ScanCursor>,
         limit: Option<u64>,
         precise: bool,
-    ) {
+    ) -> anyhow::Result<()> {
         todo!()
     }
 
