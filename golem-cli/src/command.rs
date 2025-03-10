@@ -448,7 +448,7 @@ pub mod shared_args {
     #[derive(Debug, Args)]
     pub struct ForceBuildArg {
         /// When set to true will skip modification time based up-to-date checks, defaults to false
-        #[clap(long, short, default_value = "false")]
+        #[clap(long, default_value = "false")]
         pub force_build: bool,
     }
 
@@ -609,8 +609,8 @@ pub mod worker {
             ///
             /// Filter examples: `name = worker-name`, `version >= 0`, `status = Running`, `env.var1 = value`.
             /// Can be used multiple times (AND condition is applied between them)
-            #[arg(short, long)]
-            filters: Vec<String>,
+            #[arg(long)]
+            filter: Vec<String>,
 
             /// Cursor position, if not provided, starts from the beginning.
             ///
@@ -618,12 +618,12 @@ pub mod worker {
             /// in the previous response.
             /// The cursor has the format 'layer/position' where both layer and position are numbers.
             #[arg(long, short, value_parser = parse_cursor)]
-            cursor: Option<ScanCursor>,
+            scan_cursor: Option<ScanCursor>,
 
             /// The maximum the number of returned workers, returns all values is not specified.
             /// When multiple component is selected, then the limit it is applied separately
             #[arg(long, short)]
-            count: Option<u64>,
+            max_count: Option<u64>,
 
             /// When set to true it queries for most up-to-date status for each worker, default is false
             #[arg(long, default_value_t = false)]
@@ -834,8 +834,6 @@ mod test {
     use std::collections::{BTreeMap, BTreeSet};
     use test_r::test;
 
-    // TODO: add tests for overlapping short args?
-
     #[test]
     fn all_commands_and_args_has_doc() {
         fn collect_docs(
@@ -954,5 +952,89 @@ mod test {
                 .map(|(error, matcher)| format!("error: {}\nmatcher: {:?}\n", error, matcher))
                 .join("\n")
         )
+    }
+
+    #[test]
+    fn no_overlapping_flags() {
+        fn collect_flags(
+            path: &mut Vec<String>,
+            flags_by_cmd_path: &mut BTreeMap<String, Vec<String>>,
+            global_flags: &mut Vec<String>,
+            command: &Command,
+        ) {
+            path.push(command.get_name().to_string());
+            let key = path.iter().join(" ");
+
+            let mut cmd_flag_names = Vec::<String>::new();
+            for arg in command.get_arguments() {
+                let mut arg_flag_names = Vec::<String>::new();
+                if arg.is_positional() {
+                    continue;
+                }
+
+                arg_flag_names.extend(
+                    arg.get_long_and_visible_aliases()
+                        .into_iter()
+                        .flatten()
+                        .map(|s| s.to_string()),
+                );
+                arg_flag_names.extend(
+                    arg.get_short_and_visible_aliases()
+                        .into_iter()
+                        .flatten()
+                        .map(|s| s.to_string()),
+                );
+
+                if arg.is_global_set() {
+                    global_flags.extend(arg_flag_names);
+                } else {
+                    cmd_flag_names.extend(arg_flag_names);
+                }
+            }
+
+            flags_by_cmd_path.insert(key, cmd_flag_names);
+
+            for subcommand in command.get_subcommands() {
+                collect_flags(path, flags_by_cmd_path, global_flags, subcommand);
+            }
+
+            path.pop();
+        }
+
+        let mut path = vec![];
+        let mut flags_by_cmd_path = BTreeMap::<String, Vec<String>>::new();
+        let mut global_flags = Vec::<String>::new();
+        collect_flags(
+            &mut path,
+            &mut flags_by_cmd_path,
+            &mut global_flags,
+            &GolemCliCommand::command(),
+        );
+
+        let commands_with_conflicting_flags = flags_by_cmd_path
+            .into_iter()
+            .map(|(path, flags)| {
+                (
+                    path,
+                    flags
+                        .into_iter()
+                        .chain(global_flags.iter().cloned())
+                        .counts()
+                        .into_iter()
+                        .filter(|(_, count)| *count > 1)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .filter(|(_, flags)| !flags.is_empty())
+            .collect::<Vec<_>>();
+
+        assert!(
+            commands_with_conflicting_flags.is_empty(),
+            "\n{}",
+            commands_with_conflicting_flags
+                .iter()
+                .map(|e| format!("{:?}", e))
+                .join("\n")
+        );
     }
 }

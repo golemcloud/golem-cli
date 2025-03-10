@@ -82,16 +82,16 @@ impl WorkerCommandHandler {
             WorkerSubcommand::Get { worker_name } => self.get(worker_name).await,
             WorkerSubcommand::List {
                 component_name,
-                filters,
-                cursor,
-                count,
+                filter: filters,
+                scan_cursor,
+                max_count,
                 precise,
             } => {
                 self.list(
                     component_name.component_name,
                     filters,
-                    cursor,
-                    count,
+                    scan_cursor,
+                    max_count,
                     precise,
                 )
                 .await
@@ -438,8 +438,8 @@ impl WorkerCommandHandler {
         &self,
         component_name: Option<ComponentName>,
         filters: Vec<String>,
-        cursor: Option<ScanCursor>,
-        count: Option<u64>,
+        scan_cursor: Option<ScanCursor>,
+        max_count: Option<u64>,
         precise: bool,
     ) -> anyhow::Result<()> {
         let selected_components = self
@@ -447,7 +447,7 @@ impl WorkerCommandHandler {
             .component_handler()
             .must_select_by_app_or_name(component_name.as_ref())?;
 
-        if cursor.is_some() && selected_components.len() != 1 {
+        if scan_cursor.is_some() && selected_components.len() != 1 {
             log_error(format!(
                 "Cursor cannot be used with multiple components selected! ({})",
                 selected_components
@@ -461,7 +461,7 @@ impl WorkerCommandHandler {
             bail!(NonSuccessfulExit);
         }
 
-        let cursor = cursor.as_ref().map(scan_cursor_to_string);
+        let scan_cursor = scan_cursor.as_ref().map(scan_cursor_to_string);
 
         let mut view = WorkersMetadataResponseView::default();
 
@@ -474,15 +474,15 @@ impl WorkerCommandHandler {
             {
                 Some(component) => match self.ctx.golem_clients().await? {
                     GolemClients::Oss(clients) => {
-                        let mut current_cursor = cursor.clone();
+                        let mut current_scan_cursor = scan_cursor.clone();
                         loop {
                             let results = clients
                                 .worker
                                 .get_workers_metadata(
                                     &component.versioned_component_id.component_id,
                                     Some(&filters),
-                                    current_cursor.as_deref(),
-                                    count.or(Some(50)),
+                                    current_scan_cursor.as_deref(),
+                                    max_count.or(Some(50)),
                                     Some(precise),
                                 )
                                 .await
@@ -497,8 +497,9 @@ impl WorkerCommandHandler {
 
                             match results.cursor {
                                 Some(next_cursor) => {
-                                    if count.is_none() {
-                                        current_cursor = Some(scan_cursor_to_string(&next_cursor));
+                                    if max_count.is_none() {
+                                        current_scan_cursor =
+                                            Some(scan_cursor_to_string(&next_cursor));
                                     } else {
                                         view.cursors.insert(
                                             component_name.to_string().clone(),
