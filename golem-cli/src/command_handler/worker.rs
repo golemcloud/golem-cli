@@ -306,7 +306,7 @@ impl WorkerCommandHandler {
                     .app_handler()
                     .opt_select_components(vec![], &ComponentSelectMode::CurrentDir)?;
 
-                let app_ctx = self.ctx.app_context();
+                let app_ctx = self.ctx.app_context_lock();
                 let app_ctx = app_ctx.opt()?;
                 match app_ctx {
                     Some(app_ctx) => {
@@ -385,7 +385,7 @@ impl WorkerCommandHandler {
                     .app_handler()
                     .opt_select_components(vec![], &ComponentSelectMode::All)?;
 
-                let app_ctx = self.ctx.app_context();
+                let app_ctx = self.ctx.app_context_lock();
                 let app_ctx = app_ctx.opt()?;
                 match app_ctx {
                     Some(app_ctx) => {

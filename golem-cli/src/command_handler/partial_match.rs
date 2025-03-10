@@ -69,7 +69,7 @@ impl ErrorHandler {
                     .app_handler()
                     .opt_select_components(vec![], &ComponentSelectMode::All)?;
 
-                let app_ctx = self.ctx.app_context();
+                let app_ctx = self.ctx.app_context_lock();
                 if let Some(app_ctx) = app_ctx.opt()? {
                     logln("");
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
@@ -88,7 +88,7 @@ impl ErrorHandler {
                     .app_handler()
                     .opt_select_components(vec![], &ComponentSelectMode::All)?;
 
-                let app_ctx = self.ctx.app_context();
+                let app_ctx = self.ctx.app_context_lock();
                 if let Some(app_ctx) = app_ctx.opt()? {
                     logln("");
                     app_ctx.log_dynamic_help(&DynamicHelpSections {

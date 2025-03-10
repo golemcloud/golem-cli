@@ -122,7 +122,7 @@ impl AppCommandHandler {
                 }
 
                 std::env::set_current_dir(&app_dir)?;
-                let app_ctx = self.ctx.app_context();
+                let app_ctx = self.ctx.app_context_lock();
                 let Some(app_ctx) = app_ctx.opt()? else {
                     return Ok(());
                 };
@@ -138,11 +138,14 @@ impl AppCommandHandler {
             AppSubcommand::Build {
                 component_name,
                 build: build_args,
-            } => self.build(
-                component_name.component_name,
-                Some(build_args),
-                &ComponentSelectMode::All,
-            ),
+            } => {
+                self.build(
+                    component_name.component_name,
+                    Some(build_args),
+                    &ComponentSelectMode::All,
+                )
+                .await
+            }
             AppSubcommand::Deploy {
                 component_name,
                 force_build,
@@ -167,7 +170,7 @@ impl AppCommandHandler {
                     );
                 }
 
-                let app_ctx = self.ctx.app_context();
+                let app_ctx = self.ctx.app_context_lock();
                 app_ctx.some_or_err()?.custom_command(&command[0])?;
 
                 Ok(())
@@ -175,7 +178,7 @@ impl AppCommandHandler {
         }
     }
 
-    pub fn build(
+    pub async fn build(
         &mut self,
         component_names: Vec<ComponentName>,
         build: Option<BuildArgs>,
@@ -186,7 +189,9 @@ impl AppCommandHandler {
             self.ctx
                 .set_skip_up_to_date_checks(build.force_build.force_build);
         }
-        self.must_components(component_names, default_component_select_mode)
+        self.must_select_components(component_names, default_component_select_mode)?;
+        let mut app_ctx = self.ctx.app_context_lock_mut();
+        app_ctx.some_or_err_mut()?.build().await
     }
 
     pub(crate) fn clean(
@@ -194,14 +199,12 @@ impl AppCommandHandler {
         component_names: Vec<ComponentName>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.must_components(component_names, default_component_select_mode)?;
-        let app_ctx = self.ctx.app_context();
-        app_ctx.some_or_err()?.clean()?;
-
-        Ok(())
+        self.must_select_components(component_names, default_component_select_mode)?;
+        let app_ctx = self.ctx.app_context_lock();
+        app_ctx.some_or_err()?.clean()
     }
 
-    fn must_components(
+    fn must_select_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
@@ -211,13 +214,30 @@ impl AppCommandHandler {
             .ok_or(anyhow!(HintError::NoApplicationManifestFound))
     }
 
-    // TODO: forbid matching the same component multiple times
     pub(crate) fn opt_select_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
     ) -> anyhow::Result<bool> {
-        let mut app_ctx = self.ctx.app_context_mut();
+        self.opt_select_components_internal(component_names, default, false)
+    }
+
+    pub(crate) fn opt_select_components_allow_not_found(
+        &mut self,
+        component_names: Vec<ComponentName>,
+        default: &ComponentSelectMode,
+    ) -> anyhow::Result<bool> {
+        self.opt_select_components_internal(component_names, default, true)
+    }
+
+    // TODO: forbid matching the same component multiple times
+    pub(crate) fn opt_select_components_internal(
+        &mut self,
+        component_names: Vec<ComponentName>,
+        default: &ComponentSelectMode,
+        allow_not_found: bool,
+    ) -> anyhow::Result<bool> {
+        let mut app_ctx = self.ctx.app_context_lock_mut();
         let silent_selection = app_ctx.silent_init;
         let Some(app_ctx) = app_ctx.opt_mut()? else {
             return Ok(false);
@@ -234,6 +254,10 @@ impl AppCommandHandler {
                 fuzzy_search.find_many(component_names.iter().map(|cn| cn.0.as_str()));
 
             if !not_found.is_empty() {
+                if allow_not_found {
+                    return Ok(false);
+                }
+
                 logln("");
                 log_error(format!(
                     "The following requested component names were not found:\n{}",

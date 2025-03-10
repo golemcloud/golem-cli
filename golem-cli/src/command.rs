@@ -20,7 +20,7 @@ use crate::command::plugin::PluginSubcommand;
 use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
-use crate::model::WorkerName;
+use crate::model::{Format, WorkerName};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
@@ -41,6 +41,10 @@ pub struct GolemCliCommand {
 
 #[derive(Debug, Default, Args)]
 pub struct GolemCliGlobalFlags {
+    /// Output format, defaults to text, unless specified by the selected profile
+    #[arg(long, short, global = true)]
+    pub format: Option<Format>,
+
     /// Select Golem profile
     #[arg(long, short, global = true)]
     pub profile: Option<ProfileName>,
@@ -72,15 +76,21 @@ pub struct GolemCliGlobalFlags {
 
 impl GolemCliGlobalFlags {
     pub fn with_env_overrides(mut self) -> GolemCliGlobalFlags {
+        if self.profile.is_none() {
+            if let Ok(profile) = std::env::var("GOLEM_PROFILE") {
+                self.profile = Some(profile.into());
+            }
+        }
+
         if self.app_manifest_path.is_none() {
             if let Ok(app_manifest_path) = std::env::var("GOLEM_APP_MANIFEST_PATH") {
                 self.app_manifest_path = Some(PathBuf::from(app_manifest_path));
             }
         }
 
-        if self.profile.is_none() {
-            if let Ok(profile) = std::env::var("GOLEM_PROFILE") {
-                self.profile = Some(profile.into());
+        if self.build_profile.is_none() {
+            if let Ok(build_profile) = std::env::var("GOLEM_BUILD_PROFILE") {
+                self.build_profile = Some(build_profile.into());
             }
         }
 
@@ -384,6 +394,12 @@ pub mod shared_args {
     pub type WorkerFunctionName = String;
 
     #[derive(Debug, Args)]
+    pub struct ComponentOptionalComponentName {
+        /// Optional component name, if not specified component is selected based on the current directory
+        pub component_name: Option<ComponentName>,
+    }
+
+    #[derive(Debug, Args)]
     pub struct ComponentOptionalComponentNames {
         /// Optional component names, if not specified components are selected based on the current directory
         pub component_name: Vec<ComponentName>,
@@ -472,7 +488,9 @@ pub mod app {
 }
 
 pub mod component {
-    use crate::command::shared_args::{BuildArgs, ComponentOptionalComponentNames, ForceBuildArg};
+    use crate::command::shared_args::{
+        BuildArgs, ComponentOptionalComponentName, ComponentOptionalComponentNames, ForceBuildArg,
+    };
     use crate::command::shared_args::{LanguagePositionalArg, NewComponentName};
     use clap::Subcommand;
 
@@ -493,6 +511,7 @@ pub mod component {
             #[command(flatten)]
             build: BuildArgs,
         },
+        // TODO: update-mode, try-update, redeploy
         /// Deploy component(s) based on the current directory or by selection
         Deploy {
             #[command(flatten)]
@@ -504,6 +523,18 @@ pub mod component {
         Clean {
             #[command(flatten)]
             component_name: ComponentOptionalComponentNames,
+        },
+        /// List deployed component versions' metadata
+        Versions {
+            #[command(flatten)]
+            component_name: ComponentOptionalComponentName,
+        },
+        /// Get latest or selected version of deployed component metadata
+        Get {
+            #[command(flatten)]
+            component_name: ComponentOptionalComponentName,
+            /// Optional component version to get
+            version: Option<u64>,
         },
     }
 }

@@ -16,22 +16,23 @@ use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{BuildArgs, ForceBuildArg};
 use crate::command_handler::GetHandler;
 use crate::context::{Context, GolemClients};
-use crate::error::to_service_error;
+use crate::error::{to_service_error, NonSuccessfulExit};
 use crate::model::app_ext::GolemComponentExtensions;
-use crate::model::component::Component;
-use crate::model::text::component::{ComponentCreateView, ComponentUpdateView};
-use crate::model::text::fmt::NestedTextViewIndent;
+use crate::model::component::{Component, ComponentView};
+use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
+use crate::model::text::fmt::{log_error, log_warn, NestedTextViewIndent};
 use crate::model::ComponentName;
-use anyhow::{anyhow, Context as AnyhowContext};
+use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
 use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
 use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
 use golem_common::model::ComponentType;
 use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ComponentSelectMode};
-use golem_wasm_rpc_stubgen::log::{log_action, LogColorize, LogIndent};
+use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent};
 use golem_wasm_rpc_stubgen::model::app::DependencyType;
 use golem_wasm_rpc_stubgen::model::app::{BuildProfileName, ComponentName as AppComponentName};
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -59,11 +60,16 @@ impl ComponentCommandHandler {
             ComponentSubcommand::Build {
                 component_name,
                 build: build_args,
-            } => self.ctx.app_handler().build(
-                component_name.component_name,
-                Some(build_args),
-                &ComponentSelectMode::CurrentDir,
-            ),
+            } => {
+                self.ctx
+                    .app_handler()
+                    .build(
+                        component_name.component_name,
+                        Some(build_args),
+                        &ComponentSelectMode::CurrentDir,
+                    )
+                    .await
+            }
             ComponentSubcommand::Deploy {
                 component_name,
                 force_build,
@@ -79,6 +85,13 @@ impl ComponentCommandHandler {
                 component_name.component_name,
                 &ComponentSelectMode::CurrentDir,
             ),
+            ComponentSubcommand::Versions { component_name } => {
+                self.versions(component_name.component_name).await
+            }
+            ComponentSubcommand::Get {
+                component_name,
+                version,
+            } => self.get(component_name.component_name, version).await,
         }
     }
 
@@ -88,19 +101,22 @@ impl ComponentCommandHandler {
         force_build: Option<ForceBuildArg>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.ctx.app_handler().build(
-            component_names,
-            force_build.map(|force_build| BuildArgs {
-                step: vec![],
-                force_build,
-            }),
-            default_component_select_mode,
-        )?;
+        self.ctx
+            .app_handler()
+            .build(
+                component_names,
+                force_build.map(|force_build| BuildArgs {
+                    step: vec![],
+                    force_build,
+                }),
+                default_component_select_mode,
+            )
+            .await?;
 
         // TODO: hash <-> version check for skipping deploy
 
         let selected_component_names = {
-            let app_ctx = self.ctx.app_context();
+            let app_ctx = self.ctx.app_context_lock();
             app_ctx
                 .some_or_err()?
                 .selected_component_names()
@@ -117,7 +133,7 @@ impl ComponentCommandHandler {
 
             let component_id = self.component_id_by_name(component_name.as_str()).await?;
             let deploy_properties = {
-                let mut app_ctx = self.ctx.app_context_mut();
+                let mut app_ctx = self.ctx.app_context_lock_mut();
                 let app_ctx = app_ctx.some_or_err_mut()?;
                 component_deploy_properties(app_ctx, component_name, build_profile.clone())?
             };
@@ -204,6 +220,187 @@ impl ComponentCommandHandler {
         }
 
         Ok(())
+    }
+
+    async fn versions(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
+        let selected_component_names = self.selection_by_app_or_name(component_name.as_ref())?;
+
+        let mut component_views = Vec::<ComponentView>::new();
+
+        for component_name in selected_component_names {
+            match self.ctx.golem_clients().await? {
+                GolemClients::Oss(clients) => {
+                    let results = clients
+                        .component
+                        .get_components(Some(component_name.as_str()))
+                        .await
+                        .map_err(to_service_error)?;
+                    if results.is_empty() {
+                        log_warn(format!(
+                            "No versions found for component {}",
+                            component_name.as_str().log_color_highlight()
+                        ));
+                    } else {
+                        for result in results {
+                            component_views.push(Component::from(result).into());
+                        }
+                    }
+                }
+                GolemClients::Cloud(_) => {
+                    todo!()
+                }
+            }
+        }
+
+        if component_views.is_empty() && component_name.is_some() {
+            // Retry selection (this time with not allowing "not founds")
+            // so we get error messages for app component names.
+            self.ctx.app_handler().opt_select_components(
+                component_name.iter().cloned().collect(),
+                &ComponentSelectMode::CurrentDir,
+            )?;
+        }
+
+        self.ctx.log_handler().log_view(&component_views);
+
+        if component_views.is_empty() {
+            bail!(NonSuccessfulExit)
+        }
+
+        Ok(())
+    }
+
+    async fn get(
+        &self,
+        component_name: Option<ComponentName>,
+        version: Option<u64>,
+    ) -> anyhow::Result<()> {
+        let selected_component_names = self.selection_by_app_or_name(component_name.as_ref())?;
+
+        if version.is_some() && selected_component_names.len() > 1 {
+            log_error("Version cannot be specific when multiple components are selected!");
+            logln("");
+            logln(format!(
+                "Selected components: {}",
+                selected_component_names
+                    .iter()
+                    .map(|cn| cn.as_str().log_color_highlight())
+                    .join(", ")
+            ));
+            logln("");
+            logln("Specify the requested component name or switch to an application directory with exactly one component!");
+            logln("");
+            bail!(NonSuccessfulExit);
+        }
+
+        let mut component_views = Vec::<ComponentView>::new();
+
+        for component_name in selected_component_names {
+            match self.component_id_by_name(component_name.as_str()).await? {
+                Some(component_id) => match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => match version {
+                        Some(version) => {
+                            let result = clients
+                                .component
+                                .get_component_metadata(&component_id, &version.to_string())
+                                .await
+                                .map_err(to_service_error)?;
+                            component_views.push(Component::from(result).into());
+                        }
+                        None => {
+                            let result = clients
+                                .component
+                                .get_latest_component_metadata(&component_id)
+                                .await
+                                .map_err(to_service_error)?;
+                            component_views.push(Component::from(result).into());
+                        }
+                    },
+                    GolemClients::Cloud(_) => {
+                        todo!()
+                    }
+                },
+                None => {
+                    log_warn(format!(
+                        "Component {} not found",
+                        component_name.as_str().log_color_highlight()
+                    ));
+                }
+            }
+        }
+
+        if component_views.is_empty() && component_name.is_some() {
+            // Retry selection (this time with not allowing "not founds")
+            // so we get error messages for app component names.
+            self.ctx.app_handler().opt_select_components(
+                component_name.iter().cloned().collect(),
+                &ComponentSelectMode::CurrentDir,
+            )?;
+        }
+
+        let no_matches = component_views.is_empty();
+        for component_view in component_views {
+            self.ctx
+                .log_handler()
+                .log_view(&ComponentGetView(component_view));
+            logln("");
+        }
+
+        // TODO: if it was a version request we can try to enumerate valid version numbers
+        if no_matches {
+            bail!(NonSuccessfulExit)
+        }
+
+        Ok(())
+    }
+
+    fn selection_by_app_or_name(
+        &self,
+        component_name: Option<&ComponentName>,
+    ) -> anyhow::Result<Vec<String>> {
+        self.ctx.silence_app_context_init();
+        let app_select_success = self
+            .ctx
+            .app_handler()
+            .opt_select_components_allow_not_found(
+                component_name.into_iter().map(|cn| cn.clone()).collect(),
+                &ComponentSelectMode::CurrentDir,
+            )?;
+
+        let selected_component_names = {
+            if app_select_success {
+                let app_ctx = self.ctx.app_context_lock();
+                app_ctx
+                    .opt()?
+                    .map(|app_ctx| {
+                        app_ctx
+                            .selected_component_names()
+                            .iter()
+                            .map(|cn| cn.to_string())
+                            .collect::<Vec<_>>()
+                    })
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>()
+            } else {
+                component_name
+                    .iter()
+                    .map(|cn| cn.0.to_string())
+                    .collect::<Vec<_>>()
+            }
+        };
+
+        if selected_component_names.is_empty() && component_name.is_none() {
+            log_error("No components were selected based on the current directory an no component was requested.");
+            logln("");
+            logln(
+                "Please specify a requested component name or switch to an application directory!",
+            );
+            logln("");
+            bail!(NonSuccessfulExit);
+        }
+
+        Ok(selected_component_names)
     }
 
     // TODO: we might want to have a filter for batch name lookups on the server side

@@ -18,6 +18,7 @@ use crate::config::{
 };
 use crate::error::HintError;
 use crate::model::app_ext::GolemComponentExtensions;
+use crate::model::Format;
 use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
@@ -61,6 +62,7 @@ use tracing::debug;
 // but NOT responsible for producing CLI output, those should be part of the CommandHandler(s)
 pub struct Context {
     // Readonly
+    format: Format,
     _profile_name: ProfileName, // TODO
     profile_kind: ProfileKind,
     profile: Profile,
@@ -78,9 +80,17 @@ pub struct Context {
 
 impl Context {
     pub fn new(global_flags: &GolemCliGlobalFlags, profile: NamedProfile) -> Self {
-        set_log_output(Output::Stderr);
+        // TODO: handle format override from profile
+        let format = global_flags.format.unwrap_or(Format::Text);
+        let log_output = match format {
+            Format::Json => Output::Stderr,
+            Format::Yaml => Output::Stderr,
+            Format::Text => Output::Stdout,
+        };
+        set_log_output(log_output);
 
         Self {
+            format: global_flags.format.unwrap_or(Format::Text),
             _profile_name: profile.name,
             profile_kind: profile.profile.kind(),
             profile: profile.profile,
@@ -101,8 +111,13 @@ impl Context {
         }
     }
 
+    pub fn format(&self) -> Format {
+        self.format
+    }
+
     pub fn silence_app_context_init(&self) {
-        self.app_context_mut().silent_init = true;
+        let mut state = self.app_context_state.write().unwrap();
+        state.silent_init = true;
     }
 
     pub fn profile_kind(&self) -> ProfileKind {
@@ -123,7 +138,7 @@ impl Context {
         Ok(&self.clients().await?.golem)
     }
 
-    pub fn app_context(&self) -> RwLockReadGuard<'_, ApplicationContextState> {
+    pub fn app_context_lock(&self) -> RwLockReadGuard<'_, ApplicationContextState> {
         {
             let state = self.app_context_state.read().unwrap();
             if state.app_context.is_some() {
@@ -132,14 +147,13 @@ impl Context {
         }
 
         {
-            let mut state = self.app_context_state.write().unwrap();
-            state.init(&self.app_context_config);
+            let _init = self.app_context_lock_mut();
         }
 
         self.app_context_state.read().unwrap()
     }
 
-    pub fn app_context_mut(&self) -> RwLockWriteGuard<'_, ApplicationContextState> {
+    pub fn app_context_lock_mut(&self) -> RwLockWriteGuard<'_, ApplicationContextState> {
         let mut state = self.app_context_state.write().unwrap();
         state.init(&self.app_context_config);
         state
@@ -379,7 +393,7 @@ pub struct ApplicationContextState {
 
 impl ApplicationContextState {
     fn init(&mut self, config: &ApplicationContextConfig) {
-        if self.app_context.is_none() {
+        if self.app_context.is_some() {
             return;
         }
 

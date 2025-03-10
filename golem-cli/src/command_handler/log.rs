@@ -14,21 +14,32 @@
 
 use crate::context::Context;
 use crate::model::text::fmt::TextView;
+use crate::model::Format;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::Arc;
 
 pub struct LogHandler {
-    _ctx: Arc<Context>,
+    ctx: Arc<Context>,
 }
 
 impl LogHandler {
     pub fn new(ctx: Arc<Context>) -> Self {
-        Self { _ctx: ctx }
+        Self { ctx }
     }
 
     pub(crate) fn log_view<View: TextView + Serialize + DeserializeOwned>(&self, view: &View) {
-        // TODO: handle formats
-        view.log();
+        match self.ctx.format() {
+            Format::Json => {
+                println!("{}", serde_json::to_string(view).unwrap());
+            }
+            Format::Yaml => {
+                // TODO: handle "streaming" optionally
+                println!("---\n{}", serde_yaml::to_string(view).unwrap());
+            }
+            Format::Text => {
+                view.log();
+            }
+        }
     }
 }

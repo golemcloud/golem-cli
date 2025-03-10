@@ -41,9 +41,15 @@ pub mod fmt {
     pub trait MessageWithFields {
         fn message(&self) -> String;
         fn fields(&self) -> Vec<(String, String)>;
+
         fn indent_fields() -> bool {
             false
         }
+
+        fn nest_ident_fields() -> bool {
+            false
+        }
+
         fn format_field_name(name: String) -> String {
             name
         }
@@ -52,12 +58,15 @@ pub mod fmt {
     impl<T: MessageWithFields> TextView for T {
         fn log(&self) {
             logln(self.message());
-            logln("");
+            if !Self::nest_ident_fields() {
+                logln("");
+            }
 
             let fields = self.fields();
             let padding = fields.iter().map(|(name, _)| name.len()).max().unwrap_or(0) + 1;
 
             let _indent = Self::indent_fields().then(LogIndent::new);
+            let _nest_indent = Self::nest_ident_fields().then(NestedTextViewIndent::new);
 
             for (name, value) in self.fields() {
                 let lines: Vec<_> = value.lines().collect();
@@ -309,6 +318,10 @@ pub mod fmt {
             "error:".log_color_error(),
             message.as_ref()
         ));
+    }
+
+    pub fn log_warn<S: AsRef<str>>(message: S) {
+        logln(format!("{} {}", "warn:".log_color_warn(), message.as_ref()));
     }
 
     pub struct NestedTextViewIndent {
@@ -617,6 +630,7 @@ pub mod component {
 
     use serde::{Deserialize, Serialize};
 
+    // TODO: review columns and formats
     #[derive(Table)]
     struct ComponentTableView {
         #[table(title = "Name")]
@@ -713,6 +727,10 @@ pub mod component {
 
         fn fields(&self) -> Vec<(String, String)> {
             component_view_fields(&self.0)
+        }
+
+        fn nest_ident_fields() -> bool {
+            true
         }
     }
 }
