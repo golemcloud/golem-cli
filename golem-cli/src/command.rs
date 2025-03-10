@@ -21,11 +21,12 @@ use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use crate::model::{Format, WorkerName};
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
 use clap_verbosity_flag::Verbosity;
+use golem_client::model::ScanCursor;
 use golem_wasm_rpc_stubgen::log::LogColorize;
 use lenient_bool::LenientBool;
 use std::collections::HashMap;
@@ -54,6 +55,10 @@ pub struct GolemCliGlobalFlags {
     /// Custom path to the root application manifest (golem.yaml)
     #[arg(long, short, global = true)]
     pub app_manifest_path: Option<PathBuf>,
+
+    /// Disable automatic searching for application manifests
+    #[arg(long, short = 'A', global = true)]
+    pub disable_app_manifest_discovery: bool,
 
     /// Select build profile
     #[arg(long, short, global = true)]
@@ -87,6 +92,15 @@ impl GolemCliGlobalFlags {
         if self.app_manifest_path.is_none() {
             if let Ok(app_manifest_path) = std::env::var("GOLEM_APP_MANIFEST_PATH") {
                 self.app_manifest_path = Some(PathBuf::from(app_manifest_path));
+            }
+        }
+
+        if !self.disable_app_manifest_discovery {
+            if let Ok(disable) = std::env::var("GOLEM_DISABLE_APP_MANIFEST_DISCOVERY") {
+                self.disable_app_manifest_discovery = disable
+                    .parse::<LenientBool>()
+                    .map(|b| b.into())
+                    .unwrap_or_default()
             }
         }
 
@@ -548,12 +562,15 @@ pub mod component {
 }
 
 pub mod worker {
+    use crate::command::parse_cursor;
     use crate::command::parse_key_val;
     use crate::command::shared_args::{
-        NewWorkerArgument, WorkerFunctionArgument, WorkerFunctionName, WorkerNameArg,
+        ComponentOptionalComponentName, NewWorkerArgument, WorkerFunctionArgument,
+        WorkerFunctionName, WorkerNameArg,
     };
     use crate::model::IdempotencyKey;
     use clap::Subcommand;
+    use golem_client::model::ScanCursor;
 
     #[derive(Debug, Subcommand)]
     pub enum WorkerSubcommand {
@@ -577,6 +594,39 @@ pub mod worker {
             /// Set idempotency key for the call, use "-" for auto generated key
             #[clap(long, short)]
             idempotency_key: Option<IdempotencyKey>,
+        },
+        /// Get worker metadata
+        Get {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+        },
+        /// List worker metadata
+        List {
+            #[command(flatten)]
+            component_name: ComponentOptionalComponentName,
+
+            /// Filter for worker metadata in form of `property op value`.
+            ///
+            /// Filter examples: `name = worker-name`, `version >= 0`, `status = Running`, `env.var1 = value`.
+            /// Can be used multiple times (AND condition is applied between them)
+            #[arg(short, long)]
+            filters: Vec<String>,
+
+            /// Cursor position, if not provided, starts from the beginning.
+            ///
+            /// Cursor can be used to get the next page of results, use the cursor returned
+            /// in the previous response.
+            /// The cursor has the format 'layer/position' where both layer and position are numbers.
+            #[arg(long, short, value_parser = parse_cursor)]
+            cursor: Option<ScanCursor>,
+
+            /// Limits the number of returned workers, returns all values is not specified
+            #[arg(long, short)]
+            limit: Option<u64>,
+
+            /// When set to true it queries for most up-to-date status for each worker, default is false
+            #[arg(long, default_value_t = false)]
+            precise: bool,
         },
     }
 }
@@ -746,6 +796,33 @@ pub mod server {
     }
 }
 
+fn parse_key_val(key_and_val: &str) -> anyhow::Result<(String, String)> {
+    let pos = key_and_val.find('=').ok_or_else(|| {
+        anyhow!(
+            "invalid KEY=VALUE: no `=` found in `{}`",
+            key_and_val.log_color_error_highlight()
+        )
+    })?;
+    Ok((
+        key_and_val[..pos].to_string(),
+        key_and_val[pos + 1..].to_string(),
+    ))
+}
+
+// TODO: better error context and messages
+fn parse_cursor(cursor: &str) -> anyhow::Result<ScanCursor> {
+    let parts = cursor.split('/').collect::<Vec<_>>();
+
+    if parts.len() != 2 {
+        bail!("Invalid cursor format: {}", cursor);
+    }
+
+    Ok(ScanCursor {
+        layer: parts[0].parse()?,
+        cursor: parts[1].parse()?,
+    })
+}
+
 #[cfg(test)]
 mod test {
     use crate::command::GolemCliCommand;
@@ -755,6 +832,8 @@ mod test {
     use itertools::Itertools;
     use std::collections::{BTreeMap, BTreeSet};
     use test_r::test;
+
+    // TODO: add tests for overlapping short args?
 
     #[test]
     fn all_commands_and_args_has_doc() {
@@ -875,17 +954,4 @@ mod test {
                 .join("\n")
         )
     }
-}
-
-fn parse_key_val(key_and_val: &str) -> anyhow::Result<(String, String)> {
-    let pos = key_and_val.find('=').ok_or_else(|| {
-        anyhow!(
-            "invalid KEY=VALUE: no `=` found in `{}`",
-            key_and_val.log_color_error_highlight()
-        )
-    })?;
-    Ok((
-        key_and_val[..pos].to_string(),
-        key_and_val[pos + 1..].to_string(),
-    ))
 }

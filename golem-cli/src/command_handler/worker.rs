@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::command::shared_args::{
+    NewWorkerArgument, WorkerFunctionArgument, WorkerFunctionName, WorkerNameArg,
+};
 use crate::command::worker::WorkerSubcommand;
 use crate::command_handler::GetHandler;
 use crate::context::{Context, GolemClients};
@@ -24,13 +27,16 @@ use crate::model::text::help::{
     ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp,
     ParameterErrorTableView, WorkerNameHelp,
 };
-use crate::model::text::worker::WorkerCreateView;
-use crate::model::{ComponentName, ComponentNameMatchKind, IdempotencyKey, WorkerName};
+use crate::model::text::worker::{WorkerCreateView, WorkerGetView};
+use crate::model::{
+    ComponentName, ComponentNameMatchKind, IdempotencyKey, WorkerMetadata, WorkerName,
+};
 use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_client::api::WorkerClient as WorkerClientOss;
 use golem_client::model::{
-    InvokeParameters as InvokeParametersOss, WorkerCreationRequest as WorkerCreationRequestOss,
+    InvokeParameters as InvokeParametersOss, ScanCursor,
+    WorkerCreationRequest as WorkerCreationRequestOss,
 };
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
@@ -49,69 +55,13 @@ impl WorkerCommandHandler {
         Self { ctx }
     }
 
-    pub(crate) async fn handle_command(
-        &mut self,
-        subcommand: WorkerSubcommand,
-    ) -> anyhow::Result<()> {
+    pub async fn handle_command(&mut self, subcommand: WorkerSubcommand) -> anyhow::Result<()> {
         match subcommand {
             WorkerSubcommand::New {
                 worker_name,
                 arguments,
                 env,
-            } => {
-                let worker_name = worker_name.worker_name;
-
-                self.ctx.silence_app_context_init();
-
-                let (component_match_kind, component_name, worker_name) =
-                    self.match_worker_name(worker_name).await?;
-
-                let component = self
-                    .ctx
-                    .component_handler()
-                    .component_by_name_with_auto_deploy(component_match_kind, &component_name)
-                    .await?;
-
-                // TODO: should we fail on explicit names for ephemeral?
-                let worker_name = worker_name.unwrap_or_else(|| Uuid::new_v4().to_string().into());
-
-                // TODO: log args / env?
-                log_action(
-                    "Creating",
-                    format!(
-                        "new worker {} / {}",
-                        component_name.0.blue().bold(),
-                        worker_name.0.green().bold(),
-                    ),
-                );
-
-                // TODO: should use the returned API response? (like component version)
-                let _ = match self.ctx.golem_clients().await? {
-                    GolemClients::Oss(clients) => clients
-                        .worker
-                        .launch_new_worker(
-                            &component.versioned_component_id.component_id,
-                            &WorkerCreationRequestOss {
-                                name: worker_name.0.clone(),
-                                args: arguments,
-                                env: env.into_iter().collect(),
-                            },
-                        )
-                        .await
-                        .map_err(to_service_error)?,
-                    GolemClients::Cloud(_) => {
-                        todo!()
-                    }
-                };
-
-                logln("");
-                self.ctx.log_handler().log_view(&WorkerCreateView {
-                    component_name,
-                    worker_name: Some(worker_name),
-                });
-
-                Ok(())
-            }
+            } => self.new_worker(worker_name, arguments, env).await,
             WorkerSubcommand::Invoke {
                 worker_name,
                 function_name,
@@ -119,215 +69,379 @@ impl WorkerCommandHandler {
                 enqueue,
                 idempotency_key,
             } => {
-                let worker_name = worker_name.worker_name;
-
-                self.ctx.silence_app_context_init();
-
-                let idempotency_key = idempotency_key.map(|key| {
-                    if key.0 == "-" {
-                        let key = IdempotencyKey::new();
-                        log_action(
-                            "Using",
-                            format!(
-                                "auto generated idempotency key: {}",
-                                key.0.log_color_highlight()
-                            ),
-                        );
-                        key.0
-                    } else {
-                        log_action(
-                            "Using",
-                            format!("requested idempotency key: {}", key.0.log_color_highlight()),
-                        );
-                        key.0
-                    }
-                });
-
-                let (component_match_kind, component_name, worker_name) =
-                    self.match_worker_name(worker_name).await?;
-
-                let component = self
-                    .ctx
-                    .component_handler()
-                    .component_by_name_with_auto_deploy(component_match_kind, &component_name)
-                    .await?;
-
-                let component_functions = show_exported_functions(&component.metadata.exports);
-                let fuzzy_search = FuzzySearch::new(component_functions.iter().map(|s| s.as_str()));
-                let function_name = match fuzzy_search.find(&function_name) {
-                    Ok(function_name) => function_name.option,
-                    Err(error) => {
-                        // TODO: extract common ambiguous messages?
-                        match error {
-                            Error::Ambiguous {
-                                highlighted_options,
-                                ..
-                            } => {
-                                logln("");
-                                log_error(format!(
-                                    "The requested function name ({}) is ambiguous.",
-                                    function_name.log_color_error_highlight()
-                                ));
-                                logln("");
-                                logln("Did you mean one of");
-                                for option in highlighted_options {
-                                    logln(format!(" - {}", option.bold()));
-                                }
-                                logln("?");
-                                logln("");
-                                log_text_view(&AvailableFunctionNamesHelp {
-                                    component_name: component_name.0,
-                                    function_names: component_functions,
-                                });
-
-                                bail!(NonSuccessfulExit);
-                            }
-                            Error::NotFound { .. } => {
-                                logln("");
-                                log_error(format!(
-                                    "The requested function name ({}) was not found.",
-                                    function_name.log_color_error_highlight()
-                                ));
-                                logln("");
-                                log_text_view(&AvailableFunctionNamesHelp {
-                                    component_name: component_name.0,
-                                    function_names: component_functions,
-                                });
-
-                                bail!(NonSuccessfulExit);
-                            }
-                        }
-                    }
-                };
-
-                if enqueue {
-                    log_action(
-                        "Enqueueing",
-                        format!(
-                            "invocation for worker {} / {} / {} ",
-                            component_name.0.blue().bold(),
-                            worker_name
-                                .as_ref()
-                                .map(|wn| wn.0.as_str())
-                                .unwrap_or("-")
-                                .green()
-                                .bold(),
-                            format_export(&function_name)
-                        ),
-                    );
-                } else {
-                    log_action(
-                        "Invoking",
-                        format!(
-                            "worker {} / {} / {} ",
-                            component_name.0.blue().bold(),
-                            worker_name
-                                .as_ref()
-                                .map(|wn| wn.0.as_str())
-                                .unwrap_or("-")
-                                .green()
-                                .bold(),
-                            format_export(&function_name)
-                        ),
-                    );
-                }
-
-                let arguments = wave_args_to_invoke_args(&component, &function_name, arguments)?;
-
-                let result_view = match self.ctx.golem_clients().await? {
-                    GolemClients::Oss(clients) => {
-                        let result = match worker_name {
-                            Some(worker_name) => {
-                                if enqueue {
-                                    clients
-                                        .worker
-                                        .invoke_function(
-                                            &component.versioned_component_id.component_id,
-                                            worker_name.0.as_str(),
-                                            idempotency_key.as_deref(),
-                                            function_name.as_str(),
-                                            &InvokeParametersOss { params: arguments },
-                                        )
-                                        .await
-                                        .map_err(to_service_error)?;
-                                    None
-                                } else {
-                                    Some(
-                                        clients
-                                            .worker
-                                            .invoke_and_await_function(
-                                                &component.versioned_component_id.component_id,
-                                                worker_name.0.as_str(),
-                                                idempotency_key.as_deref(),
-                                                function_name.as_str(),
-                                                &InvokeParametersOss { params: arguments },
-                                            )
-                                            .await
-                                            .map_err(to_service_error)?,
-                                    )
-                                }
-                            }
-                            None => {
-                                if enqueue {
-                                    clients
-                                        .worker
-                                        .invoke_function_without_name(
-                                            &component.versioned_component_id.component_id,
-                                            idempotency_key.as_deref(),
-                                            function_name.as_str(),
-                                            &InvokeParametersOss { params: arguments },
-                                        )
-                                        .await
-                                        .map_err(to_service_error)?;
-                                    None
-                                } else {
-                                    Some(
-                                        clients
-                                            .worker
-                                            .invoke_and_await_function_without_name(
-                                                &component.versioned_component_id.component_id,
-                                                idempotency_key.as_deref(),
-                                                function_name.as_str(),
-                                                &InvokeParametersOss { params: arguments },
-                                            )
-                                            .await
-                                            .map_err(to_service_error)?,
-                                    )
-                                }
-                            }
-                        };
-                        // TODO: handle json format and include idempotency key in it
-                        result
-                            .map(|result| {
-                                InvokeResultView::try_parse_or_json(
-                                    result,
-                                    &component,
-                                    function_name.as_str(),
-                                )
-                            })
-                            .transpose()?
-                    }
-                    GolemClients::Cloud(_) => {
-                        todo!()
-                    }
-                };
-
-                match result_view {
-                    Some(view) => {
-                        logln("");
-                        self.ctx.log_handler().log_view(&view);
-                    }
-                    None => {
-                        log_action("Enqueued", "invocation");
-                    }
-                }
-
-                Ok(())
+                self.invoke(
+                    worker_name,
+                    &function_name,
+                    arguments,
+                    enqueue,
+                    idempotency_key,
+                )
+                .await
+            }
+            WorkerSubcommand::Get { worker_name } => self.get(worker_name).await,
+            WorkerSubcommand::List {
+                component_name,
+                filters,
+                cursor,
+                limit,
+                precise,
+            } => {
+                self.list(
+                    component_name.component_name,
+                    filters,
+                    cursor,
+                    limit,
+                    precise,
+                )
+                .await
             }
         }
     }
 
-    pub(crate) async fn match_worker_name(
+    async fn new_worker(
+        &mut self,
+        worker_name: WorkerNameArg,
+        arguments: Vec<NewWorkerArgument>,
+        env: Vec<(String, String)>,
+    ) -> anyhow::Result<()> {
+        let worker_name = worker_name.worker_name;
+
+        self.ctx.silence_app_context_init();
+
+        let (component_match_kind, component_name, worker_name) =
+            self.match_worker_name(worker_name).await?;
+
+        let component = self
+            .ctx
+            .component_handler()
+            .component_by_name_with_auto_deploy(component_match_kind, &component_name)
+            .await?;
+
+        // TODO: should we fail on explicit names for ephemeral?
+        let worker_name = worker_name.unwrap_or_else(|| Uuid::new_v4().to_string().into());
+
+        // TODO: log args / env?
+        log_action(
+            "Creating",
+            format!(
+                "new worker {} / {}",
+                component_name.0.blue().bold(),
+                worker_name.0.green().bold(),
+            ),
+        );
+
+        // TODO: should use the returned API response? (like component version)
+        let _ = match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => clients
+                .worker
+                .launch_new_worker(
+                    &component.versioned_component_id.component_id,
+                    &WorkerCreationRequestOss {
+                        name: worker_name.0.clone(),
+                        args: arguments,
+                        env: env.into_iter().collect(),
+                    },
+                )
+                .await
+                .map_err(to_service_error)?,
+            GolemClients::Cloud(_) => {
+                todo!()
+            }
+        };
+
+        logln("");
+        self.ctx.log_handler().log_view(&WorkerCreateView {
+            component_name,
+            worker_name: Some(worker_name),
+        });
+
+        Ok(())
+    }
+
+    async fn invoke(
+        &mut self,
+        worker_name: WorkerNameArg,
+        function_name: &WorkerFunctionName,
+        arguments: Vec<WorkerFunctionArgument>,
+        enqueue: bool,
+        idempotency_key: Option<IdempotencyKey>,
+    ) -> anyhow::Result<()> {
+        let worker_name = worker_name.worker_name;
+
+        self.ctx.silence_app_context_init();
+
+        // TODO: should always generate idempotency key if not provided?
+        let idempotency_key = idempotency_key.map(|key| {
+            if key.0 == "-" {
+                let key = IdempotencyKey::new();
+                log_action(
+                    "Using",
+                    format!(
+                        "auto generated idempotency key: {}",
+                        key.0.log_color_highlight()
+                    ),
+                );
+                key.0
+            } else {
+                log_action(
+                    "Using",
+                    format!("requested idempotency key: {}", key.0.log_color_highlight()),
+                );
+                key.0
+            }
+        });
+
+        let (component_match_kind, component_name, worker_name) =
+            self.match_worker_name(worker_name).await?;
+
+        let component = self
+            .ctx
+            .component_handler()
+            .component_by_name_with_auto_deploy(component_match_kind, &component_name)
+            .await?;
+
+        let component_functions = show_exported_functions(&component.metadata.exports);
+        let fuzzy_search = FuzzySearch::new(component_functions.iter().map(|s| s.as_str()));
+        let function_name = match fuzzy_search.find(&function_name) {
+            Ok(function_name) => function_name.option,
+            Err(error) => {
+                // TODO: extract common ambiguous messages?
+                match error {
+                    Error::Ambiguous {
+                        highlighted_options,
+                        ..
+                    } => {
+                        logln("");
+                        log_error(format!(
+                            "The requested function name ({}) is ambiguous.",
+                            function_name.log_color_error_highlight()
+                        ));
+                        logln("");
+                        logln("Did you mean one of");
+                        for option in highlighted_options {
+                            logln(format!(" - {}", option.bold()));
+                        }
+                        logln("?");
+                        logln("");
+                        log_text_view(&AvailableFunctionNamesHelp {
+                            component_name: component_name.0,
+                            function_names: component_functions,
+                        });
+
+                        bail!(NonSuccessfulExit);
+                    }
+                    Error::NotFound { .. } => {
+                        logln("");
+                        log_error(format!(
+                            "The requested function name ({}) was not found.",
+                            function_name.log_color_error_highlight()
+                        ));
+                        logln("");
+                        log_text_view(&AvailableFunctionNamesHelp {
+                            component_name: component_name.0,
+                            function_names: component_functions,
+                        });
+
+                        bail!(NonSuccessfulExit);
+                    }
+                }
+            }
+        };
+
+        if enqueue {
+            log_action(
+                "Enqueueing",
+                format!(
+                    "invocation for worker {} / {} / {} ",
+                    component_name.0.blue().bold(),
+                    worker_name
+                        .as_ref()
+                        .map(|wn| wn.0.as_str())
+                        .unwrap_or("-")
+                        .green()
+                        .bold(),
+                    format_export(&function_name)
+                ),
+            );
+        } else {
+            log_action(
+                "Invoking",
+                format!(
+                    "worker {} / {} / {} ",
+                    component_name.0.blue().bold(),
+                    worker_name
+                        .as_ref()
+                        .map(|wn| wn.0.as_str())
+                        .unwrap_or("-")
+                        .green()
+                        .bold(),
+                    format_export(&function_name)
+                ),
+            );
+        }
+
+        let arguments = wave_args_to_invoke_args(&component, &function_name, arguments)?;
+
+        let result_view = match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => {
+                let result = match worker_name {
+                    Some(worker_name) => {
+                        if enqueue {
+                            clients
+                                .worker
+                                .invoke_function(
+                                    &component.versioned_component_id.component_id,
+                                    worker_name.0.as_str(),
+                                    idempotency_key.as_deref(),
+                                    function_name.as_str(),
+                                    &InvokeParametersOss { params: arguments },
+                                )
+                                .await
+                                .map_err(to_service_error)?;
+                            None
+                        } else {
+                            Some(
+                                clients
+                                    .worker
+                                    .invoke_and_await_function(
+                                        &component.versioned_component_id.component_id,
+                                        worker_name.0.as_str(),
+                                        idempotency_key.as_deref(),
+                                        function_name.as_str(),
+                                        &InvokeParametersOss { params: arguments },
+                                    )
+                                    .await
+                                    .map_err(to_service_error)?,
+                            )
+                        }
+                    }
+                    None => {
+                        if enqueue {
+                            clients
+                                .worker
+                                .invoke_function_without_name(
+                                    &component.versioned_component_id.component_id,
+                                    idempotency_key.as_deref(),
+                                    function_name.as_str(),
+                                    &InvokeParametersOss { params: arguments },
+                                )
+                                .await
+                                .map_err(to_service_error)?;
+                            None
+                        } else {
+                            Some(
+                                clients
+                                    .worker
+                                    .invoke_and_await_function_without_name(
+                                        &component.versioned_component_id.component_id,
+                                        idempotency_key.as_deref(),
+                                        function_name.as_str(),
+                                        &InvokeParametersOss { params: arguments },
+                                    )
+                                    .await
+                                    .map_err(to_service_error)?,
+                            )
+                        }
+                    }
+                };
+                // TODO: handle json format and include idempotency key in it
+                result
+                    .map(|result| {
+                        InvokeResultView::try_parse_or_json(
+                            result,
+                            &component,
+                            function_name.as_str(),
+                        )
+                    })
+                    .transpose()?
+            }
+            GolemClients::Cloud(_) => {
+                todo!()
+            }
+        };
+
+        match result_view {
+            Some(view) => {
+                logln("");
+                self.ctx.log_handler().log_view(&view);
+            }
+            None => {
+                log_action("Enqueued", "invocation");
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn get(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+        let worker_name = worker_name.worker_name;
+
+        self.ctx.silence_app_context_init();
+
+        let (_component_match_kind, component_name, worker_name) =
+            self.match_worker_name(worker_name).await?;
+
+        let component = self
+            .ctx
+            .component_handler()
+            .component_by_name(&component_name.0)
+            .await?;
+
+        let Some(component) = component else {
+            log_error(format!(
+                "Component {} not found",
+                component_name.0.log_color_error_highlight()
+            ));
+            logln("");
+            bail!(NonSuccessfulExit);
+        };
+
+        let Some(worker_name) = worker_name else {
+            // TODO: do not allow ephemeral ones
+            log_error("Worker name is required");
+            logln("");
+            log_text_view(&WorkerNameHelp);
+            logln("");
+            bail!(NonSuccessfulExit);
+        };
+
+        let result = match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => {
+                let result = clients
+                    .worker
+                    .get_worker_metadata(
+                        &component.versioned_component_id.component_id,
+                        &worker_name.0,
+                    )
+                    .await
+                    .map_err(to_service_error)?;
+
+                WorkerMetadata::from(result)
+            }
+            GolemClients::Cloud(_) => {
+                todo!()
+            }
+        };
+
+        self.ctx
+            .log_handler()
+            .log_view(&WorkerGetView::from(result));
+
+        Ok(())
+    }
+
+    async fn list(
+        &self,
+        component_name: Option<ComponentName>,
+        filters: Vec<String>,
+        cursor: Option<ScanCursor>,
+        limit: Option<u64>,
+        precise: bool,
+    ) {
+        todo!()
+    }
+
+    pub async fn match_worker_name(
         &mut self,
         worker_name: WorkerName,
     ) -> anyhow::Result<(ComponentNameMatchKind, ComponentName, Option<WorkerName>)> {

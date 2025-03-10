@@ -19,7 +19,7 @@ use crate::error::HintError;
 use crate::model::component::show_exported_functions;
 use crate::model::text::fmt::{log_error, log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
-use crate::model::ComponentNameMatchKind;
+use crate::model::{ComponentNameMatchKind, Format};
 use colored::Colorize;
 use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
@@ -34,7 +34,7 @@ impl ErrorHandler {
         Self { ctx }
     }
 
-    pub(crate) async fn handle_partial_match(
+    pub async fn handle_partial_match(
         &mut self,
         partial_match: GolemCliCommandPartialMatch,
     ) -> anyhow::Result<()> {
@@ -119,7 +119,7 @@ impl ErrorHandler {
                     ),
                 );
                 let component_name = {
-                    let _indent = NestedTextViewIndent::new();
+                    let _indent = NestedTextViewIndent::new(Format::Text);
                     let (component_name_match_kind, component_name, worker_name) = self
                         .ctx
                         .worker_handler()
@@ -167,6 +167,7 @@ impl ErrorHandler {
             HintError::NoApplicationManifestFound => {
                 logln("");
                 log_error("No application manifest(s) found!");
+                logln("");
                 logln(format!(
                     "Switch to a directory that contains an application manifest ({}),",
                     "golem.yaml".log_color_highlight()

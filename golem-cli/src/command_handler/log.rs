@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::context::Context;
-use crate::model::text::fmt::TextView;
+use crate::model::text::fmt::{NestedTextViewIndent, TextView};
 use crate::model::Format;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -28,7 +28,7 @@ impl LogHandler {
         Self { ctx }
     }
 
-    pub(crate) fn log_view<View: TextView + Serialize + DeserializeOwned>(&self, view: &View) {
+    pub fn log_view<View: TextView + Serialize + DeserializeOwned>(&self, view: &View) {
         match self.ctx.format() {
             Format::Json => {
                 println!("{}", serde_json::to_string(view).unwrap());
@@ -41,5 +41,9 @@ impl LogHandler {
                 view.log();
             }
         }
+    }
+
+    pub fn nested_text_view_indent(&self) -> NestedTextViewIndent {
+        NestedTextViewIndent::new(self.ctx.format())
     }
 }

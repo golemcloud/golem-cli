@@ -63,6 +63,7 @@ pub enum ApplicationSourceMode {
     // TODO: change to only accept the root document with include handling, and switch to that at start
     // TODO: (and maybe change validation to only allow include in root doc)
     Explicit(Vec<PathBuf>),
+    None,
 }
 
 #[derive(Debug, Clone)]
@@ -465,6 +466,9 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                             .map(|cn| cn.to_owned())
                             .collect(),
                     ),
+                    ApplicationSourceMode::None => {
+                        panic!("Cannot select components without source");
+                    }
                 },
                 ComponentSelectMode::All => ValidatedResult::Ok(
                     self.application
@@ -1150,6 +1154,7 @@ fn collect_sources(
                 non_unique_source_warns,
             ))
         }
+        ApplicationSourceMode::None => None,
     };
 
     sources.map(|sources| {

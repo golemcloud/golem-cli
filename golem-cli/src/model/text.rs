@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod fmt {
+    use crate::model::Format;
     use cli_table::{Row, Title, WithTitle};
     use colored::control::SHOULD_COLORIZE;
     use colored::Colorize;
@@ -66,7 +67,8 @@ pub mod fmt {
             let padding = fields.iter().map(|(name, _)| name.len()).max().unwrap_or(0) + 1;
 
             let _indent = Self::indent_fields().then(LogIndent::new);
-            let _nest_indent = Self::nest_ident_fields().then(NestedTextViewIndent::new);
+            let _nest_indent =
+                Self::nest_ident_fields().then(|| NestedTextViewIndent::new(Format::Text));
 
             for (name, value) in self.fields() {
                 let lines: Vec<_> = value.lines().collect();
@@ -325,22 +327,24 @@ pub mod fmt {
     }
 
     pub struct NestedTextViewIndent {
+        format: Format,
         log_indent: Option<LogIndent>,
     }
 
-    // TODO: make it format dependent
-    // TODO: make it not using unicode on NO_COLOR?
-    impl Default for NestedTextViewIndent {
-        fn default() -> Self {
-            Self::new()
-        }
-    }
-
     impl NestedTextViewIndent {
-        pub fn new() -> Self {
-            logln("╔═");
-            Self {
-                log_indent: Some(LogIndent::prefix("║ ")),
+        pub fn new(format: Format) -> Self {
+            match format {
+                Format::Json | Format::Yaml => Self {
+                    format,
+                    log_indent: Some(LogIndent::new()),
+                },
+                Format::Text => {
+                    logln("╔═");
+                    Self {
+                        format,
+                        log_indent: Some(LogIndent::prefix("║ ")),
+                    }
+                }
             }
         }
     }
@@ -349,7 +353,12 @@ pub mod fmt {
         fn drop(&mut self) {
             if let Some(ident) = self.log_indent.take() {
                 drop(ident);
-                logln("╚═");
+                match self.format {
+                    Format::Json | Format::Yaml => {
+                        // NOP
+                    }
+                    Format::Text => logln("╚═"),
+                }
             }
         }
     }
@@ -712,6 +721,10 @@ pub mod component {
         fn fields(&self) -> Vec<(String, String)> {
             component_view_fields(&self.0)
         }
+
+        fn nest_ident_fields() -> bool {
+            true
+        }
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -975,6 +988,10 @@ pub mod worker {
                 });
 
             fields.build()
+        }
+
+        fn nest_ident_fields() -> bool {
+            true
         }
     }
 

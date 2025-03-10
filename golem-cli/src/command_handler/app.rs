@@ -41,7 +41,7 @@ impl AppCommandHandler {
         Self { ctx }
     }
 
-    pub(crate) async fn handle_command(&mut self, subcommand: AppSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&mut self, subcommand: AppSubcommand) -> anyhow::Result<()> {
         match subcommand {
             AppSubcommand::New {
                 application_name,
@@ -194,7 +194,7 @@ impl AppCommandHandler {
         app_ctx.some_or_err_mut()?.build().await
     }
 
-    pub(crate) fn clean(
+    pub fn clean(
         &mut self,
         component_names: Vec<ComponentName>,
         default_component_select_mode: &ComponentSelectMode,
@@ -214,7 +214,7 @@ impl AppCommandHandler {
             .ok_or(anyhow!(HintError::NoApplicationManifestFound))
     }
 
-    pub(crate) fn opt_select_components(
+    pub fn opt_select_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
@@ -222,7 +222,7 @@ impl AppCommandHandler {
         self.opt_select_components_internal(component_names, default, false)
     }
 
-    pub(crate) fn opt_select_components_allow_not_found(
+    pub fn opt_select_components_allow_not_found(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
@@ -231,7 +231,7 @@ impl AppCommandHandler {
     }
 
     // TODO: forbid matching the same component multiple times
-    pub(crate) fn opt_select_components_internal(
+    pub fn opt_select_components_internal(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,

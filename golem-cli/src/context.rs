@@ -100,6 +100,7 @@ impl Context {
                     .as_ref()
                     .map(|bp| bp.0.clone().into()),
                 app_manifest_path: global_flags.app_manifest_path.clone(),
+                disable_app_manifest_discovery: global_flags.disable_app_manifest_discovery,
                 wasm_rpc_override: WasmRpcOverride {
                     wasm_rpc_path_override: global_flags.wasm_rpc_path.clone(),
                     wasm_rpc_version_override: global_flags.wasm_rpc_version.clone(),
@@ -375,8 +376,9 @@ pub struct GolemClientsCloud {
 }
 
 struct ApplicationContextConfig {
-    app_manifest_path: Option<PathBuf>,
     build_profile: Option<AppBuildProfileName>,
+    app_manifest_path: Option<PathBuf>,
+    disable_app_manifest_discovery: bool,
     wasm_rpc_override: WasmRpcOverride,
 }
 
@@ -403,7 +405,13 @@ impl ApplicationContextState {
             app_source_mode: {
                 match &config.app_manifest_path {
                     Some(path) => ApplicationSourceMode::Explicit(vec![path.clone()]),
-                    None => ApplicationSourceMode::Automatic,
+                    None => {
+                        if config.disable_app_manifest_discovery {
+                            ApplicationSourceMode::None
+                        } else {
+                            ApplicationSourceMode::Automatic
+                        }
+                    }
                 }
             },
             skip_up_to_date_checks: self.skip_up_to_date_checks,

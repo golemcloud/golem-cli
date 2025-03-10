@@ -20,7 +20,7 @@ use crate::error::{to_service_error, NonSuccessfulExit};
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::component::{Component, ComponentView};
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
-use crate::model::text::fmt::{log_error, log_warn, NestedTextViewIndent};
+use crate::model::text::fmt::{log_error, log_warn};
 use crate::model::{ComponentName, ComponentNameMatchKind};
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
@@ -49,10 +49,7 @@ impl ComponentCommandHandler {
         Self { ctx }
     }
 
-    pub(crate) async fn handle_command(
-        &mut self,
-        subcommand: ComponentSubcommand,
-    ) -> anyhow::Result<()> {
+    pub async fn handle_command(&mut self, subcommand: ComponentSubcommand) -> anyhow::Result<()> {
         match subcommand {
             ComponentSubcommand::New { .. } => {
                 todo!()
@@ -160,7 +157,7 @@ impl ComponentCommandHandler {
                             component_name.as_str().log_color_highlight()
                         ),
                     );
-                    let _indent = NestedTextViewIndent::new();
+                    let _indent = LogIndent::new();
                     match self.ctx.golem_clients().await? {
                         GolemClients::Oss(clients) => {
                             let component = clients
@@ -192,7 +189,7 @@ impl ComponentCommandHandler {
                             component_name.as_str().log_color_highlight()
                         ),
                     );
-                    let _indent = NestedTextViewIndent::new();
+                    let _indent = self.ctx.log_handler().nested_text_view_indent();
                     match self.ctx.golem_clients().await? {
                         GolemClients::Oss(clients) => {
                             let component = clients
@@ -223,6 +220,7 @@ impl ComponentCommandHandler {
     }
 
     async fn versions(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
+        // TODO: list "all" on no matches? maybe as a HintError
         let selected_component_names = self.selection_by_app_or_name(component_name.as_ref())?;
 
         let mut component_views = Vec::<ComponentView>::new();
@@ -329,6 +327,7 @@ impl ComponentCommandHandler {
             }
         }
 
+        // TODO: code dup
         if component_views.is_empty() && component_name.is_some() {
             // Retry selection (this time with not allowing "not founds")
             // so we get error messages for app component names.
@@ -403,7 +402,7 @@ impl ComponentCommandHandler {
         Ok(selected_component_names)
     }
 
-    pub(crate) async fn component_by_name_with_auto_deploy(
+    pub async fn component_by_name_with_auto_deploy(
         &self,
         component_match_kind: ComponentNameMatchKind,
         component_name: &ComponentName,
@@ -459,7 +458,7 @@ impl ComponentCommandHandler {
     // TODO: we might want to have a filter for batch name lookups on the server side
     // TODO: also the search returns all versions
     // TODO: maybe add transient or persistent cache for all the meta
-    pub(crate) async fn component_by_name(
+    pub async fn component_by_name(
         &self,
         component_name: &str,
     ) -> anyhow::Result<Option<Component>> {
