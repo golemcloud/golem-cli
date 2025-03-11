@@ -66,6 +66,7 @@ pub struct Context {
     profile_kind: ProfileKind,
     profile: Profile,
     app_context_config: ApplicationContextConfig,
+    http_batch_size: u64,
 
     // Lazy initialized
     clients: tokio::sync::OnceCell<Clients>,
@@ -105,6 +106,7 @@ impl Context {
                     wasm_rpc_version_override: global_flags.wasm_rpc_version.clone(),
                 },
             },
+            http_batch_size: global_flags.http_batch_size.unwrap_or(50),
             clients: tokio::sync::OnceCell::new(),
             templates: std::sync::OnceLock::new(),
             app_context_state: tokio::sync::RwLock::default(),
@@ -126,6 +128,10 @@ impl Context {
 
     pub fn build_profile(&self) -> Option<&AppBuildProfileName> {
         self.app_context_config.build_profile.as_ref()
+    }
+
+    pub fn http_batch_size(&self) -> u64 {
+        self.http_batch_size
     }
 
     pub async fn clients(&self) -> anyhow::Result<&Clients> {

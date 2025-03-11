@@ -21,7 +21,7 @@ use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use crate::model::{Format, WorkerName};
-use anyhow::{anyhow, bail};
+use anyhow::{anyhow, bail, Context as AnyhowContext};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
@@ -79,6 +79,9 @@ pub struct GolemCliGlobalFlags {
 
     #[arg(skip)]
     pub wasm_rpc_offline: bool,
+
+    #[arg(skip)]
+    pub http_batch_size: Option<u64>,
 }
 
 impl GolemCliGlobalFlags {
@@ -127,6 +130,17 @@ impl GolemCliGlobalFlags {
             if let Ok(version) = std::env::var("GOLEM_WASM_RPC_VERSION") {
                 self.wasm_rpc_version = Some(version);
             }
+        }
+
+        if let Ok(batch_size) = std::env::var("GOLEM_HTTP_BATCH_SIZE") {
+            self.http_batch_size = Some(
+                batch_size
+                    .parse()
+                    .with_context(|| {
+                        format!("Failed to parse GOLEM_HTTP_BATCH_SIZE: {}", batch_size)
+                    })
+                    .unwrap(),
+            )
         }
 
         self

@@ -483,7 +483,7 @@ impl WorkerCommandHandler {
                                     &component.versioned_component_id.component_id,
                                     Some(&filters),
                                     current_scan_cursor.as_deref(),
-                                    max_count.or(Some(50)),
+                                    max_count.or(Some(self.ctx.http_batch_size())),
                                     Some(precise),
                                 )
                                 .await
