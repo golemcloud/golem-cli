@@ -37,11 +37,11 @@ jobs:
     - uses: davidB/rust-cargo-make@v1
     - uses: cargo-bins/cargo-binstall@main
     - name: Install cargo-component
-      run: cargo binstall --no-confirm cargo-component@0.20.0
+      run: cargo install cargo-component@0.20.0
     - name: Install wasm-tools
-      run: cargo binstall --force --locked wasm-tools@1.223.0
+      run: cargo install --force --locked wasm-tools@1.223.0
     - name: Install wit-bindgen
-      run: cargo binstall --force --locked wit-bindgen-cli@0.37.0
+      run: cargo install --force --locked wit-bindgen-cli@0.37.0
     - name: Install Protoc
       uses: arduino/setup-protoc@v3
       with:
