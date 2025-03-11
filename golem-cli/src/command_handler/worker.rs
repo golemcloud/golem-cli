@@ -107,7 +107,7 @@ impl WorkerCommandHandler {
     ) -> anyhow::Result<()> {
         let worker_name = worker_name.worker_name;
 
-        self.ctx.silence_app_context_init();
+        self.ctx.silence_app_context_init().await;
 
         let (component_match_kind, component_name, worker_name) =
             self.match_worker_name(worker_name).await?;
@@ -169,7 +169,7 @@ impl WorkerCommandHandler {
     ) -> anyhow::Result<()> {
         let worker_name = worker_name.worker_name;
 
-        self.ctx.silence_app_context_init();
+        self.ctx.silence_app_context_init().await;
 
         // TODO: should always generate idempotency key if not provided?
         let idempotency_key = idempotency_key.map(|key| {
@@ -380,7 +380,7 @@ impl WorkerCommandHandler {
     async fn get(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         let worker_name = worker_name.worker_name;
 
-        self.ctx.silence_app_context_init();
+        self.ctx.silence_app_context_init().await;
 
         let (_component_match_kind, component_name, worker_name) =
             self.match_worker_name(worker_name).await?;
@@ -445,7 +445,8 @@ impl WorkerCommandHandler {
         let selected_components = self
             .ctx
             .component_handler()
-            .must_select_by_app_or_name(component_name.as_ref())?;
+            .must_select_by_app_or_name(component_name.as_ref())
+            .await?;
 
         if scan_cursor.is_some() && selected_components.len() != 1 {
             log_error(format!(
@@ -548,9 +549,10 @@ impl WorkerCommandHandler {
 
                 self.ctx
                     .app_handler()
-                    .opt_select_components(vec![], &ComponentSelectMode::CurrentDir)?;
+                    .opt_select_components(vec![], &ComponentSelectMode::CurrentDir)
+                    .await?;
 
-                let app_ctx = self.ctx.app_context_lock();
+                let app_ctx = self.ctx.app_context_lock().await;
                 let app_ctx = app_ctx.opt()?;
                 match app_ctx {
                     Some(app_ctx) => {
@@ -627,9 +629,10 @@ impl WorkerCommandHandler {
 
                 self.ctx
                     .app_handler()
-                    .opt_select_components(vec![], &ComponentSelectMode::All)?;
+                    .opt_select_components(vec![], &ComponentSelectMode::All)
+                    .await?;
 
-                let app_ctx = self.ctx.app_context_lock();
+                let app_ctx = self.ctx.app_context_lock().await;
                 let app_ctx = app_ctx.opt()?;
                 match app_ctx {
                     Some(app_ctx) => {

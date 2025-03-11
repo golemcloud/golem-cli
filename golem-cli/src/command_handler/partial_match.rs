@@ -64,12 +64,13 @@ impl ErrorHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
-                self.ctx.silence_app_context_init();
+                self.ctx.silence_app_context_init().await;
                 self.ctx
                     .app_handler()
-                    .opt_select_components(vec![], &ComponentSelectMode::All)?;
+                    .opt_select_components(vec![], &ComponentSelectMode::All)
+                    .await?;
 
-                let app_ctx = self.ctx.app_context_lock();
+                let app_ctx = self.ctx.app_context_lock().await;
                 if let Some(app_ctx) = app_ctx.opt()? {
                     logln("");
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
@@ -83,12 +84,13 @@ impl ErrorHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::ComponentMissingSubcommandHelp => {
-                self.ctx.silence_app_context_init();
+                self.ctx.silence_app_context_init().await;
                 self.ctx
                     .app_handler()
-                    .opt_select_components(vec![], &ComponentSelectMode::All)?;
+                    .opt_select_components(vec![], &ComponentSelectMode::All)
+                    .await?;
 
-                let app_ctx = self.ctx.app_context_lock();
+                let app_ctx = self.ctx.app_context_lock().await;
                 if let Some(app_ctx) = app_ctx.opt()? {
                     logln("");
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
@@ -109,7 +111,7 @@ impl ErrorHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName { worker_name } => {
-                self.ctx.silence_app_context_init();
+                self.ctx.silence_app_context_init().await;
                 logln("");
                 log_action(
                     "Checking",

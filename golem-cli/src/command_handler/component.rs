@@ -78,10 +78,15 @@ impl ComponentCommandHandler {
                 )
                 .await
             }
-            ComponentSubcommand::Clean { component_name } => self.ctx.app_handler().clean(
-                component_name.component_name,
-                &ComponentSelectMode::CurrentDir,
-            ),
+            ComponentSubcommand::Clean { component_name } => {
+                self.ctx
+                    .app_handler()
+                    .clean(
+                        component_name.component_name,
+                        &ComponentSelectMode::CurrentDir,
+                    )
+                    .await
+            }
             ComponentSubcommand::List { component_name } => {
                 self.list(component_name.component_name).await
             }
@@ -113,7 +118,7 @@ impl ComponentCommandHandler {
         // TODO: hash <-> version check for skipping deploy
 
         let selected_component_names = {
-            let app_ctx = self.ctx.app_context_lock();
+            let app_ctx = self.ctx.app_context_lock().await;
             app_ctx
                 .some_or_err()?
                 .selected_component_names()
@@ -130,7 +135,7 @@ impl ComponentCommandHandler {
 
             let component_id = self.component_id_by_name(component_name.as_str()).await?;
             let deploy_properties = {
-                let mut app_ctx = self.ctx.app_context_lock_mut();
+                let mut app_ctx = self.ctx.app_context_lock_mut().await;
                 let app_ctx = app_ctx.some_or_err_mut()?;
                 component_deploy_properties(app_ctx, component_name, build_profile.clone())?
             };
@@ -220,7 +225,9 @@ impl ComponentCommandHandler {
     }
 
     async fn list(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
-        let selected_component_names = self.opt_select_by_app_or_name(component_name.as_ref())?;
+        let selected_component_names = self
+            .opt_select_by_app_or_name(component_name.as_ref())
+            .await?;
 
         let mut component_views = Vec::<ComponentView>::new();
 
@@ -275,10 +282,13 @@ impl ComponentCommandHandler {
         if component_views.is_empty() && component_name.is_some() {
             // Retry selection (this time with not allowing "not founds")
             // so we get error messages for app component names.
-            self.ctx.app_handler().opt_select_components(
-                component_name.iter().cloned().collect(),
-                &ComponentSelectMode::CurrentDir,
-            )?;
+            self.ctx
+                .app_handler()
+                .opt_select_components(
+                    component_name.iter().cloned().collect(),
+                    &ComponentSelectMode::CurrentDir,
+                )
+                .await?;
         }
 
         if component_views.is_empty() {
@@ -295,7 +305,9 @@ impl ComponentCommandHandler {
         component_name: Option<ComponentName>,
         version: Option<u64>,
     ) -> anyhow::Result<()> {
-        let selected_component_names = self.must_select_by_app_or_name(component_name.as_ref())?;
+        let selected_component_names = self
+            .must_select_by_app_or_name(component_name.as_ref())
+            .await?;
 
         if version.is_some() && selected_component_names.len() > 1 {
             log_error("Version cannot be specific when multiple components are selected!");
@@ -353,10 +365,13 @@ impl ComponentCommandHandler {
         if component_views.is_empty() && component_name.is_some() {
             // Retry selection (this time with not allowing "not founds")
             // so we get error messages for app component names.
-            self.ctx.app_handler().opt_select_components(
-                component_name.iter().cloned().collect(),
-                &ComponentSelectMode::CurrentDir,
-            )?;
+            self.ctx
+                .app_handler()
+                .opt_select_components(
+                    component_name.iter().cloned().collect(),
+                    &ComponentSelectMode::CurrentDir,
+                )
+                .await?;
         }
 
         let no_matches = component_views.is_empty();
@@ -375,37 +390,40 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    pub fn opt_select_by_app_or_name(
+    pub async fn opt_select_by_app_or_name(
         &self,
         component_name: Option<&ComponentName>,
     ) -> anyhow::Result<Vec<String>> {
         self.select_by_app_or_name_internal(component_name, true)
+            .await
     }
 
-    pub fn must_select_by_app_or_name(
+    pub async fn must_select_by_app_or_name(
         &self,
         component_name: Option<&ComponentName>,
     ) -> anyhow::Result<Vec<String>> {
         self.select_by_app_or_name_internal(component_name, false)
+            .await
     }
 
-    fn select_by_app_or_name_internal(
+    async fn select_by_app_or_name_internal(
         &self,
         component_name: Option<&ComponentName>,
         allow_no_matches: bool,
     ) -> anyhow::Result<Vec<String>> {
-        self.ctx.silence_app_context_init();
+        self.ctx.silence_app_context_init().await;
         let app_select_success = self
             .ctx
             .app_handler()
             .opt_select_components_allow_not_found(
                 component_name.into_iter().cloned().collect(),
                 &ComponentSelectMode::CurrentDir,
-            )?;
+            )
+            .await?;
 
         let selected_component_names = {
             if app_select_success {
-                let app_ctx = self.ctx.app_context_lock();
+                let app_ctx = self.ctx.app_context_lock().await;
                 app_ctx
                     .opt()?
                     .map(|app_ctx| {

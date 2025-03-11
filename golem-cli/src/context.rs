@@ -55,7 +55,6 @@ use golem_wasm_rpc_stubgen::stub::WasmRpcOverride;
 use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 use tracing::debug;
 
 // Context is responsible for storing the CLI state,
@@ -75,7 +74,7 @@ pub struct Context {
     >,
 
     // Directly mutable
-    app_context_state: std::sync::RwLock<ApplicationContextState>,
+    app_context_state: tokio::sync::RwLock<ApplicationContextState>,
 }
 
 impl Context {
@@ -108,7 +107,7 @@ impl Context {
             },
             clients: tokio::sync::OnceCell::new(),
             templates: std::sync::OnceLock::new(),
-            app_context_state: std::sync::RwLock::default(),
+            app_context_state: tokio::sync::RwLock::default(),
         }
     }
 
@@ -116,8 +115,8 @@ impl Context {
         self.format
     }
 
-    pub fn silence_app_context_init(&self) {
-        let mut state = self.app_context_state.write().unwrap();
+    pub async fn silence_app_context_init(&self) {
+        let mut state = self.app_context_state.write().await;
         state.silent_init = true;
     }
 
@@ -139,9 +138,11 @@ impl Context {
         Ok(&self.clients().await?.golem)
     }
 
-    pub fn app_context_lock(&self) -> RwLockReadGuard<'_, ApplicationContextState> {
+    pub async fn app_context_lock(
+        &self,
+    ) -> tokio::sync::RwLockReadGuard<'_, ApplicationContextState> {
         {
-            let state = self.app_context_state.read().unwrap();
+            let state = self.app_context_state.read().await;
             if state.app_context.is_some() {
                 return state;
             }
@@ -151,23 +152,25 @@ impl Context {
             let _init = self.app_context_lock_mut();
         }
 
-        self.app_context_state.read().unwrap()
+        self.app_context_state.read().await
     }
 
-    pub fn app_context_lock_mut(&self) -> RwLockWriteGuard<'_, ApplicationContextState> {
-        let mut state = self.app_context_state.write().unwrap();
+    pub async fn app_context_lock_mut(
+        &self,
+    ) -> tokio::sync::RwLockWriteGuard<'_, ApplicationContextState> {
+        let mut state = self.app_context_state.write().await;
         state.init(&self.app_context_config);
         state
     }
 
-    fn set_app_ctx_init_config<T>(
+    async fn set_app_ctx_init_config<T>(
         &self,
         name: &str,
         value_mut: fn(&mut ApplicationContextState) -> &mut T,
         was_set_mut: fn(&mut ApplicationContextState) -> &mut bool,
         value: T,
     ) {
-        let mut state = self.app_context_state.write().unwrap();
+        let mut state = self.app_context_state.write().await;
         if *was_set_mut(&mut state) {
             panic!("{} can be set only once, was already set", name);
         }
@@ -178,22 +181,24 @@ impl Context {
         *was_set_mut(&mut state) = true;
     }
 
-    pub fn set_skip_up_to_date_checks(&self, skip: bool) {
+    pub async fn set_skip_up_to_date_checks(&self, skip: bool) {
         self.set_app_ctx_init_config(
             "skip_up_to_date_checks",
             |ctx| &mut ctx.skip_up_to_date_checks,
             |ctx| &mut ctx.skip_up_to_date_checks_was_set,
             skip,
         )
+        .await
     }
 
-    pub fn set_steps_filter(&self, steps_filter: HashSet<AppBuildStep>) {
+    pub async fn set_steps_filter(&self, steps_filter: HashSet<AppBuildStep>) {
         self.set_app_ctx_init_config(
             "steps_filter",
             |ctx| &mut ctx.build_steps_filter,
             |ctx| &mut ctx.build_steps_filter_was_set,
             steps_filter,
-        );
+        )
+        .await;
     }
 
     pub fn templates(

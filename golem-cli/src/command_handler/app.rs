@@ -47,6 +47,7 @@ impl AppCommandHandler {
                 application_name,
                 language,
             } => {
+                // TODO: extract method
                 let app_dir = PathBuf::from(&application_name);
                 if app_dir.exists() {
                     bail!(
@@ -122,7 +123,7 @@ impl AppCommandHandler {
                 }
 
                 std::env::set_current_dir(&app_dir)?;
-                let app_ctx = self.ctx.app_context_lock();
+                let app_ctx = self.ctx.app_context_lock().await;
                 let Some(app_ctx) = app_ctx.opt()? else {
                     return Ok(());
                 };
@@ -161,6 +162,7 @@ impl AppCommandHandler {
             }
             AppSubcommand::Clean { component_name } => {
                 self.clean(component_name.component_name, &ComponentSelectMode::All)
+                    .await
             }
             AppSubcommand::CustomCommand(command) => {
                 if command.len() != 1 {
@@ -170,7 +172,7 @@ impl AppCommandHandler {
                     );
                 }
 
-                let app_ctx = self.ctx.app_context_lock();
+                let app_ctx = self.ctx.app_context_lock().await;
                 app_ctx.some_or_err()?.custom_command(&command[0])?;
 
                 Ok(())
@@ -185,60 +187,68 @@ impl AppCommandHandler {
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
         if let Some(build) = build {
-            self.ctx.set_steps_filter(build.step.into_iter().collect());
             self.ctx
-                .set_skip_up_to_date_checks(build.force_build.force_build);
+                .set_steps_filter(build.step.into_iter().collect())
+                .await;
+            self.ctx
+                .set_skip_up_to_date_checks(build.force_build.force_build)
+                .await;
         }
-        self.must_select_components(component_names, default_component_select_mode)?;
-        let mut app_ctx = self.ctx.app_context_lock_mut();
+        self.must_select_components(component_names, default_component_select_mode)
+            .await?;
+        let mut app_ctx = self.ctx.app_context_lock_mut().await;
         app_ctx.some_or_err_mut()?.build().await
     }
 
-    pub fn clean(
+    pub async fn clean(
         &mut self,
         component_names: Vec<ComponentName>,
         default_component_select_mode: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.must_select_components(component_names, default_component_select_mode)?;
-        let app_ctx = self.ctx.app_context_lock();
+        self.must_select_components(component_names, default_component_select_mode)
+            .await?;
+        let app_ctx = self.ctx.app_context_lock().await;
         app_ctx.some_or_err()?.clean()
     }
 
-    fn must_select_components(
+    async fn must_select_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
     ) -> anyhow::Result<()> {
-        self.opt_select_components(component_names, default)?
+        self.opt_select_components(component_names, default)
+            .await?
             .then_some(())
             .ok_or(anyhow!(HintError::NoApplicationManifestFound))
     }
 
-    pub fn opt_select_components(
+    pub async fn opt_select_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
     ) -> anyhow::Result<bool> {
         self.opt_select_components_internal(component_names, default, false)
+            .await
     }
 
-    pub fn opt_select_components_allow_not_found(
+    pub async fn opt_select_components_allow_not_found(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
     ) -> anyhow::Result<bool> {
         self.opt_select_components_internal(component_names, default, true)
+            .await
     }
 
     // TODO: forbid matching the same component multiple times
     // Returns false if there is no app
-    pub fn opt_select_components_internal(
+    pub async fn opt_select_components_internal(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ComponentSelectMode,
         allow_not_found: bool,
     ) -> anyhow::Result<bool> {
-        let mut app_ctx = self.ctx.app_context_lock_mut();
+        let mut app_ctx = self.ctx.app_context_lock_mut().await;
         let silent_selection = app_ctx.silent_init;
         let Some(app_ctx) = app_ctx.opt_mut()? else {
             return Ok(false);
