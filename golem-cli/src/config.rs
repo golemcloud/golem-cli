@@ -25,6 +25,8 @@ use std::time::Duration;
 use tracing::warn;
 use url::Url;
 
+static CLOUD_URL: &str = "https://release.api.golem.cloud/";
+
 // TODO: review and separate model, config and serialization parts
 // TODO: when doing the serialization we can do a legacy migration
 
@@ -341,8 +343,38 @@ impl From<&Profile> for ClientConfig {
                     ),
                 }
             }
-            Profile::GolemCloud(_profile) => {
-                todo!()
+            Profile::GolemCloud(profile) => {
+                let default_cloud_url = Url::parse(CLOUD_URL).unwrap();
+                let component_url = profile
+                    .custom_url
+                    .clone()
+                    .unwrap_or_else(|| default_cloud_url);
+                let cloud_url = Some(
+                    profile
+                        .custom_cloud_url
+                        .clone()
+                        .unwrap_or_else(|| component_url.clone()),
+                );
+                let worker_url = profile
+                    .custom_worker_url
+                    .clone()
+                    .unwrap_or_else(|| component_url.clone());
+                let allow_insecure = profile.allow_insecure;
+
+                ClientConfig {
+                    component_url,
+                    worker_url,
+                    cloud_url,
+                    service_http_client_config: HttpClientConfig::new_for_service_calls(
+                        allow_insecure,
+                    ),
+                    health_check_http_client_config: HttpClientConfig::new_for_health_check(
+                        allow_insecure,
+                    ),
+                    file_download_http_client_config: HttpClientConfig::new_for_file_download(
+                        allow_insecure,
+                    ),
+                }
             }
         }
     }

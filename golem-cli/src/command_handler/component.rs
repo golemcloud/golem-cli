@@ -12,21 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::cloud::{AccountId, ProjectId};
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{BuildArgs, ForceBuildArg};
 use crate::command_handler::GetHandler;
+use crate::config::ProfileKind;
 use crate::context::{Context, GolemClients};
-use crate::error::{to_service_error, NonSuccessfulExit};
+use crate::error::service::AnyhowMapServiceError;
+use crate::error::NonSuccessfulExit;
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::component::{Component, ComponentView};
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
-use crate::model::text::fmt::{log_error, log_warn};
-use crate::model::{ComponentName, ComponentNameMatchKind};
+use crate::model::text::fmt::{log_error, log_text_view, log_warn};
+use crate::model::text::help::{ComponentNameHelp, WorkerNameHelp};
+use crate::model::to_cli::ToCli;
+use crate::model::to_cloud::ToCloud;
+use crate::model::{ComponentName, ComponentNameMatchKind, ProjectNameAndId, SelectedComponents};
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
 use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
 use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
+use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
+use golem_cloud_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcCloud;
+use golem_cloud_client::model::DynamicLinking as DynamicLinkingCloud;
+use golem_cloud_client::model::{
+    ComponentQuery, DynamicLinkedInstance as DynamicLinkedInstanceCloud,
+};
 use golem_common::model::ComponentType;
 use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ComponentSelectMode};
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent};
@@ -37,7 +49,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
-use tracing::debug;
 use uuid::Uuid;
 
 pub struct ComponentCommandHandler {
@@ -72,6 +83,11 @@ impl ComponentCommandHandler {
                 force_build,
             } => {
                 self.deploy(
+                    self.ctx
+                        .cloud_project_handler()
+                        .opt_select_project(None, None)
+                        .await?
+                        .as_ref(),
                     component_name.component_name,
                     Some(force_build),
                     &ComponentSelectMode::CurrentDir,
@@ -99,6 +115,7 @@ impl ComponentCommandHandler {
 
     pub async fn deploy(
         &mut self,
+        project: Option<&ProjectNameAndId>,
         component_names: Vec<ComponentName>,
         force_build: Option<ForceBuildArg>,
         default_component_select_mode: &ComponentSelectMode,
@@ -133,7 +150,9 @@ impl ComponentCommandHandler {
         for component_name in &selected_component_names {
             let _indent = LogIndent::new();
 
-            let component_id = self.component_id_by_name(component_name.as_str()).await?;
+            let component_id = self
+                .component_id_by_name(project, &component_name.as_str().into())
+                .await?;
             let deploy_properties = {
                 let mut app_ctx = self.ctx.app_context_lock_mut().await;
                 let app_ctx = app_ctx.some_or_err_mut()?;
@@ -163,7 +182,7 @@ impl ComponentCommandHandler {
                         ),
                     );
                     let _indent = LogIndent::new();
-                    match self.ctx.golem_clients().await? {
+                    let component = match self.ctx.golem_clients().await? {
                         GolemClients::Oss(clients) => {
                             let component = clients
                                 .component
@@ -176,15 +195,31 @@ impl ComponentCommandHandler {
                                     deploy_properties.dynamic_linking.as_ref(),
                                 )
                                 .await
-                                .map_err(to_service_error)?;
-                            self.ctx
-                                .log_handler()
-                                .log_view(&ComponentUpdateView(Component::from(component).into()));
+                                .map_service_error()?;
+                            Component::from(component)
                         }
-                        GolemClients::Cloud(_) => {
-                            todo!()
+                        GolemClients::Cloud(clients) => {
+                            let component = clients
+                                .component
+                                .update_component(
+                                    component_id,
+                                    Some(&deploy_properties.component_type),
+                                    linked_wasm,
+                                    None,         // TODO:
+                                    None::<File>, // TODO:
+                                    deploy_properties
+                                        .dynamic_linking
+                                        .map(|dl| dl.to_cloud())
+                                        .as_ref(),
+                                )
+                                .await
+                                .map_service_error()?;
+                            Component::from(component)
                         }
-                    }
+                    };
+                    self.ctx
+                        .log_handler()
+                        .log_view(&ComponentUpdateView(ComponentView::from(component)));
                 }
                 None => {
                     log_action(
@@ -195,7 +230,7 @@ impl ComponentCommandHandler {
                         ),
                     );
                     let _indent = self.ctx.log_handler().nested_text_view_indent();
-                    match self.ctx.golem_clients().await? {
+                    let component = match self.ctx.golem_clients().await? {
                         GolemClients::Oss(clients) => {
                             let component = clients
                                 .component
@@ -208,15 +243,34 @@ impl ComponentCommandHandler {
                                     deploy_properties.dynamic_linking.as_ref(),
                                 )
                                 .await
-                                .map_err(to_service_error)?;
-                            self.ctx
-                                .log_handler()
-                                .log_view(&ComponentCreateView(Component::from(component).into()));
+                                .map_service_error()?;
+                            Component::from(component)
                         }
-                        GolemClients::Cloud(_) => {
-                            todo!()
+                        GolemClients::Cloud(clients) => {
+                            let component = clients
+                                .component
+                                .create_component(
+                                    &ComponentQuery {
+                                        project_id: project.map(|p| p.project_id.0),
+                                        component_name: component_name.to_string().into(),
+                                    },
+                                    linked_wasm,
+                                    Some(&deploy_properties.component_type),
+                                    None,         // TODO:
+                                    None::<File>, // TODO:
+                                    deploy_properties
+                                        .dynamic_linking
+                                        .map(|dl| dl.to_cloud())
+                                        .as_ref(),
+                                )
+                                .await
+                                .map_service_error()?;
+                            Component::from(component)
                         }
-                    }
+                    };
+                    self.ctx
+                        .log_handler()
+                        .log_view(&ComponentCreateView(ComponentView::from(component)));
                 }
             }
         }
@@ -226,12 +280,12 @@ impl ComponentCommandHandler {
 
     async fn list(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
         let selected_component_names = self
-            .opt_select_by_app_or_name(component_name.as_ref())
+            .opt_select_components_by_app_or_name(component_name.as_ref())
             .await?;
 
         let mut component_views = Vec::<ComponentView>::new();
 
-        if selected_component_names.is_empty() {
+        if selected_component_names.component_names.is_empty() {
             // TODO: there is no pagination for components
             match self.ctx.golem_clients().await? {
                 GolemClients::Oss(clients) => {
@@ -239,42 +293,65 @@ impl ComponentCommandHandler {
                         .component
                         .get_components(None)
                         .await
-                        .map_err(to_service_error)?;
+                        .map_service_error()?;
                     component_views.extend(
                         results
                             .into_iter()
                             .map(|meta| ComponentView::from(Component::from(meta))),
                     );
                 }
-                GolemClients::Cloud(_) => {
-                    todo!()
+                GolemClients::Cloud(clients) => {
+                    let results = clients
+                        .component
+                        .get_components(
+                            selected_component_names
+                                .project
+                                .as_ref()
+                                .map(|p| &p.project_id.0),
+                            None,
+                        )
+                        .await
+                        .map_service_error()?;
+                    component_views.extend(
+                        results
+                            .into_iter()
+                            .map(|meta| ComponentView::from(Component::from(meta))),
+                    );
                 }
             }
         } else {
-            for component_name in selected_component_names {
-                match self.ctx.golem_clients().await? {
-                    GolemClients::Oss(clients) => {
-                        let results = clients
-                            .component
-                            .get_components(Some(component_name.as_str()))
-                            .await
-                            .map_err(to_service_error)?;
-                        if results.is_empty() {
-                            log_warn(format!(
-                                "No versions found for component {}",
-                                component_name.as_str().log_color_highlight()
-                            ));
-                        } else {
-                            component_views.extend(
-                                results
-                                    .into_iter()
-                                    .map(|meta| ComponentView::from(Component::from(meta))),
-                            );
-                        }
-                    }
-                    GolemClients::Cloud(_) => {
-                        todo!()
-                    }
+            for component_name in selected_component_names.component_names.iter() {
+                let results = match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => clients
+                        .component
+                        .get_components(Some(&component_name.0))
+                        .await
+                        .map_service_error()?
+                        .into_iter()
+                        .map(|meta| ComponentView::from(Component::from(meta)))
+                        .collect::<Vec<_>>(),
+                    GolemClients::Cloud(clients) => clients
+                        .component
+                        .get_components(
+                            selected_component_names
+                                .project
+                                .as_ref()
+                                .map(|p| &p.project_id.0),
+                            Some(&component_name.0),
+                        )
+                        .await
+                        .map_service_error()?
+                        .into_iter()
+                        .map(|meta| ComponentView::from(Component::from(meta)))
+                        .collect::<Vec<_>>(),
+                };
+                if results.is_empty() {
+                    log_warn(format!(
+                        "No versions found for component {}",
+                        component_name.0.log_color_highlight()
+                    ));
+                } else {
+                    component_views.extend(results);
                 }
             }
         }
@@ -305,18 +382,19 @@ impl ComponentCommandHandler {
         component_name: Option<ComponentName>,
         version: Option<u64>,
     ) -> anyhow::Result<()> {
-        let selected_component_names = self
-            .must_select_by_app_or_name(component_name.as_ref())
+        let selected_components = self
+            .must_select_components_by_app_or_name(component_name.as_ref())
             .await?;
 
-        if version.is_some() && selected_component_names.len() > 1 {
+        if version.is_some() && selected_components.component_names.len() > 1 {
             log_error("Version cannot be specific when multiple components are selected!");
             logln("");
             logln(format!(
                 "Selected components: {}",
-                selected_component_names
+                selected_components
+                    .component_names
                     .iter()
-                    .map(|cn| cn.as_str().log_color_highlight())
+                    .map(|cn| cn.0.log_color_highlight())
                     .join(", ")
             ));
             logln("");
@@ -327,8 +405,11 @@ impl ComponentCommandHandler {
 
         let mut component_views = Vec::<ComponentView>::new();
 
-        for component_name in selected_component_names {
-            match self.component_id_by_name(component_name.as_str()).await? {
+        for component_name in &selected_components.component_names {
+            match self
+                .component_id_by_name(selected_components.project.as_ref(), component_name)
+                .await?
+            {
                 Some(component_id) => match self.ctx.golem_clients().await? {
                     GolemClients::Oss(clients) => match version {
                         Some(version) => {
@@ -336,7 +417,7 @@ impl ComponentCommandHandler {
                                 .component
                                 .get_component_metadata(&component_id, &version.to_string())
                                 .await
-                                .map_err(to_service_error)?;
+                                .map_service_error()?;
                             component_views.push(Component::from(result).into());
                         }
                         None => {
@@ -344,7 +425,7 @@ impl ComponentCommandHandler {
                                 .component
                                 .get_latest_component_metadata(&component_id)
                                 .await
-                                .map_err(to_service_error)?;
+                                .map_service_error()?;
                             component_views.push(Component::from(result).into());
                         }
                     },
@@ -355,7 +436,7 @@ impl ComponentCommandHandler {
                 None => {
                     log_warn(format!(
                         "Component {} not found",
-                        component_name.as_str().log_color_highlight()
+                        component_name.0.log_color_highlight()
                     ));
                 }
             }
@@ -390,33 +471,83 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    pub async fn opt_select_by_app_or_name(
+    pub async fn opt_select_components_by_app_or_name(
         &self,
         component_name: Option<&ComponentName>,
-    ) -> anyhow::Result<Vec<String>> {
-        self.select_by_app_or_name_internal(component_name, true)
+    ) -> anyhow::Result<SelectedComponents> {
+        self.select_components_by_app_or_name_internal(component_name, true)
             .await
     }
 
-    pub async fn must_select_by_app_or_name(
+    pub async fn must_select_components_by_app_or_name(
         &self,
         component_name: Option<&ComponentName>,
-    ) -> anyhow::Result<Vec<String>> {
-        self.select_by_app_or_name_internal(component_name, false)
+    ) -> anyhow::Result<SelectedComponents> {
+        self.select_components_by_app_or_name_internal(component_name, false)
             .await
     }
 
-    async fn select_by_app_or_name_internal(
+    async fn select_components_by_app_or_name_internal(
         &self,
         component_name: Option<&ComponentName>,
         allow_no_matches: bool,
-    ) -> anyhow::Result<Vec<String>> {
-        self.ctx.silence_app_context_init().await;
+    ) -> anyhow::Result<SelectedComponents> {
+        let (account_id, project, component_name): (
+            Option<AccountId>,
+            Option<ProjectNameAndId>,
+            Option<ComponentName>,
+        ) = {
+            self.ctx.silence_app_context_init().await;
+
+            match component_name {
+                Some(component_name) => {
+                    let segments = component_name.0.split("/").collect::<Vec<_>>();
+                    match segments.len() {
+                        1 => (None, None, Some(segments[0].into())),
+                        2 => (
+                            None,
+                            Some(
+                                self.ctx
+                                    .cloud_project_handler()
+                                    .select_project(None, &segments[0].into())
+                                    .await?,
+                            ),
+                            Some(segments[1].into()),
+                        ),
+                        3 => {
+                            let account_id: AccountId = segments[0].into();
+                            (
+                                Some(account_id.clone()),
+                                Some(
+                                    self.ctx
+                                        .cloud_project_handler()
+                                        .select_project(Some(&account_id), &segments[1].into())
+                                        .await?,
+                                ),
+                                Some(segments[2].into()),
+                            )
+                        }
+                        _ => {
+                            logln("");
+                            log_error(format!(
+                                "Failed to parse component name: {}",
+                                component_name.0.log_color_error_highlight()
+                            ));
+                            logln("");
+                            log_text_view(&ComponentNameHelp);
+                            bail!(NonSuccessfulExit);
+                        }
+                    }
+                }
+                None => (None, None, None),
+            }
+        };
+
         let app_select_success = self
             .ctx
             .app_handler()
             .opt_select_components_allow_not_found(
-                component_name.into_iter().cloned().collect(),
+                component_name.clone().into_iter().collect(),
                 &ComponentSelectMode::CurrentDir,
             )
             .await?;
@@ -430,17 +561,14 @@ impl ComponentCommandHandler {
                         app_ctx
                             .selected_component_names()
                             .iter()
-                            .map(|cn| cn.to_string())
+                            .map(|cn| cn.as_str().into())
                             .collect::<Vec<_>>()
                     })
                     .into_iter()
                     .flatten()
                     .collect::<Vec<_>>()
             } else {
-                component_name
-                    .iter()
-                    .map(|cn| cn.0.to_string())
-                    .collect::<Vec<_>>()
+                component_name.clone().into_iter().collect::<Vec<_>>()
             }
         };
 
@@ -454,15 +582,20 @@ impl ComponentCommandHandler {
             bail!(NonSuccessfulExit);
         }
 
-        Ok(selected_component_names)
+        Ok(SelectedComponents {
+            account_id,
+            project,
+            component_names: selected_component_names,
+        })
     }
 
     pub async fn component_by_name_with_auto_deploy(
         &self,
+        project: Option<&ProjectNameAndId>,
         component_match_kind: ComponentNameMatchKind,
         component_name: &ComponentName,
     ) -> anyhow::Result<Component> {
-        match self.component_by_name(&component_name.0).await? {
+        match self.component_by_name(project, &component_name).await? {
             Some(component) => Ok(component),
             None => {
                 let should_deploy = match component_match_kind {
@@ -494,6 +627,7 @@ impl ComponentCommandHandler {
                 self.ctx
                     .component_handler()
                     .deploy(
+                        project,
                         vec![component_name.clone()],
                         None,
                         &ComponentSelectMode::CurrentDir,
@@ -501,7 +635,7 @@ impl ComponentCommandHandler {
                     .await?;
                 self.ctx
                     .component_handler()
-                    .component_by_name(&component_name.0)
+                    .component_by_name(project, &component_name)
                     .await?
                     .ok_or_else(|| {
                         anyhow!("Component ({}) not found after deployment", component_name)
@@ -510,36 +644,53 @@ impl ComponentCommandHandler {
         }
     }
 
-    // TODO: we might want to have a filter for batch name lookups on the server side
-    // TODO: also the search returns all versions
+    // TODO: server: we might want to have a filter for batch name lookups on the server side
+    // TODO: server: also the search returns all versions
     // TODO: maybe add transient or persistent cache for all the meta
     pub async fn component_by_name(
         &self,
-        component_name: &str,
+        project: Option<&ProjectNameAndId>,
+        component_name: &ComponentName,
     ) -> anyhow::Result<Option<Component>> {
         match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => {
+                assert!(project.is_none(), "Unexpected project id for OSS");
                 let mut components = clients
                     .component
-                    .get_components(Some(component_name))
+                    .get_components(Some(&component_name.0))
                     .await
-                    .map_err(to_service_error)?;
-                debug!(components = ?components, "service_component_by_name");
+                    .map_service_error()?;
                 if !components.is_empty() {
                     Ok(Some(Component::from(components.pop().unwrap())))
                 } else {
                     Ok(None)
                 }
             }
-            GolemClients::Cloud(_) => {
-                todo!()
+            GolemClients::Cloud(clients) => {
+                let mut components = clients
+                    .component
+                    .get_components(
+                        project.as_ref().map(|p| &p.project_id.0),
+                        Some(&component_name.0),
+                    )
+                    .await
+                    .map_service_error()?;
+                if !components.is_empty() {
+                    Ok(Some(Component::from(components.pop().unwrap())))
+                } else {
+                    Ok(None)
+                }
             }
         }
     }
 
-    async fn component_id_by_name(&self, component_name: &str) -> anyhow::Result<Option<Uuid>> {
+    async fn component_id_by_name(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        component_name: &ComponentName,
+    ) -> anyhow::Result<Option<Uuid>> {
         Ok(self
-            .component_by_name(component_name)
+            .component_by_name(project, component_name)
             .await?
             .map(|c| c.versioned_component_id.component_id))
     }
@@ -565,7 +716,7 @@ fn component_deploy_properties(
         .component_properties(component_name, build_profile.as_ref());
     let extensions = &component_properties.extensions;
     let component_type = extensions.component_type;
-    let dynamic_linking = app_component_dynamic_linking_oss(app_ctx, component_name)?;
+    let dynamic_linking = app_component_dynamic_linking(app_ctx, component_name)?;
 
     Ok(ComponentDeployProperties {
         component_type,
@@ -574,7 +725,7 @@ fn component_deploy_properties(
     })
 }
 
-fn app_component_dynamic_linking_oss(
+fn app_component_dynamic_linking(
     app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
     component_name: &AppComponentName,
 ) -> anyhow::Result<Option<DynamicLinkingOss>> {

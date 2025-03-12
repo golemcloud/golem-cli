@@ -17,6 +17,7 @@ use crate::command::{
     GolemCliSubcommand,
 };
 use crate::command_handler::app::AppCommandHandler;
+use crate::command_handler::cloud::project::CloudProjectCommandHandler;
 use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::log::LogHandler;
 use crate::command_handler::partial_match::ErrorHandler;
@@ -33,6 +34,7 @@ use std::sync::Arc;
 use tracing::{debug, Level};
 
 mod app;
+mod cloud;
 mod component;
 mod log;
 mod partial_match;
@@ -46,9 +48,20 @@ pub struct CommandHandler {
 
 impl CommandHandler {
     fn new(global_flags: &GolemCliGlobalFlags) -> Self {
+        // TODO: enum for builtin and generic profiles
+        let profile_name = {
+            if global_flags.local {
+                Some("local".into())
+            } else if global_flags.cloud {
+                Some("cloud_default".into())
+            } else {
+                global_flags.profile.clone()
+            }
+        };
+
         let ctx = Arc::new(Context::new(
             global_flags,
-            Config::get_active_profile(&global_flags.config_dir(), global_flags.profile.clone()),
+            Config::get_active_profile(&global_flags.config_dir(), profile_name),
         ));
         Self { ctx: ctx.clone() }
     }
@@ -165,9 +178,10 @@ impl CommandHandler {
 //       if the need ever arises
 trait GetHandler {
     fn app_handler(&self) -> AppCommandHandler;
+    fn cloud_project_handler(&self) -> CloudProjectCommandHandler;
     fn component_handler(&self) -> ComponentCommandHandler;
-    fn log_handler(&self) -> LogHandler;
     fn error_handler(&self) -> ErrorHandler;
+    fn log_handler(&self) -> LogHandler;
     fn worker_handler(&self) -> WorkerCommandHandler;
 }
 
@@ -176,16 +190,20 @@ impl GetHandler for Arc<Context> {
         AppCommandHandler::new(Arc::clone(self))
     }
 
+    fn cloud_project_handler(&self) -> CloudProjectCommandHandler {
+        CloudProjectCommandHandler::new(Arc::clone(self))
+    }
+
     fn component_handler(&self) -> ComponentCommandHandler {
         ComponentCommandHandler::new(Arc::clone(self))
     }
 
-    fn log_handler(&self) -> LogHandler {
-        LogHandler::new(Arc::clone(self))
-    }
-
     fn error_handler(&self) -> ErrorHandler {
         ErrorHandler::new(Arc::clone(self))
+    }
+
+    fn log_handler(&self) -> LogHandler {
+        LogHandler::new(Arc::clone(self))
     }
 
     fn worker_handler(&self) -> WorkerCommandHandler {

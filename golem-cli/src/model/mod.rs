@@ -18,12 +18,17 @@ pub mod component;
 pub mod deploy;
 pub mod invoke_result_view;
 pub mod plugin_manifest;
+pub mod project;
 pub mod text;
+pub mod to_cli;
+pub mod to_cloud;
+pub mod to_oss;
 pub mod wave;
 
-use crate::cloud::AccountId;
+use crate::cloud::{AccountId, ProjectId};
 use crate::config::{CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileName};
 use crate::model::text::fmt::TextView;
+use crate::model::to_oss::ToOss;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use clap::builder::{StringValueParser, TypedValueParser};
@@ -45,9 +50,10 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use url::Url;
 use uuid::Uuid;
-
 // TODO: move arg thing into command
+// TODO: move non generic entities into mods
 
+// TODO: drop
 pub enum GolemResult {
     Ok(Box<dyn PrintRes>),
     Json(Value),
@@ -235,8 +241,20 @@ pub trait HasFormatConfig {
     fn format(&self) -> Option<Format>;
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct ProjectName(pub String);
+
+impl From<&str> for ProjectName {
+    fn from(name: &str) -> Self {
+        ProjectName(name.to_string())
+    }
+}
+
+impl From<String> for ProjectName {
+    fn from(name: String) -> Self {
+        ProjectName(name)
+    }
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct ComponentName(pub String);
@@ -604,7 +622,10 @@ pub struct WorkerMetadata {
 }
 
 impl WorkerMetadata {
-    pub fn new(component_name: ComponentName, value: golem_client::model::WorkerMetadata) -> Self {
+    pub fn from_oss(
+        component_name: ComponentName,
+        value: golem_client::model::WorkerMetadata,
+    ) -> Self {
         WorkerMetadata {
             worker_id: value.worker_id,
             component_name,
@@ -621,6 +642,29 @@ impl WorkerMetadata {
             component_size: value.component_size,
             total_linear_memory_size: value.total_linear_memory_size,
             owned_resources: value.owned_resources,
+        }
+    }
+
+    pub fn from_cloud(
+        component_name: ComponentName,
+        value: golem_cloud_client::model::WorkerMetadata,
+    ) -> Self {
+        WorkerMetadata {
+            worker_id: value.worker_id.to_oss(),
+            component_name,
+            account_id: Some(AccountId(value.account_id)),
+            args: value.args,
+            env: value.env,
+            status: value.status.to_oss(),
+            component_version: value.component_version,
+            retry_count: value.retry_count,
+            pending_invocation_count: value.pending_invocation_count,
+            updates: value.updates.to_oss(),
+            created_at: value.created_at,
+            last_error: value.last_error,
+            component_size: value.component_size,
+            total_linear_memory_size: value.total_linear_memory_size,
+            owned_resources: value.owned_resources.to_oss(),
         }
     }
 }
@@ -812,9 +856,27 @@ impl ProfileView {
     }
 }
 
+pub struct ProjectNameAndId {
+    pub project_name: ProjectName,
+    pub project_id: ProjectId,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComponentNameMatchKind {
     AppCurrentDir,
     App,
     Unknown,
+}
+
+pub struct WorkerNameMatch {
+    pub project: Option<ProjectNameAndId>,
+    pub component_name_match_kind: ComponentNameMatchKind,
+    pub component_name: ComponentName,
+    pub worker_name: Option<WorkerName>,
+}
+
+pub struct SelectedComponents {
+    pub account_id: Option<AccountId>,
+    pub project: Option<ProjectNameAndId>,
+    pub component_names: Vec<ComponentName>,
 }

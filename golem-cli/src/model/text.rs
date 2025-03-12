@@ -1839,6 +1839,65 @@ pub mod help {
         }
     }
 
+    pub struct ComponentNameHelp;
+
+    impl MessageWithFields for ComponentNameHelp {
+        fn message(&self) -> String {
+            "Accepted component name formats:"
+                .log_color_help_group()
+                .to_string()
+        }
+
+        fn fields(&self) -> Vec<(String, String)> {
+            let mut fields = FieldsBuilder::new();
+
+            fields.field(
+                "<COMPONENT>",
+                &indoc!(
+                    "
+                    Standalone component name.
+
+                    When used in an application (sub)directory then the given component name is fuzzy
+                    matched against the application component names. If no matches are found, then
+                    a the component name is used as is.
+
+                    When used in a directory without application manifest(s), then the full component
+                    name is expected.
+
+                    "
+                ),
+            );
+            fields.field(
+                "<PROJECT>/<COMPONENT>",
+                &indoc!(
+                    "
+                    TODO
+
+                    "
+                ),
+            );
+            fields.field(
+                "<ACCOUNT>/<PROJECT>/<COMPONENT>",
+                &indoc!(
+                    "
+                    TODO
+
+                    "
+                ),
+            );
+
+            fields.build()
+        }
+
+        fn indent_fields() -> bool {
+            true
+        }
+
+        fn format_field_name(name: String) -> String {
+            name.log_color_highlight().to_string()
+        }
+    }
+
     pub struct AvailableComponentNamesHelp(pub Vec<AppComponentName>);
 
     impl TextView for AvailableComponentNamesHelp {

@@ -154,6 +154,11 @@ impl AppCommandHandler {
                 self.ctx
                     .component_handler()
                     .deploy(
+                        self.ctx
+                            .cloud_project_handler()
+                            .opt_select_project(None, None)
+                            .await?
+                            .as_ref(),
                         component_name.component_name,
                         Some(force_build),
                         &ComponentSelectMode::All,

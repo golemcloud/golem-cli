@@ -48,9 +48,17 @@ pub struct GolemCliGlobalFlags {
     #[arg(long, short, global = true)]
     pub format: Option<Format>,
 
-    /// Select Golem profile
-    #[arg(long, short, global = true)]
+    /// Select Golem profile by name
+    #[arg(long, short, global = true, conflicts_with_all = ["local", "cloud"])]
     pub profile: Option<ProfileName>,
+
+    /// Select builtin "local" profile, to use services provided by the "golem server" command
+    #[arg(long, short, global = true, conflicts_with_all = ["profile", "cloud"])]
+    pub local: bool,
+
+    /// Select builtin "cloud" profile to use Golem Cloud
+    #[arg(long, short, global = true, conflicts_with_all = ["profile", "local"])]
+    pub cloud: bool,
 
     /// Custom path to the root application manifest (golem.yaml)
     #[arg(long, short, global = true)]
@@ -65,12 +73,14 @@ pub struct GolemCliGlobalFlags {
     pub build_profile: Option<BuildProfileName>,
 
     /// Custom path to the config directory (defaults to $HOME/.golem)
-    #[arg(long, short, global = true)]
+    #[arg(long, global = true)]
     pub config_dir: Option<PathBuf>,
 
     #[command(flatten)]
     pub verbosity: Verbosity,
 
+    // The flags below can only be set through env vars, as they are mostly
+    // useful for testing, so we do not want to pollute the flag space with them
     #[arg(skip)]
     pub wasm_rpc_path: Option<PathBuf>,
 
@@ -418,7 +428,6 @@ pub mod shared_args {
 
     // TODO: move names to model
     pub type ApplicationName = String;
-    pub type ProjectName = String;
     pub type NewComponentName = String;
     pub type WorkerFunctionArgument = String;
     pub type NewWorkerArgument = String;

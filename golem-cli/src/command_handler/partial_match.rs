@@ -19,7 +19,7 @@ use crate::error::HintError;
 use crate::model::component::show_exported_functions;
 use crate::model::text::fmt::{log_error, log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
-use crate::model::{ComponentNameMatchKind, Format};
+use crate::model::{ComponentNameMatchKind, Format, ProjectNameAndId};
 use colored::Colorize;
 use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
@@ -120,23 +120,34 @@ impl ErrorHandler {
                         worker_name.0.log_color_highlight()
                     ),
                 );
-                let component_name = {
+                let worker_name_match = {
                     let _indent = NestedTextViewIndent::new(Format::Text);
-                    let (component_name_match_kind, component_name, worker_name) = self
+                    let worker_name_match = self
                         .ctx
                         .worker_handler()
                         .match_worker_name(worker_name)
                         .await?;
+
+                    let project_formatted = match &worker_name_match.project {
+                        Some(project) => format!(
+                            " project: {} /",
+                            project.project_name.0.log_color_highlight()
+                        ),
+                        None => "".to_string(),
+                    };
+
                     logln(format!(
-                        "[{}] component name: {} / worker_name: {}, {}",
+                        "[{}]{} component: {} / worker: {}, {}",
+                        project_formatted,
                         "ok".green(),
-                        component_name.0.log_color_highlight(),
-                        worker_name
+                        worker_name_match.component_name.0.log_color_highlight(),
+                        worker_name_match
+                            .worker_name
                             .as_ref()
                             .map(|s| s.0.as_str())
                             .unwrap_or("-")
                             .log_color_highlight(),
-                        match component_name_match_kind {
+                        match worker_name_match.component_name_match_kind {
                             ComponentNameMatchKind::AppCurrentDir =>
                                 "component was selected based on current dir",
                             ComponentNameMatchKind::App =>
@@ -144,17 +155,20 @@ impl ErrorHandler {
                             ComponentNameMatchKind::Unknown => "",
                         }
                     ));
-                    component_name
+                    worker_name_match
                 };
                 logln("");
                 if let Ok(Some(component)) = self
                     .ctx
                     .component_handler()
-                    .component_by_name(&component_name.0)
+                    .component_by_name(
+                        worker_name_match.project.as_ref(),
+                        &worker_name_match.component_name,
+                    )
                     .await
                 {
                     log_text_view(&AvailableFunctionNamesHelp {
-                        component_name: component_name.0,
+                        component_name: worker_name_match.component_name.0,
                         function_names: show_exported_functions(&component.metadata.exports),
                     });
                     logln("");
@@ -179,6 +193,9 @@ impl ErrorHandler {
                     "app new".log_color_highlight(),
                 ));
                 Ok(())
+            }
+            HintError::ExpectedCloudProfile => {
+                todo!()
             }
         }
     }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::cloud::ProjectId;
 use crate::command::GolemCliGlobalFlags;
 use crate::config::{
     ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
@@ -19,7 +20,7 @@ use crate::config::{
 use crate::error::HintError;
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::Format;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
 use golem_client::api::ApiSecurityClientLive as ApiSecurityClientOss;
@@ -56,6 +57,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use tracing::debug;
+use uuid::Uuid;
 
 // Context is responsible for storing the CLI state,
 // but NOT responsible for producing CLI output, those should be part of the CommandHandler(s)
@@ -142,6 +144,13 @@ impl Context {
 
     pub async fn golem_clients(&self) -> anyhow::Result<&GolemClients> {
         Ok(&self.clients().await?.golem)
+    }
+
+    pub async fn golem_clients_cloud(&self) -> anyhow::Result<&GolemClientsCloud> {
+        match &self.clients().await?.golem {
+            GolemClients::Oss(_) => Err(anyhow!(HintError::ExpectedCloudProfile)),
+            GolemClients::Cloud(clients) => Ok(clients),
+        }
     }
 
     pub async fn app_context_lock(
