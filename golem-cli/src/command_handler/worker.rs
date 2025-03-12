@@ -517,7 +517,7 @@ impl WorkerCommandHandler {
 
                                 view.workers.extend(results.workers.into_iter().map(|meta| {
                                     WorkerMetadataView::from(WorkerMetadata::from_oss(
-                                        component_name.clone().into(),
+                                        component_name.clone(),
                                         meta,
                                     ))
                                 }));
@@ -539,7 +539,7 @@ impl WorkerCommandHandler {
 
                                 view.workers.extend(results.workers.into_iter().map(|meta| {
                                     WorkerMetadataView::from(WorkerMetadata::from_cloud(
-                                        component_name.clone().into(),
+                                        component_name.clone(),
                                         meta,
                                     ))
                                 }));
@@ -653,7 +653,7 @@ impl WorkerCommandHandler {
                 }
             }
             // [ACCOUNT]/[PROJECT]/<COMPONENT>/<WORKER>
-            2 | 3 | 4 => {
+            2..=4 => {
                 let (account_id, project_name, component_name, worker_name): (
                     Option<AccountId>,
                     Option<ProjectName>,

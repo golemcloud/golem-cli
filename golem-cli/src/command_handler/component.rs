@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cloud::{AccountId, ProjectId};
+use crate::cloud::AccountId;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{BuildArgs, ForceBuildArg};
 use crate::command_handler::GetHandler;
-use crate::config::ProfileKind;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
@@ -24,8 +23,7 @@ use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::component::{Component, ComponentView};
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
 use crate::model::text::fmt::{log_error, log_text_view, log_warn};
-use crate::model::text::help::{ComponentNameHelp, WorkerNameHelp};
-use crate::model::to_cli::ToCli;
+use crate::model::text::help::ComponentNameHelp;
 use crate::model::to_cloud::ToCloud;
 use crate::model::{ComponentName, ComponentNameMatchKind, ProjectNameAndId, SelectedComponents};
 use anyhow::{anyhow, bail, Context as AnyhowContext};
@@ -34,11 +32,7 @@ use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
 use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
 use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
-use golem_cloud_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcCloud;
-use golem_cloud_client::model::DynamicLinking as DynamicLinkingCloud;
-use golem_cloud_client::model::{
-    ComponentQuery, DynamicLinkedInstance as DynamicLinkedInstanceCloud,
-};
+use golem_cloud_client::model::ComponentQuery;
 use golem_common::model::ComponentType;
 use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ComponentSelectMode};
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent};
@@ -252,7 +246,7 @@ impl ComponentCommandHandler {
                                 .create_component(
                                     &ComponentQuery {
                                         project_id: project.map(|p| p.project_id.0),
-                                        component_name: component_name.to_string().into(),
+                                        component_name: component_name.to_string(),
                                     },
                                     linked_wasm,
                                     Some(&deploy_properties.component_type),
@@ -595,7 +589,7 @@ impl ComponentCommandHandler {
         component_match_kind: ComponentNameMatchKind,
         component_name: &ComponentName,
     ) -> anyhow::Result<Component> {
-        match self.component_by_name(project, &component_name).await? {
+        match self.component_by_name(project, component_name).await? {
             Some(component) => Ok(component),
             None => {
                 let should_deploy = match component_match_kind {
@@ -635,7 +629,7 @@ impl ComponentCommandHandler {
                     .await?;
                 self.ctx
                     .component_handler()
-                    .component_by_name(project, &component_name)
+                    .component_by_name(project, component_name)
                     .await?
                     .ok_or_else(|| {
                         anyhow!("Component ({}) not found after deployment", component_name)

@@ -13,15 +13,14 @@
 // limitations under the License.
 
 use crate::cloud::AccountId;
-use crate::command_handler::GetHandler;
 use crate::config::ProfileKind;
 use crate::context::Context;
 use crate::error::service::AnyhowMapServiceError;
-use crate::error::{HintError, NonSuccessfulExit};
+use crate::error::NonSuccessfulExit;
 use crate::model::project::ProjectView;
 use crate::model::text::fmt::{log_error, log_text_view};
 use crate::model::text::help::ComponentNameHelp;
-use crate::model::{ComponentName, ProjectName, ProjectNameAndId};
+use crate::model::{ProjectName, ProjectNameAndId};
 use anyhow::{anyhow, bail};
 use golem_cloud_client::api::ProjectClient;
 use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
@@ -82,22 +81,21 @@ impl CloudProjectCommandHandler {
         account_id: Option<&AccountId>,
         project_name: &ProjectName,
     ) -> anyhow::Result<ProjectView> {
-        match self.opt_project_by_name(account_id, &project_name).await? {
+        match self.opt_project_by_name(account_id, project_name).await? {
             Some(project) => Ok(project),
             None => Err(project_not_found(account_id, project_name)),
         }
     }
 
     async fn default_project(&self) -> anyhow::Result<ProjectView> {
-        Ok(self
-            .ctx
+        self.ctx
             .golem_clients_cloud()
             .await?
             .project
             .get_default_project()
             .await
             .map(ProjectView::from)
-            .map_service_error()?)
+            .map_service_error()
     }
 
     // TODO: special care might be needed for ordering app loading if

@@ -122,7 +122,7 @@ pub mod service {
                         "{} Service - Unexpected Response Error: {}, {}",
                         self.service_name.log_color_highlight(),
                         format_status_code(*status_code).log_color_error(),
-                        String::from_utf8_lossy(&payload)
+                        String::from_utf8_lossy(payload)
                             .to_string()
                             .log_color_warn()
                     )

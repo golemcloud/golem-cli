@@ -345,10 +345,7 @@ impl From<&Profile> for ClientConfig {
             }
             Profile::GolemCloud(profile) => {
                 let default_cloud_url = Url::parse(CLOUD_URL).unwrap();
-                let component_url = profile
-                    .custom_url
-                    .clone()
-                    .unwrap_or_else(|| default_cloud_url);
+                let component_url = profile.custom_url.clone().unwrap_or(default_cloud_url);
                 let cloud_url = Some(
                     profile
                         .custom_cloud_url

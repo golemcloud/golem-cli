@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cloud::ProjectId;
 use crate::command::GolemCliGlobalFlags;
 use crate::config::{
     ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
@@ -20,7 +19,7 @@ use crate::config::{
 use crate::error::HintError;
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::Format;
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
 use golem_client::api::ApiSecurityClientLive as ApiSecurityClientOss;
@@ -57,7 +56,6 @@ use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use tracing::debug;
-use uuid::Uuid;
 
 // Context is responsible for storing the CLI state,
 // but NOT responsible for producing CLI output, those should be part of the CommandHandler(s)
