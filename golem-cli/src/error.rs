@@ -79,12 +79,14 @@ pub mod service {
                 }
             }
 
+            let service_name = format!("{} Service", self.service_name).log_color_highlight();
+
             match &self.kind {
                 ServiceErrorKind::ErrorResponse(response) => {
                     write!(
                         f,
-                        "{} Service - Error: {}, {}",
-                        self.service_name.log_color_highlight(),
+                        "{} - Error: {}, {}",
+                        service_name,
                         format_status_code(response.status_code).log_color_error(),
                         response.message.log_color_warn()
                     )
@@ -92,24 +94,24 @@ pub mod service {
                 ServiceErrorKind::ReqwestError(error) => {
                     write!(
                         f,
-                        "{} Service - Network Error: {}",
-                        self.service_name.log_color_highlight(),
+                        "{} - HTTP Client Error: {}",
+                        service_name,
                         error.to_string().log_color_warn()
                     )
                 }
                 ServiceErrorKind::ReqwestHeaderError(error) => {
                     write!(
                         f,
-                        "{} Service - Header Error: {}",
-                        self.service_name.log_color_highlight(),
+                        "{} - HTTP Header Error: {}",
+                        service_name,
                         error.to_string().log_color_warn()
                     )
                 }
                 ServiceErrorKind::SerdeError(error) => {
                     write!(
                         f,
-                        "{} Service - Serialization Error: {}",
-                        self.service_name.log_color_highlight(),
+                        "{} - Serialization Error: {}",
+                        service_name,
                         error.to_string().log_color_warn()
                     )
                 }
@@ -119,8 +121,8 @@ pub mod service {
                 } => {
                     write!(
                         f,
-                        "{} Service - Unexpected Response Error: {}, {}",
-                        self.service_name.log_color_highlight(),
+                        "{} - Unexpected Response Error: {}, {}",
+                        service_name,
                         format_status_code(*status_code).log_color_error(),
                         String::from_utf8_lossy(payload)
                             .to_string()
@@ -388,6 +390,235 @@ pub mod service {
                     status_code: 500,
                     message: error.error,
                 },
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::LoginLoginOauth2Error {
+        fn service_name() -> &'static str {
+            "Cloud Login"
+        }
+    }
+
+    impl From<golem_cloud_client::api::LoginLoginOauth2Error> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::LoginLoginOauth2Error) -> Self {
+            match value {
+                golem_cloud_client::api::LoginLoginOauth2Error::Error400(errors) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    }
+                }
+                golem_cloud_client::api::LoginLoginOauth2Error::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::LoginLoginOauth2Error::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::LoginCurrentLoginTokenError {
+        fn service_name() -> &'static str {
+            "Cloud Login"
+        }
+    }
+
+    impl From<golem_cloud_client::api::LoginCurrentLoginTokenError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::LoginCurrentLoginTokenError) -> Self {
+            match value {
+                golem_cloud_client::api::LoginCurrentLoginTokenError::Error400(errors) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    }
+                }
+                golem_cloud_client::api::LoginCurrentLoginTokenError::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::LoginCurrentLoginTokenError::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::LoginStartLoginOauth2Error {
+        fn service_name() -> &'static str {
+            "Cloud Login"
+        }
+    }
+
+    impl From<golem_cloud_client::api::LoginStartLoginOauth2Error> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::LoginStartLoginOauth2Error) -> Self {
+            match value {
+                golem_cloud_client::api::LoginStartLoginOauth2Error::Error400(errors) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    }
+                }
+                golem_cloud_client::api::LoginStartLoginOauth2Error::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::LoginStartLoginOauth2Error::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::LoginCompleteLoginOauth2Error {
+        fn service_name() -> &'static str {
+            "Cloud Login"
+        }
+    }
+
+    impl From<golem_cloud_client::api::LoginCompleteLoginOauth2Error> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::LoginCompleteLoginOauth2Error) -> Self {
+            match value {
+                golem_cloud_client::api::LoginCompleteLoginOauth2Error::Error400(errors) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    }
+                }
+                golem_cloud_client::api::LoginCompleteLoginOauth2Error::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::LoginCompleteLoginOauth2Error::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::LoginOauth2WebFlowStartError {
+        fn service_name() -> &'static str {
+            "Cloud Login"
+        }
+    }
+
+    impl From<golem_cloud_client::api::LoginOauth2WebFlowStartError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::LoginOauth2WebFlowStartError) -> Self {
+            match value {
+                golem_cloud_client::api::LoginOauth2WebFlowStartError::Error400(errors) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    }
+                }
+                golem_cloud_client::api::LoginOauth2WebFlowStartError::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::LoginOauth2WebFlowStartError::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::LoginOauth2WebFlowCallbackGithubError {
+        fn service_name() -> &'static str {
+            "Cloud Login"
+        }
+    }
+
+    impl From<golem_cloud_client::api::LoginOauth2WebFlowCallbackGithubError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::LoginOauth2WebFlowCallbackGithubError) -> Self {
+            match value {
+                golem_cloud_client::api::LoginOauth2WebFlowCallbackGithubError::Error302(_) => {
+                    ServiceErrorResponse {
+                        status_code: 302,
+                        message: "WebFlowCallbackSuccessResponse".to_string(),
+                    }
+                }
+                golem_cloud_client::api::LoginOauth2WebFlowCallbackGithubError::Error400(
+                    errors,
+                ) => ServiceErrorResponse {
+                    status_code: 400,
+                    message: errors.errors.join("\n"),
+                },
+                golem_cloud_client::api::LoginOauth2WebFlowCallbackGithubError::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::LoginOauth2WebFlowCallbackGithubError::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::LoginOauth2WebFlowPollError {
+        fn service_name() -> &'static str {
+            "Cloud Login"
+        }
+    }
+
+    impl From<golem_cloud_client::api::LoginOauth2WebFlowPollError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::LoginOauth2WebFlowPollError) -> Self {
+            match value {
+                golem_cloud_client::api::LoginOauth2WebFlowPollError::Error202(_) => {
+                    ServiceErrorResponse {
+                        status_code: 202,
+                        message: "PendingFlowCompletionResponse".to_string(),
+                    }
+                }
+                golem_cloud_client::api::LoginOauth2WebFlowPollError::Error400(errors) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    }
+                }
+                golem_cloud_client::api::LoginOauth2WebFlowPollError::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::LoginOauth2WebFlowPollError::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
             }
         }
     }

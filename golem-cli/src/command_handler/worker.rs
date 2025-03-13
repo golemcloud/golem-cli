@@ -26,7 +26,7 @@ use crate::model::component::{function_params_types, show_exported_functions, Co
 use crate::model::invoke_result_view::InvokeResultView;
 use crate::model::text::fmt::{format_export, log_error, log_fuzzy_match, log_text_view, log_warn};
 use crate::model::text::help::{
-    ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp,
+    ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp, ComponentNameHelp,
     ParameterErrorTableView, WorkerNameHelp,
 };
 use crate::model::text::worker::{WorkerCreateView, WorkerGetView};
@@ -654,24 +654,55 @@ impl WorkerCommandHandler {
             }
             // [ACCOUNT]/[PROJECT]/<COMPONENT>/<WORKER>
             2..=4 => {
+                fn empty_checked<'a>(name: &'a str, value: &'a str) -> anyhow::Result<&'a str> {
+                    if value.is_empty() {
+                        log_error(format!("Missing {} part in worker name!", name));
+                        logln("");
+                        log_text_view(&ComponentNameHelp);
+                        bail!(NonSuccessfulExit);
+                    }
+                    Ok(value)
+                }
+
+                fn empty_checked_account(value: &str) -> anyhow::Result<&str> {
+                    empty_checked("account", value)
+                }
+
+                fn empty_checked_project(value: &str) -> anyhow::Result<&str> {
+                    empty_checked("project", value)
+                }
+
+                fn empty_checked_component(value: &str) -> anyhow::Result<&str> {
+                    empty_checked("component", value)
+                }
+
+                fn empty_checked_worker(value: &str) -> anyhow::Result<&str> {
+                    empty_checked("worker", value)
+                }
+
                 let (account_id, project_name, component_name, worker_name): (
                     Option<AccountId>,
                     Option<ProjectName>,
                     ComponentName,
                     String,
                 ) = match segments.len() {
-                    2 => (None, None, segments[2].into(), segments[3].into()),
+                    2 => (
+                        None,
+                        None,
+                        empty_checked_component(segments[0])?.into(),
+                        empty_checked_component(segments[1])?.into(),
+                    ),
                     3 => (
                         None,
-                        Some(segments[1].into()),
-                        segments[2].into(),
-                        segments[3].into(),
+                        Some(empty_checked_project(segments[0])?.into()),
+                        empty_checked_component(segments[1])?.into(),
+                        empty_checked_component(segments[2])?.into(),
                     ),
                     4 => (
-                        Some(segments[0].into()),
-                        Some(segments[1].into()),
-                        segments[2].into(),
-                        segments[3].into(),
+                        Some(empty_checked_account(segments[0])?.into()),
+                        Some(empty_checked_project(segments[1])?.into()),
+                        empty_checked_component(segments[2])?.into(),
+                        empty_checked_worker(segments[3])?.into(),
                     ),
                     other => panic!("Unexpected segment count: {}", other),
                 };

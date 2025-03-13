@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::auth::Auth;
+use crate::cloud::CloudAuthenticationConfig;
 use crate::command::GolemCliGlobalFlags;
 use crate::config::{
     ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
@@ -27,7 +29,6 @@ use golem_client::api::ComponentClientLive as ComponentClientOss;
 use golem_client::api::PluginClientLive as PluginClientOss;
 use golem_client::api::WorkerClientLive as WorkerClientOss;
 use golem_client::Context as ContextOss;
-use golem_cloud_client::api::AccountClientLive as AccountClientCloud;
 use golem_cloud_client::api::AccountSummaryClientLive as AccountSummaryClientCloud;
 use golem_cloud_client::api::ApiCertificateClientLive as ApiCertificateClientCloud;
 use golem_cloud_client::api::ApiDefinitionClientLive as ApiDefinitionClientCloud;
@@ -44,6 +45,7 @@ use golem_cloud_client::api::ProjectGrantClientLive as ProjectGrantClientCloud;
 use golem_cloud_client::api::ProjectPolicyClientLive as ProjectPolicyClientCloud;
 use golem_cloud_client::api::TokenClientLive as TokenClientCloud;
 use golem_cloud_client::api::WorkerClientLive as WorkerClientCloud;
+use golem_cloud_client::api::{AccountClientLive as AccountClientCloud, LoginClientLive};
 use golem_cloud_client::{Context as ContextCloud, Security};
 use golem_examples::model::{ComposableAppGroupName, GuestLanguage};
 use golem_examples::ComposableAppExample;
@@ -54,15 +56,17 @@ use golem_wasm_rpc_stubgen::model::app::BuildProfileName as AppBuildProfileName;
 use golem_wasm_rpc_stubgen::stub::WasmRpcOverride;
 use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::debug;
+use uuid::Uuid;
 
 // Context is responsible for storing the CLI state,
 // but NOT responsible for producing CLI output, those should be part of the CommandHandler(s)
 pub struct Context {
     // Readonly
+    config_dir: PathBuf,
     format: Format,
-    _profile_name: ProfileName, // TODO
+    profile_name: ProfileName, // TODO
     profile_kind: ProfileKind,
     profile: Profile,
     app_context_config: ApplicationContextConfig,
@@ -90,8 +94,9 @@ impl Context {
         set_log_output(log_output);
 
         Self {
+            config_dir: global_flags.config_dir(),
             format: global_flags.format.unwrap_or(Format::Text),
-            _profile_name: profile.name,
+            profile_name: profile.name,
             profile_kind: profile.profile.kind(),
             profile: profile.profile,
             app_context_config: ApplicationContextConfig {
@@ -111,6 +116,10 @@ impl Context {
             templates: std::sync::OnceLock::new(),
             app_context_state: tokio::sync::RwLock::default(),
         }
+    }
+
+    pub fn config_dir(&self) -> &Path {
+        &self.config_dir
     }
 
     pub fn format(&self) -> Format {
@@ -136,7 +145,19 @@ impl Context {
 
     pub async fn clients(&self) -> anyhow::Result<&Clients> {
         self.clients
-            .get_or_try_init(|| async { Clients::new((&self.profile).into()).await })
+            .get_or_try_init(|| async {
+                Clients::new(
+                    ClientConfig::from(&self.profile),
+                    None, // TODO: token override
+                    &self.profile_name,
+                    match &self.profile {
+                        Profile::Golem(_) => None,
+                        Profile::GolemCloud(profile) => profile.auth.as_ref(),
+                    },
+                    self.config_dir(),
+                )
+                .await
+            })
             .await
     }
 
@@ -229,15 +250,37 @@ pub struct Clients {
 }
 
 impl Clients {
-    pub async fn new(config: ClientConfig) -> anyhow::Result<Self> {
+    pub async fn new(
+        config: ClientConfig,
+        token_override: Option<Uuid>,
+        profile_name: &ProfileName,
+        auth_config: Option<&CloudAuthenticationConfig>,
+        config_dir: &Path,
+    ) -> anyhow::Result<Self> {
         let service_http_client = new_reqwest_client(&config.service_http_client_config)?;
         let file_download_http_client =
             new_reqwest_client(&config.file_download_http_client_config)?;
 
         match &config.cloud_url {
             Some(cloud_url) => {
-                // TODO:
-                let security_token = Security::Bearer("dummy-token".to_string());
+                let auth = Auth {
+                    login_client: LoginClientLive {
+                        context: ContextCloud {
+                            client: service_http_client.clone(),
+                            base_url: cloud_url.clone(),
+                            security_token: Security::Empty,
+                        },
+                    },
+                };
+
+                let security_token = Security::Bearer(
+                    auth.authenticate(token_override, profile_name, auth_config, config_dir)
+                        .await?
+                        .0
+                        .secret
+                        .value
+                        .to_string(),
+                );
 
                 let component_context = || ContextCloud {
                     client: service_http_client.clone(),

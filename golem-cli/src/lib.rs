@@ -16,6 +16,7 @@ use clap_verbosity_flag::Verbosity;
 use log::Level;
 use tracing_subscriber::FmtSubscriber;
 
+pub mod auth;
 pub mod cloud;
 pub mod command;
 pub mod command_handler;

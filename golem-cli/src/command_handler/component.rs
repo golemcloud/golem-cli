@@ -486,43 +486,74 @@ impl ComponentCommandHandler {
         component_name: Option<&ComponentName>,
         allow_no_matches: bool,
     ) -> anyhow::Result<SelectedComponents> {
+        fn empty_checked<'a>(name: &'a str, value: &'a str) -> anyhow::Result<&'a str> {
+            if value.is_empty() {
+                log_error(format!("Missing {} part in component name!", name));
+                logln("");
+                log_text_view(&ComponentNameHelp);
+                bail!(NonSuccessfulExit);
+            }
+            Ok(value)
+        }
+
+        fn empty_checked_account(value: &str) -> anyhow::Result<&str> {
+            empty_checked("account", value)
+        }
+
+        fn empty_checked_project(value: &str) -> anyhow::Result<&str> {
+            empty_checked("project", value)
+        }
+
+        fn empty_checked_component(value: &str) -> anyhow::Result<&str> {
+            empty_checked("component", value)
+        }
+
+        self.ctx.silence_app_context_init().await;
+
         let (account_id, project, component_name): (
             Option<AccountId>,
             Option<ProjectNameAndId>,
             Option<ComponentName>,
         ) = {
-            self.ctx.silence_app_context_init().await;
-
             match component_name {
                 Some(component_name) => {
                     let segments = component_name.0.split("/").collect::<Vec<_>>();
                     match segments.len() {
-                        1 => (None, None, Some(segments[0].into())),
+                        1 => (
+                            None,
+                            None,
+                            Some(empty_checked_component(segments[0])?.into()),
+                        ),
                         2 => (
                             None,
                             Some(
                                 self.ctx
                                     .cloud_project_handler()
-                                    .select_project(None, &segments[0].into())
+                                    .select_project(
+                                        None,
+                                        &empty_checked_project(segments[0])?.into(),
+                                    )
                                     .await?,
                             ),
-                            Some(segments[1].into()),
+                            Some(empty_checked_component(segments[1])?.into()),
                         ),
                         3 => {
-                            let account_id: AccountId = segments[0].into();
+                            let account_id: AccountId = empty_checked_account(segments[0])?.into();
                             (
                                 Some(account_id.clone()),
                                 Some(
                                     self.ctx
                                         .cloud_project_handler()
-                                        .select_project(Some(&account_id), &segments[1].into())
+                                        .select_project(
+                                            Some(&account_id),
+                                            &empty_checked_project(segments[1])?.into(),
+                                        )
                                         .await?,
                                 ),
-                                Some(segments[2].into()),
+                                Some(empty_checked_component(segments[2])?.into()),
                             )
                         }
                         _ => {
-                            logln("");
                             log_error(format!(
                                 "Failed to parse component name: {}",
                                 component_name.0.log_color_error_highlight()

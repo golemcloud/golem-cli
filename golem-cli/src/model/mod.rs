@@ -17,6 +17,7 @@ pub mod app_ext_raw;
 pub mod component;
 pub mod deploy;
 pub mod invoke_result_view;
+pub mod plugin_cloud;
 pub mod plugin_manifest;
 pub mod project;
 pub mod text;

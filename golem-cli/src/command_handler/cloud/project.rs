@@ -20,9 +20,11 @@ use crate::error::NonSuccessfulExit;
 use crate::model::project::ProjectView;
 use crate::model::text::fmt::{log_error, log_text_view};
 use crate::model::text::help::ComponentNameHelp;
+use crate::model::text::project::ProjectListView;
 use crate::model::{ProjectName, ProjectNameAndId};
 use anyhow::{anyhow, bail};
 use golem_cloud_client::api::ProjectClient;
+use golem_cloud_client::model::Project;
 use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
 use std::sync::Arc;
 
@@ -39,7 +41,7 @@ impl CloudProjectCommandHandler {
         &self,
         account_id: Option<&AccountId>,
         project_name: &ProjectName,
-    ) -> anyhow::Result<Option<ProjectView>> {
+    ) -> anyhow::Result<Option<Project>> {
         let mut projects = self
             .ctx
             .golem_clients_cloud()
@@ -47,32 +49,31 @@ impl CloudProjectCommandHandler {
             .project
             .get_projects(Some(&project_name.0))
             .await
-            .map_service_error()?
-            .into_iter()
-            .map(ProjectView::from)
-            .collect::<Vec<_>>();
+            .map_service_error()?;
 
         match account_id {
             Some(account_id) => {
                 let project_idx = projects
                     .iter()
-                    .position(|project| &project.owner_account_id == account_id);
+                    .position(|project| project.project_data.owner_account_id == account_id.0);
                 match project_idx {
                     Some(project_idx) => Ok(Some(projects.swap_remove(project_idx))),
                     None => Ok(None),
                 }
             }
-            None => {
-                if projects.len() == 1 {
-                    Ok(Some(projects.pop().unwrap()))
-                } else {
+            None => match projects.len() {
+                0 => Ok(None),
+                1 => Ok(Some(projects.pop().unwrap())),
+                _ => {
                     log_error(format!(
                         "Project name {} is ambiguous!",
                         project_name.0.log_color_highlight()
                     ));
-                    bail!(NonSuccessfulExit)
+                    logln("");
+                    log_text_view(&ProjectListView::from(projects));
+                    bail!(NonSuccessfulExit);
                 }
-            }
+            },
         }
     }
 
@@ -80,7 +81,7 @@ impl CloudProjectCommandHandler {
         &self,
         account_id: Option<&AccountId>,
         project_name: &ProjectName,
-    ) -> anyhow::Result<ProjectView> {
+    ) -> anyhow::Result<Project> {
         match self.opt_project_by_name(account_id, project_name).await? {
             Some(project) => Ok(project),
             None => Err(project_not_found(account_id, project_name)),
@@ -120,8 +121,8 @@ impl CloudProjectCommandHandler {
             (ProfileKind::Cloud, Some(project_name)) => {
                 let project = self.project_by_name(account_id, project_name).await?;
                 Ok(Some(ProjectNameAndId {
-                    project_name: project.name,
-                    project_id: project.project_id,
+                    project_name: project.project_data.name.into(),
+                    project_id: project.project_id.into(),
                 }))
             }
             (ProfileKind::Cloud, None) => {
