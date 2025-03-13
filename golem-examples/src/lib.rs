@@ -507,7 +507,27 @@ fn parse_example(
         ExampleKind::ComposableAppComponent { .. } => "".to_string(),
     };
 
-    let name = example_root.file_name().unwrap().to_str().unwrap().into();
+    let name: ExampleName = {
+        let name = example_root
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        // TODO: this is just a quickfix for hiding "<lang>-app-<component>" prefixes, let's decide later if we want
+        //       reorganize the template directories directly
+        let segments = name.split("-").collect::<Vec<_>>();
+        if segments.len() > 2 && segments[1] == "app" {
+            if segments.len() > 3 && segments[2] == "component" {
+                segments[3..].join("-").into()
+            } else {
+                segments[2..].join("-").into()
+            }
+        } else {
+            name.into()
+        }
+    };
 
     let mut wit_deps: Vec<PathBuf> = vec![];
     if metadata.requires_golem_host_wit.unwrap_or(false) {

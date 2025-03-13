@@ -18,9 +18,12 @@ use crate::command::{
 };
 use crate::command_handler::app::AppCommandHandler;
 use crate::command_handler::cloud::project::CloudProjectCommandHandler;
+use crate::command_handler::cloud::CloudCommandHandler;
 use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::log::LogHandler;
 use crate::command_handler::partial_match::ErrorHandler;
+use crate::command_handler::profile::config::ProfileConfigCommandHandler;
+use crate::command_handler::profile::ProfileCommandHandler;
 use crate::command_handler::worker::WorkerCommandHandler;
 use crate::config::Config;
 use crate::context::Context;
@@ -38,6 +41,7 @@ mod cloud;
 mod component;
 mod log;
 mod partial_match;
+mod profile;
 mod worker;
 
 // CommandHandle is responsible for matching commands and producing CLI output using Context,
@@ -157,11 +161,14 @@ impl CommandHandler {
             GolemCliSubcommand::Plugin { .. } => {
                 todo!()
             }
+            GolemCliSubcommand::Profile { subcommand } => {
+                self.ctx.profile_handler().handle_command(subcommand).await
+            }
             GolemCliSubcommand::Server { .. } => {
                 todo!()
             }
-            GolemCliSubcommand::Cloud { .. } => {
-                todo!()
+            GolemCliSubcommand::Cloud { subcommand } => {
+                self.ctx.cloud_handler().handle_command(subcommand).await
             }
             GolemCliSubcommand::Diagnose => {
                 todo!()
@@ -176,18 +183,25 @@ impl CommandHandler {
 // NOTE: for now every handler can access any other handler, but this can be restricted
 //       by moving these simple factory methods into the specific handlers on demand,
 //       if the need ever arises
-trait GetHandler {
+trait Handlers {
     fn app_handler(&self) -> AppCommandHandler;
+    fn cloud_handler(&self) -> CloudCommandHandler;
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler;
     fn component_handler(&self) -> ComponentCommandHandler;
     fn error_handler(&self) -> ErrorHandler;
     fn log_handler(&self) -> LogHandler;
+    fn profile_config_handler(&self) -> ProfileConfigCommandHandler;
+    fn profile_handler(&self) -> ProfileCommandHandler;
     fn worker_handler(&self) -> WorkerCommandHandler;
 }
 
-impl GetHandler for Arc<Context> {
+impl Handlers for Arc<Context> {
     fn app_handler(&self) -> AppCommandHandler {
         AppCommandHandler::new(Arc::clone(self))
+    }
+
+    fn cloud_handler(&self) -> CloudCommandHandler {
+        CloudCommandHandler::new(Arc::clone(self))
     }
 
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler {
@@ -204,6 +218,14 @@ impl GetHandler for Arc<Context> {
 
     fn log_handler(&self) -> LogHandler {
         LogHandler::new(Arc::clone(self))
+    }
+
+    fn profile_config_handler(&self) -> ProfileConfigCommandHandler {
+        ProfileConfigCommandHandler::new(Arc::clone(self))
+    }
+
+    fn profile_handler(&self) -> ProfileCommandHandler {
+        ProfileCommandHandler::new(Arc::clone(self))
     }
 
     fn worker_handler(&self) -> WorkerCommandHandler {

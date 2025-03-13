@@ -21,7 +21,7 @@ impl Error for NonSuccessfulExit {}
 #[derive(Debug, Display)]
 pub enum HintError {
     NoApplicationManifestFound,
-    ExpectedCloudProfile, // TODO: maybe add project name for hints?
+    ExpectedCloudProfile,
 }
 
 impl Error for HintError {}

@@ -14,8 +14,8 @@
 
 use crate::cloud::AccountId;
 use crate::command::component::ComponentSubcommand;
-use crate::command::shared_args::{BuildArgs, ForceBuildArg};
-use crate::command_handler::GetHandler;
+use crate::command::shared_args::{BuildArgs, ComponentTemplatePositionalArg, ForceBuildArg};
+use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
@@ -34,7 +34,11 @@ use golem_client::model::DynamicLinking as DynamicLinkingOss;
 use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
 use golem_cloud_client::model::ComponentQuery;
 use golem_common::model::ComponentType;
-use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ComponentSelectMode};
+use golem_examples::add_component_by_example;
+use golem_examples::model::PackageName;
+use golem_wasm_rpc_stubgen::commands::app::{
+    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
+};
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent};
 use golem_wasm_rpc_stubgen::model::app::DependencyType;
 use golem_wasm_rpc_stubgen::model::app::{BuildProfileName, ComponentName as AppComponentName};
@@ -56,9 +60,10 @@ impl ComponentCommandHandler {
 
     pub async fn handle_command(&mut self, subcommand: ComponentSubcommand) -> anyhow::Result<()> {
         match subcommand {
-            ComponentSubcommand::New { .. } => {
-                todo!()
-            }
+            ComponentSubcommand::New {
+                template,
+                component_package_name,
+            } => self.new_component(template, component_package_name).await,
             ComponentSubcommand::Build {
                 component_name,
                 build: build_args,
@@ -105,6 +110,78 @@ impl ComponentCommandHandler {
                 version,
             } => self.get(component_name.component_name, version).await,
         }
+    }
+
+    async fn new_component(
+        &mut self,
+        template: ComponentTemplatePositionalArg,
+        component_package_name: PackageName,
+    ) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+
+        let app_handler = self.ctx.app_handler();
+        let (common_template, component_template) =
+            app_handler.get_template(&template.component_template)?;
+
+        // Loading app for:
+        //   - checking that we are inside an application
+        //   - switching to the root dir as a side effect
+        //   - check for existing component names
+        {
+            let app_ctx = self.ctx.app_context_lock().await;
+            let app_ctx = app_ctx.some_or_err()?;
+            let component_name =
+                AppComponentName::from(component_package_name.to_string_with_colon());
+            if app_ctx
+                .application
+                .component_names()
+                .contains(&component_name)
+            {
+                log_error(format!("Component {} already exists", component_name));
+                logln("");
+                app_ctx.log_dynamic_help(&DynamicHelpSections {
+                    components: true,
+                    custom_commands: false,
+                })?;
+                bail!(NonSuccessfulExit)
+            }
+        };
+
+        // Unloading app context, so we can reload after the new component is created
+        self.ctx.unload_app_context().await;
+
+        match add_component_by_example(
+            common_template,
+            component_template,
+            &PathBuf::from("."),
+            &component_package_name,
+        ) {
+            Ok(()) => {
+                log_action(
+                    "Added",
+                    format!(
+                        "new app component {}, loading application manifest...",
+                        component_package_name
+                            .to_string_with_colon()
+                            .log_color_highlight()
+                    ),
+                );
+            }
+            Err(error) => {
+                bail!("Failed to create new app component: {}", error)
+            }
+        }
+
+        let app_ctx = self.ctx.app_context_lock().await;
+        let app_ctx = app_ctx.some_or_err()?;
+
+        logln("");
+        app_ctx.log_dynamic_help(&DynamicHelpSections {
+            components: true,
+            custom_commands: false,
+        })?;
+
+        Ok(())
     }
 
     pub async fn deploy(

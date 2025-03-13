@@ -107,7 +107,7 @@ pub struct ApplicationContext<CPE: ComponentPropertiesExtensions> {
     pub config: Config<CPE>,
     pub application: Application<CPE>,
     pub wit: ResolvedWitApplication,
-    calling_working_dir: PathBuf,
+    pub calling_working_dir: PathBuf,
     component_stub_defs: HashMap<ComponentName, StubDefinition>,
     common_wit_deps: OnceLock<anyhow::Result<WitDepsResolver>>,
     component_generated_base_wit_deps: HashMap<ComponentName, WitDepsResolver>,
@@ -116,13 +116,13 @@ pub struct ApplicationContext<CPE: ComponentPropertiesExtensions> {
 
 impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
     pub fn new(config: Config<CPE>) -> anyhow::Result<Option<ApplicationContext<CPE>>> {
-        let Some(app_and_selected_components) = load_app(&config) else {
+        let Some(app_and_calling_working_dir) = load_app(&config) else {
             return Ok(None);
         };
 
         let ctx = to_anyhow(
             "Failed to create application context, see problems above",
-            app_and_selected_components.and_then(|(application, calling_working_dir)| {
+            app_and_calling_working_dir.and_then(|(application, calling_working_dir)| {
                 ResolvedWitApplication::new(&application, config.profile.as_ref()).map(|wit| {
                     ApplicationContext {
                         config,

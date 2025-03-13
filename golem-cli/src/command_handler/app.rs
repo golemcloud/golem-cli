@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::command::app::AppSubcommand;
-use crate::command::shared_args::BuildArgs;
-use crate::command_handler::GetHandler;
+use crate::command::shared_args::{ApplicationName, BuildArgs, ComponentTemplatePositionalArgs};
+use crate::command_handler::Handlers;
 use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
@@ -24,7 +24,9 @@ use crate::model::ComponentName;
 use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_examples::add_component_by_example;
-use golem_examples::model::{ComposableAppGroupName, PackageName};
+use golem_examples::model::{
+    ComposableAppGroupName, Example, ExampleName, GuestLanguage, PackageName,
+};
 use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
 use golem_wasm_rpc_stubgen::fs;
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent, LogOutput, Output};
@@ -45,97 +47,8 @@ impl AppCommandHandler {
         match subcommand {
             AppSubcommand::New {
                 application_name,
-                language,
-            } => {
-                // TODO: extract method
-                let app_dir = PathBuf::from(&application_name);
-                if app_dir.exists() {
-                    bail!(
-                        "Application directory already exists: {}",
-                        app_dir.log_color_error_highlight()
-                    );
-                }
-
-                // TODO: check for no parent manifests
-
-                fs::create_dir_all(&app_dir)?;
-                log_action(
-                    "Created",
-                    format!(
-                        "application directory: {}",
-                        app_dir.display().to_string().log_color_highlight()
-                    ),
-                );
-
-                {
-                    let _indent = LogIndent::new();
-                    for language in language.language {
-                        let Some(language_examples) = self.ctx.templates().get(&language) else {
-                            bail!(
-                                "No template found for {}, currently supported languages: {}",
-                                language.to_string().log_color_error_highlight(),
-                                self.ctx.templates().keys().join(", ")
-                            );
-                        };
-
-                        let default_examples = language_examples
-                            .get(&ComposableAppGroupName::default())
-                            .expect("No default template found for the selected language");
-
-                        // TODO:
-                        assert_eq!(
-                            default_examples.components.len(),
-                            1,
-                            "Expected exactly one default component template"
-                        );
-                        let (_, default_component_example) =
-                            &default_examples.components.iter().next().unwrap();
-
-                        // TODO: better default names
-                        let component_package_name = PackageName::from_string(format!(
-                            "sample:{}",
-                            language.to_string().to_lowercase()
-                        ))
-                        .unwrap(); // TODO: from args optionally
-
-                        match add_component_by_example(
-                            default_examples.common.as_ref(),
-                            default_component_example,
-                            &app_dir,
-                            &component_package_name,
-                        ) {
-                            Ok(()) => {
-                                log_action(
-                                    "Added",
-                                    format!(
-                                        "new app component: {}",
-                                        component_package_name
-                                            .to_string_with_colon()
-                                            .log_color_highlight()
-                                    ),
-                                );
-                            }
-                            Err(error) => {
-                                bail!("Failed to add new app component: {}", error)
-                            }
-                        }
-                    }
-                }
-
-                std::env::set_current_dir(&app_dir)?;
-                let app_ctx = self.ctx.app_context_lock().await;
-                let Some(app_ctx) = app_ctx.opt()? else {
-                    return Ok(());
-                };
-
-                logln("");
-                app_ctx.log_dynamic_help(&DynamicHelpSections {
-                    components: true,
-                    custom_commands: true,
-                })?;
-
-                Ok(())
-            }
+                template_name,
+            } => self.new_app(&application_name, template_name).await,
             AppSubcommand::Build {
                 component_name,
                 build: build_args,
@@ -183,6 +96,117 @@ impl AppCommandHandler {
                 Ok(())
             }
         }
+    }
+
+    async fn new_app(
+        &mut self,
+        application_name: &ApplicationName,
+        template_name: ComponentTemplatePositionalArgs,
+    ) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+
+        {
+            let app_ctx = self.ctx.app_context_lock().await;
+            let app_ctx = app_ctx.opt();
+            match app_ctx {
+                Ok(None) => {
+                    // NOP, there is no app
+                }
+                _ => {
+                    log_error("The current directory is part of an existing application.");
+                    logln("");
+                    logln("Switch to a directory that is not part of an application or use");
+                    logln(
+                        "'the component new' command to create a component in the current application.",
+                    );
+                    bail!(NonSuccessfulExit);
+                }
+            }
+        }
+
+        // Unload app context, so we can reload it after the app is created
+        self.ctx.unload_app_context().await;
+
+        let app_dir = PathBuf::from(&application_name);
+        if app_dir.exists() {
+            bail!(
+                "Application directory already exists: {}",
+                app_dir.log_color_error_highlight()
+            );
+        }
+
+        fs::create_dir_all(&app_dir)?;
+        log_action(
+            "Created",
+            format!(
+                "application directory: {}",
+                app_dir.display().to_string().log_color_highlight()
+            ),
+        );
+
+        let templates = template_name
+            .component_template
+            .iter()
+            .map(|template_name| {
+                self.get_template(template_name).map(|(common, component)| {
+                    (
+                        PackageName::from_string(format!(
+                            "app:{}",
+                            template_name.to_string().to_lowercase()
+                        ))
+                        .unwrap(),
+                        common,
+                        component,
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        {
+            let _indent = LogIndent::new();
+            for (component_name, common_template, component_template) in templates {
+                match add_component_by_example(
+                    common_template,
+                    component_template,
+                    &app_dir,
+                    &component_name,
+                ) {
+                    Ok(()) => {
+                        log_action(
+                            "Added",
+                            format!(
+                                "new app component: {}",
+                                component_name.to_string_with_colon().log_color_highlight()
+                            ),
+                        );
+                    }
+                    Err(error) => {
+                        bail!("Failed to add new app component: {}", error)
+                    }
+                }
+            }
+        }
+
+        log_action(
+            "Created",
+            format!(
+                "application {}, loading application manifest..",
+                application_name.log_color_highlight()
+            ),
+        );
+
+        std::env::set_current_dir(&app_dir)?;
+        // TODO: check how this interacts with the app manifest dir flag
+        let app_ctx = self.ctx.app_context_lock().await;
+        let app_ctx = app_ctx.some_or_err()?;
+
+        logln("");
+        app_ctx.log_dynamic_help(&DynamicHelpSections {
+            components: true,
+            custom_commands: true,
+        })?;
+
+        Ok(())
     }
 
     pub async fn build(
@@ -314,5 +338,92 @@ impl AppCommandHandler {
             ))?
         }
         Ok(true)
+    }
+
+    pub fn get_template(
+        &self,
+        requested_template_name: &str,
+    ) -> anyhow::Result<(Option<&Example>, &Example)> {
+        let segments = requested_template_name.split("/").collect::<Vec<_>>();
+        let (language, template_name): (String, Option<String>) = match segments.len() {
+            1 => (segments[0].to_string(), None),
+            2 => (segments[0].to_string(), {
+                let template_name = segments[1].to_string();
+                if template_name.is_empty() {
+                    None
+                } else {
+                    Some(template_name)
+                }
+            }),
+            _ => {
+                log_error("Failed to parse template name");
+                self.log_templates_help();
+                bail!(NonSuccessfulExit);
+            }
+        };
+
+        let language = match GuestLanguage::from_string(language) {
+            Some(language) => language,
+            None => {
+                log_error("Failed to parse language part of the template!");
+                self.log_templates_help();
+                bail!(NonSuccessfulExit);
+            }
+        };
+        let template_name = template_name
+            .map(ExampleName::from)
+            .unwrap_or_else(|| ExampleName::from("default"));
+
+        let Some(lang_templates) = self.ctx.templates().get(&language) else {
+            log_error(format!("No templates found for language: {}", language).as_str());
+            self.log_templates_help();
+            bail!(NonSuccessfulExit);
+        };
+
+        let lang_templates = lang_templates
+            .get(&ComposableAppGroupName::default())
+            .unwrap();
+
+        let Some(component_template) = lang_templates.components.get(&template_name) else {
+            log_error(format!(
+                "Template {} not found!",
+                requested_template_name.log_color_highlight()
+            ));
+            self.log_templates_help();
+            bail!(NonSuccessfulExit);
+        };
+
+        Ok((lang_templates.common.as_ref(), component_template))
+    }
+
+    pub fn log_templates_help(&self) {
+        logln(format!(
+            "\n{}",
+            "Available languages and templates:".underline().bold(),
+        ));
+        for (language, templates) in self.ctx.templates() {
+            logln(format!("- {}", language.to_string().bold()));
+            for (group, template) in templates {
+                if group.as_str() != "default" {
+                    panic!("TODO: handle non-default groups")
+                }
+                for template in template.components.values() {
+                    if template.name.as_str() == "default" {
+                        logln(format!(
+                            "  - {} (default template): {}",
+                            language.id().bold(),
+                            template.description,
+                        ));
+                    } else {
+                        logln(format!(
+                            "  - {}/{}: {}",
+                            language.id().bold(),
+                            template.name.as_str().bold(),
+                            template.description,
+                        ));
+                    }
+                }
+            }
+        }
     }
 }

@@ -12,34 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::cloud::CloudSubcommand;
+pub mod config;
+
+use crate::command::profile::ProfileSubcommand;
 use crate::command_handler::Handlers;
 use crate::context::Context;
 use std::sync::Arc;
 
-pub mod project;
-
-pub struct CloudCommandHandler {
+pub struct ProfileCommandHandler {
     ctx: Arc<Context>,
 }
 
-impl CloudCommandHandler {
+impl ProfileCommandHandler {
     pub fn new(ctx: Arc<Context>) -> Self {
         Self { ctx }
     }
 
-    pub async fn handle_command(&mut self, subcommand: CloudSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&mut self, subcommand: ProfileSubcommand) -> anyhow::Result<()> {
         match subcommand {
-            CloudSubcommand::AuthToken { .. } => {
+            ProfileSubcommand::New { .. } => {
                 todo!()
             }
-            CloudSubcommand::Account { .. } => {
-                todo!()
-            }
-            CloudSubcommand::Project { subcommand } => {
+            ProfileSubcommand::List { .. } => todo!(),
+            ProfileSubcommand::Switch { .. } => todo!(),
+            ProfileSubcommand::Get { .. } => todo!(),
+            ProfileSubcommand::Delete { .. } => todo!(),
+            ProfileSubcommand::Config {
+                profile_name,
+                subcommand,
+            } => {
                 self.ctx
-                    .cloud_project_handler()
-                    .handle_command(subcommand)
+                    .profile_config_handler()
+                    .handler_subcommand(profile_name, subcommand)
                     .await
             }
         }

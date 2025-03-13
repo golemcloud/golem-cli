@@ -17,7 +17,7 @@ use crate::command::shared_args::{
     NewWorkerArgument, WorkerFunctionArgument, WorkerFunctionName, WorkerNameArg,
 };
 use crate::command::worker::WorkerSubcommand;
-use crate::command_handler::GetHandler;
+use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;

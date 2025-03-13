@@ -2251,17 +2251,20 @@ pub mod project {
 
     #[derive(Debug, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
-    pub struct ProjectAddView(pub ProjectView);
+    pub struct ProjectCreatedView(pub ProjectView);
 
-    impl From<Project> for ProjectAddView {
+    impl From<Project> for ProjectCreatedView {
         fn from(value: Project) -> Self {
-            ProjectAddView(value.into())
+            ProjectCreatedView(value.into())
         }
     }
 
-    impl MessageWithFields for ProjectAddView {
+    impl MessageWithFields for ProjectCreatedView {
         fn message(&self) -> String {
-            format!("Added project {}", format_message_highlight(&self.0.name.0))
+            format!(
+                "Created project {}",
+                format_message_highlight(&self.0.name.0)
+            )
         }
 
         fn fields(&self) -> Vec<(String, String)> {

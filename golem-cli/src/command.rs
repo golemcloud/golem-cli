@@ -17,6 +17,7 @@ use crate::command::app::AppSubcommand;
 use crate::command::cloud::CloudSubcommand;
 use crate::command::component::ComponentSubcommand;
 use crate::command::plugin::PluginSubcommand;
+use crate::command::profile::ProfileSubcommand;
 use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
@@ -250,20 +251,19 @@ impl GolemCliCommand {
         }
     }
 
-    // TODO: unit test for checking validity of subcommands and arg names
     fn invalid_arg_matchers() -> Vec<InvalidArgMatcher> {
         vec![
             InvalidArgMatcher {
                 subcommands: vec!["app", "new"],
                 found_positional_args: vec![],
-                missing_positional_arg: "language",
-                to_partial_match: |_| GolemCliCommandPartialMatch::AppNewMissingLanguage,
+                missing_positional_arg: "component_template",
+                to_partial_match: |_| GolemCliCommandPartialMatch::AppNewMissingTemplate,
             },
             InvalidArgMatcher {
                 subcommands: vec!["component", "new"],
                 found_positional_args: vec![],
-                missing_positional_arg: "language",
-                to_partial_match: |_| GolemCliCommandPartialMatch::ComponentNewMissingLanguage,
+                missing_positional_arg: "component_template",
+                to_partial_match: |_| GolemCliCommandPartialMatch::ComponentNewMissingTemplate,
             },
             InvalidArgMatcher {
                 subcommands: vec!["worker", "invoke"],
@@ -367,9 +367,9 @@ pub enum GolemCliCommandParseResult {
 
 #[derive(Debug)]
 pub enum GolemCliCommandPartialMatch {
-    AppNewMissingLanguage,
+    AppNewMissingTemplate,
     AppMissingSubcommandHelp,
-    ComponentNewMissingLanguage,
+    ComponentNewMissingTemplate,
     ComponentMissingSubcommandHelp,
     WorkerInvokeMissingWorkerName,
     WorkerInvokeMissingFunctionName { worker_name: WorkerName },
@@ -403,6 +403,10 @@ pub enum GolemCliSubcommand {
         #[clap(subcommand)]
         subcommand: PluginSubcommand,
     },
+    Profile {
+        #[clap(subcommand)]
+        subcommand: ProfileSubcommand,
+    },
     // TODO: add feature for server
     /// Run and manage the local Golem server
     Server {
@@ -428,9 +432,9 @@ pub mod shared_args {
 
     // TODO: move names to model
     pub type ApplicationName = String;
-    pub type NewComponentName = String;
-    pub type WorkerFunctionArgument = String;
+    pub type ComponentTemplateName = String;
     pub type NewWorkerArgument = String;
+    pub type WorkerFunctionArgument = String;
     pub type WorkerFunctionName = String;
 
     #[derive(Debug, Args)]
@@ -458,14 +462,14 @@ pub mod shared_args {
     }
 
     #[derive(Debug, Args)]
-    pub struct LanguagePositionalArg {
-        pub language: GuestLanguage,
+    pub struct ComponentTemplatePositionalArg {
+        pub component_template: ComponentTemplateName,
     }
 
     #[derive(Debug, Args)]
-    pub struct LanguagesPositionalArg {
+    pub struct ComponentTemplatePositionalArgs {
         #[clap(required = true)]
-        pub language: Vec<GuestLanguage>,
+        pub component_template: Vec<ComponentTemplateName>,
     }
 
     #[derive(Debug, Args)]
@@ -492,8 +496,8 @@ pub mod shared_args {
 
 pub mod app {
     use crate::command::shared_args::{
-        AppOptionalComponentNames, ApplicationName, BuildArgs, ForceBuildArg,
-        LanguagesPositionalArg,
+        AppOptionalComponentNames, ApplicationName, BuildArgs, ComponentTemplatePositionalArgs,
+        ForceBuildArg,
     };
     use clap::Subcommand;
 
@@ -501,11 +505,9 @@ pub mod app {
     pub enum AppSubcommand {
         /// Create new application
         New {
-            application_name: ApplicationName,
-            // TODO: let's make this optionally "lang/template-name" (or eventually "lang/group/template-name")
-            // TODO: related to the above, think about how one should define component-names (using ':' or '=') ?
             #[command(flatten)]
-            language: LanguagesPositionalArg,
+            template_name: ComponentTemplatePositionalArgs,
+            application_name: ApplicationName,
         },
         /// Build all or selected components in the application
         Build {
@@ -534,20 +536,19 @@ pub mod app {
 
 pub mod component {
     use crate::command::shared_args::{
-        BuildArgs, ComponentOptionalComponentName, ComponentOptionalComponentNames, ForceBuildArg,
+        BuildArgs, ComponentOptionalComponentName, ComponentOptionalComponentNames,
+        ComponentTemplatePositionalArg, ForceBuildArg,
     };
-    use crate::command::shared_args::{LanguagePositionalArg, NewComponentName};
     use clap::Subcommand;
+    use golem_examples::model::PackageName;
 
     #[derive(Debug, Subcommand)]
     pub enum ComponentSubcommand {
         /// Create new component in the current application
         New {
-            component_name: NewComponentName,
             #[command(flatten)]
-            language: LanguagePositionalArg,
-            /// Select template
-            template_name: Option<String>,
+            template: ComponentTemplatePositionalArg,
+            component_package_name: PackageName,
         },
         /// Build component(s) based on the current directory or by selection
         Build {
@@ -743,6 +744,66 @@ pub mod plugin {
     pub enum PluginSubcommand {}
 }
 
+pub mod profile {
+    use crate::command::profile::config::ProfileConfigSubcommand;
+    use crate::config::ProfileName;
+    use clap::Subcommand;
+
+    #[derive(Debug, Subcommand)]
+    pub enum ProfileSubcommand {
+        /// Creates new profile
+        #[command()]
+        New {
+            /// Create the new profile interactively
+            #[arg(short, long)]
+            interactive: bool,
+
+            /// Switch to the profile after creation
+            #[arg(short, long)]
+            set_active: bool,
+        },
+
+        /// List profiles
+        #[command()]
+        List {},
+
+        /// Set the active default profile
+        #[command()]
+        Switch { profile_name: ProfileName },
+
+        /// Show profile details
+        #[command()]
+        Get {
+            /// Name of profile to show, shows active profile if not specified.
+            name: Option<ProfileName>,
+        },
+
+        /// Remove profile
+        #[command()]
+        Delete { profile_name: ProfileName },
+
+        /// Profile config
+        #[command()]
+        Config {
+            /// Profile name. Default value - active profile.
+            profile_name: ProfileName,
+
+            #[command(subcommand)]
+            subcommand: ProfileConfigSubcommand,
+        },
+    }
+
+    pub mod config {
+        use crate::model::Format;
+        use clap::Subcommand;
+
+        #[derive(Debug, Subcommand)]
+        pub enum ProfileConfigSubcommand {
+            SetFormat { format: Format },
+        }
+    }
+}
+
 pub mod cloud {
     use crate::command::cloud::account::AccountSubcommand;
     use crate::command::cloud::auth_token::AuthTokenSubcommand;
@@ -780,10 +841,30 @@ pub mod cloud {
     }
 
     pub mod project {
+        use crate::model::ProjectName;
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
-        pub enum ProjectSubcommand {}
+        pub enum ProjectSubcommand {
+            /// Create new project
+            New {
+                /// The new project's name
+                project_name: ProjectName,
+
+                /// The new project's description
+                #[arg(short, long)]
+                description: Option<String>,
+            },
+
+            /// Lists existing projects
+            List {
+                /// Optionally filter projects by name
+                project_name: Option<ProjectName>,
+            },
+
+            /// Gets the default project which is used when no explicit project is specified
+            GetDefault,
+        }
     }
 }
 

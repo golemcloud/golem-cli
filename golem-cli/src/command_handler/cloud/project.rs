@@ -13,18 +13,21 @@
 // limitations under the License.
 
 use crate::cloud::AccountId;
+use crate::command::cloud::project::ProjectSubcommand;
+use crate::command_handler::Handlers;
 use crate::config::ProfileKind;
 use crate::context::Context;
 use crate::error::service::AnyhowMapServiceError;
+use crate::error::HintError;
 use crate::error::NonSuccessfulExit;
 use crate::model::project::ProjectView;
 use crate::model::text::fmt::{log_error, log_text_view};
 use crate::model::text::help::ComponentNameHelp;
-use crate::model::text::project::ProjectListView;
+use crate::model::text::project::{ProjectCreatedView, ProjectGetView, ProjectListView};
 use crate::model::{ProjectName, ProjectNameAndId};
 use anyhow::{anyhow, bail};
 use golem_cloud_client::api::ProjectClient;
-use golem_cloud_client::model::Project;
+use golem_cloud_client::model::{Project, ProjectDataRequest};
 use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
 use std::sync::Arc;
 
@@ -35,6 +38,58 @@ pub struct CloudProjectCommandHandler {
 impl CloudProjectCommandHandler {
     pub fn new(ctx: Arc<Context>) -> Self {
         Self { ctx }
+    }
+
+    pub async fn handle_command(&mut self, subcommand: ProjectSubcommand) -> anyhow::Result<()> {
+        match subcommand {
+            ProjectSubcommand::New {
+                project_name,
+                description,
+            } => {
+                let clients = self.ctx.golem_clients_cloud().await?;
+                let project = clients
+                    .project
+                    .create_project(&ProjectDataRequest {
+                        name: project_name.0,
+                        owner_account_id: clients.account_id().0.to_string(),
+                        description: description.unwrap_or_default(),
+                    })
+                    .await
+                    .map_service_error()?;
+                self.ctx
+                    .log_handler()
+                    .log_view(&ProjectCreatedView(ProjectView::from(project)));
+                Ok(())
+            }
+            ProjectSubcommand::List { project_name } => {
+                let projects = self
+                    .ctx
+                    .golem_clients_cloud()
+                    .await?
+                    .project
+                    .get_projects(project_name.as_ref().map(|name| name.0.as_str()))
+                    .await
+                    .map_service_error()?;
+                self.ctx
+                    .log_handler()
+                    .log_view(&ProjectListView::from(projects));
+                Ok(())
+            }
+            ProjectSubcommand::GetDefault => {
+                let project = self
+                    .ctx
+                    .golem_clients_cloud()
+                    .await?
+                    .project
+                    .get_default_project()
+                    .await
+                    .map_service_error()?;
+                self.ctx
+                    .log_handler()
+                    .log_view(&ProjectGetView::from(project));
+                Ok(())
+            }
+        }
     }
 
     async fn opt_project_by_name(
@@ -88,17 +143,6 @@ impl CloudProjectCommandHandler {
         }
     }
 
-    async fn default_project(&self) -> anyhow::Result<ProjectView> {
-        self.ctx
-            .golem_clients_cloud()
-            .await?
-            .project
-            .get_default_project()
-            .await
-            .map(ProjectView::from)
-            .map_service_error()
-    }
-
     // TODO: special care might be needed for ordering app loading if
     //       project selection can be defined if app manifest too
     pub async fn opt_select_project(
@@ -112,7 +156,7 @@ impl CloudProjectCommandHandler {
                 logln("");
                 log_text_view(&ComponentNameHelp);
                 logln("");
-                bail!(NonSuccessfulExit)
+                bail!(HintError::ExpectedCloudProfile);
             }
             (ProfileKind::Oss, None) => {
                 // TODO: from global flags

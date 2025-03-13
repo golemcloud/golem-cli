@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::command::GolemCliCommandPartialMatch;
-use crate::command_handler::GetHandler;
+use crate::command_handler::Handlers;
 use crate::context::Context;
 use crate::error::HintError;
 use crate::model::component::show_exported_functions;
@@ -39,28 +39,9 @@ impl ErrorHandler {
         partial_match: GolemCliCommandPartialMatch,
     ) -> anyhow::Result<()> {
         match partial_match {
-            GolemCliCommandPartialMatch::AppNewMissingLanguage
-            | GolemCliCommandPartialMatch::ComponentNewMissingLanguage => {
-                logln(format!(
-                    "\n{}",
-                    "Available languages and templates:".underline().bold(),
-                ));
-                for (language, templates) in self.ctx.templates() {
-                    logln(format!("- {}", language.to_string().bold()));
-                    for (group, template) in templates {
-                        if group.as_str() != "default" {
-                            panic!("TODO: handle non-default groups")
-                        }
-                        // TODO: strip template names (preferably in golem-examples)
-                        for template in template.components.values() {
-                            logln(format!(
-                                "  - {}: {}",
-                                template.name.as_str().bold(),
-                                template.description,
-                            ));
-                        }
-                    }
-                }
+            GolemCliCommandPartialMatch::AppNewMissingTemplate
+            | GolemCliCommandPartialMatch::ComponentNewMissingTemplate => {
+                self.ctx.app_handler().log_templates_help();
                 Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
@@ -195,7 +176,14 @@ impl ErrorHandler {
                 Ok(())
             }
             HintError::ExpectedCloudProfile => {
-                todo!()
+                log_error("The requested operation requires using cloud profile!");
+                logln("");
+                logln("Switch to cloud profile with one of the following options");
+                logln(" - use the '--cloud' or '-c' flag");
+                logln(" - use 'golem profile switch' ");
+                logln(" - set the GOLEM_PROFILE environment variable to 'cloud'");
+                logln("");
+                Ok(())
             }
         }
     }

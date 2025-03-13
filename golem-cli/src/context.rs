@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::auth::Auth;
-use crate::cloud::CloudAuthenticationConfig;
+use crate::auth::{Auth, CloudAuthentication};
+use crate::cloud::{AccountId, CloudAuthenticationConfig};
 use crate::command::GolemCliGlobalFlags;
 use crate::config::{
     ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
@@ -183,7 +183,7 @@ impl Context {
         }
 
         {
-            let _init = self.app_context_lock_mut();
+            let _init = self.app_context_lock_mut().await;
         }
 
         self.app_context_state.read().await
@@ -195,6 +195,11 @@ impl Context {
         let mut state = self.app_context_state.write().await;
         state.init(&self.app_context_config);
         state
+    }
+
+    pub async fn unload_app_context(&self) {
+        let mut state = self.app_context_state.write().await;
+        *state = ApplicationContextState::default();
     }
 
     async fn set_app_ctx_init_config<T>(
@@ -273,14 +278,10 @@ impl Clients {
                     },
                 };
 
-                let security_token = Security::Bearer(
-                    auth.authenticate(token_override, profile_name, auth_config, config_dir)
-                        .await?
-                        .0
-                        .secret
-                        .value
-                        .to_string(),
-                );
+                let authentication = auth
+                    .authenticate(token_override, profile_name, auth_config, config_dir)
+                    .await?;
+                let security_token = Security::Bearer(authentication.0.secret.value.to_string());
 
                 let component_context = || ContextCloud {
                     client: service_http_client.clone(),
@@ -303,11 +304,12 @@ impl Clients {
                 let login_context = || ContextCloud {
                     client: service_http_client.clone(),
                     base_url: cloud_url.clone(),
-                    security_token: Security::Empty,
+                    security_token: security_token.clone(),
                 };
 
                 Ok(Clients {
                     golem: GolemClients::Cloud(GolemClientsCloud {
+                        authentication,
                         account: AccountClientCloud {
                             context: cloud_context(),
                         },
@@ -417,6 +419,8 @@ pub struct GolemClientsOss {
 }
 
 pub struct GolemClientsCloud {
+    authentication: CloudAuthentication,
+
     pub account: AccountClientCloud,
     pub account_summary: AccountSummaryClientCloud,
     pub api_certificate: ApiCertificateClientCloud,
@@ -434,6 +438,12 @@ pub struct GolemClientsCloud {
     pub project_policy: ProjectPolicyClientCloud,
     pub token: TokenClientCloud,
     pub worker: WorkerClientCloud,
+}
+
+impl GolemClientsCloud {
+    pub fn account_id(&self) -> AccountId {
+        self.authentication.account_id()
+    }
 }
 
 struct ApplicationContextConfig {
