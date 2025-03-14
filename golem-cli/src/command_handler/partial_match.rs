@@ -180,7 +180,7 @@ impl ErrorHandler {
                 logln("");
                 logln("Switch to cloud profile with one of the following options");
                 logln(" - use the '--cloud' or '-c' flag");
-                logln(" - use 'golem profile switch' ");
+                logln(" - use 'profile switch cloud' ");
                 logln(" - set the GOLEM_PROFILE environment variable to 'cloud'");
                 logln("");
                 Ok(())

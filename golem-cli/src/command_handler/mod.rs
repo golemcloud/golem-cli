@@ -25,7 +25,7 @@ use crate::command_handler::partial_match::ErrorHandler;
 use crate::command_handler::profile::config::ProfileConfigCommandHandler;
 use crate::command_handler::profile::ProfileCommandHandler;
 use crate::command_handler::worker::WorkerCommandHandler;
-use crate::config::Config;
+use crate::config::{Config, ProfileName};
 use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::init_tracing;
@@ -69,13 +69,16 @@ pub struct CommandHandler<Hooks: CommandHandlerHooks> {
 }
 
 impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
-    fn new(global_flags: &GolemCliGlobalFlags, hooks: Arc<Hooks>) -> Self {
+    fn new(
+        global_flags: &GolemCliGlobalFlags,
+        hooks: Arc<Hooks>,
+    ) -> anyhow::Result<Self> {
         // TODO: enum for builtin and generic profiles
         let profile_name = {
             if global_flags.local {
-                Some("local".into())
+                Some(ProfileName::local())
             } else if global_flags.cloud {
-                Some("cloud_default".into())
+                Some(ProfileName::cloud())
             } else {
                 global_flags.profile.clone()
             }
@@ -83,12 +86,12 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
 
         let ctx = Arc::new(Context::new(
             global_flags,
-            Config::get_active_profile(&global_flags.config_dir(), profile_name),
+            Config::get_active_profile(&global_flags.config_dir(), profile_name)?,
         ));
-        Self {
+        Ok(Self {
             ctx: ctx.clone(),
             hooks,
-        }
+        })
     }
 
     // TODO: match and enrich "-h" and "--help"
@@ -101,26 +104,30 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
             GolemCliCommandParseResult::FullMatch(command) => {
                 init_tracing(command.global_flags.verbosity);
 
-                let mut handler = Self::new(&command.global_flags, hooks);
-                // TODO: handle hint errors
-                let result = handler
-                    .handle_command(command)
-                    .await
-                    .map(|()| ExitCode::SUCCESS);
+                match Self::new(&command.global_flags, hooks) {
+                    Ok(mut handler) => {
+                        // TODO: handle hint errors
+                        let result = handler
+                            .handle_command(command)
+                            .await
+                            .map(|()| ExitCode::SUCCESS);
 
-                match result {
-                    Ok(result) => Ok(result),
-                    Err(error) => {
-                        if let Some(hint_error) = error.downcast_ref::<HintError>() {
-                            handler
-                                .ctx
-                                .error_handler()
-                                .handle_hint_errors(hint_error)
-                                .map(|()| ExitCode::FAILURE)
-                        } else {
-                            Err(error)
+                        match result {
+                            Ok(result) => Ok(result),
+                            Err(error) => {
+                                if let Some(hint_error) = error.downcast_ref::<HintError>() {
+                                    handler
+                                        .ctx
+                                        .error_handler()
+                                        .handle_hint_errors(hint_error)
+                                        .map(|()| ExitCode::FAILURE)
+                                } else {
+                                    Err(error)
+                                }
+                            }
                         }
                     }
+                    Err(err) => Err(err),
                 }
             }
             GolemCliCommandParseResult::ErrorWithPartialMatch {
@@ -133,12 +140,15 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
                 debug_log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 
-                Self::new(&fallback_command.global_flags, hooks)
-                    .ctx
-                    .error_handler()
-                    .handle_partial_match(partial_match)
-                    .await
-                    .map(|_| clamp_exit_code(error.exit_code()))
+                match Self::new(&fallback_command.global_flags, hooks) {
+                    Ok(handler) => handler
+                        .ctx
+                        .error_handler()
+                        .handle_partial_match(partial_match)
+                        .await
+                        .map(|_| clamp_exit_code(error.exit_code())),
+                    Err(err) => Err(err),
+                }
             }
             GolemCliCommandParseResult::Error {
                 error,

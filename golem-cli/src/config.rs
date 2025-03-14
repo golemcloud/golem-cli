@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::cloud::CloudAuthenticationConfig;
-use crate::model::{Format, GolemError, HasFormatConfig};
+use crate::model::{Format, HasFormatConfig};
+use anyhow::{anyhow, bail, Context};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -22,10 +23,10 @@ use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::warn;
 use url::Url;
 
-static CLOUD_URL: &str = "https://release.api.golem.cloud/";
+const CLOUD_URL: &str = "https://release.api.golem.cloud";
+const DEFAULT_OSS_URL: &str = "http://localhost:9881";
 
 // TODO: review and separate model, config and serialization parts
 // TODO: when doing the serialization we can do a legacy migration
@@ -34,14 +35,25 @@ static CLOUD_URL: &str = "https://release.api.golem.cloud/";
 pub struct Config {
     pub profiles: HashMap<ProfileName, Profile>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub default_profile: Option<ProfileName>,
+    // TODO: these are deprecated now, remove them properly
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub active_profile: Option<ProfileName>,
-    // TODO: deprecate this?
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub active_cloud_profile: Option<ProfileName>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct ProfileName(pub String);
+
+impl ProfileName {
+    pub fn local() -> Self {
+        ProfileName("local".to_owned())
+    }
+    pub fn cloud() -> Self {
+        ProfileName("cloud".to_owned())
+    }
+}
 
 impl Display for ProfileName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -94,7 +106,8 @@ pub enum ProfileKind {
     Cloud,
 }
 
-// TODO: cannot rename this currently, as it is part of serialization
+// TODO: cannot rename enum cases without migration, as that breaks the format,
+//       if we have to migrate once, we should use a more "user-friendly" format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Profile {
     Golem(OssProfile),
@@ -170,7 +183,6 @@ impl HasFormatConfig for OssProfile {
     }
 }
 
-// TODO: flatten this?
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Eq, PartialEq)]
 pub struct ProfileConfig {
     #[serde(default)]
@@ -182,29 +194,87 @@ impl Config {
         config_dir.join("config.json")
     }
 
-    fn read_from_file_opt(config_dir: &Path) -> Option<Config> {
-        let file = File::open(Self::config_path(config_dir)).ok()?;
-        let reader = BufReader::new(file);
+    fn from_file(config_dir: &Path) -> anyhow::Result<Config> {
+        let config_path = Self::config_path(config_dir);
 
-        let parsed: serde_json::Result<Config> = serde_json::from_reader(reader);
-
-        match parsed {
-            Ok(conf) => Some(conf),
-            Err(err) => {
-                warn!("Config parsing failed: {err}");
-                // TODO: should not silently ignore config parsing errors
-                None
-            }
+        if !config_path
+            .try_exists()
+            .with_context(|| anyhow!("Failed to check config file: {}", config_path.display()))?
+        {
+            return Ok(Config::default().with_local_and_cloud_profiles());
         }
+
+        let file = File::open(Self::config_path(&config_path))
+            .with_context(|| anyhow!("Failed to open config file: {}", config_path.display()))?;
+
+        let reader = BufReader::new(file);
+        let mut config: Config = serde_json::from_reader(reader).with_context(|| {
+            anyhow!(
+                "Failed to deserialize config file {}",
+                config_path.display(),
+            )
+        })?;
+
+        // Detect if it was not yet migrated
+        if config.default_profile.is_none() {
+            // Drop old default profiles
+            config.profiles.remove(&ProfileName::from("default"));
+            config.profiles.remove(&ProfileName::from("cloud_default"));
+
+            // Rename profiles that are conflicting with the new ones
+            if let Some(profile) = config.profiles.remove(&ProfileName::from("local")) {
+                config
+                    .profiles
+                    .insert(ProfileName::from("local-migrated"), profile);
+            };
+            if let Some(profile) = config.profiles.remove(&ProfileName::from("cloud")) {
+                config
+                    .profiles
+                    .insert(ProfileName::from("cloud-migrated"), profile);
+            }
+
+            // Set default to local
+            config.default_profile = Some(ProfileName::from("local"));
+
+            // Save migrated config
+            config.store_file(config_dir).with_context(|| {
+                anyhow!(
+                    "Failed to save config after migration: {}",
+                    config_path.display()
+                )
+            })?;
+        }
+
+        Ok(config.with_local_and_cloud_profiles())
     }
 
-    pub fn read_from_file(config_dir: &Path) -> Config {
-        Self::read_from_file_opt(config_dir).unwrap_or_default()
+    fn with_local_and_cloud_profiles(mut self) -> Self {
+        self.profiles
+            .entry(ProfileName::local())
+            .or_insert_with(|| {
+                let url = Url::parse(DEFAULT_OSS_URL).unwrap();
+                Profile::Golem(OssProfile {
+                    url,
+                    worker_url: None,
+                    allow_insecure: false,
+                    config: ProfileConfig::default(),
+                })
+            });
+
+        self.profiles
+            .entry(ProfileName::cloud())
+            .or_insert_with(|| Profile::GolemCloud(CloudProfile::default()));
+
+        if self.default_profile.is_none() {
+            self.default_profile = Some(ProfileName::local())
+        }
+
+        self
     }
 
-    fn store_file(&self, config_dir: &Path) -> Result<(), GolemError> {
+    fn store_file(&self, config_dir: &Path) -> anyhow::Result<()> {
         create_dir_all(config_dir)
-            .map_err(|err| GolemError(format!("Can't create config directory: {err}")))?;
+            .map_err(|err| anyhow!("Can't create config directory: {err}"))?;
 
         let file = OpenOptions::new()
             .create(true)
@@ -212,30 +282,27 @@ impl Config {
             .write(true)
             .truncate(true)
             .open(Self::config_path(config_dir))
-            .map_err(|err| GolemError(format!("Can't open config file: {err}")))?;
+            .map_err(|err| anyhow!("Can't open config file: {err}"))?;
         let writer = BufWriter::new(file);
 
         serde_json::to_writer_pretty(writer, self)
-            .map_err(|err| GolemError(format!("Can't save config to file: {err}")))
+            .map_err(|err| anyhow!("Can't save config to file: {err}"))
     }
 
     pub fn set_active_profile_name(
         profile_name: ProfileName,
         config_dir: &Path,
-    ) -> Result<(), GolemError> {
-        let mut config = Self::read_from_file(config_dir);
+    ) -> anyhow::Result<()> {
+        let mut config = Self::from_file(config_dir)?;
 
-        let Some(profile) = config.profiles.get(&profile_name) else {
-            return Err(GolemError(format!(
+        if !config.profiles.contains_key(&profile_name) {
+            bail!(
                 "No profile {profile_name} in configuration. Available profiles: [{}]",
                 config.profiles.keys().map(|n| &n.0).join(", ")
-            )));
+            );
         };
 
-        match &profile {
-            Profile::Golem(_) => config.active_profile = Some(profile_name),
-            Profile::GolemCloud(_) => config.active_cloud_profile = Some(profile_name),
-        }
+        config.default_profile = Some(profile_name);
 
         config.store_file(config_dir)?;
 
@@ -245,68 +312,37 @@ impl Config {
     pub fn get_active_profile(
         config_dir: &Path,
         selected_profile: Option<ProfileName>,
-    ) -> NamedProfile {
-        // TODO: allow missing config
-        let mut config = Self::read_from_file(config_dir);
+    ) -> anyhow::Result<NamedProfile> {
+        let mut config = Self::from_file(config_dir)?;
 
-        let name = selected_profile.unwrap_or_else(|| {
-            config
-                .active_profile
-                .unwrap_or_else(|| panic!("TODO: handle builtin (local and cloud) profiles"))
-        });
+        let name = selected_profile
+            .unwrap_or_else(|| config.default_profile.unwrap_or_else(ProfileName::local));
 
-        NamedProfile {
+        Ok(NamedProfile {
             name: name.clone(),
             profile: config.profiles.remove(&name).unwrap(),
-        }
+        })
     }
 
-    pub fn get_profile(name: &ProfileName, config_dir: &Path) -> Option<Profile> {
-        let mut config = Self::read_from_file(config_dir);
-        config.profiles.remove(name)
+    pub fn get_profile(name: &ProfileName, config_dir: &Path) -> anyhow::Result<Option<Profile>> {
+        let mut config = Self::from_file(config_dir)?;
+        Ok(config.profiles.remove(name))
     }
 
     pub fn set_profile(
         name: ProfileName,
         profile: Profile,
         config_dir: &Path,
-    ) -> Result<(), GolemError> {
-        let mut config = Self::read_from_file(config_dir);
-
-        let _ = config.profiles.insert(name, profile);
-
+    ) -> anyhow::Result<()> {
+        let mut config = Self::from_file(config_dir)?;
+        config.profiles.insert(name, profile);
         config.store_file(config_dir)
     }
 
-    pub fn delete_profile(_name: &ProfileName, _config_dir: &Path) -> Result<(), GolemError> {
-        /*let mut config = Self::read_from_file(config_dir);
-
-        if &config
-            .active_profile
-            .clone()
-            .unwrap_or_else(|| ProfileName::default(CliKind::Universal))
-            == name
-        {
-            return Err(GolemError("Can't remove active profile".to_string()));
-        }
-
-        if &config
-            .active_cloud_profile
-            .clone()
-            .unwrap_or_else(|| ProfileName::default(CliKind::Cloud))
-            == name
-        {
-            return Err(GolemError("Can't remove active cloud profile".to_string()));
-        }
-
-        let _ = config
-            .profiles
-            .remove(name)
-            .ok_or(GolemError(format!("Profile {name} not found")))?;
-
+    pub fn delete_profile(name: &ProfileName, config_dir: &Path) -> anyhow::Result<()> {
+        let mut config = Self::from_file(config_dir)?;
+        config.profiles.remove(name);
         config.store_file(config_dir)
-        */
-        todo!()
     }
 }
 

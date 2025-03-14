@@ -28,9 +28,8 @@ pub mod wave;
 
 use crate::cloud::{AccountId, ProjectId};
 use crate::config::{CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileName};
-use crate::model::text::fmt::TextView;
 use crate::model::to_oss::ToOss;
-use async_trait::async_trait;
+use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use clap::builder::{StringValueParser, TypedValueParser};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
@@ -38,7 +37,6 @@ use clap::{Arg, Error, ValueEnum};
 use clap_verbosity_flag::Verbosity;
 use golem_client::model::{ApiDefinitionInfo, ApiSite, Provider};
 use golem_common::model::trim_date::TrimDateTime;
-use golem_common::model::ComponentId;
 use golem_examples::model::{Example, ExampleName, GuestLanguage, GuestLanguageTier};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -51,154 +49,9 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use url::Url;
 use uuid::Uuid;
+
 // TODO: move arg thing into command
 // TODO: move non generic entities into mods
-
-// TODO: drop
-pub enum GolemResult {
-    Ok(Box<dyn PrintRes>),
-    Json(Value),
-    Str(String),
-    Empty,
-}
-
-impl GolemResult {
-    pub fn err(s: String) -> Result<GolemResult, GolemError> {
-        Err(GolemError(s))
-    }
-}
-
-impl PrintRes for GolemResult {
-    fn println(&self, format: Format) {
-        match self {
-            GolemResult::Ok(value) => value.println(format),
-            GolemResult::Json(json) => match format {
-                Format::Json | Format::Text => {
-                    println!("{}", serde_json::to_string_pretty(&json).unwrap())
-                }
-                Format::Yaml => println!("{}", serde_yaml::to_string(&json).unwrap()),
-            },
-            GolemResult::Str(string) => println!("{}", string),
-            GolemResult::Empty => {
-                // NOP
-            }
-        }
-    }
-
-    fn streaming_print(&self, format: Format) {
-        match self {
-            GolemResult::Ok(value) => value.streaming_print(format),
-            GolemResult::Json(json) => match format {
-                Format::Json | Format::Text => {
-                    println!("{}", serde_json::to_string(&json).unwrap())
-                }
-                Format::Yaml => println!("---\n{}", serde_yaml::to_string(&json).unwrap()),
-            },
-            GolemResult::Str(string) => println!("{}", string),
-            GolemResult::Empty => (), // NOP
-        }
-    }
-}
-
-pub trait PrintRes {
-    fn println(&self, format: Format);
-    fn streaming_print(&self, format: Format);
-}
-
-impl<T> PrintRes for T
-where
-    T: Serialize,
-    T: TextView,
-{
-    fn println(&self, format: Format) {
-        match format {
-            Format::Json => println!("{}", serde_json::to_string_pretty(self).unwrap()),
-            Format::Yaml => println!("{}", serde_yaml::to_string(self).unwrap()),
-            Format::Text => self.log(),
-        }
-    }
-
-    fn streaming_print(&self, format: Format) {
-        match format {
-            Format::Json => println!("{}", serde_json::to_string(self).unwrap()),
-            Format::Yaml => println!("---\n{}", serde_yaml::to_string(self).unwrap()),
-            Format::Text => self.log(),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq)]
-pub struct GolemError(pub String);
-
-impl From<reqwest::Error> for GolemError {
-    fn from(error: reqwest::Error) -> Self {
-        GolemError(format!("Unexpected client error: {error}"))
-    }
-}
-
-impl From<reqwest::header::InvalidHeaderValue> for GolemError {
-    fn from(value: reqwest::header::InvalidHeaderValue) -> Self {
-        GolemError(format!("Invalid request header: {value}"))
-    }
-}
-
-impl From<anyhow::Error> for GolemError {
-    fn from(value: anyhow::Error) -> Self {
-        GolemError(format!("{value:#}"))
-    }
-}
-
-pub trait ResponseContentErrorMapper {
-    fn map(self) -> String;
-}
-
-impl<T: ResponseContentErrorMapper> From<golem_client::Error<T>> for GolemError {
-    fn from(value: golem_client::Error<T>) -> Self {
-        match value {
-            golem_client::Error::Reqwest(error) => GolemError::from(error),
-            golem_client::Error::ReqwestHeader(invalid_header) => GolemError::from(invalid_header),
-            golem_client::Error::Serde(error) => {
-                GolemError(format!("Unexpected serialization error: {error}"))
-            }
-            golem_client::Error::Item(data) => {
-                let error_str = ResponseContentErrorMapper::map(data);
-                GolemError(error_str)
-            }
-            golem_client::Error::Unexpected { code, data } => {
-                match String::from_utf8(Vec::from(data)) {
-                    Ok(data_string) => GolemError(format!(
-                        "Unexpected http error. Code: {code}, content: {data_string}."
-                    )),
-                    Err(_) => GolemError(format!(
-                        "Unexpected http error. Code: {code}, can't parse content as string."
-                    )),
-                }
-            }
-        }
-    }
-}
-
-impl Display for GolemError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let GolemError(s) = self;
-        Display::fmt(s, f)
-    }
-}
-
-impl Debug for GolemError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let GolemError(s) = self;
-        Display::fmt(s, f)
-    }
-}
-
-impl std::error::Error for GolemError {
-    fn description(&self) -> &str {
-        let GolemError(s) = self;
-
-        s
-    }
-}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, EnumIter, Serialize, Deserialize, Default)]
 pub enum Format {
@@ -738,23 +591,6 @@ pub trait HasVerbosity {
     fn verbosity(&self) -> Verbosity;
 }
 
-#[async_trait]
-pub trait ComponentIdResolver<ComponentRef> {
-    async fn resolve(&self, component: ComponentRef) -> Result<ComponentId, GolemError>;
-}
-
-/// Represents a CLI argument data type describing a plugin scope
-#[async_trait]
-pub trait PluginScopeArgs {
-    type PluginScope;
-    type ComponentRef;
-
-    async fn into(
-        self,
-        resolver: impl ComponentIdResolver<Self::ComponentRef> + Send,
-    ) -> Result<Option<Self::PluginScope>, GolemError>;
-}
-
 #[derive(clap::Args, Debug, Clone)]
 #[group(required = false, multiple = false)]
 pub struct OssPluginScopeArgs {
@@ -774,12 +610,12 @@ pub struct OssPluginScopeArgs {
 pub fn decode_api_definition<'de, T: Deserialize<'de>>(
     input: &'de str,
     format: &ApiDefinitionFileFormat,
-) -> Result<T, GolemError> {
+) -> anyhow::Result<T> {
     match format {
         ApiDefinitionFileFormat::Json => serde_json::from_str(input)
-            .map_err(|e| GolemError(format!("Failed to parse json api definition: {e:?}"))),
+            .map_err(|e| anyhow!("Failed to parse json api definition: {e:?}")),
         ApiDefinitionFileFormat::Yaml => serde_yaml::from_str(input)
-            .map_err(|e| GolemError(format!("Failed to parse yaml api definition: {e:?}"))),
+            .map_err(|e| anyhow!("Failed to parse yaml api definition: {e:?}")),
     }
 }
 

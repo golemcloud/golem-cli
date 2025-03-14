@@ -510,10 +510,10 @@ pub mod app {
     pub enum AppSubcommand {
         /// Create new application
         New {
-            #[command(flatten)]
-            template_name: ComponentTemplatePositionalArgs,
             /// Application folder name where the new application should be created
             application_name: String,
+            #[command(flatten)]
+            template_name: ComponentTemplatePositionalArgs,
         },
         /// Build all or selected components in the application
         Build {

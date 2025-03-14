@@ -17,12 +17,12 @@ use crate::cloud::{
 };
 use crate::config::{Config, Profile, ProfileName};
 use crate::error::service::AnyhowMapServiceError;
-use crate::model::GolemError;
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_cloud_client::api::{LoginClient, LoginClientLive, LoginOauth2WebFlowPollError};
 use golem_cloud_client::model::{Token, TokenSecret, UnsafeToken, WebFlowAuthorizeUrlResponse};
 use golem_cloud_client::Security;
+use golem_wasm_rpc_stubgen::log::LogColorize;
 use indoc::printdoc;
 use std::path::Path;
 use tracing::{info, warn};
@@ -86,15 +86,17 @@ impl Auth {
         token: &UnsafeToken,
         profile_name: &ProfileName,
         config_dir: &Path,
-    ) -> Result<(), GolemError> {
-        let profile = Config::get_profile(profile_name, config_dir).ok_or(GolemError(format!(
-            "Can't find profile {profile_name} in config"
-        )))?;
+    ) -> anyhow::Result<()> {
+        let profile = Config::get_profile(profile_name, config_dir)?.ok_or(anyhow!(
+            "Can't find profile {} in config",
+            profile_name.0.log_color_highlight()
+        ))?;
 
         match profile {
-            Profile::Golem(_) => Err(GolemError(format!(
-                "Profile {profile_name} is an OOS profile. Cloud profile expected."
-            ))),
+            Profile::Golem(_) => Err(anyhow!(
+                "Profile {} is an OSS profile. Cloud profile expected.",
+                profile_name.0.log_color_highlight()
+            )),
             Profile::GolemCloud(mut profile) => {
                 profile.auth = Some(unsafe_token_to_auth_config(token));
                 Config::set_profile(
@@ -108,6 +110,7 @@ impl Auth {
         }
     }
 
+    // TODO: do we need a safe one?
     fn save_auth(&self, token: &UnsafeToken, profile_name: &ProfileName, config_dir: &Path) {
         match self.save_auth_unsafe(token, profile_name, config_dir) {
             Ok(_) => {}

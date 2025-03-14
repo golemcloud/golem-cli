@@ -37,7 +37,7 @@ impl ProfileConfigCommandHandler {
     ) -> anyhow::Result<()> {
         match subcommand {
             ProfileConfigSubcommand::SetFormat { format } => {
-                match Config::get_profile(&profile_name, self.ctx.config_dir()) {
+                match Config::get_profile(&profile_name, self.ctx.config_dir())? {
                     Some(mut profile) => {
                         profile.get_config_mut().default_format = format;
 

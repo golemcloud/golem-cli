@@ -15,7 +15,8 @@
 use crate::cloud::ProjectId;
 use crate::model::to_oss::ToOss;
 use crate::model::wave::function_wave_compatible;
-use crate::model::{ComponentName, GolemError};
+use crate::model::ComponentName;
+use anyhow::{anyhow, bail};
 use chrono::{DateTime, Utc};
 use golem_client::model::{
     AnalysedType, ComponentMetadata, ComponentType, InitialComponentFile, VersionedComponentId,
@@ -30,7 +31,6 @@ use golem_wasm_ast::analysis::{
 use rib::{ParsedFunctionName, ParsedFunctionSite};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tracing::info;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Component {
@@ -286,8 +286,8 @@ pub fn format_function_name(prefix: Option<&str>, name: &str) -> String {
 fn resolve_function<'t>(
     component: &'t Component,
     function: &str,
-) -> Result<(&'t AnalysedFunction, ParsedFunctionName), GolemError> {
-    let parsed = ParsedFunctionName::parse(function).map_err(GolemError)?;
+) -> anyhow::Result<(&'t AnalysedFunction, ParsedFunctionName)> {
+    let parsed = ParsedFunctionName::parse(function).map_err(|err| anyhow!(err))?;
     let mut functions = Vec::new();
 
     for export in &component.metadata.exports {
@@ -312,24 +312,21 @@ fn resolve_function<'t>(
     }
 
     if functions.len() > 1 {
-        info!("Multiple function with the same name '{function}' declared");
-
-        Err(GolemError(
-            "Multiple function results with the same name declared".to_string(),
-        ))
+        bail!(
+            "Multiple function results with the same name ({}) declared",
+            function
+        )
     } else if let Some(func) = functions.first() {
         Ok((func, parsed))
     } else {
-        info!("No function '{function}' declared for component");
-
-        Err(GolemError("Can't find function in component".to_string()))
+        bail!("Can't find function ({}) in component", function)
     }
 }
 
 pub fn function_result_types<'t>(
     component: &'t Component,
     function: &str,
-) -> Result<Vec<&'t AnalysedType>, GolemError> {
+) -> anyhow::Result<Vec<&'t AnalysedType>> {
     let (func, _) = resolve_function(component, function)?;
 
     Ok(func.results.iter().map(|r| &r.typ).collect())
@@ -338,7 +335,7 @@ pub fn function_result_types<'t>(
 pub fn function_params_types<'t>(
     component: &'t Component,
     function: &str,
-) -> Result<Vec<&'t AnalysedType>, GolemError> {
+) -> anyhow::Result<Vec<&'t AnalysedType>> {
     let (func, parsed) = resolve_function(component, function)?;
 
     if parsed.function().is_indexed_resource() {
