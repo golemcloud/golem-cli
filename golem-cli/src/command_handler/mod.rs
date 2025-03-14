@@ -38,6 +38,8 @@ use tracing::{debug, Level};
 
 #[cfg(feature = "server-commands")]
 use crate::command::server::ServerSubcommand;
+#[cfg(feature = "server-commands")]
+use std::future::Future;
 
 mod app;
 mod cloud;

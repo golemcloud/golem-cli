@@ -8,19 +8,19 @@ mod hooks {
     use golem_cli::command::server::ServerSubcommand;
     use golem_cli::command_handler::CommandHandlerHooks;
     use golem_cli::context::Context;
-    use std::future::Future;
+
     use std::sync::Arc;
 
     pub struct NoHooks {}
 
     impl CommandHandlerHooks for NoHooks {
         #[cfg(feature = "server-commands")]
-        fn handler_server_commands(
+        async fn handler_server_commands(
             &self,
             _ctx: Arc<Context>,
             _subcommand: ServerSubcommand,
-        ) -> impl Future<Output = anyhow::Result<()>> {
-            async { unimplemented!() }
+        ) -> anyhow::Result<()> {
+            unimplemented!()
         }
     }
 }
