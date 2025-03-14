@@ -182,7 +182,7 @@ pub fn instantiate_template(
 
 pub fn add_component_by_template(
     common_template: Option<&Template>,
-    component_template: &Template,
+    component_template: Option<&Template>,
     target_path: &Path,
     package_name: &PackageName,
 ) -> anyhow::Result<()> {
@@ -218,15 +218,17 @@ pub fn add_component_by_template(
         }
     }
 
-    instantiate_template(
-        component_template,
-        &parameters,
-        TargetExistsResolveMode::MergeOrFail,
-    )
-    .context(format!(
-        "Instantiating component template {}",
-        component_template.name
-    ))?;
+    if let Some(component_template) = component_template {
+        instantiate_template(
+            component_template,
+            &parameters,
+            TargetExistsResolveMode::MergeOrFail,
+        )
+        .context(format!(
+            "Instantiating component template {}",
+            component_template.name
+        ))?;
+    }
 
     Ok(())
 }

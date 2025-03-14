@@ -48,7 +48,7 @@ enum Language {
     Rust,
     Zig,
     ScalaJs,
-    MoonBit
+    MoonBit,
 }
 
 struct SelectedLanguage {
@@ -68,7 +68,7 @@ impl SelectedLanguage {
             GuestLanguage::TypeScript => Some(Language::JsTs),
             GuestLanguage::Zig => Some(Language::Zig),
             GuestLanguage::ScalaJs => Some(Language::ScalaJs),
-            GuestLanguage::MoonBit => Some(Language::MoonBit)
+            GuestLanguage::MoonBit => Some(Language::MoonBit),
         };
 
         language.map(|language| SelectedLanguage {
@@ -183,7 +183,7 @@ impl Language {
             ],
             Language::MoonBit => vec![
                 // TODO: moon
-            ]
+            ],
         }
     }
 
@@ -230,7 +230,7 @@ impl Display for Language {
             Language::Rust => f.write_str("Rust"),
             Language::Zig => f.write_str("Zig"),
             Language::ScalaJs => f.write_str("Scala.js"),
-            Language::MoonBit => f.write_str("MoonBit")
+            Language::MoonBit => f.write_str("MoonBit"),
         }
     }
 }

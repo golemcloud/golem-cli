@@ -136,26 +136,24 @@ pub fn main() -> anyhow::Result<()> {
                 println!("Adding components for language {}", language.name().blue());
                 used_languages.insert(*language);
 
-                let default_template = templates.get(&ComposableAppGroupName::default()).unwrap();
-                // TODO:
-                assert_eq!(default_template.components.len(), 1);
-                let (_, default_component_template) =
-                    &default_template.components.iter().next().unwrap();
-
-                for _ in 1..=2 {
-                    let component_name = format!("app:comp-{}", nanoid!(10, &alphabet));
-                    println!(
-                        "Adding component {} ({})",
-                        component_name.bright_blue(),
-                        language.name().blue()
-                    );
-                    let package_name = PackageName::from_string(component_name).unwrap();
-                    add_component_by_template(
-                        default_template.common.as_ref(),
-                        default_component_template,
-                        &target_path,
-                        &package_name,
-                    )?
+                let default_templates = templates.get(&ComposableAppGroupName::default()).unwrap();
+                for (name, component_template) in &default_templates.components {
+                    for _ in 1..=2 {
+                        let component_name =
+                            format!("app:comp-{}-{}", name, nanoid!(10, &alphabet));
+                        println!(
+                            "Adding component {} ({})",
+                            component_name.bright_blue(),
+                            language.name().blue()
+                        );
+                        let package_name = PackageName::from_string(component_name).unwrap();
+                        add_component_by_template(
+                            default_templates.common.as_ref(),
+                            Some(component_template),
+                            &target_path,
+                            &package_name,
+                        )?
+                    }
                 }
             }
 
