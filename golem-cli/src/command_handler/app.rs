@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::command::app::AppSubcommand;
-use crate::command::shared_args::{ApplicationName, BuildArgs, ComponentTemplatePositionalArgs};
+use crate::command::shared_args::{BuildArgs, ComponentTemplatePositionalArgs};
 use crate::command_handler::Handlers;
 use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
@@ -100,7 +100,7 @@ impl AppCommandHandler {
 
     async fn new_app(
         &mut self,
-        application_name: &ApplicationName,
+        application_name: &str,
         template_name: ComponentTemplatePositionalArgs,
     ) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;

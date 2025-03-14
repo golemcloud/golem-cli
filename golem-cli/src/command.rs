@@ -18,7 +18,6 @@ use crate::command::cloud::CloudSubcommand;
 use crate::command::component::ComponentSubcommand;
 use crate::command::plugin::PluginSubcommand;
 use crate::command::profile::ProfileSubcommand;
-use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use crate::model::{Format, WorkerName};
@@ -34,6 +33,10 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+#[cfg(feature = "server-commands")]
+use crate::command::server::ServerSubcommand;
+
+/// Golem Command Line Interface
 #[derive(Debug, Parser)]
 pub struct GolemCliCommand {
     #[command(flatten)]
@@ -403,6 +406,7 @@ pub enum GolemCliSubcommand {
         #[clap(subcommand)]
         subcommand: PluginSubcommand,
     },
+    /// Manage CLI profiles
     Profile {
         #[clap(subcommand)]
         subcommand: ProfileSubcommand,
@@ -430,8 +434,6 @@ pub mod shared_args {
     use golem_examples::model::GuestLanguage;
     use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
 
-    // TODO: move names to model
-    pub type ApplicationName = String;
     pub type ComponentTemplateName = String;
     pub type NewWorkerArgument = String;
     pub type WorkerFunctionArgument = String;
@@ -463,12 +465,14 @@ pub mod shared_args {
 
     #[derive(Debug, Args)]
     pub struct ComponentTemplatePositionalArg {
+        /// Component template name to be used for the component
         pub component_template: ComponentTemplateName,
     }
 
     #[derive(Debug, Args)]
     pub struct ComponentTemplatePositionalArgs {
         #[clap(required = true)]
+        /// Component template name(s) to be used for the new application
         pub component_template: Vec<ComponentTemplateName>,
     }
 
@@ -490,14 +494,15 @@ pub mod shared_args {
 
     #[derive(Debug, Args)]
     pub struct WorkerNameArg {
+        // TODO: add details about accepted formats
+        /// Worker name
         pub worker_name: WorkerName,
     }
 }
 
 pub mod app {
     use crate::command::shared_args::{
-        AppOptionalComponentNames, ApplicationName, BuildArgs, ComponentTemplatePositionalArgs,
-        ForceBuildArg,
+        AppOptionalComponentNames, BuildArgs, ComponentTemplatePositionalArgs, ForceBuildArg,
     };
     use clap::Subcommand;
 
@@ -507,7 +512,8 @@ pub mod app {
         New {
             #[command(flatten)]
             template_name: ComponentTemplatePositionalArgs,
-            application_name: ApplicationName,
+            /// Application folder name where the new application should be created
+            application_name: String,
         },
         /// Build all or selected components in the application
         Build {
@@ -548,6 +554,7 @@ pub mod component {
         New {
             #[command(flatten)]
             template: ComponentTemplatePositionalArg,
+            /// Name of the new component package in 'package:name' form
             component_package_name: PackageName,
         },
         /// Build component(s) based on the current directory or by selection
@@ -598,19 +605,25 @@ pub mod worker {
 
     #[derive(Debug, Subcommand)]
     pub enum WorkerSubcommand {
+        /// Create new worker
         New {
             #[command(flatten)]
             worker_name: WorkerNameArg,
+            /// Worker arguments
             arguments: Vec<NewWorkerArgument>,
+            /// Worker environment variables
             #[arg(short, long, value_parser = parse_key_val, value_name = "ENV=VAL")]
             env: Vec<(String, String)>,
         },
         // TODO: json args
         // TODO: connect
+        /// Invoke (or enqueue invocation for) worker
         Invoke {
             #[command(flatten)]
             worker_name: WorkerNameArg,
+            /// Worker function name to invoke
             function_name: WorkerFunctionName,
+            /// Worker function arguments in WAVE format
             arguments: Vec<WorkerFunctionArgument>,
             /// Enqueue invocation, and do not wait for it
             #[clap(long, short, default_value = "false")]
@@ -665,18 +678,22 @@ pub mod api {
 
     #[derive(Debug, Subcommand)]
     pub enum ApiSubcommand {
+        /// Manage API definitions
         Definition {
             #[clap(subcommand)]
             subcommand: ApiDefinitionSubcommand,
         },
+        /// Manage API deployments
         Deployment {
             #[clap(subcommand)]
             subcommand: ApiDeploymentSubcommand,
         },
+        /// Manage API Security Schemes
         SecurityScheme {
             #[clap(subcommand)]
             subcommand: ApiSecuritySchemeSubcommand,
         },
+        /// Manage API Cloud Domains and Certificates
         Cloud {
             #[clap(subcommand)]
             subcommand: ApiCloudSubcommand,
@@ -711,10 +728,12 @@ pub mod api {
 
         #[derive(Debug, Subcommand)]
         pub enum ApiCloudSubcommand {
+            /// Manage Cloud API Domains
             Domain {
                 #[clap(subcommand)]
                 subcommand: ApiDomainSubcommand,
             },
+            /// Manage Cloud API Certificates
             Certificate {
                 #[clap(subcommand)]
                 subcommand: ApiCertificateSubcommand,
@@ -769,7 +788,10 @@ pub mod profile {
 
         /// Set the active default profile
         #[command()]
-        Switch { profile_name: ProfileName },
+        Switch {
+            /// Profile name to switch to
+            profile_name: ProfileName,
+        },
 
         /// Show profile details
         #[command()]
@@ -780,7 +802,10 @@ pub mod profile {
 
         /// Remove profile
         #[command()]
-        Delete { profile_name: ProfileName },
+        Delete {
+            /// Profile name to delete
+            profile_name: ProfileName,
+        },
 
         /// Profile config
         #[command()]
@@ -799,7 +824,11 @@ pub mod profile {
 
         #[derive(Debug, Subcommand)]
         pub enum ProfileConfigSubcommand {
-            SetFormat { format: Format },
+            /// Set default output format for the requested profile
+            SetFormat {
+                /// CLI output format
+                format: Format,
+            },
         }
     }
 }
@@ -812,14 +841,17 @@ pub mod cloud {
 
     #[derive(Debug, Subcommand)]
     pub enum CloudSubcommand {
+        /// Manage Cloud Auth Tokens
         AuthToken {
             #[clap(subcommand)]
             subcommand: AuthTokenSubcommand,
         },
+        /// Manage Cloud Account
         Account {
             #[clap(subcommand)]
             subcommand: AccountSubcommand,
         },
+        /// Manage Cloud Projects
         Project {
             #[clap(subcommand)]
             subcommand: ProjectSubcommand,

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::server::ServerSubcommand;
 use crate::command::{
     GolemCliCommand, GolemCliCommandParseResult, GolemCliFallbackCommand, GolemCliGlobalFlags,
     GolemCliSubcommand,
@@ -38,6 +37,9 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use tracing::{debug, Level};
 
+#[cfg(feature = "server-commands")]
+use crate::command::server::ServerSubcommand;
+
 mod app;
 mod cloud;
 mod component;
@@ -60,6 +62,7 @@ pub trait CommandHandlerHooks: Send + Sync {
 // but NOT responsible for storing state (apart from Context itself), those should be part of Context.
 pub struct CommandHandler {
     ctx: Arc<Context>,
+    #[allow(unused)]
     hooks: Arc<dyn CommandHandlerHooks>,
 }
 
