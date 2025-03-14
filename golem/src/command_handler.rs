@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::launch::{launch_golem_services, LaunchArgs};
 use anyhow::anyhow;
-use async_trait::async_trait;
 use golem_cli::command::server::ServerSubcommand;
 use golem_cli::command_handler::CommandHandlerHooks;
 use golem_cli::context::Context;
@@ -22,7 +22,6 @@ use std::sync::Arc;
 
 pub struct ServerCommandHandler;
 
-#[async_trait]
 impl CommandHandlerHooks for ServerCommandHandler {
     async fn handler_server_commands(
         &self,
@@ -31,9 +30,9 @@ impl CommandHandlerHooks for ServerCommandHandler {
     ) -> anyhow::Result<()> {
         match subcommand {
             ServerSubcommand::Run {
-                router_addr: _,
-                router_port: _,
-                custom_request_port: _,
+                router_addr,
+                router_port,
+                custom_request_port,
                 data_dir,
                 clean,
             } => {
@@ -45,14 +44,13 @@ impl CommandHandlerHooks for ServerCommandHandler {
                     clean_data_dir(&data_dir).await?;
                 };
 
-                // TODO: this causes "error: implementation of `std::marker::Send` is not general enough"
-                /*launch_golem_services(&LaunchArgs {
+                launch_golem_services(&LaunchArgs {
                     router_addr,
                     router_port,
                     custom_request_port,
                     data_dir,
                 })
-                .await?;*/
+                .await?;
 
                 Ok(())
             }

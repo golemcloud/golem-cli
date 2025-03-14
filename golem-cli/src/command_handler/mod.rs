@@ -30,9 +30,9 @@ use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::init_tracing;
 use crate::model::text::fmt::log_error;
-use async_trait::async_trait;
 use golem_wasm_rpc_stubgen::log::logln;
 use std::ffi::OsString;
+use std::future::Future;
 use std::process::ExitCode;
 use std::sync::Arc;
 use tracing::{debug, Level};
@@ -48,26 +48,28 @@ mod partial_match;
 mod profile;
 mod worker;
 
-#[async_trait]
-pub trait CommandHandlerHooks: Send + Sync {
+// NOTE: We are explicitly not using #[async_trait] here to be able to NOT have a Send bound
+// on the `handler_server_commands` method. Having a Send bound there causes "Send is not generic enough"
+// error which is possibly due to a compiler bug (https://github.com/rust-lang/rust/issues/64552).
+pub trait CommandHandlerHooks {
     #[cfg(feature = "server-commands")]
-    async fn handler_server_commands(
+    fn handler_server_commands(
         &self,
         ctx: Arc<Context>,
         subcommand: ServerSubcommand,
-    ) -> anyhow::Result<()>;
+    ) -> impl Future<Output = anyhow::Result<()>>;
 }
 
 // CommandHandle is responsible for matching commands and producing CLI output using Context,
 // but NOT responsible for storing state (apart from Context itself), those should be part of Context.
-pub struct CommandHandler {
+pub struct CommandHandler<Hooks: CommandHandlerHooks> {
     ctx: Arc<Context>,
     #[allow(unused)]
-    hooks: Arc<dyn CommandHandlerHooks>,
+    hooks: Arc<Hooks>,
 }
 
-impl CommandHandler {
-    fn new(global_flags: &GolemCliGlobalFlags, hooks: Arc<dyn CommandHandlerHooks>) -> Self {
+impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
+    fn new(global_flags: &GolemCliGlobalFlags, hooks: Arc<Hooks>) -> Self {
         // TODO: enum for builtin and generic profiles
         let profile_name = {
             if global_flags.local {
@@ -90,10 +92,7 @@ impl CommandHandler {
     }
 
     // TODO: match and enrich "-h" and "--help"
-    pub async fn handle_args<I, T>(
-        args_iterator: I,
-        hooks: Arc<dyn CommandHandlerHooks>,
-    ) -> ExitCode
+    pub async fn handle_args<I, T>(args_iterator: I, hooks: Arc<Hooks>) -> ExitCode
     where
         I: IntoIterator<Item = T>,
         T: Into<OsString> + Clone,
