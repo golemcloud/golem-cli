@@ -68,10 +68,7 @@ pub struct CommandHandler<Hooks: CommandHandlerHooks> {
 }
 
 impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
-    fn new(
-        global_flags: &GolemCliGlobalFlags,
-        hooks: Arc<Hooks>,
-    ) -> anyhow::Result<Self> {
+    fn new(global_flags: &GolemCliGlobalFlags, hooks: Arc<Hooks>) -> anyhow::Result<Self> {
         // TODO: enum for builtin and generic profiles
         let profile_name = {
             if global_flags.local {
