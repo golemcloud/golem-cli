@@ -1,10 +1,10 @@
 import asyncio
 import poll_loop
 
-from component_name import exports
-from component_name.types import Ok
-from component_name.imports import types
-from component_name.imports.types import (
+from binding.pack_name import exports
+from binding.pack_name.types import Ok
+from binding.pack_name.imports import types
+from binding.pack_name.imports.types import (
     Method_Get,
     Method_Post,
     Scheme,
@@ -37,7 +37,7 @@ class IncomingHandler(exports.IncomingHandler):
 
 
 async def handle_async(
-    request: IncomingRequest, response_out: ResponseOutparam
+        request: IncomingRequest, response_out: ResponseOutparam
 ) -> None:
     """Handle the specified `request`, sending the response to `response_out`."""
 
