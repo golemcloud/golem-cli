@@ -204,7 +204,7 @@ impl Config {
             return Ok(Config::default().with_local_and_cloud_profiles());
         }
 
-        let file = File::open(Self::config_path(&config_path))
+        let file = File::open(&config_path)
             .with_context(|| anyhow!("Failed to open config file: {}", config_path.display()))?;
 
         let reader = BufReader::new(file);
