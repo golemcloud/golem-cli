@@ -57,8 +57,10 @@ The following occurrences get replaced to the provided component name, applying 
 - `pack-name`
 - `pack/name`
 - `PackName`
-- `pack-ns`
-- `PackNs`
+- `pack-ns`  (`pack`)
+- `PackNs`   (`Pack`)
+- `__pack__` (`pack`)
+- `__name__` (`name`)
 
 ### Testing the templates
 The component generation and instructions can be tested with a test [cli app](/src/test/main.rs).

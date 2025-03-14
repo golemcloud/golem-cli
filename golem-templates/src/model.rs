@@ -118,6 +118,8 @@ pub enum GuestLanguage {
     Rust,
     TypeScript,
     Zig,
+    ScalaJs,
+    MoonBit,
 }
 
 impl GuestLanguage {
@@ -130,6 +132,8 @@ impl GuestLanguage {
             "rust" => Some(GuestLanguage::Rust),
             "ts" | "typescript" => Some(GuestLanguage::TypeScript),
             "zig" => Some(GuestLanguage::Zig),
+            "moon" | "moonbit" => Some(GuestLanguage::MoonBit),
+            "scala" | "scalajs" => Some(GuestLanguage::ScalaJs),
             _ => None,
         }
     }
@@ -143,6 +147,8 @@ impl GuestLanguage {
             GuestLanguage::JavaScript => "js".to_string(),
             GuestLanguage::TypeScript => "ts".to_string(),
             GuestLanguage::Python => "python".to_string(),
+            GuestLanguage::ScalaJs => "scala".to_string(),
+            GuestLanguage::MoonBit => "moonbit".to_string(),
         }
     }
 
@@ -155,6 +161,8 @@ impl GuestLanguage {
             GuestLanguage::Rust => GuestLanguageTier::Tier1,
             GuestLanguage::TypeScript => GuestLanguageTier::Tier1,
             GuestLanguage::Zig => GuestLanguageTier::Tier1,
+            GuestLanguage::ScalaJs => GuestLanguageTier::Tier1,
+            GuestLanguage::MoonBit => GuestLanguageTier::Tier1,
         }
     }
 
@@ -167,6 +175,8 @@ impl GuestLanguage {
             GuestLanguage::Rust => "Rust",
             GuestLanguage::TypeScript => "TypeScript",
             GuestLanguage::Zig => "Zig",
+            GuestLanguage::ScalaJs => "Scala.js",
+            GuestLanguage::MoonBit => "MoonBit",
         }
     }
 }
@@ -297,6 +307,14 @@ impl PackageName {
 
     pub fn namespace_title_case(&self) -> String {
         self.0 .0.to_title_case()
+    }
+
+    pub fn namespace_snake_case(&self) -> String {
+        self.0 .0.to_snake_case()
+    }
+
+    pub fn name_snake_case(&self) -> String {
+        self.0 .1.to_snake_case()
     }
 }
 

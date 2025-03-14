@@ -372,6 +372,8 @@ fn transform(str: impl AsRef<str>, parameters: &TemplateParameters) -> String {
         .replace("PackName", &parameters.package_name.to_pascal_case())
         .replace("pack-ns", &parameters.package_name.namespace())
         .replace("PackNs", &parameters.package_name.namespace_title_case())
+        .replace("__pack__", &parameters.package_name.namespace_snake_case())
+        .replace("__name__", &parameters.package_name.name_snake_case())
 }
 
 fn file_name_transform(str: impl AsRef<str>, parameters: &TemplateParameters) -> String {
