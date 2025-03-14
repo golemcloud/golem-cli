@@ -32,7 +32,6 @@ use crate::init_tracing;
 use crate::model::text::fmt::log_error;
 use golem_wasm_rpc_stubgen::log::logln;
 use std::ffi::OsString;
-use std::future::Future;
 use std::process::ExitCode;
 use std::sync::Arc;
 use tracing::{debug, Level};
@@ -69,10 +68,7 @@ pub struct CommandHandler<Hooks: CommandHandlerHooks> {
 }
 
 impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
-    fn new(
-        global_flags: &GolemCliGlobalFlags,
-        hooks: Arc<Hooks>,
-    ) -> anyhow::Result<Self> {
+    fn new(global_flags: &GolemCliGlobalFlags, hooks: Arc<Hooks>) -> anyhow::Result<Self> {
         // TODO: enum for builtin and generic profiles
         let profile_name = {
             if global_flags.local {
