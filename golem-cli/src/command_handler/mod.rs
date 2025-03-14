@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::command::server::ServerSubcommand;
 use crate::command::{
     GolemCliCommand, GolemCliCommandParseResult, GolemCliFallbackCommand, GolemCliGlobalFlags,
     GolemCliSubcommand,
@@ -30,6 +31,7 @@ use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::init_tracing;
 use crate::model::text::fmt::log_error;
+use async_trait::async_trait;
 use golem_wasm_rpc_stubgen::log::logln;
 use std::ffi::OsString;
 use std::process::ExitCode;
@@ -44,14 +46,25 @@ mod partial_match;
 mod profile;
 mod worker;
 
+#[async_trait]
+pub trait CommandHandlerHooks: Send + Sync {
+    #[cfg(feature = "server-commands")]
+    async fn handler_server_commands(
+        &self,
+        ctx: Arc<Context>,
+        subcommand: ServerSubcommand,
+    ) -> anyhow::Result<()>;
+}
+
 // CommandHandle is responsible for matching commands and producing CLI output using Context,
 // but NOT responsible for storing state (apart from Context itself), those should be part of Context.
 pub struct CommandHandler {
     ctx: Arc<Context>,
+    hooks: Arc<dyn CommandHandlerHooks>,
 }
 
 impl CommandHandler {
-    fn new(global_flags: &GolemCliGlobalFlags) -> Self {
+    fn new(global_flags: &GolemCliGlobalFlags, hooks: Arc<dyn CommandHandlerHooks>) -> Self {
         // TODO: enum for builtin and generic profiles
         let profile_name = {
             if global_flags.local {
@@ -67,11 +80,17 @@ impl CommandHandler {
             global_flags,
             Config::get_active_profile(&global_flags.config_dir(), profile_name),
         ));
-        Self { ctx: ctx.clone() }
+        Self {
+            ctx: ctx.clone(),
+            hooks,
+        }
     }
 
     // TODO: match and enrich "-h" and "--help"
-    pub async fn handle_args<I, T>(args_iterator: I) -> ExitCode
+    pub async fn handle_args<I, T>(
+        args_iterator: I,
+        hooks: Arc<dyn CommandHandlerHooks>,
+    ) -> ExitCode
     where
         I: IntoIterator<Item = T>,
         T: Into<OsString> + Clone,
@@ -80,7 +99,7 @@ impl CommandHandler {
             GolemCliCommandParseResult::FullMatch(command) => {
                 init_tracing(command.global_flags.verbosity);
 
-                let mut handler = Self::new(&command.global_flags);
+                let mut handler = Self::new(&command.global_flags, hooks);
                 // TODO: handle hint errors
                 let result = handler
                     .handle_command(command)
@@ -112,7 +131,7 @@ impl CommandHandler {
                 debug_log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 
-                Self::new(&fallback_command.global_flags)
+                Self::new(&fallback_command.global_flags, hooks)
                     .ctx
                     .error_handler()
                     .handle_partial_match(partial_match)
@@ -164,8 +183,11 @@ impl CommandHandler {
             GolemCliSubcommand::Profile { subcommand } => {
                 self.ctx.profile_handler().handle_command(subcommand).await
             }
-            GolemCliSubcommand::Server { .. } => {
-                todo!()
+            #[cfg(feature = "server-commands")]
+            GolemCliSubcommand::Server { subcommand } => {
+                self.hooks
+                    .handler_server_commands(self.ctx.clone(), subcommand)
+                    .await
             }
             GolemCliSubcommand::Cloud { subcommand } => {
                 self.ctx.cloud_handler().handle_command(subcommand).await

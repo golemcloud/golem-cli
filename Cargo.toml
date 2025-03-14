@@ -2,14 +2,13 @@
 resolver = "2"
 
 members = [
-
+    "golem",
     "golem-cli",
     "golem-examples",
     "wasm-rpc-stubgen",
 ]
 
 exclude = [
-    "golem", # TODO: disabled until unification is finished in golem-cli
     "desktop-app/src-tauri",
 ]
 

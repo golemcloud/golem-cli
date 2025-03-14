@@ -18,7 +18,7 @@ test = false
 
 [dependencies]
 # Repo deps
-golem-cli = { path = "../golem-cli", version = "=0.0.0" }
+golem-cli = { path = "../golem-cli", features = ["server-commands"], version = "=0.0.0" }
 
 # Golem - git deps
 golem-common = { git = "https://github.com/golemcloud/golem", tag = "v1.1.21" }
@@ -34,6 +34,7 @@ golem-worker-service-base = { git = "https://github.com/golemcloud/golem", tag =
 
 # External deps
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true }
 dirs = { workspace = true }

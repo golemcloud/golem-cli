@@ -14,7 +14,7 @@
 
 use prometheus::Registry;
 
-pub mod command;
+pub mod command_handler;
 pub mod launch;
 mod migration;
 mod router;
@@ -28,14 +28,4 @@ pub struct StartedComponents {
     pub worker_executor: golem_worker_executor_base::RunDetails,
     pub worker_service: golem_worker_service::TrafficReadyEndpoints,
     pub prometheus_registry: Registry,
-}
-
-#[cfg(test)]
-mod tests {
-    use test_r::test;
-
-    use crate::command::SingleExecutableCommand;
-    use clap::{Command, CommandFactory};
-    use golem_cli::command_old::profile::OssProfileAdd;
-    use golem_cli::oss::cli::GolemOssCli;
 }

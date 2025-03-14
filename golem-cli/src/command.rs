@@ -407,8 +407,8 @@ pub enum GolemCliSubcommand {
         #[clap(subcommand)]
         subcommand: ProfileSubcommand,
     },
-    // TODO: add feature for server
     /// Run and manage the local Golem server
+    #[cfg(feature = "server-commands")]
     Server {
         #[clap(subcommand)]
         subcommand: ServerSubcommand,
