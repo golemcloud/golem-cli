@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::model::{
-    ComposableAppGroupName, Example, ExampleKind, ExampleMetadata, ExampleName, ExampleParameters,
+    ComposableAppGroupName, Template, TemplateKind, TemplateMetadata, TemplateName, TemplateParameters,
     GuestLanguage, PackageName, TargetExistsResolveDecision, TargetExistsResolveMode,
 };
 use include_dir::{include_dir, Dir, DirEntry};
@@ -28,13 +28,13 @@ pub mod model;
 #[cfg(test)]
 test_r::enable!();
 
-static EXAMPLES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/examples");
+static TEMPLATES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 static ADAPTERS: Dir<'_> = include_dir!("$OUT_DIR/golem-wit/adapters");
 static WIT: Dir<'_> = include_dir!("$OUT_DIR/golem-wit/wit/deps");
 
-fn all_examples() -> Vec<Example> {
-    let mut result: Vec<Example> = vec![];
-    for entry in EXAMPLES.entries() {
+fn all_templates() -> Vec<Template> {
+    let mut result: Vec<Template> = vec![];
+    for entry in TEMPLATES.entries() {
         if let Some(lang_dir) = entry.as_dir() {
             let lang_dir_name = lang_dir.path().file_name().unwrap().to_str().unwrap();
             if let Some(lang) = GuestLanguage::from_string(lang_dir_name) {
@@ -42,19 +42,19 @@ fn all_examples() -> Vec<Example> {
                     Path::new(lang.tier().name()).join("wasi_snapshot_preview1.wasm");
 
                 for sub_entry in lang_dir.entries() {
-                    if let Some(example_dir) = sub_entry.as_dir() {
-                        let example_dir_name =
-                            example_dir.path().file_name().unwrap().to_str().unwrap();
-                        if example_dir_name != "INSTRUCTIONS" && !example_dir_name.starts_with('.')
+                    if let Some(template_dir) = sub_entry.as_dir() {
+                        let template_dir_name =
+                            template_dir.path().file_name().unwrap().to_str().unwrap();
+                        if template_dir_name != "INSTRUCTIONS" && !template_dir_name.starts_with('.')
                         {
-                            let example = parse_example(
+                            let template = parse_template(
                                 lang,
                                 lang_dir.path(),
                                 Path::new("INSTRUCTIONS"),
                                 &adapters_path,
-                                example_dir.path(),
+                                template_dir.path(),
                             );
-                            result.push(example);
+                            result.push(template);
                         }
                     }
                 }
@@ -66,88 +66,88 @@ fn all_examples() -> Vec<Example> {
     result
 }
 
-pub fn all_standalone_examples() -> Vec<Example> {
-    all_examples()
+pub fn all_standalone_templates() -> Vec<Template> {
+    all_templates()
         .into_iter()
-        .filter(|example| matches!(example.kind, ExampleKind::Standalone))
+        .filter(|template| matches!(template.kind, TemplateKind::Standalone))
         .collect()
 }
 
 #[derive(Debug, Default)]
-pub struct ComposableAppExample {
-    pub common: Option<Example>,
-    pub components: BTreeMap<ExampleName, Example>,
+pub struct ComposableAppTemplate {
+    pub common: Option<Template>,
+    pub components: BTreeMap<TemplateName, Template>,
 }
 
-pub fn all_composable_app_examples(
-) -> BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppExample>> {
-    let mut examples =
-        BTreeMap::<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppExample>>::new();
+pub fn all_composable_app_templates(
+) -> BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppTemplate>> {
+    let mut templates =
+        BTreeMap::<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppTemplate>>::new();
 
-    fn app_examples<'a>(
-        examples: &'a mut BTreeMap<
+    fn app_templates<'a>(
+        templates: &'a mut BTreeMap<
             GuestLanguage,
-            BTreeMap<ComposableAppGroupName, ComposableAppExample>,
+            BTreeMap<ComposableAppGroupName, ComposableAppTemplate>,
         >,
         language: GuestLanguage,
         group: &ComposableAppGroupName,
-    ) -> &'a mut ComposableAppExample {
-        let groups = examples.entry(language).or_default();
+    ) -> &'a mut ComposableAppTemplate {
+        let groups = templates.entry(language).or_default();
         if !groups.contains_key(group) {
-            groups.insert(group.clone(), ComposableAppExample::default());
+            groups.insert(group.clone(), ComposableAppTemplate::default());
         }
         groups.get_mut(group).unwrap()
     }
 
-    for example in all_examples() {
-        match &example.kind {
-            ExampleKind::Standalone => continue,
-            ExampleKind::ComposableAppCommon { group, .. } => {
-                let common = &mut app_examples(&mut examples, example.language, group).common;
+    for template in all_templates() {
+        match &template.kind {
+            TemplateKind::Standalone => continue,
+            TemplateKind::ComposableAppCommon { group, .. } => {
+                let common = &mut app_templates(&mut templates, template.language, group).common;
                 if let Some(common) = common {
                     panic!(
-                        "Multiple common examples were found for {} - {}, example paths: {}, {}",
-                        example.language,
+                        "Multiple common templates were found for {} - {}, template paths: {}, {}",
+                        template.language,
                         group,
-                        common.example_path.display(),
-                        example.example_path.display()
+                        common.template_path.display(),
+                        template.template_path.display()
                     );
                 }
-                *common = Some(example);
+                *common = Some(template);
             }
-            ExampleKind::ComposableAppComponent { group } => {
-                app_examples(&mut examples, example.language, group)
+            TemplateKind::ComposableAppComponent { group } => {
+                app_templates(&mut templates, template.language, group)
                     .components
-                    .insert(example.name.clone(), example);
+                    .insert(template.name.clone(), template);
             }
         }
     }
 
-    examples
+    templates
 }
 
-pub fn instantiate_example(
-    example: &Example,
-    parameters: &ExampleParameters,
+pub fn instantiate_template(
+    template: &Template,
+    parameters: &TemplateParameters,
     resolve_mode: TargetExistsResolveMode,
 ) -> io::Result<String> {
     instantiate_directory(
-        &EXAMPLES,
-        &example.example_path,
+        &TEMPLATES,
+        &template.template_path,
         &parameters.target_path,
-        example,
+        template,
         parameters,
         resolve_mode,
     )?;
-    if let Some(adapter_path) = &example.adapter_source {
+    if let Some(adapter_path) = &template.adapter_source {
         let adapter_dir = {
             parameters
                 .target_path
-                .join(match &example.adapter_target {
+                .join(match &template.adapter_target {
                     Some(target) => target.clone(),
                     None => PathBuf::from("adapters"),
                 })
-                .join(example.language.tier().name())
+                .join(template.language.tier().name())
         };
 
         fs::create_dir_all(&adapter_dir)?;
@@ -159,7 +159,7 @@ pub fn instantiate_example(
         )?;
     }
     let wit_deps_targets = {
-        match &example.wit_deps_targets {
+        match &template.wit_deps_targets {
             Some(paths) => paths
                 .iter()
                 .map(|path| parameters.target_path.join(path))
@@ -167,33 +167,33 @@ pub fn instantiate_example(
             None => vec![parameters.target_path.join("wit").join("deps")],
         }
     };
-    for wit_dep in &example.wit_deps {
+    for wit_dep in &template.wit_deps {
         for target_wit_deps in &wit_deps_targets {
             let target = target_wit_deps.join(wit_dep.file_name().unwrap().to_str().unwrap());
             copy_all(&WIT, wit_dep, &target, TargetExistsResolveMode::MergeOrSkip)?;
         }
     }
-    Ok(render_example_instructions(example, parameters))
+    Ok(render_template_instructions(template, parameters))
 }
 
-pub fn add_component_by_example(
-    common_example: Option<&Example>,
-    component_example: &Example,
+pub fn add_component_by_template(
+    common_template: Option<&Template>,
+    component_template: &Template,
     target_path: &Path,
     package_name: &PackageName,
 ) -> io::Result<()> {
-    let parameters = ExampleParameters {
+    let parameters = TemplateParameters {
         component_name: package_name.to_string_with_colon().into(),
         package_name: package_name.clone(),
         target_path: target_path.into(),
     };
 
-    if let Some(common_example) = common_example {
+    if let Some(common_template) = common_template {
         let skip = {
-            if let ExampleKind::ComposableAppCommon {
+            if let TemplateKind::ComposableAppCommon {
                 skip_if_exists: Some(file),
                 ..
-            } = &common_example.kind
+            } = &common_template.kind
             {
                 target_path.join(file).exists()
             } else {
@@ -202,16 +202,16 @@ pub fn add_component_by_example(
         };
 
         if !skip {
-            instantiate_example(
-                common_example,
+            instantiate_template(
+                common_template,
                 &parameters,
                 TargetExistsResolveMode::MergeOrSkip,
             )?;
         }
     }
 
-    instantiate_example(
-        component_example,
+    instantiate_template(
+        component_template,
         &parameters,
         TargetExistsResolveMode::MergeOrFail,
     )?;
@@ -219,16 +219,16 @@ pub fn add_component_by_example(
     Ok(())
 }
 
-pub fn render_example_instructions(example: &Example, parameters: &ExampleParameters) -> String {
-    transform(&example.instructions, parameters)
+pub fn render_template_instructions(template: &Template, parameters: &TemplateParameters) -> String {
+    transform(&template.instructions, parameters)
 }
 
 fn instantiate_directory(
     catalog: &Dir<'_>,
     source: &Path,
     target: &Path,
-    example: &Example,
-    parameters: &ExampleParameters,
+    template: &Template,
+    parameters: &TemplateParameters,
     resolve_mode: TargetExistsResolveMode,
 ) -> io::Result<()> {
     fs::create_dir_all(target)?;
@@ -238,7 +238,7 @@ fn instantiate_directory(
         .entries()
     {
         let name = entry.path().file_name().unwrap().to_str().unwrap();
-        if !example.exclude.contains(name) && (name != "metadata.json") {
+        if !template.exclude.contains(name) && (name != "metadata.json") {
             let name = file_name_transform(name, parameters);
             match entry {
                 DirEntry::Dir(dir) => {
@@ -246,7 +246,7 @@ fn instantiate_directory(
                         catalog,
                         dir.path(),
                         &target.join(&name),
-                        example,
+                        template,
                         parameters,
                         resolve_mode,
                     )?;
@@ -257,7 +257,7 @@ fn instantiate_directory(
                         file.path(),
                         &target.join(&name),
                         parameters,
-                        example.transform && !example.transform_exclude.contains(&name),
+                        template.transform && !template.transform_exclude.contains(&name),
                         resolve_mode,
                     )?;
                 }
@@ -271,7 +271,7 @@ fn instantiate_file(
     catalog: &Dir<'_>,
     source: &Path,
     target: &Path,
-    parameters: &ExampleParameters,
+    parameters: &TemplateParameters,
     transform_contents: bool,
     resolve_mode: TargetExistsResolveMode,
 ) -> io::Result<()> {
@@ -338,7 +338,7 @@ fn copy_all(
     Ok(())
 }
 
-fn transform(str: impl AsRef<str>, parameters: &ExampleParameters) -> String {
+fn transform(str: impl AsRef<str>, parameters: &TemplateParameters) -> String {
     str.as_ref()
         .replace("componentname", parameters.component_name.as_str())
         .replace("component-name", &parameters.component_name.to_kebab_case())
@@ -359,7 +359,7 @@ fn transform(str: impl AsRef<str>, parameters: &ExampleParameters) -> String {
         .replace("PackNs", &parameters.package_name.namespace_title_case())
 }
 
-fn file_name_transform(str: impl AsRef<str>, parameters: &ExampleParameters) -> String {
+fn file_name_transform(str: impl AsRef<str>, parameters: &TemplateParameters) -> String {
     transform(str, parameters).replace("Cargo.toml._", "Cargo.toml") // HACK because cargo package ignores every subdirectory containing a Cargo.toml
 }
 
@@ -460,55 +460,55 @@ fn get_resolved_contents<'a>(
     }
 }
 
-fn parse_example(
+fn parse_template(
     lang: GuestLanguage,
     lang_path: &Path,
     default_instructions_file_name: &Path,
     adapters_path: &Path,
-    example_root: &Path,
-) -> Example {
-    let raw_metadata = EXAMPLES
-        .get_file(example_root.join("metadata.json"))
+    template_root: &Path,
+) -> Template {
+    let raw_metadata = TEMPLATES
+        .get_file(template_root.join("metadata.json"))
         .expect("Failed to read metadata JSON")
         .contents();
-    let metadata = serde_json::from_slice::<ExampleMetadata>(raw_metadata)
+    let metadata = serde_json::from_slice::<TemplateMetadata>(raw_metadata)
         .expect("Failed to parse metadata JSON");
 
     let kind = match (metadata.app_common_group, metadata.app_component_group) {
-        (None, None) => ExampleKind::Standalone,
-        (Some(group), None) => ExampleKind::ComposableAppCommon {
+        (None, None) => TemplateKind::Standalone,
+        (Some(group), None) => TemplateKind::ComposableAppCommon {
             group: group.into(),
             skip_if_exists: metadata.app_common_skip_if_exists.map(PathBuf::from),
         },
-        (None, Some(group)) => ExampleKind::ComposableAppComponent {
+        (None, Some(group)) => TemplateKind::ComposableAppComponent {
             group: group.into(),
         },
         (Some(_), Some(_)) => panic!(
-            "Only one of appCommonGroup and appComponentGroup can be specified, example root: {}",
-            example_root.display()
+            "Only one of appCommonGroup and appComponentGroup can be specified, template root: {}",
+            template_root.display()
         ),
     };
 
     let instructions = match &kind {
-        ExampleKind::Standalone => {
+        TemplateKind::Standalone => {
             let instructions_path = match metadata.instructions {
                 Some(instructions_file_name) => lang_path.join(instructions_file_name),
                 None => lang_path.join(default_instructions_file_name),
             };
 
-            let raw_instructions = EXAMPLES
+            let raw_instructions = TEMPLATES
                 .get_file(instructions_path)
                 .expect("Failed to read instructions")
                 .contents();
 
             String::from_utf8(raw_instructions.to_vec()).expect("Failed to decode instructions")
         }
-        ExampleKind::ComposableAppCommon { .. } => "".to_string(),
-        ExampleKind::ComposableAppComponent { .. } => "".to_string(),
+        TemplateKind::ComposableAppCommon { .. } => "".to_string(),
+        TemplateKind::ComposableAppComponent { .. } => "".to_string(),
     };
 
-    let name: ExampleName = {
-        let name = example_root
+    let name: TemplateName = {
+        let name = template_root
             .file_name()
             .unwrap()
             .to_str()
@@ -558,12 +558,12 @@ fn parse_example(
         .requires_adapter
         .unwrap_or(metadata.adapter_target.is_some());
 
-    Example {
+    Template {
         name,
         kind,
         language: lang,
         description: metadata.description,
-        example_path: example_root.to_path_buf(),
+        template_path: template_root.to_path_buf(),
         instructions,
         adapter_source: {
             if requires_adapter {

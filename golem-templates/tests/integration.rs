@@ -16,54 +16,54 @@
 test_r::enable!();
 
 #[cfg(test)]
-mod examples {
+mod templates {
     use assert2::{assert, let_assert};
     use std::process::Command;
     use test_r::test;
 
     #[test]
-    fn examples_c() {
-        test_examples("c")
+    fn templates_c() {
+        test_templates("c")
     }
 
     #[test]
-    fn examples_go() {
-        test_examples("go")
+    fn templates_go() {
+        test_templates("go")
     }
 
     #[test]
-    fn examples_js() {
-        test_examples("js")
+    fn templates_js() {
+        test_templates("js")
     }
 
     #[test]
-    fn examples_python() {
-        test_examples("python")
+    fn templates_python() {
+        test_templates("python")
     }
 
     #[test]
-    fn examples_rust() {
-        test_examples("rust")
+    fn templates_rust() {
+        test_templates("rust")
     }
 
     #[test]
-    fn examples_ts() {
-        test_examples("ts")
+    fn templates_ts() {
+        test_templates("ts")
     }
 
     #[test]
-    fn examples_zig() {
-        test_examples("zig")
+    fn templates_zig() {
+        test_templates("zig")
     }
 
-    fn test_examples(test_prefix: &str) {
-        let status = Command::new("../target/debug/golem-examples-test-cli")
+    fn test_templates(test_prefix: &str) {
+        let status = Command::new("../target/debug/golem-templates-test-cli")
             .args([
-                "examples",
+                "templates",
                 "--filter",
                 &format!("^{}-", test_prefix),
                 "--target-path",
-                "../target/examples-test",
+                "../target/templates-test",
             ])
             .status();
         let_assert!(Ok(status) = status);
@@ -80,7 +80,7 @@ mod app {
 
     #[test]
     fn app_with_all_lang() {
-        let status = Command::new("../target/debug/golem-examples-test-cli")
+        let status = Command::new("../target/debug/golem-templates-test-cli")
             .args(["app"])
             .status();
         let_assert!(Ok(status) = status);

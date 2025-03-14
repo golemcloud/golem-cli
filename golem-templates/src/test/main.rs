@@ -14,13 +14,13 @@
 
 use clap::Parser;
 use colored::{ColoredString, Colorize};
-use golem_examples::model::{
-    ComponentName, ComposableAppGroupName, Example, ExampleParameters, GuestLanguage, PackageName,
+use golem_templates::model::{
+    ComponentName, ComposableAppGroupName, Template, TemplateParameters, GuestLanguage, PackageName,
     TargetExistsResolveMode,
 };
-use golem_examples::{
-    add_component_by_example, all_composable_app_examples, all_standalone_examples,
-    instantiate_example, render_example_instructions,
+use golem_templates::{
+    add_component_by_template, all_composable_app_templates, all_standalone_templates,
+    instantiate_template, render_template_instructions,
 };
 use nanoid::nanoid;
 use regex::Regex;
@@ -36,8 +36,8 @@ use toml_edit::DocumentMut;
 #[derive(Parser, Debug)]
 #[command()]
 enum Command {
-    Examples {
-        // Filter examples by name, checks if the example name contains the filter string
+    Templates {
+        // Filter templates by name, checks if the template name contains the filter string
         #[arg(short, long)]
         filter: Option<String>,
 
@@ -64,7 +64,7 @@ enum Command {
 
 pub fn main() -> io::Result<()> {
     match Command::parse() {
-        Command::Examples {
+        Command::Templates {
             filter,
             skip_instructions,
             skip_instantiate,
@@ -73,19 +73,19 @@ pub fn main() -> io::Result<()> {
             let filter = filter
                 .as_ref()
                 .map(|filter| Regex::from_str(filter.as_str()).expect("failed to compile regex"));
-            let results: Vec<(Example, Result<(), String>)> = all_standalone_examples()
+            let results: Vec<(Template, Result<(), String>)> = all_standalone_templates()
                 .iter()
-                .filter(|example| match &filter {
-                    Some(filter) => filter.is_match(example.name.as_str()),
+                .filter(|template| match &filter {
+                    Some(filter) => filter.is_match(template.name.as_str()),
                     None => true,
                 })
-                .map(|example| {
+                .map(|template| {
                     let result =
-                        test_example(&target_path, skip_instantiate, skip_instructions, example);
+                        test_template(&target_path, skip_instantiate, skip_instructions, template);
                     if let Err(err) = &result {
                         println!("{}", err.bright_red());
                     }
-                    (example.clone(), result)
+                    (template.clone(), result)
                 })
                 .collect();
 
@@ -126,10 +126,10 @@ pub fn main() -> io::Result<()> {
                 std::fs::remove_dir_all(&target_path)?;
             }
 
-            let app_examples = all_composable_app_examples();
+            let app_templates = all_composable_app_templates();
 
             let mut used_languages = HashSet::<GuestLanguage>::new();
-            for (language, examples) in &app_examples {
+            for (language, templates) in &app_templates {
                 if !languages.is_empty() && !languages.contains(language) {
                     continue;
                 }
@@ -137,11 +137,11 @@ pub fn main() -> io::Result<()> {
                 println!("Adding components for language {}", language.name().blue());
                 used_languages.insert(*language);
 
-                let default_examples = examples.get(&ComposableAppGroupName::default()).unwrap();
+                let default_template = templates.get(&ComposableAppGroupName::default()).unwrap();
                 // TODO:
-                assert_eq!(default_examples.components.len(), 1);
-                let (_, default_component_example) =
-                    &default_examples.components.iter().next().unwrap();
+                assert_eq!(default_template.components.len(), 1);
+                let (_, default_component_template) =
+                    &default_template.components.iter().next().unwrap();
 
                 for _ in 1..=2 {
                     let component_name = format!("app:comp-{}", nanoid!(10, &alphabet));
@@ -151,9 +151,9 @@ pub fn main() -> io::Result<()> {
                         language.name().blue()
                     );
                     let package_name = PackageName::from_string(component_name).unwrap();
-                    add_component_by_example(
-                        default_examples.common.as_ref(),
-                        default_component_example,
+                    add_component_by_template(
+                        default_template.common.as_ref(),
+                        default_component_template,
                         &target_path,
                         &package_name,
                     )?
@@ -181,17 +181,17 @@ pub fn main() -> io::Result<()> {
     }
 }
 
-fn test_example(
+fn test_template(
     target_path: &Option<String>,
     skip_instantiate: bool,
     skip_instructions: bool,
-    example: &Example,
+    template: &Template,
 ) -> Result<(), String> {
     println!();
     println!(
         "{} {}",
         "Generating and testing:".bold().bright_white(),
-        example.name.to_string().blue()
+        template.name.to_string().blue()
     );
 
     let target_path = PathBuf::from(
@@ -199,7 +199,7 @@ fn test_example(
             .clone()
             .unwrap_or_else(|| "target/examples-test".to_string()),
     );
-    let component_name: ComponentName = format!("{}-comp", example.name).into();
+    let component_name: ComponentName = format!("{}-comp", template.name).into();
     let package_name =
         PackageName::from_string("golemx:componentx").ok_or("failed to create package name")?;
     let component_path = target_path.join(component_name.as_str());
@@ -212,7 +212,7 @@ fn test_example(
         component_path.display().to_string().blue()
     );
 
-    let example_parameters = ExampleParameters {
+    let template_parameters = TemplateParameters {
         component_name: component_name.clone(),
         package_name,
         target_path: target_path.join(component_name.as_str()),
@@ -251,7 +251,7 @@ fn test_example(
                 .map_err(|e| format!("remove dir all failed: {}", e))?;
         }
 
-        let _ = instantiate_example(example, &example_parameters, TargetExistsResolveMode::Fail)
+        let _ = instantiate_template(template, &template_parameters, TargetExistsResolveMode::Fail)
             .map_err(|e| format!("instantiate failed: {}", e))?;
 
         add_cargo_workspace(&component_path)?;
@@ -263,7 +263,7 @@ fn test_example(
         println!("Skipping instructions\n");
     } else {
         println!("Executing instructions\n");
-        let instructions = render_example_instructions(example, &example_parameters);
+        let instructions = render_template_instructions(template, &template_parameters);
         for line in instructions.lines() {
             if line.starts_with("  ") {
                 match run("bash", vec!["-c", line]) {

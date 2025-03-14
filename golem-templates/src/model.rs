@@ -96,7 +96,7 @@ impl fmt::Display for ComponentName {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ExampleKind {
+pub enum TemplateKind {
     Standalone,
     ComposableAppCommon {
         group: ComposableAppGroupName,
@@ -317,27 +317,27 @@ impl FromStr for PackageName {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct ExampleName(String);
+pub struct TemplateName(String);
 
-impl ExampleName {
+impl TemplateName {
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
-impl From<&str> for ExampleName {
+impl From<&str> for TemplateName {
     fn from(s: &str) -> Self {
-        ExampleName(s.to_string())
+        TemplateName(s.to_string())
     }
 }
 
-impl From<String> for ExampleName {
+impl From<String> for TemplateName {
     fn from(s: String) -> Self {
-        ExampleName(s)
+        TemplateName(s)
     }
 }
 
-impl fmt::Display for ExampleName {
+impl fmt::Display for TemplateName {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -392,12 +392,12 @@ pub enum TargetExistsResolveDecision {
 }
 
 #[derive(Debug, Clone)]
-pub struct Example {
-    pub name: ExampleName,
-    pub kind: ExampleKind,
+pub struct Template {
+    pub name: TemplateName,
+    pub kind: TemplateKind,
     pub language: GuestLanguage,
     pub description: String,
-    pub example_path: PathBuf,
+    pub template_path: PathBuf,
     pub instructions: String,
     pub adapter_source: Option<PathBuf>,
     pub adapter_target: Option<PathBuf>,
@@ -409,14 +409,14 @@ pub struct Example {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExampleParameters {
+pub struct TemplateParameters {
     pub component_name: ComponentName,
     pub package_name: PackageName,
     pub target_path: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ExampleMetadata {
+pub(crate) struct TemplateMetadata {
     pub description: String,
     #[serde(rename = "appCommonGroup")]
     pub app_common_group: Option<String>,

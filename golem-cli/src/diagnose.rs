@@ -15,7 +15,7 @@
 use crate::diagnose::VersionRequirement::{ExactByNameVersion, ExactVersion, MinimumVersion};
 
 use colored::Colorize;
-use golem_examples::model::GuestLanguage;
+use golem_templates::model::GuestLanguage;
 use indoc::indoc;
 use regex::Regex;
 use std::cmp::max;
@@ -29,7 +29,7 @@ use walkdir::DirEntry;
 
 pub mod cli {
     use clap::Parser;
-    use golem_examples::model::GuestLanguage;
+    use golem_templates::model::GuestLanguage;
 
     #[derive(Parser, Debug)]
     #[command()]
