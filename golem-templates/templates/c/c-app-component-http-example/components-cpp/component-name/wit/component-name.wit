@@ -2,7 +2,7 @@ package pack:name;
 
 // See https://component-model.bytecodealliance.org/design/wit.html for more details about the WIT syntax
 
-interface api {
+interface component-name-api {
   add: func(value: u64);
   get: func() -> u64;
   send: func() -> string;
@@ -33,5 +33,5 @@ world component-name {
   import wasi:sockets/ip-name-lookup@0.2.0;
   import wasi:sockets/instance-network@0.2.0;
 
-  export api;
+  export component-name-api;
 }

@@ -15,8 +15,8 @@
 use clap::Parser;
 use colored::{ColoredString, Colorize};
 use golem_templates::model::{
-    ComponentName, ComposableAppGroupName, Template, TemplateParameters, GuestLanguage, PackageName,
-    TargetExistsResolveMode,
+    ComponentName, ComposableAppGroupName, GuestLanguage, PackageName, TargetExistsResolveMode,
+    Template, TemplateParameters,
 };
 use golem_templates::{
     add_component_by_template, all_composable_app_templates, all_standalone_templates,
@@ -25,7 +25,6 @@ use golem_templates::{
 use nanoid::nanoid;
 use regex::Regex;
 use std::collections::HashSet;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::str::FromStr;
@@ -62,7 +61,7 @@ enum Command {
     },
 }
 
-pub fn main() -> io::Result<()> {
+pub fn main() -> anyhow::Result<()> {
     match Command::parse() {
         Command::Templates {
             filter,
@@ -251,8 +250,12 @@ fn test_template(
                 .map_err(|e| format!("remove dir all failed: {}", e))?;
         }
 
-        let _ = instantiate_template(template, &template_parameters, TargetExistsResolveMode::Fail)
-            .map_err(|e| format!("instantiate failed: {}", e))?;
+        let _ = instantiate_template(
+            template,
+            &template_parameters,
+            TargetExistsResolveMode::Fail,
+        )
+        .map_err(|e| format!("instantiate failed: {}", e))?;
 
         add_cargo_workspace(&component_path)?;
 

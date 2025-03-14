@@ -37,7 +37,7 @@ use clap::{Arg, Error, ValueEnum};
 use clap_verbosity_flag::Verbosity;
 use golem_client::model::{ApiDefinitionInfo, ApiSite, Provider};
 use golem_common::model::trim_date::TrimDateTime;
-use golem_templates::model::{Template, TemplateName, GuestLanguage, GuestLanguageTier};
+use golem_templates::model::{GuestLanguage, GuestLanguageTier, Template, TemplateName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};

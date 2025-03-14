@@ -4031,6 +4031,7 @@ name = "golem-templates"
 version = "0.0.0"
 dependencies = [
  "Inflector",
+ "anyhow",
  "assert2",
  "cargo_metadata",
  "clap",

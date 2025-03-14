@@ -25,7 +25,7 @@ use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_templates::add_component_by_template;
 use golem_templates::model::{
-    ComposableAppGroupName, Template, TemplateName, GuestLanguage, PackageName,
+    ComposableAppGroupName, GuestLanguage, PackageName, Template, TemplateName,
 };
 use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
 use golem_wasm_rpc_stubgen::fs;

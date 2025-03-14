@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use crate::model::{
-    ComposableAppGroupName, Template, TemplateKind, TemplateMetadata, TemplateName, TemplateParameters,
-    GuestLanguage, PackageName, TargetExistsResolveDecision, TargetExistsResolveMode,
+    ComposableAppGroupName, GuestLanguage, PackageName, TargetExistsResolveDecision,
+    TargetExistsResolveMode, Template, TemplateKind, TemplateMetadata, TemplateName,
+    TemplateParameters,
 };
+use anyhow::Context;
 use include_dir::{include_dir, Dir, DirEntry};
 use itertools::Itertools;
 use std::borrow::Cow;
@@ -45,7 +47,8 @@ fn all_templates() -> Vec<Template> {
                     if let Some(template_dir) = sub_entry.as_dir() {
                         let template_dir_name =
                             template_dir.path().file_name().unwrap().to_str().unwrap();
-                        if template_dir_name != "INSTRUCTIONS" && !template_dir_name.starts_with('.')
+                        if template_dir_name != "INSTRUCTIONS"
+                            && !template_dir_name.starts_with('.')
                         {
                             let template = parse_template(
                                 lang,
@@ -181,7 +184,7 @@ pub fn add_component_by_template(
     component_template: &Template,
     target_path: &Path,
     package_name: &PackageName,
-) -> io::Result<()> {
+) -> anyhow::Result<()> {
     let parameters = TemplateParameters {
         component_name: package_name.to_string_with_colon().into(),
         package_name: package_name.clone(),
@@ -206,7 +209,11 @@ pub fn add_component_by_template(
                 common_template,
                 &parameters,
                 TargetExistsResolveMode::MergeOrSkip,
-            )?;
+            )
+            .context(format!(
+                "Instantiating common template {}",
+                common_template.name
+            ))?;
         }
     }
 
@@ -214,12 +221,19 @@ pub fn add_component_by_template(
         component_template,
         &parameters,
         TargetExistsResolveMode::MergeOrFail,
-    )?;
+    )
+    .context(format!(
+        "Instantiating component template {}",
+        component_template.name
+    ))?;
 
     Ok(())
 }
 
-pub fn render_template_instructions(template: &Template, parameters: &TemplateParameters) -> String {
+pub fn render_template_instructions(
+    template: &Template,
+    parameters: &TemplateParameters,
+) -> String {
     transform(&template.instructions, parameters)
 }
 

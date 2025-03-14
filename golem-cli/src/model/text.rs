@@ -772,7 +772,7 @@ pub mod template {
     use crate::model::text::fmt::*;
     use crate::model::TemplateDescription;
     use cli_table::Table;
-    use golem_templates::model::{TemplateName, GuestLanguage, GuestLanguageTier};
+    use golem_templates::model::{GuestLanguage, GuestLanguageTier, TemplateName};
 
     #[derive(Table)]
     pub struct TemplateDescriptionTableView {
