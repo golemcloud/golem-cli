@@ -1,8 +1,7 @@
 mod bindings;
 
-use crate::bindings::exports::pa_ck::na_me_exports::component_name_api::*;
-// Import for using common lib:
-// use common_lib::example_common_function;
+use crate::bindings::exports::pa_ck::na_me_exports::component_name_api::Guest;
+
 use std::cell::RefCell;
 
 /// This is one of any number of data types that our application
@@ -30,9 +29,6 @@ impl Guest for Component {
 
     /// Returns the current total.
     fn get() -> u64 {
-        // Call code from shared lib
-        // println!("{}", example_common_function());
-
         STATE.with_borrow(|state| state.total)
     }
 }
