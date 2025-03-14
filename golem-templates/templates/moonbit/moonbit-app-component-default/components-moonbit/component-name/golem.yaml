@@ -5,5 +5,5 @@
 
 components:
   componentname:
-    template: scalajs
+    template: moonbit
 

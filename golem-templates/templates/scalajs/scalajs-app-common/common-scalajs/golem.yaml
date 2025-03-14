@@ -17,3 +17,6 @@ templates:
     clean:
     - target
     - wit-generated
+    customCommands:
+      regenerate-stubs:
+      - command: sbt wasmComponentRegenerateSkeleton

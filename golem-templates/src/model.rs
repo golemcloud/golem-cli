@@ -132,7 +132,7 @@ impl GuestLanguage {
             "rust" => Some(GuestLanguage::Rust),
             "ts" | "typescript" => Some(GuestLanguage::TypeScript),
             "zig" => Some(GuestLanguage::Zig),
-            "moon" | "moonbit" => Some(GuestLanguage::MoonBit),
+            "moon" | "moonbit" | "mbt" => Some(GuestLanguage::MoonBit),
             "scala" | "scalajs" => Some(GuestLanguage::ScalaJs),
             _ => None,
         }
