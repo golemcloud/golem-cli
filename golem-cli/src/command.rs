@@ -259,8 +259,8 @@ impl GolemCliCommand {
             InvalidArgMatcher {
                 subcommands: vec!["app", "new"],
                 found_positional_args: vec![],
-                missing_positional_arg: "component_template",
-                to_partial_match: |_| GolemCliCommandPartialMatch::AppNewMissingTemplate,
+                missing_positional_arg: "language",
+                to_partial_match: |_| GolemCliCommandPartialMatch::AppNewMissingLanguage,
             },
             InvalidArgMatcher {
                 subcommands: vec!["component", "new"],
@@ -370,7 +370,7 @@ pub enum GolemCliCommandParseResult {
 
 #[derive(Debug)]
 pub enum GolemCliCommandPartialMatch {
-    AppNewMissingTemplate,
+    AppNewMissingLanguage,
     AppMissingSubcommandHelp,
     ComponentNewMissingTemplate,
     ComponentMissingSubcommandHelp,
@@ -470,13 +470,6 @@ pub mod shared_args {
     }
 
     #[derive(Debug, Args)]
-    pub struct ComponentTemplatePositionalArgs {
-        #[clap(required = true)]
-        /// Component template name(s) to be used for the new application
-        pub component_template: Vec<ComponentTemplateName>,
-    }
-
-    #[derive(Debug, Args)]
     pub struct ForceBuildArg {
         /// When set to true will skip modification time based up-to-date checks, defaults to false
         #[clap(long, default_value = "false")]
@@ -501,10 +494,9 @@ pub mod shared_args {
 }
 
 pub mod app {
-    use crate::command::shared_args::{
-        AppOptionalComponentNames, BuildArgs, ComponentTemplatePositionalArgs, ForceBuildArg,
-    };
+    use crate::command::shared_args::{AppOptionalComponentNames, BuildArgs, ForceBuildArg};
     use clap::Subcommand;
+    use golem_examples::model::GuestLanguage;
 
     #[derive(Debug, Subcommand)]
     pub enum AppSubcommand {
@@ -512,8 +504,9 @@ pub mod app {
         New {
             /// Application folder name where the new application should be created
             application_name: String,
-            #[command(flatten)]
-            template_name: ComponentTemplatePositionalArgs,
+            /// Languages that the application should support
+            #[arg(required = true)]
+            language: Vec<GuestLanguage>,
         },
         /// Build all or selected components in the application
         Build {

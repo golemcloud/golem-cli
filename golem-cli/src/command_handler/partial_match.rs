@@ -39,8 +39,11 @@ impl ErrorHandler {
         partial_match: GolemCliCommandPartialMatch,
     ) -> anyhow::Result<()> {
         match partial_match {
-            GolemCliCommandPartialMatch::AppNewMissingTemplate
-            | GolemCliCommandPartialMatch::ComponentNewMissingTemplate => {
+            GolemCliCommandPartialMatch::AppNewMissingLanguage => {
+                self.ctx.app_handler().log_languages_help();
+                Ok(())
+            }
+            GolemCliCommandPartialMatch::ComponentNewMissingTemplate => {
                 self.ctx.app_handler().log_templates_help();
                 Ok(())
             }
