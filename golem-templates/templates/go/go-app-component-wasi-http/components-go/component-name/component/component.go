@@ -1,7 +1,7 @@
 package main
 
 import (
-	"pack/name/binding"
+	"app/components-go/component-name/binding"
 )
 
 // Helper type aliases to make code more readable
@@ -14,7 +14,7 @@ func init() {
 	binding.SetExportsWasiHttp0_2_0_IncomingHandler(&ComponentNameImpl{})
 }
 
-type ComponentNameImpl struct {}
+type ComponentNameImpl struct{}
 
 // Implementation of the exported interface
 
