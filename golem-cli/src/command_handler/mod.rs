@@ -32,7 +32,6 @@ use crate::init_tracing;
 use crate::model::text::fmt::log_error;
 use golem_wasm_rpc_stubgen::log::logln;
 use std::ffi::OsString;
-use std::future::Future;
 use std::process::ExitCode;
 use std::sync::Arc;
 use tracing::{debug, Level};
@@ -57,7 +56,7 @@ pub trait CommandHandlerHooks {
         &self,
         ctx: Arc<Context>,
         subcommand: ServerSubcommand,
-    ) -> impl Future<Output = anyhow::Result<()>>;
+    ) -> impl std::future::Future<Output = anyhow::Result<()>>;
 }
 
 // CommandHandle is responsible for matching commands and producing CLI output using Context,
