@@ -61,8 +61,6 @@ impl ErrorHandler {
                         components: true,
                         custom_commands: true,
                     })?
-                } else {
-                    // TODO: maybe add hint that this command should use app manifest
                 }
 
                 Ok(())
@@ -81,8 +79,6 @@ impl ErrorHandler {
                         components: true,
                         custom_commands: false,
                     })?
-                } else {
-                    // TODO: maybe add hint that this command should use app manifest
                 }
 
                 Ok(())

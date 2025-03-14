@@ -798,7 +798,6 @@ impl ComponentCommandHandler {
     }
 }
 
-// TODO: cloud
 struct ComponentDeployProperties {
     component_type: ComponentType,
     linked_wasm_path: PathBuf,

@@ -441,13 +441,24 @@ pub mod shared_args {
 
     #[derive(Debug, Args)]
     pub struct ComponentOptionalComponentName {
-        /// Optional component name, if not specified component is selected based on the current directory
+        // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
+        /// Optional component name, if not specified component is selected based on the current directory.
+        /// Accepted formats:
+        ///   - <COMPONENT>
+        ///   - <PROJECT>/<COMPONENT>
+        ///   - <ACCOUNT>/<PROJECT>/<COMPONENT>
+        #[arg(verbatim_doc_comment)]
         pub component_name: Option<ComponentName>,
     }
 
     #[derive(Debug, Args)]
     pub struct ComponentOptionalComponentNames {
         /// Optional component names, if not specified components are selected based on the current directory
+        /// Accepted formats:
+        ///   - <COMPONENT>
+        ///   - <PROJECT>/<COMPONENT>
+        ///   - <ACCOUNT>/<PROJECT>/<COMPONENT>
+        #[arg(verbatim_doc_comment)]
         pub component_name: Vec<ComponentName>,
     }
 
@@ -487,8 +498,13 @@ pub mod shared_args {
 
     #[derive(Debug, Args)]
     pub struct WorkerNameArg {
-        // TODO: add details about accepted formats
-        /// Worker name
+        // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
+        /// Worker name, accepted formats:
+        ///   - <WORKER>
+        ///   - <COMPONENT>/<WORKER>
+        ///   - <PROJECT>/<COMPONENT>/<WORKER>
+        ///   - <ACCOUNT>/<PROJECT>/<COMPONENT>/<WORKER>
+        #[arg(verbatim_doc_comment)]
         pub worker_name: WorkerName,
     }
 }
