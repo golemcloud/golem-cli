@@ -21,7 +21,6 @@ use golem_common::config::DbSqliteConfig;
 use golem_common::model::Empty;
 use golem_component_service::config::ComponentServiceConfig;
 use golem_component_service::ComponentService;
-use golem_component_service_base::config::{ComponentStoreConfig, ComponentStoreLocalConfig};
 use golem_service_base::config::BlobStorageConfig;
 use golem_service_base::config::LocalFileSystemBlobStorageConfig;
 use golem_service_base::service::routing_table::RoutingTableConfig;
@@ -31,9 +30,11 @@ use golem_shard_manager::shard_manager_config::{
 use golem_worker_executor_base::services::additional_config::{
     ComponentServiceGrpcConfig, DefaultAdditionalGolemConfig,
 };
-use golem_worker_executor_base::services::golem_config::CompiledComponentServiceConfig;
 use golem_worker_executor_base::services::golem_config::ShardManagerServiceConfig;
 use golem_worker_executor_base::services::golem_config::ShardManagerServiceGrpcConfig;
+use golem_worker_executor_base::services::golem_config::{
+    CompiledComponentServiceConfig, IndexedStorageKVStoreSqliteConfig,
+};
 use golem_worker_executor_base::services::golem_config::{
     GolemConfig, IndexedStorageConfig, KeyValueStorageConfig,
 };
@@ -42,7 +43,6 @@ use golem_worker_service_base::app_config::WorkerServiceBaseConfig;
 use opentelemetry::global;
 use opentelemetry_sdk::metrics::MeterProviderBuilder;
 use prometheus::Registry;
-use std::future::Future;
 use std::path::PathBuf;
 use tokio::runtime::Handle;
 use tokio::task::JoinSet;
@@ -55,50 +55,46 @@ pub struct LaunchArgs {
     pub data_dir: PathBuf,
 }
 
-pub fn launch_golem_services(
-    args: &LaunchArgs,
-) -> impl Future<Output = anyhow::Result<()>> + use<'_> {
-    async move {
-        rustls::crypto::ring::default_provider()
-            .install_default()
-            .expect("Failed to install crypto provider");
+pub async fn launch_golem_services(args: &LaunchArgs) -> anyhow::Result<()> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install crypto provider");
 
-        let exporter = opentelemetry_prometheus::exporter()
-            .with_registry(Registry::default())
-            .build()?;
+    let exporter = opentelemetry_prometheus::exporter()
+        .with_registry(Registry::default())
+        .build()?;
 
-        global::set_meter_provider(
-            MeterProviderBuilder::default()
-                .with_reader(exporter)
-                .build(),
-        );
+    global::set_meter_provider(
+        MeterProviderBuilder::default()
+            .with_reader(exporter)
+            .build(),
+    );
 
-        let mut join_set = JoinSet::new();
+    let mut join_set: JoinSet<anyhow::Result<()>> = JoinSet::new();
 
-        tokio::fs::create_dir_all(&args.data_dir)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to create data directory at {}",
-                    args.data_dir.display()
-                )
-            })?;
+    tokio::fs::create_dir_all(&args.data_dir)
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to create data directory at {}",
+                args.data_dir.display()
+            )
+        })?;
 
-        let started_components = start_components(args, &mut join_set).await?;
+    let started_components = start_components(args, &mut join_set).await?;
 
-        start_router(
-            &args.router_addr,
-            args.router_port,
-            started_components,
-            &mut join_set,
-        )?;
+    start_router(
+        &args.router_addr,
+        args.router_port,
+        started_components,
+        &mut join_set,
+    )?;
 
-        while let Some(res) = join_set.join_next().await {
-            res??;
-        }
-
-        Ok(())
+    while let Some(res) = join_set.join_next().await {
+        res??;
     }
+
+    Ok(())
 }
 
 async fn start_components(
@@ -156,14 +152,6 @@ fn component_service_config(args: &LaunchArgs) -> ComponentServiceConfig {
                 .to_string(),
             max_connections: 32,
         }),
-        component_store: ComponentStoreConfig::Local(ComponentStoreLocalConfig {
-            root_path: args
-                .data_dir
-                .join("components")
-                .to_string_lossy()
-                .to_string(),
-            object_prefix: "".to_string(),
-        }),
         blob_storage: blob_storage_config(args),
         compilation: golem_component_service_base::config::ComponentCompilationConfig::Disabled(
             Empty {},
@@ -188,7 +176,7 @@ fn worker_executor_config(
                 .to_string(),
             max_connections: 32,
         }),
-        indexed_storage: IndexedStorageConfig::KVStoreSqlite,
+        indexed_storage: IndexedStorageConfig::KVStoreSqlite(IndexedStorageKVStoreSqliteConfig {}),
         blob_storage: blob_storage_config(args),
         compiled_component_service: CompiledComponentServiceConfig::Disabled(golem_worker_executor_base::services::golem_config::CompiledComponentServiceDisabledConfig {}),
         shard_manager_service: ShardManagerServiceConfig::Grpc(ShardManagerServiceGrpcConfig {
