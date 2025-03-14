@@ -3431,7 +3431,7 @@ checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
 
 [[package]]
 name = "golem"
-version = "0.0.0"
+version = "1.2.0-rc0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3508,7 +3508,7 @@ dependencies = [
 
 [[package]]
 name = "golem-cli"
-version = "0.0.0"
+version = "1.2.0-rc0"
 dependencies = [
  "anyhow",
  "assert2",
@@ -3820,7 +3820,7 @@ dependencies = [
 
 [[package]]
 name = "golem-examples"
-version = "0.0.0"
+version = "1.2.0-rc0"
 dependencies = [
  "Inflector",
  "assert2",
@@ -4203,7 +4203,7 @@ dependencies = [
 
 [[package]]
 name = "golem-wasm-rpc-stubgen"
-version = "0.0.0"
+version = "1.2.0-rc0"
 dependencies = [
  "anyhow",
  "assert2",
@@ -4249,8 +4249,9 @@ dependencies = [
 
 [[package]]
 name = "golem-wit"
-version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem-wit.git?tag=v1.1.11#ac26b9ab28df06912b885b192761fd4612e83723"
+version = "1.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4fc4e01b18c1f43ec85408998e7b314e6ab81dbe18e34f1dcf42b0377c0aba3"
 
 [[package]]
 name = "golem-worker-executor"
