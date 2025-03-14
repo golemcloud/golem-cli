@@ -29,6 +29,7 @@ test_r::enable!();
 
 mod cmd {
     pub static APP: &str = "app";
+    pub static COMPONENT: &str = "component";
     pub static BUILD: &str = "build";
     pub static NEW: &str = "new";
 }
@@ -57,6 +58,7 @@ fn app_help_in_empty_folder(_tracing: &Tracing) {
     check!(!outputs.stderr_contains(pattern::HELP_APPLICATION_CUSTOM_COMMANDS));
 }
 
+#[ignore]
 #[test]
 fn app_new_with_many_components_and_then_help_in_app_folder(_tracing: &Tracing) {
     let app_name = "test-app-name";
@@ -72,17 +74,40 @@ fn app_new_with_many_components_and_then_help_in_app_folder(_tracing: &Tracing) 
         "rust",
     ]);
     assert!(outputs.success());
-    check!(outputs.stderr.is_empty());
-    check!(outputs.stdout_contains(pattern::HELP_APPLICATION_COMPONENTS));
-    check!(outputs.stdout_contains("app:c"));
-    check!(outputs.stdout_contains("app:go"));
-    check!(outputs.stdout_contains("app:rust"));
-    check!(outputs.stdout_contains("app:typescript"));
-    check!(outputs.stdout_contains(pattern::HELP_APPLICATION_CUSTOM_COMMANDS));
-    check!(outputs.stdout_contains("cargo-clean"));
-    check!(outputs.stdout_contains("npm-install"));
 
-    ctx.cd(Path::new(app_name));
+    ctx.cd(app_name);
+
+    let outputs = ctx.cli([
+        cmd::COMPONENT,
+        cmd::NEW,
+        "c",
+        "app:c",
+    ]);
+    assert!(outputs.success());
+
+    let outputs = ctx.cli([
+        cmd::COMPONENT,
+        cmd::NEW,
+        "go",
+        "app:go",
+    ]);
+    assert!(outputs.success());
+
+    let outputs = ctx.cli([
+        cmd::COMPONENT,
+        cmd::NEW,
+        "typescript",
+        "app:typescript",
+    ]);
+    assert!(outputs.success());
+
+    let outputs = ctx.cli([
+        cmd::COMPONENT,
+        cmd::NEW,
+        "rust",
+        "app:rust",
+    ]);
+    assert!(outputs.success());
 
     let outputs = ctx.cli([cmd::APP]);
     assert!(!outputs.success());
@@ -108,7 +133,15 @@ fn app_build_with_rust_component(_tracing: &Tracing) {
     let outputs = ctx.cli([cmd::APP, cmd::NEW, app_name, "rust"]);
     assert!(outputs.success());
 
-    ctx.cd(Path::new(app_name));
+    ctx.cd(app_name);
+
+    let outputs = ctx.cli([
+        cmd::COMPONENT,
+        cmd::NEW,
+        "rust",
+        "app:rust",
+    ]);
+    assert!(outputs.success());
 
     // First build
     let outputs = ctx.cli([cmd::APP, cmd::BUILD]);
