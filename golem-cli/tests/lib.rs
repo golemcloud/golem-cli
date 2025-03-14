@@ -77,36 +77,16 @@ fn app_new_with_many_components_and_then_help_in_app_folder(_tracing: &Tracing) 
 
     ctx.cd(app_name);
 
-    let outputs = ctx.cli([
-        cmd::COMPONENT,
-        cmd::NEW,
-        "c",
-        "app:c",
-    ]);
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "c", "app:c"]);
     assert!(outputs.success());
 
-    let outputs = ctx.cli([
-        cmd::COMPONENT,
-        cmd::NEW,
-        "go",
-        "app:go",
-    ]);
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "go", "app:go"]);
     assert!(outputs.success());
 
-    let outputs = ctx.cli([
-        cmd::COMPONENT,
-        cmd::NEW,
-        "typescript",
-        "app:typescript",
-    ]);
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "typescript", "app:typescript"]);
     assert!(outputs.success());
 
-    let outputs = ctx.cli([
-        cmd::COMPONENT,
-        cmd::NEW,
-        "rust",
-        "app:rust",
-    ]);
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "rust", "app:rust"]);
     assert!(outputs.success());
 
     let outputs = ctx.cli([cmd::APP]);
@@ -135,12 +115,7 @@ fn app_build_with_rust_component(_tracing: &Tracing) {
 
     ctx.cd(app_name);
 
-    let outputs = ctx.cli([
-        cmd::COMPONENT,
-        cmd::NEW,
-        "rust",
-        "app:rust",
-    ]);
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "rust", "app:rust"]);
     assert!(outputs.success());
 
     // First build

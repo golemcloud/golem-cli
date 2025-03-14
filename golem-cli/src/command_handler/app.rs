@@ -154,26 +154,24 @@ impl AppCommandHandler {
             let _indent = LogIndent::new();
             // TODO: cleanup add_component_by_example, so we don't have to pass a dummy arg
             let dummy_package_name = PackageName::from_string("app:comp").unwrap();
-            for common_template in common_templates {
-                if let Some(common_template) = common_template {
-                    match add_component_by_example(
-                        Some(common_template),
-                        None,
-                        &app_dir,
-                        &dummy_package_name,
-                    ) {
-                        Ok(()) => {
-                            log_action(
-                                "Added",
-                                format!(
-                                    "common template for {}",
-                                    common_template.language.name().log_color_highlight()
-                                ),
-                            );
-                        }
-                        Err(error) => {
-                            bail!("Failed to add common template for new app: {}", error)
-                        }
+            for common_template in common_templates.into_iter().flatten() {
+                match add_component_by_example(
+                    Some(common_template),
+                    None,
+                    &app_dir,
+                    &dummy_package_name,
+                ) {
+                    Ok(()) => {
+                        log_action(
+                            "Added",
+                            format!(
+                                "common template for {}",
+                                common_template.language.name().log_color_highlight()
+                            ),
+                        );
+                    }
+                    Err(error) => {
+                        bail!("Failed to add common template for new app: {}", error)
                     }
                 }
             }
