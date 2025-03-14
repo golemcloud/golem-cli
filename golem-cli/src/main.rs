@@ -1,21 +1,20 @@
-use async_trait::async_trait;
 use golem_cli::command::server::ServerSubcommand;
 use golem_cli::command_handler::{CommandHandler, CommandHandlerHooks};
 use golem_cli::context::Context;
+use std::future::Future;
 use std::process::ExitCode;
 use std::sync::Arc;
 
 struct NoHooks {}
 
-#[async_trait]
 impl CommandHandlerHooks for NoHooks {
     #[cfg(feature = "server-commands")]
-    async fn handler_server_commands(
+    fn handler_server_commands(
         &self,
         _ctx: Arc<Context>,
         _subcommand: ServerSubcommand,
-    ) -> anyhow::Result<()> {
-        unimplemented!()
+    ) -> impl Future<Output = anyhow::Result<()>> {
+        async { unimplemented!() }
     }
 }
 

@@ -3482,6 +3482,7 @@ dependencies = [
 [[package]]
 name = "golem-api-grpc"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "async-trait",
  "bincode",
@@ -3632,6 +3633,7 @@ dependencies = [
 [[package]]
 name = "golem-common"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3736,6 +3738,7 @@ dependencies = [
 [[package]]
 name = "golem-component-compilation-service"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "async-trait",
  "futures",
@@ -3761,6 +3764,7 @@ dependencies = [
 [[package]]
 name = "golem-component-service"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3790,6 +3794,7 @@ dependencies = [
 [[package]]
 name = "golem-component-service-base"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3891,6 +3896,7 @@ dependencies = [
 [[package]]
 name = "golem-rib"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "async-trait",
  "bigdecimal",
@@ -3929,6 +3935,7 @@ dependencies = [
 [[package]]
 name = "golem-service-base"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "anyhow",
  "async-fs",
@@ -4035,6 +4042,7 @@ dependencies = [
 [[package]]
 name = "golem-shard-manager"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "anyhow",
  "async-rwlock",
@@ -4119,6 +4127,7 @@ dependencies = [
 [[package]]
 name = "golem-wasm-ast"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "bincode",
  "bincode_derive",
@@ -4163,6 +4172,7 @@ dependencies = [
 [[package]]
 name = "golem-wasm-rpc"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "arbitrary",
  "async-recursion",
@@ -4268,6 +4278,7 @@ source = "git+https://github.com/golemcloud/golem-wit.git?tag=v1.1.11#ac26b9ab28
 [[package]]
 name = "golem-worker-executor"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4286,6 +4297,7 @@ dependencies = [
 [[package]]
 name = "golem-worker-executor-base"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "anyhow",
  "async-dropper-simple",
@@ -4359,6 +4371,7 @@ dependencies = [
 [[package]]
 name = "golem-worker-service"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4393,6 +4406,7 @@ dependencies = [
 [[package]]
 name = "golem-worker-service-base"
 version = "0.0.0"
+source = "git+https://github.com/golemcloud/golem?tag=v1.1.25#2cf27da98c18a5cfca2fd575c9d59e6ea80bdaaa"
 dependencies = [
  "async-trait",
  "bigdecimal",
