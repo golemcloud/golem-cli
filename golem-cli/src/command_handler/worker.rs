@@ -43,6 +43,9 @@ use golem_client::model::{
     WorkerCreationRequest as WorkerCreationRequestOss,
 };
 use golem_cloud_client::api::WorkerClient as WorkerClientCloud;
+use golem_cloud_client::model::{
+    InvokeParameters as InvokeParametersCloud, WorkerCreationRequest as WorkerCreationRequestCloud,
+};
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
 use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
@@ -109,12 +112,10 @@ impl WorkerCommandHandler {
         arguments: Vec<NewWorkerArgument>,
         env: Vec<(String, String)>,
     ) -> anyhow::Result<()> {
-        let worker_name = worker_name.worker_name;
-
         self.ctx.silence_app_context_init().await;
 
+        let worker_name = worker_name.worker_name;
         let worker_name_match = self.match_worker_name(worker_name).await?;
-
         let component = self
             .ctx
             .component_handler()
@@ -153,10 +154,21 @@ impl WorkerCommandHandler {
                     },
                 )
                 .await
+                .map(|_| ())
                 .map_service_error()?,
-            GolemClients::Cloud(_) => {
-                todo!()
-            }
+            GolemClients::Cloud(clients) => clients
+                .worker
+                .launch_new_worker(
+                    &component.versioned_component_id.component_id,
+                    &WorkerCreationRequestCloud {
+                        name: worker_name.0.clone(),
+                        args: arguments,
+                        env: env.into_iter().collect(),
+                    },
+                )
+                .await
+                .map(|_| ())
+                .map_service_error()?,
         };
 
         logln("");
@@ -224,48 +236,45 @@ impl WorkerCommandHandler {
                 log_fuzzy_match(&match_);
                 match_.option
             }
-            Err(error) => {
-                // TODO: extract common ambiguous messages?
-                match error {
-                    Error::Ambiguous {
-                        highlighted_options,
-                        ..
-                    } => {
-                        logln("");
-                        log_error(format!(
-                            "The requested function name ({}) is ambiguous.",
-                            function_name.log_color_error_highlight()
-                        ));
-                        logln("");
-                        logln("Did you mean one of");
-                        for option in highlighted_options {
-                            logln(format!(" - {}", option.bold()));
-                        }
-                        logln("?");
-                        logln("");
-                        log_text_view(&AvailableFunctionNamesHelp {
-                            component_name: worker_name_match.component_name.0,
-                            function_names: component_functions,
-                        });
-
-                        bail!(NonSuccessfulExit);
+            Err(error) => match error {
+                Error::Ambiguous {
+                    highlighted_options,
+                    ..
+                } => {
+                    logln("");
+                    log_error(format!(
+                        "The requested function name ({}) is ambiguous.",
+                        function_name.log_color_error_highlight()
+                    ));
+                    logln("");
+                    logln("Did you mean one of");
+                    for option in highlighted_options {
+                        logln(format!(" - {}", option.bold()));
                     }
-                    Error::NotFound { .. } => {
-                        logln("");
-                        log_error(format!(
-                            "The requested function name ({}) was not found.",
-                            function_name.log_color_error_highlight()
-                        ));
-                        logln("");
-                        log_text_view(&AvailableFunctionNamesHelp {
-                            component_name: worker_name_match.component_name.0,
-                            function_names: component_functions,
-                        });
+                    logln("?");
+                    logln("");
+                    log_text_view(&AvailableFunctionNamesHelp {
+                        component_name: worker_name_match.component_name.0,
+                        function_names: component_functions,
+                    });
 
-                        bail!(NonSuccessfulExit);
-                    }
+                    bail!(NonSuccessfulExit);
                 }
-            }
+                Error::NotFound { .. } => {
+                    logln("");
+                    log_error(format!(
+                        "The requested function name ({}) was not found.",
+                        function_name.log_color_error_highlight()
+                    ));
+                    logln("");
+                    log_text_view(&AvailableFunctionNamesHelp {
+                        component_name: worker_name_match.component_name.0,
+                        function_names: component_functions,
+                    });
+
+                    bail!(NonSuccessfulExit);
+                }
+            },
         };
 
         if enqueue {
@@ -304,14 +313,27 @@ impl WorkerCommandHandler {
 
         let arguments = wave_args_to_invoke_args(&component, &function_name, arguments)?;
 
-        let result_view = match self.ctx.golem_clients().await? {
-            GolemClients::Oss(clients) => {
-                let result = match worker_name_match.worker_name {
-                    Some(worker_name) => {
-                        if enqueue {
+        let result = match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => match worker_name_match.worker_name {
+                Some(worker_name) => {
+                    if enqueue {
+                        clients
+                            .worker
+                            .invoke_function(
+                                &component.versioned_component_id.component_id,
+                                worker_name.0.as_str(),
+                                Some(&idempotency_key.0),
+                                function_name.as_str(),
+                                &InvokeParametersOss { params: arguments },
+                            )
+                            .await
+                            .map_service_error()?;
+                        None
+                    } else {
+                        Some(
                             clients
                                 .worker
-                                .invoke_function(
+                                .invoke_and_await_function(
                                     &component.versioned_component_id.component_id,
                                     worker_name.0.as_str(),
                                     Some(&idempotency_key.0),
@@ -319,68 +341,108 @@ impl WorkerCommandHandler {
                                     &InvokeParametersOss { params: arguments },
                                 )
                                 .await
-                                .map_service_error()?;
-                            None
-                        } else {
-                            Some(
-                                clients
-                                    .worker
-                                    .invoke_and_await_function(
-                                        &component.versioned_component_id.component_id,
-                                        worker_name.0.as_str(),
-                                        Some(&idempotency_key.0),
-                                        function_name.as_str(),
-                                        &InvokeParametersOss { params: arguments },
-                                    )
-                                    .await
-                                    .map_service_error()?,
-                            )
-                        }
+                                .map_service_error()?,
+                        )
                     }
-                    None => {
-                        if enqueue {
+                }
+                None => {
+                    if enqueue {
+                        clients
+                            .worker
+                            .invoke_function_without_name(
+                                &component.versioned_component_id.component_id,
+                                Some(&idempotency_key.0),
+                                function_name.as_str(),
+                                &InvokeParametersOss { params: arguments },
+                            )
+                            .await
+                            .map_service_error()?;
+                        None
+                    } else {
+                        Some(
                             clients
                                 .worker
-                                .invoke_function_without_name(
+                                .invoke_and_await_function_without_name(
                                     &component.versioned_component_id.component_id,
                                     Some(&idempotency_key.0),
                                     function_name.as_str(),
                                     &InvokeParametersOss { params: arguments },
                                 )
                                 .await
-                                .map_service_error()?;
-                            None
-                        } else {
-                            Some(
-                                clients
-                                    .worker
-                                    .invoke_and_await_function_without_name(
-                                        &component.versioned_component_id.component_id,
-                                        Some(&idempotency_key.0),
-                                        function_name.as_str(),
-                                        &InvokeParametersOss { params: arguments },
-                                    )
-                                    .await
-                                    .map_service_error()?,
-                            )
-                        }
-                    }
-                };
-                // TODO: handle json format and include idempotency key in it
-                result
-                    .map(|result| {
-                        InvokeResultView::try_parse_or_json(
-                            result,
-                            &component,
-                            function_name.as_str(),
+                                .map_service_error()?,
                         )
-                    })
-                    .transpose()?
+                    }
+                }
+            },
+            GolemClients::Cloud(clients) => match worker_name_match.worker_name {
+                Some(worker_name) => {
+                    if enqueue {
+                        clients
+                            .worker
+                            .invoke_function(
+                                &component.versioned_component_id.component_id,
+                                worker_name.0.as_str(),
+                                Some(&idempotency_key.0),
+                                function_name.as_str(),
+                                &InvokeParametersCloud { params: arguments },
+                            )
+                            .await
+                            .map_service_error()?;
+                        None
+                    } else {
+                        Some(
+                            clients
+                                .worker
+                                .invoke_and_await_function(
+                                    &component.versioned_component_id.component_id,
+                                    worker_name.0.as_str(),
+                                    Some(&idempotency_key.0),
+                                    function_name.as_str(),
+                                    &InvokeParametersCloud { params: arguments },
+                                )
+                                .await
+                                .map_service_error()?,
+                        )
+                    }
+                }
+                None => {
+                    if enqueue {
+                        clients
+                            .worker
+                            .invoke_function_without_name(
+                                &component.versioned_component_id.component_id,
+                                Some(&idempotency_key.0),
+                                function_name.as_str(),
+                                &InvokeParametersCloud { params: arguments },
+                            )
+                            .await
+                            .map_service_error()?;
+                        None
+                    } else {
+                        Some(
+                            clients
+                                .worker
+                                .invoke_and_await_function_without_name(
+                                    &component.versioned_component_id.component_id,
+                                    Some(&idempotency_key.0),
+                                    function_name.as_str(),
+                                    &InvokeParametersCloud { params: arguments },
+                                )
+                                .await
+                                .map_service_error()?,
+                        )
+                    }
+                }
             }
-            GolemClients::Cloud(_) => {
-                todo!()
-            }
+            .to_oss(),
         };
+
+        // TODO: handle json format and include idempotency key in it
+        let result_view = result
+            .map(|result| {
+                InvokeResultView::try_parse_or_json(result, &component, function_name.as_str())
+            })
+            .transpose()?;
 
         match result_view {
             Some(view) => {
