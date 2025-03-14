@@ -7,7 +7,7 @@ pub fn build(b: *Build) !void {
         .preferred_optimize_mode = .ReleaseSmall,
     });
 
-    const bindgen = b.addSystemCommand(&.{ "wit-bindgen", "c", "--autodrop-borrows", "yes", "./wit", "--out-dir", "src/bindings" });
+    const bindgen = b.addSystemCommand(&.{ "wit-bindgen", "c", "--autodrop-borrows", "yes", "./wit-generated", "--out-dir", "src/bindings" });
 
     const wasm = b.addExecutable(.{ .name = "main", .root_source_file = b.path("src/main.zig"), .target = b.resolveTargetQuery(.{
         .cpu_arch = .wasm32,
@@ -37,7 +37,7 @@ pub fn build(b: *Build) !void {
 
     wasm.step.dependOn(&bindgen.step);
 
-    const adapter = b.option([]const u8, "adapter", "Path to the Golem Tier1 WASI adapter") orelse "adapters/tier1/wasi_snapshot_preview1.wasm";
+    const adapter = b.option([]const u8, "adapter", "Path to the Golem Tier1 WASI adapter") orelse "../../common-adapters/tier1/wasi_snapshot_preview1.wasm";
     const out = try std.fmt.allocPrint(b.allocator, "zig-out/bin/{s}", .{wasm.out_filename});
     const component = b.addSystemCommand(&.{ "wasm-tools", "component", "new", out, "-o", "zig-out/bin/component.wasm", "--adapt", adapter });
     component.step.dependOn(&wasm.step);

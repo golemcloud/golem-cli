@@ -57,6 +57,7 @@ fn all_templates() -> Vec<Template> {
                                 &adapters_path,
                                 template_dir.path(),
                             );
+
                             result.push(template);
                         }
                     }
