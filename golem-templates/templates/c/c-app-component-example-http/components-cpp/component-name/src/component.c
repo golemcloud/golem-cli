@@ -15,11 +15,11 @@ static uint64_t total = 0;
 
 // Implementation of the exported functions.
 // See component_name.h for the generated function signatures.
-void exports_c_http_exports_c_http_api_add(uint64_t value) {
+void exports_pack_name_exports_component_name_api_add(uint64_t value) {
     total += value;
 }
 
-uint64_t exports_c_http_exports_c_http_api_get() {
+uint64_t exports_component_name_exports_component_name_api_get() {
     return total;
 }
 
@@ -36,7 +36,7 @@ void set_string_field(wasi_http_types_field_value_t* ret, const char* str) {
 
 #define log(...) { fprintf (stderr, __VA_ARGS__); fflush(stderr); }
 
-void exports_c_http_exports_c_http_api_send(component_name_string_t *ret) {
+void exports_component_name_exports_component_name_api_send(component_name_string_t *ret) {
     log("Setting up the outgoing request\n");
     // Setting up the outgoing request
     wasi_http_types_own_fields_t headers;
