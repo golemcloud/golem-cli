@@ -100,11 +100,14 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
     {
         let result = match GolemCliCommand::try_parse_from_lenient(args_iterator, true) {
             GolemCliCommandParseResult::FullMatch(command) => {
+                #[cfg(feature = "server-commands")]
                 let verbosity = if matches!(command.subcommand, GolemCliSubcommand::Server { .. }) {
                     Hooks::override_verbosity(command.global_flags.verbosity)
                 } else {
                     command.global_flags.verbosity
                 };
+                #[cfg(not(feature = "server-commands"))]
+                let verbosity = command.global_flags.verbosity;
                 init_tracing(verbosity);
 
                 match Self::new(&command.global_flags, hooks) {
