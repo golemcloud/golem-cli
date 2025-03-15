@@ -461,7 +461,7 @@ impl AppCommandHandler {
             for (template_name, template) in templates {
                 if template_name.as_str() == "default" {
                     logln(format!(
-                        "  - {} (default template): {}",
+                        "  - {}: {}",
                         language.id().bold(),
                         template.description,
                     ));

@@ -548,9 +548,24 @@ impl ComponentCommandHandler {
                             component_views.push(Component::from(result).into());
                         }
                     },
-                    GolemClients::Cloud(_) => {
-                        todo!()
-                    }
+                    GolemClients::Cloud(clients) => match version {
+                        Some(version) => {
+                            let result = clients
+                                .component
+                                .get_component_metadata(&component_id, &version.to_string())
+                                .await
+                                .map_service_error()?;
+                            component_views.push(Component::from(result).into());
+                        }
+                        None => {
+                            let result = clients
+                                .component
+                                .get_latest_component_metadata(&component_id)
+                                .await
+                                .map_service_error()?;
+                            component_views.push(Component::from(result).into());
+                        }
+                    },
                 },
                 None => {
                     log_warn(format!(
@@ -760,13 +775,13 @@ impl ComponentCommandHandler {
                         "Component {} not found, and not part of the current application",
                         component_name.0.log_color_highlight()
                     ));
-                    // TODO: fuzzy match from service to list components
+                    // TODO: fuzzy match from service to list components?
                     bail!(NonSuccessfulExit)
                 }
 
                 // TODO: we will need hashes to reliably detect if "update" deploy is needed
                 //       and for now we should not blindly keep updating, so for now
-                //       only missing one are handled
+                //       only missing ones are handled
                 log_action(
                     "Auto deploying",
                     format!(

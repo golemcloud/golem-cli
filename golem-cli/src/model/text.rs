@@ -14,7 +14,7 @@
 
 pub mod fmt {
     use crate::fuzzy::Match;
-    use crate::model::Format;
+    use crate::model::{Format, WorkerNameMatch};
     use cli_table::{Row, Title, WithTitle};
     use colored::control::SHOULD_COLORIZE;
     use colored::Colorize;
@@ -381,6 +381,32 @@ pub mod fmt {
                 }
             }
         }
+    }
+
+    pub fn format_worker_name_match(worker_name_match: &WorkerNameMatch) -> String {
+        format!(
+            "{}{}{} / {}",
+            match &worker_name_match.account_id {
+                Some(account_id) => {
+                    format!("{} / ", account_id.0.blue().bold())
+                }
+                None => "".to_string(),
+            },
+            match &worker_name_match.project {
+                Some(project) => {
+                    format!("{} / ", project.project_name.0.blue().bold())
+                }
+                None => "".to_string(),
+            },
+            worker_name_match.component_name.0.blue().bold(),
+            worker_name_match
+                .worker_name
+                .as_ref()
+                .map(|wn| wn.0.as_str())
+                .unwrap_or("-")
+                .green()
+                .bold(),
+        )
     }
 }
 

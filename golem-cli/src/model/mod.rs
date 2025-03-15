@@ -706,6 +706,7 @@ pub enum ComponentNameMatchKind {
 }
 
 pub struct WorkerNameMatch {
+    pub account_id: Option<AccountId>,
     pub project: Option<ProjectNameAndId>,
     pub component_name_match_kind: ComponentNameMatchKind,
     pub component_name: ComponentName,

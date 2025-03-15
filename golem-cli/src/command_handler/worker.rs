@@ -18,13 +18,16 @@ use crate::command::shared_args::{
 };
 use crate::command::worker::WorkerSubcommand;
 use crate::command_handler::Handlers;
+use crate::connect_output::ConnectOutput;
 use crate::context::{Context, GolemClients};
-use crate::error::service::AnyhowMapServiceError;
+use crate::error::service::{AnyhowMapServiceError, ServiceError};
 use crate::error::NonSuccessfulExit;
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::model::component::{function_params_types, show_exported_functions, Component};
 use crate::model::invoke_result_view::InvokeResultView;
-use crate::model::text::fmt::{format_export, log_error, log_fuzzy_match, log_text_view, log_warn};
+use crate::model::text::fmt::{
+    format_export, format_worker_name_match, log_error, log_fuzzy_match, log_text_view, log_warn,
+};
 use crate::model::text::help::{
     ArgumentError, AvailableComponentNamesHelp, AvailableFunctionNamesHelp, ComponentNameHelp,
     ParameterErrorTableView, WorkerNameHelp,
@@ -32,11 +35,15 @@ use crate::model::text::help::{
 use crate::model::text::worker::{WorkerCreateView, WorkerGetView};
 use crate::model::to_oss::ToOss;
 use crate::model::{
-    ComponentName, ComponentNameMatchKind, IdempotencyKey, ProjectName, WorkerMetadata,
-    WorkerMetadataView, WorkerName, WorkerNameMatch, WorkersMetadataResponseView,
+    ComponentName, ComponentNameMatchKind, Format, IdempotencyKey, ProjectName,
+    WorkerConnectOptions, WorkerMetadata, WorkerMetadataView, WorkerName, WorkerNameMatch,
+    WorkersMetadataResponseView,
 };
-use anyhow::{anyhow, bail};
+use anyhow::{anyhow, bail, Context as AnyhowContext};
+use bytes::Bytes;
+use colored::control::SHOULD_COLORIZE;
 use colored::Colorize;
+use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use golem_client::api::WorkerClient as WorkerClientOss;
 use golem_client::model::{
     InvokeParameters as InvokeParametersOss, ScanCursor,
@@ -46,13 +53,22 @@ use golem_cloud_client::api::WorkerClient as WorkerClientCloud;
 use golem_cloud_client::model::{
     InvokeParameters as InvokeParametersCloud, WorkerCreationRequest as WorkerCreationRequestCloud,
 };
-use golem_common::model::ComponentType;
+use golem_common::model::{ComponentType, WorkerEvent};
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
 use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
 use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
 use itertools::{EitherOrBoth, Itertools};
+use native_tls::TlsConnector;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::task::JoinHandle;
+use tokio::{task, time};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::{connect_async_tls_with_config, tungstenite, Connector};
+use tracing::{debug, error, info, trace};
+use url::Url;
 use uuid::Uuid;
 
 pub struct WorkerCommandHandler {
@@ -77,6 +93,7 @@ impl WorkerCommandHandler {
                 arguments,
                 enqueue,
                 idempotency_key,
+                connect,
             } => {
                 self.invoke(
                     worker_name,
@@ -84,10 +101,12 @@ impl WorkerCommandHandler {
                     arguments,
                     enqueue,
                     idempotency_key,
+                    connect,
                 )
                 .await
             }
             WorkerSubcommand::Get { worker_name } => self.get(worker_name).await,
+            WorkerSubcommand::Delete { worker_name } => self.delete(worker_name).await,
             WorkerSubcommand::List {
                 component_name,
                 filter: filters,
@@ -104,6 +123,12 @@ impl WorkerCommandHandler {
                 )
                 .await
             }
+            WorkerSubcommand::Connect { worker_name } => self.connect(worker_name).await,
+            WorkerSubcommand::Interrupt { worker_name } => self.interrupt(worker_name).await,
+            WorkerSubcommand::Resume { worker_name } => self.resume(worker_name).await,
+            WorkerSubcommand::SimulateCrash { worker_name } => {
+                self.simulate_crash(worker_name).await
+            }
         }
     }
 
@@ -116,7 +141,7 @@ impl WorkerCommandHandler {
         self.ctx.silence_app_context_init().await;
 
         let worker_name = worker_name.worker_name;
-        let worker_name_match = self.match_worker_name(worker_name).await?;
+        let mut worker_name_match = self.match_worker_name(worker_name).await?;
         let component = self
             .ctx
             .component_handler()
@@ -137,16 +162,16 @@ impl WorkerCommandHandler {
             bail!(NonSuccessfulExit);
         }
 
-        let worker_name = worker_name_match
-            .worker_name
-            .unwrap_or_else(|| Uuid::new_v4().to_string().into());
+        if worker_name_match.worker_name.is_none() {
+            worker_name_match.worker_name = Some(Uuid::new_v4().to_string().into());
+        }
+        let worker_name = worker_name_match.worker_name.clone().unwrap().0;
 
         log_action(
             "Creating",
             format!(
-                "new worker {} / {}",
-                worker_name_match.component_name.0.blue().bold(),
-                worker_name.0.green().bold(),
+                "new worker {}",
+                format_worker_name_match(&worker_name_match)
             ),
         );
 
@@ -156,7 +181,7 @@ impl WorkerCommandHandler {
                 .launch_new_worker(
                     &component.versioned_component_id.component_id,
                     &WorkerCreationRequestOss {
-                        name: worker_name.0.clone(),
+                        name: worker_name.clone(),
                         args: arguments,
                         env: env.into_iter().collect(),
                     },
@@ -169,7 +194,7 @@ impl WorkerCommandHandler {
                 .launch_new_worker(
                     &component.versioned_component_id.component_id,
                     &WorkerCreationRequestCloud {
-                        name: worker_name.0.clone(),
+                        name: worker_name.clone(),
                         args: arguments,
                         env: env.into_iter().collect(),
                     },
@@ -182,7 +207,7 @@ impl WorkerCommandHandler {
         logln("");
         self.ctx.log_handler().log_view(&WorkerCreateView {
             component_name: worker_name_match.component_name,
-            worker_name: Some(worker_name),
+            worker_name: Some(worker_name.into()),
         });
 
         Ok(())
@@ -195,6 +220,7 @@ impl WorkerCommandHandler {
         arguments: Vec<WorkerFunctionArgument>,
         enqueue: bool,
         idempotency_key: Option<IdempotencyKey>,
+        connect: bool,
     ) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
 
@@ -202,10 +228,7 @@ impl WorkerCommandHandler {
             let key = IdempotencyKey::new();
             log_action(
                 "Using",
-                format!(
-                    "auto generated idempotency key: {}",
-                    key.0.log_color_highlight()
-                ),
+                format!("generated idempotency key: {}", key.0.log_color_highlight()),
             );
             key
         }
@@ -289,15 +312,8 @@ impl WorkerCommandHandler {
             log_action(
                 "Enqueueing",
                 format!(
-                    "invocation for worker {} / {} / {} ",
-                    worker_name_match.component_name.0.blue().bold(),
-                    worker_name_match
-                        .worker_name
-                        .as_ref()
-                        .map(|wn| wn.0.as_str())
-                        .unwrap_or("-")
-                        .green()
-                        .bold(),
+                    "invocation for worker {} / {}",
+                    format_worker_name_match(&worker_name_match),
                     format_export(&function_name)
                 ),
             );
@@ -305,15 +321,8 @@ impl WorkerCommandHandler {
             log_action(
                 "Invoking",
                 format!(
-                    "worker {} / {} / {} ",
-                    worker_name_match.component_name.0.blue().bold(),
-                    worker_name_match
-                        .worker_name
-                        .as_ref()
-                        .map(|wn| wn.0.as_str())
-                        .unwrap_or("-")
-                        .green()
-                        .bold(),
+                    "worker {} / {} ",
+                    format_worker_name_match(&worker_name_match),
                     format_export(&function_name)
                 ),
             );
@@ -321,15 +330,46 @@ impl WorkerCommandHandler {
 
         let arguments = wave_args_to_invoke_args(&component, &function_name, arguments)?;
 
+        let connect_handle = match worker_name_match.worker_name.clone() {
+            Some(worker_name) => {
+                if connect {
+                    log_action(
+                        "Connecting",
+                        format!("to worker {}", format_worker_name_match(&worker_name_match)),
+                    );
+                    let connection = connect_to_worker(
+                        self.ctx.worker_service_url().clone(),
+                        self.ctx.auth_token().await?,
+                        component.versioned_component_id.component_id.clone(),
+                        worker_name.0,
+                        WorkerConnectOptions {
+                            colors: SHOULD_COLORIZE.should_colorize(),
+                            show_timestamp: true, // TODO
+                            show_level: true,     // TODO
+                        },
+                        self.ctx.allow_insecure(),
+                        self.ctx.format(),
+                    )
+                    .await?;
+                    Some(tokio::task::spawn(async move {
+                        connection.read_messages().await
+                    }))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+
         let result = match self.ctx.golem_clients().await? {
-            GolemClients::Oss(clients) => match worker_name_match.worker_name {
+            GolemClients::Oss(clients) => match &worker_name_match.worker_name {
                 Some(worker_name) => {
                     if enqueue {
                         clients
                             .worker
                             .invoke_function(
                                 &component.versioned_component_id.component_id,
-                                worker_name.0.as_str(),
+                                &worker_name.0,
                                 Some(&idempotency_key.0),
                                 function_name.as_str(),
                                 &InvokeParametersOss { params: arguments },
@@ -343,7 +383,7 @@ impl WorkerCommandHandler {
                                 .worker
                                 .invoke_and_await_function(
                                     &component.versioned_component_id.component_id,
-                                    worker_name.0.as_str(),
+                                    &worker_name.0,
                                     Some(&idempotency_key.0),
                                     function_name.as_str(),
                                     &InvokeParametersOss { params: arguments },
@@ -389,7 +429,7 @@ impl WorkerCommandHandler {
                             .worker
                             .invoke_function(
                                 &component.versioned_component_id.component_id,
-                                worker_name.0.as_str(),
+                                &worker_name.0,
                                 Some(&idempotency_key.0),
                                 function_name.as_str(),
                                 &InvokeParametersCloud { params: arguments },
@@ -403,7 +443,7 @@ impl WorkerCommandHandler {
                                 .worker
                                 .invoke_and_await_function(
                                     &component.versioned_component_id.component_id,
-                                    worker_name.0.as_str(),
+                                    &worker_name.0,
                                     Some(&idempotency_key.0),
                                     function_name.as_str(),
                                     &InvokeParametersCloud { params: arguments },
@@ -445,6 +485,8 @@ impl WorkerCommandHandler {
             .to_oss(),
         };
 
+        connect_handle.iter().for_each(|handle| handle.abort());
+
         match result {
             Some(result) => {
                 logln("");
@@ -470,37 +512,10 @@ impl WorkerCommandHandler {
 
     async fn get(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
-
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
-
-        let component = self
-            .ctx
-            .component_handler()
-            .component_by_name(
-                worker_name_match.project.as_ref(),
-                &worker_name_match.component_name,
-            )
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
             .await?;
-
-        let Some(component) = component else {
-            log_error(format!(
-                "Component {} not found",
-                worker_name_match
-                    .component_name
-                    .0
-                    .log_color_error_highlight()
-            ));
-            logln("");
-            bail!(NonSuccessfulExit);
-        };
-
-        let Some(worker_name) = worker_name_match.worker_name else {
-            log_error("Worker name is required");
-            logln("");
-            log_text_view(&WorkerNameHelp);
-            logln("");
-            bail!(NonSuccessfulExit);
-        };
 
         let result = match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => {
@@ -532,6 +547,159 @@ impl WorkerCommandHandler {
         self.ctx
             .log_handler()
             .log_view(&WorkerGetView::from(result));
+
+        Ok(())
+    }
+
+    async fn delete(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Deleting",
+            format!("worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        let _ = match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => {
+                clients
+                    .worker
+                    .delete_worker(
+                        &component.versioned_component_id.component_id,
+                        &worker_name.0,
+                    )
+                    .await
+                    .map(|_| ())
+                    .map_service_error()?;
+            }
+            GolemClients::Cloud(clients) => clients
+                .worker
+                .get_worker_metadata(
+                    &component.versioned_component_id.component_id,
+                    &worker_name.0,
+                )
+                .await
+                .map(|_| ())
+                .map_service_error()?,
+        };
+
+        log_action(
+            "Deleted",
+            format!("worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        Ok(())
+    }
+
+    async fn connect(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Connecting",
+            format!("to worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        let connection = connect_to_worker(
+            self.ctx.worker_service_url().clone(),
+            self.ctx.auth_token().await?,
+            component.versioned_component_id.component_id.clone(),
+            worker_name.0.clone(),
+            WorkerConnectOptions {
+                colors: SHOULD_COLORIZE.should_colorize(),
+                show_timestamp: true, // TODO
+                show_level: true,     // TODO
+            },
+            self.ctx.allow_insecure(),
+            self.ctx.format(),
+        )
+        .await?;
+
+        connection.read_messages().await;
+
+        Ok(())
+    }
+
+    async fn interrupt(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Interrupting",
+            format!("worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        let _ = self
+            .interrupt_worker(&component, &worker_name, false)
+            .await?;
+
+        log_action(
+            "Interrupted",
+            format!("worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        Ok(())
+    }
+
+    async fn resume(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Resuming",
+            format!("worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        let _ = self
+            .interrupt_worker(&component, &worker_name, true)
+            .await?;
+
+        log_action(
+            "Resumed",
+            format!("worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        Ok(())
+    }
+
+    async fn simulate_crash(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Simulating crash",
+            format!(
+                "for worker {}",
+                format_worker_name_match(&worker_name_match)
+            ),
+        );
+
+        let _ = self
+            .interrupt_worker(&component, &worker_name, true)
+            .await?;
+
+        log_action(
+            "Simulated crash",
+            format!(
+                "for worker {}",
+                format_worker_name_match(&worker_name_match)
+            ),
+        );
 
         Ok(())
     }
@@ -686,13 +854,13 @@ impl WorkerCommandHandler {
                         if selected_component_names.len() != 1 {
                             logln("");
                             log_error(
-                            format!("Multiple components were selected based on the current directory: {}",
-                                    selected_component_names.iter().map(|cn| cn.as_str().log_color_highlight()).join(", ")),
-                        );
+                                format!("Multiple components were selected based on the current directory: {}",
+                                        selected_component_names.iter().map(|cn| cn.as_str().log_color_highlight()).join(", ")),
+                            );
                             logln("");
                             logln(
-                            "Switch to a different directory with only one component or specify the full or partial component name as part of the worker name!",
-                        );
+                                "Switch to a different directory with only one component or specify the full or partial component name as part of the worker name!",
+                            );
                             logln("");
                             log_text_view(&WorkerNameHelp);
                             logln("");
@@ -703,6 +871,7 @@ impl WorkerCommandHandler {
                         }
 
                         Ok(WorkerNameMatch {
+                            account_id: None,
                             project: None,
                             component_name_match_kind: ComponentNameMatchKind::AppCurrentDir,
                             component_name: selected_component_names
@@ -811,6 +980,7 @@ impl WorkerCommandHandler {
                             Ok(match_) => {
                                 log_fuzzy_match(&match_);
                                 Ok(WorkerNameMatch {
+                                    account_id,
                                     project,
                                     component_name_match_kind: ComponentNameMatchKind::App,
                                     component_name: match_.option.into(),
@@ -824,9 +994,9 @@ impl WorkerCommandHandler {
                                 } => {
                                     logln("");
                                     log_error(format!(
-                                    "The requested application component name ({}) is ambiguous.",
-                                    component_name.0.log_color_error_highlight()
-                                ));
+                                        "The requested application component name ({}) is ambiguous.",
+                                        component_name.0.log_color_error_highlight()
+                                    ));
                                     logln("");
                                     logln("Did you mean one of");
                                     for option in highlighted_options {
@@ -845,6 +1015,7 @@ impl WorkerCommandHandler {
                                 Error::NotFound { .. } => {
                                     // Assuming non-app component
                                     Ok(WorkerNameMatch {
+                                        account_id,
                                         project,
                                         component_name_match_kind: ComponentNameMatchKind::Unknown,
                                         component_name,
@@ -855,6 +1026,7 @@ impl WorkerCommandHandler {
                         }
                     }
                     None => Ok(WorkerNameMatch {
+                        account_id,
                         project,
                         component_name_match_kind: ComponentNameMatchKind::Unknown,
                         component_name,
@@ -873,6 +1045,75 @@ impl WorkerCommandHandler {
                 bail!(NonSuccessfulExit);
             }
         }
+    }
+
+    async fn component_by_worker_name_match(
+        &mut self,
+        worker_name_match: &WorkerNameMatch,
+    ) -> anyhow::Result<(Component, WorkerName)> {
+        let Some(worker_name) = &worker_name_match.worker_name else {
+            log_error("Worker name is required");
+            logln("");
+            log_text_view(&WorkerNameHelp);
+            logln("");
+            bail!(NonSuccessfulExit);
+        };
+
+        let component = self
+            .ctx
+            .component_handler()
+            .component_by_name(
+                worker_name_match.project.as_ref(),
+                &worker_name_match.component_name,
+            )
+            .await?;
+
+        let Some(component) = component else {
+            log_error(format!(
+                "Component {} not found",
+                worker_name_match
+                    .component_name
+                    .0
+                    .log_color_error_highlight()
+            ));
+            logln("");
+            bail!(NonSuccessfulExit);
+        };
+
+        Ok((component, worker_name.clone()))
+    }
+
+    async fn interrupt_worker(
+        &mut self,
+        component: &Component,
+        worker_name: &WorkerName,
+        recover_immediately: bool,
+    ) -> anyhow::Result<()> {
+        match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => {
+                clients
+                    .worker
+                    .interrupt_worker(
+                        &component.versioned_component_id.component_id,
+                        &worker_name.0,
+                        Some(recover_immediately),
+                    )
+                    .await
+                    .map(|_| ())
+                    .map_service_error()?;
+            }
+            GolemClients::Cloud(clients) => clients
+                .worker
+                .interrupt_worker(
+                    &component.versioned_component_id.component_id,
+                    &worker_name.0,
+                    Some(recover_immediately),
+                )
+                .await
+                .map(|_| ())
+                .map_service_error()?,
+        }
+        Ok(())
     }
 }
 
@@ -962,4 +1203,253 @@ fn wave_args_to_invoke_args(
 
 fn scan_cursor_to_string(cursor: &ScanCursor) -> String {
     format!("{}/{}", cursor.layer, cursor.cursor)
+}
+
+fn parse_worker_error(status: u16, body: Vec<u8>) -> ServiceError {
+    let error: anyhow::Result<
+        Option<golem_client::Error<golem_client::api::WorkerError>>,
+        serde_json::Error,
+    > = match status {
+        400 => serde_json::from_slice(&body).map(|body| {
+            Some(golem_client::Error::Item(
+                golem_client::api::WorkerError::Error400(body),
+            ))
+        }),
+        401 => serde_json::from_slice(&body).map(|body| {
+            Some(golem_client::Error::Item(
+                golem_client::api::WorkerError::Error401(body),
+            ))
+        }),
+        403 => serde_json::from_slice(&body).map(|body| {
+            Some(golem_client::Error::Item(
+                golem_client::api::WorkerError::Error403(body),
+            ))
+        }),
+        404 => serde_json::from_slice(&body).map(|body| {
+            Some(golem_client::Error::Item(
+                golem_client::api::WorkerError::Error404(body),
+            ))
+        }),
+        409 => serde_json::from_slice(&body).map(|body| {
+            Some(golem_client::Error::Item(
+                golem_client::api::WorkerError::Error409(body),
+            ))
+        }),
+        500 => serde_json::from_slice(&body).map(|body| {
+            Some(golem_client::Error::Item(
+                golem_client::api::WorkerError::Error500(body),
+            ))
+        }),
+        _ => Ok(None),
+    };
+
+    match error.ok().flatten() {
+        Some(error) => error.into(),
+        None => {
+            golem_client::Error::<golem_client::api::WorkerError>::unexpected(status, body.into())
+                .into()
+        }
+    }
+}
+
+struct WorkerConnection {
+    pings: JoinHandle<anyhow::Error>,
+    read_messages: JoinHandle<()>,
+}
+
+impl WorkerConnection {
+    async fn read_messages(self) {
+        let pings = self.pings;
+        let read_res = self.read_messages;
+        pin_mut!(pings, read_res);
+        future::select(pings, read_res).await;
+    }
+}
+
+async fn connect_to_worker(
+    worker_service_url: Url,
+    auth_token: Option<String>,
+    component_id: Uuid,
+    worker_name: String,
+    connect_options: WorkerConnectOptions,
+    allow_insecure: bool,
+    format: Format,
+) -> anyhow::Result<WorkerConnection> {
+    let mut url = worker_service_url;
+
+    let ws_schema = if url.scheme() == "http" { "ws" } else { "wss" };
+
+    url.set_scheme(ws_schema)
+        .map_err(|()| anyhow!("Failed to set ws url schema".to_string()))?;
+    url.path_segments_mut()
+        .map_err(|()| anyhow!("Failed to get url path for ws url".to_string()))?
+        .push("v1")
+        .push("components")
+        .push(&component_id.to_string())
+        .push("workers")
+        .push(&worker_name)
+        .push("connect");
+
+    debug!(url = url.as_str(), "Worker connect");
+
+    let mut request = url
+        .to_string()
+        .into_client_request()
+        .context("Failed to create request")?;
+
+    if let Some(token) = auth_token {
+        let headers = request.headers_mut();
+        headers.insert("Authorization", format!("Bearer {}", token).parse()?);
+    }
+
+    let connector = if allow_insecure {
+        Some(Connector::NativeTls(
+            TlsConnector::builder()
+                .danger_accept_invalid_certs(true)
+                .danger_accept_invalid_hostnames(true)
+                .build()?,
+        ))
+    } else {
+        None
+    };
+
+    let (ws_stream, _) = connect_async_tls_with_config(request, None, false, connector)
+        .await
+        .map_err(|e| match e {
+            tungstenite::error::Error::Http(http_error_response) => {
+                let status = http_error_response.status().as_u16();
+                match http_error_response.body().clone() {
+                    Some(body) => anyhow!(parse_worker_error(status, body)),
+                    None => anyhow!("Websocket connect failed, HTTP error: {}", status),
+                }
+            }
+            _ => anyhow!("Websocket connect failed, error: {}", e),
+        })?;
+
+    let (mut write, read) = ws_stream.split();
+
+    let pings = task::spawn(async move {
+        let mut interval = time::interval(Duration::from_secs(1)); // TODO configure
+        let mut cnt: i64 = 1;
+
+        loop {
+            interval.tick().await;
+
+            let ping_result = write
+                .send(Message::Ping(Bytes::from(cnt.to_ne_bytes().to_vec())))
+                .await
+                .context("Failed to send ping");
+
+            if let Err(err) = ping_result {
+                error!("{}", err);
+                break err;
+            }
+
+            cnt += 1;
+        }
+    });
+
+    let output = ConnectOutput::new(connect_options, format);
+
+    let read_messages = task::spawn(async move {
+        read.for_each(move |message_or_error| {
+            let output = output.clone();
+            async move {
+                match message_or_error {
+                    Err(error) => {
+                        error!("Error reading message: {}", error);
+                    }
+                    Ok(message) => {
+                        let instance_connect_msg = match message {
+                            Message::Text(str) => {
+                                let parsed: serde_json::Result<WorkerEvent> =
+                                    serde_json::from_str(str.as_str());
+
+                                match parsed {
+                                    Ok(parsed) => Some(parsed),
+                                    Err(err) => {
+                                        error!("Failed to parse worker connect message: {err}");
+                                        None
+                                    }
+                                }
+                            }
+                            Message::Binary(data) => {
+                                let parsed: serde_json::Result<WorkerEvent> =
+                                    serde_json::from_slice(data.as_ref());
+                                match parsed {
+                                    Ok(parsed) => Some(parsed),
+                                    Err(err) => {
+                                        error!("Failed to parse worker connect message: {err}");
+                                        None
+                                    }
+                                }
+                            }
+                            Message::Ping(_) => {
+                                trace!("Ignore ping");
+                                None
+                            }
+                            Message::Pong(_) => {
+                                trace!("Ignore pong");
+                                None
+                            }
+                            Message::Close(details) => {
+                                match details {
+                                    Some(closed_frame) => {
+                                        info!("Connection Closed: {}", closed_frame);
+                                    }
+                                    None => {
+                                        info!("Connection Closed");
+                                    }
+                                }
+                                None
+                            }
+                            Message::Frame(f) => {
+                                debug!("Ignored unexpected frame {f:?}");
+                                None
+                            }
+                        };
+
+                        match instance_connect_msg {
+                            None => {}
+                            Some(msg) => match msg {
+                                WorkerEvent::StdOut { timestamp, bytes } => {
+                                    output
+                                        .emit_stdout(
+                                            timestamp,
+                                            String::from_utf8_lossy(&bytes).to_string(),
+                                        )
+                                        .await;
+                                }
+                                WorkerEvent::StdErr { timestamp, bytes } => {
+                                    output
+                                        .emit_stderr(
+                                            timestamp,
+                                            String::from_utf8_lossy(&bytes).to_string(),
+                                        )
+                                        .await;
+                                }
+                                WorkerEvent::Log {
+                                    timestamp,
+                                    level,
+                                    context,
+                                    message,
+                                } => {
+                                    output.emit_log(timestamp, level, context, message);
+                                }
+                                WorkerEvent::Close => {} // TODO:
+                                WorkerEvent::InvocationStart { .. } => {} // TODO:
+                                WorkerEvent::InvocationFinished { .. } => {} // TODO:
+                            },
+                        }
+                    }
+                }
+            }
+        })
+        .await;
+    });
+
+    Ok(WorkerConnection {
+        pings,
+        read_messages,
+    })
 }

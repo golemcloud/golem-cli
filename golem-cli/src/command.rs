@@ -645,9 +645,16 @@ pub mod worker {
             /// Set idempotency key for the call, use "-" for auto generated key
             #[clap(long, short)]
             idempotency_key: Option<IdempotencyKey>,
+            #[clap(long, short)]
+            connect: bool,
         },
         /// Get worker metadata
         Get {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+        },
+        /// Deletes a worker
+        Delete {
             #[command(flatten)]
             worker_name: WorkerNameArg,
         },
@@ -679,6 +686,29 @@ pub mod worker {
             /// When set to true it queries for most up-to-date status for each worker, default is false
             #[arg(long, default_value_t = false)]
             precise: bool,
+        },
+        /// Connect to a worker and live stream its standard output, error and log channels
+        Connect {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+            // TODO: connect options
+        },
+        /// Interrupts a running worker
+        Interrupt {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+        },
+        /// Resume an interrupted worker
+        Resume {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+        },
+        /// Simulates a crash on a worker for testing purposes.
+        ///
+        /// The worker starts recovering and resuming immediately.
+        SimulateCrash {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
         },
     }
 }
