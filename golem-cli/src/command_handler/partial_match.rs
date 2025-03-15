@@ -44,7 +44,7 @@ impl ErrorHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::ComponentNewMissingTemplate => {
-                self.ctx.app_handler().log_templates_help();
+                self.ctx.app_handler().log_templates_help(None, None);
                 Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {

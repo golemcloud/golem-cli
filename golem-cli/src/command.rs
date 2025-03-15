@@ -566,6 +566,11 @@ pub mod component {
             /// Name of the new component package in 'package:name' form
             component_package_name: PackageName,
         },
+        /// List or search component templates
+        Templates {
+            /// Optional filter for language or template name
+            filter: Option<String>,
+        },
         /// Build component(s) based on the current directory or by selection
         Build {
             #[command(flatten)]

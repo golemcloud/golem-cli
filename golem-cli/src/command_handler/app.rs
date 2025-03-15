@@ -345,7 +345,7 @@ impl AppCommandHandler {
             }),
             _ => {
                 log_error("Failed to parse template name");
-                self.log_templates_help();
+                self.log_templates_help(None, None);
                 bail!(NonSuccessfulExit);
             }
         };
@@ -354,7 +354,7 @@ impl AppCommandHandler {
             Some(language) => language,
             None => {
                 log_error("Failed to parse language part of the template!");
-                self.log_templates_help();
+                self.log_templates_help(None, None);
                 bail!(NonSuccessfulExit);
             }
         };
@@ -364,7 +364,7 @@ impl AppCommandHandler {
 
         let Some(lang_templates) = self.ctx.templates().get(&language) else {
             log_error(format!("No templates found for language: {}", language).as_str());
-            self.log_templates_help();
+            self.log_templates_help(None, None);
             bail!(NonSuccessfulExit);
         };
 
@@ -377,7 +377,7 @@ impl AppCommandHandler {
                 "Template {} not found!",
                 requested_template_name.log_color_highlight()
             ));
-            self.log_templates_help();
+            self.log_templates_help(None, None);
             bail!(NonSuccessfulExit);
         };
 
@@ -395,32 +395,83 @@ impl AppCommandHandler {
         }
     }
 
-    pub fn log_templates_help(&self) {
-        logln(format!(
-            "\n{}",
-            "Available languages and templates:".underline().bold(),
-        ));
-        for (language, templates) in self.ctx.templates() {
-            logln(format!("- {}", language.to_string().bold()));
-            for (group, template) in templates {
-                if group.as_str() != "default" {
-                    panic!("TODO: handle non-default groups")
+    pub fn log_templates_help(
+        &self,
+        language_filter: Option<GuestLanguage>,
+        template_filter: Option<&str>,
+    ) {
+        if language_filter.is_none() && template_filter.is_none() {
+            logln(format!(
+                "\n{}",
+                "Available languages and templates:".underline().bold(),
+            ));
+        } else {
+            logln(format!("\n{}", "Matching templates:".underline().bold(),));
+        }
+
+        let templates = self
+            .ctx
+            .templates()
+            .into_iter()
+            .filter_map(|(language, templates)| {
+                templates
+                    .get(&ComposableAppGroupName::default())
+                    .and_then(|templates| {
+                        let matches_lang = language_filter
+                            .map(|language_filter| language_filter == *language)
+                            .unwrap_or(true);
+
+                        if matches_lang {
+                            let templates = templates
+                                .components
+                                .iter()
+                                .filter(|(template_name, template)| {
+                                    template_filter
+                                        .map(|template_filter| {
+                                            template_name
+                                                .as_str()
+                                                .to_lowercase()
+                                                .contains(template_filter)
+                                                || template
+                                                    .description
+                                                    .to_lowercase()
+                                                    .contains(template_filter)
+                                        })
+                                        .unwrap_or(true)
+                                })
+                                .collect::<Vec<_>>();
+
+                            (!templates.is_empty()).then(|| templates)
+                        } else {
+                            None
+                        }
+                    })
+                    .map(|templates| (language, templates))
+            })
+            .collect::<Vec<_>>();
+
+        for (language, templates) in templates {
+            if let Some(language_filter) = language_filter {
+                if language_filter != *language {
+                    continue;
                 }
-                for template in template.components.values() {
-                    if template.name.as_str() == "default" {
-                        logln(format!(
-                            "  - {} (default template): {}",
-                            language.id().bold(),
-                            template.description,
-                        ));
-                    } else {
-                        logln(format!(
-                            "  - {}/{}: {}",
-                            language.id().bold(),
-                            template.name.as_str().bold(),
-                            template.description,
-                        ));
-                    }
+            }
+
+            logln(format!("- {}", language.to_string().bold()));
+            for (template_name, template) in templates {
+                if template_name.as_str() == "default" {
+                    logln(format!(
+                        "  - {} (default template): {}",
+                        language.id().bold(),
+                        template.description,
+                    ));
+                } else {
+                    logln(format!(
+                        "  - {}/{}: {}",
+                        language.id().bold(),
+                        template.name.as_str().bold(),
+                        template.description,
+                    ));
                 }
             }
         }

@@ -36,7 +36,7 @@ use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
 use golem_cloud_client::model::ComponentQuery;
 use golem_common::model::ComponentType;
 use golem_examples::add_component_by_example;
-use golem_examples::model::PackageName;
+use golem_examples::model::{GuestLanguage, PackageName};
 use golem_wasm_rpc_stubgen::commands::app::{
     ApplicationContext, ComponentSelectMode, DynamicHelpSections,
 };
@@ -65,6 +65,10 @@ impl ComponentCommandHandler {
                 template,
                 component_package_name,
             } => self.new_component(template, component_package_name).await,
+            ComponentSubcommand::Templates { filter } => {
+                self.list_templates(filter);
+                Ok(())
+            }
             ComponentSubcommand::Build {
                 component_name,
                 build: build_args,
@@ -183,6 +187,23 @@ impl ComponentCommandHandler {
         })?;
 
         Ok(())
+    }
+
+    fn list_templates(&self, filter: Option<String>) {
+        match filter {
+            Some(filter) => {
+                if let Some(language) = GuestLanguage::from_string(filter.clone()) {
+                    self.ctx
+                        .app_handler()
+                        .log_templates_help(Some(language), None);
+                } else {
+                    self.ctx
+                        .app_handler()
+                        .log_templates_help(None, Some(&filter));
+                }
+            }
+            None => self.ctx.app_handler().log_templates_help(None, None),
+        }
     }
 
     pub async fn deploy(
