@@ -412,7 +412,7 @@ impl AppCommandHandler {
         let templates = self
             .ctx
             .templates()
-            .into_iter()
+            .iter()
             .filter_map(|(language, templates)| {
                 templates
                     .get(&ComposableAppGroupName::default())
@@ -441,7 +441,7 @@ impl AppCommandHandler {
                                 })
                                 .collect::<Vec<_>>();
 
-                            (!templates.is_empty()).then(|| templates)
+                            (!templates.is_empty()).then_some(templates)
                         } else {
                             None
                         }
