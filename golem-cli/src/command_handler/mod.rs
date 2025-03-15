@@ -59,6 +59,7 @@ pub trait CommandHandlerHooks {
         subcommand: ServerSubcommand,
     ) -> impl std::future::Future<Output = anyhow::Result<()>>;
 
+    #[cfg(feature = "server-commands")]
     fn override_verbosity(verbosity: Verbosity) -> Verbosity;
 }
 

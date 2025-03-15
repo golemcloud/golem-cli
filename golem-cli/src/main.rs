@@ -24,6 +24,7 @@ mod hooks {
             unimplemented!()
         }
 
+        #[cfg(feature = "server-commands")]
         fn override_verbosity(verbosity: Verbosity) -> Verbosity {
             verbosity
         }
