@@ -1104,32 +1104,29 @@ pub mod worker {
                 ))
             }
 
-            match self {
-                InvokeResultView::Wave(wave_values) => {
-                    if wave_values.is_empty() {
-                        logln("Empty result.")
-                    } else {
-                        log_results_format("WAVE");
-                        for wave in wave_values {
-                            logln(format!("  - {}", wave));
-                        }
+            if self.result_wave.is_none() && self.result_json.is_none() {
+                return;
+            }
+
+            if let Some(wave_values) = &self.result_wave {
+                if wave_values.is_empty() {
+                    logln("Empty result.")
+                } else {
+                    log_results_format("WAVE");
+                    for wave in wave_values {
+                        logln(format!("  - {}", wave));
                     }
                 }
-                InvokeResultView::Json(json) => {
-                    // TODO: do we have an issue or plan for this?
-                    logln(format_warn(indoc!(
-                        "
-                            Failed to convert invocation result to WAVE format.
-                            At the moment WAVE does not support Handle (aka Resource) data type.
+            } else if let Some(json) = &self.result_json {
+                logln(format_warn(indoc!(
+                    "
+                    Failed to convert invocation result to WAVE format.
+                    At the moment WAVE does not support Handle (aka Resource) data type.
 
-                            Use -vvv flags to get detailed logs.
-
-                            "
-                    )));
-
-                    log_results_format("JSON");
-                    logln(serde_json::to_string_pretty(json).unwrap());
-                }
+                    "
+                )));
+                log_results_format("JSON");
+                logln(serde_json::to_string_pretty(json).unwrap());
             }
         }
     }

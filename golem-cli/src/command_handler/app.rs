@@ -117,9 +117,11 @@ impl AppCommandHandler {
                     log_error("The current directory is part of an existing application.");
                     logln("");
                     logln("Switch to a directory that is not part of an application or use");
-                    logln(
-                        "'the component new' command to create a component in the current application.",
-                    );
+                    logln(format!(
+                        "the '{}' command to create a component in the current application.",
+                        "component new".log_color_highlight()
+                    ));
+                    logln("");
                     bail!(NonSuccessfulExit);
                 }
             }

@@ -46,6 +46,7 @@ use golem_cloud_client::api::WorkerClient as WorkerClientCloud;
 use golem_cloud_client::model::{
     InvokeParameters as InvokeParametersCloud, WorkerCreationRequest as WorkerCreationRequestCloud,
 };
+use golem_common::model::ComponentType;
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
 use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
@@ -126,12 +127,20 @@ impl WorkerCommandHandler {
             )
             .await?;
 
-        // TODO: should we fail on explicit names for ephemeral?
+        if component.component_type == ComponentType::Ephemeral
+            && worker_name_match.worker_name.is_some()
+        {
+            log_error("Cannot use explicit name for ephemeral worker!");
+            logln("");
+            logln("Use '-' as worker name for ephemeral workers");
+            logln("");
+            bail!(NonSuccessfulExit);
+        }
+
         let worker_name = worker_name_match
             .worker_name
             .unwrap_or_else(|| Uuid::new_v4().to_string().into());
 
-        // TODO: log args / env?
         log_action(
             "Creating",
             format!(
@@ -141,8 +150,7 @@ impl WorkerCommandHandler {
             ),
         );
 
-        // TODO: should use the returned API response? (like component version)
-        let _ = match self.ctx.golem_clients().await? {
+        match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => clients
                 .worker
                 .launch_new_worker(
@@ -437,22 +445,25 @@ impl WorkerCommandHandler {
             .to_oss(),
         };
 
-        // TODO: handle json format and include idempotency key in it
-        let result_view = result
-            .map(|result| {
-                InvokeResultView::try_parse_or_json(result, &component, function_name.as_str())
-            })
-            .transpose()?;
-
-        match result_view {
-            Some(view) => {
+        match result {
+            Some(result) => {
                 logln("");
-                self.ctx.log_handler().log_view(&view);
+                self.ctx
+                    .log_handler()
+                    .log_view(&InvokeResultView::new_invoke(
+                        idempotency_key,
+                        result,
+                        &component,
+                        function_name.as_str(),
+                    ));
             }
             None => {
                 log_action("Enqueued", "invocation");
+                self.ctx
+                    .log_handler()
+                    .log_view(&InvokeResultView::new_enqueue(idempotency_key));
             }
-        }
+        };
 
         Ok(())
     }
@@ -484,7 +495,6 @@ impl WorkerCommandHandler {
         };
 
         let Some(worker_name) = worker_name_match.worker_name else {
-            // TODO: do not allow ephemeral ones
             log_error("Worker name is required");
             logln("");
             log_text_view(&WorkerNameHelp);
@@ -676,13 +686,13 @@ impl WorkerCommandHandler {
                         if selected_component_names.len() != 1 {
                             logln("");
                             log_error(
-                                format!("Multiple components were selected based on the current directory: {}",
-                                        selected_component_names.iter().map(|cn| cn.as_str().log_color_highlight()).join(", ")),
-                            );
+                            format!("Multiple components were selected based on the current directory: {}",
+                                    selected_component_names.iter().map(|cn| cn.as_str().log_color_highlight()).join(", ")),
+                        );
                             logln("");
                             logln(
-                                "Switch to a different directory with only one component or specify the full or partial component name as part of the worker name!",
-                            );
+                            "Switch to a different directory with only one component or specify the full or partial component name as part of the worker name!",
+                        );
                             logln("");
                             log_text_view(&WorkerNameHelp);
                             logln("");
@@ -706,13 +716,9 @@ impl WorkerCommandHandler {
                     }
                     None => {
                         logln("");
-                        log_error(
-                            "Cannot infer the component name for the worker as the current directory is not part of an application."
-                        );
+                        log_error("Cannot infer the component name for the worker as the current directory is not part of an application.");
                         logln("");
-                        logln(
-                            "Switch to an application directory or specify the full component name as part of the worker name!",
-                        );
+                        logln("Switch to an application directory or specify the full component name as part of the worker name!");
                         logln("");
                         log_text_view(&WorkerNameHelp);
                         // TODO: hint for deployed component names?
@@ -780,7 +786,6 @@ impl WorkerCommandHandler {
                     log_error("Missing component part in worker name!");
                     logln("");
                     log_text_view(&WorkerNameHelp);
-                    logln("");
                     bail!(NonSuccessfulExit);
                 }
 
@@ -819,9 +824,9 @@ impl WorkerCommandHandler {
                                 } => {
                                     logln("");
                                     log_error(format!(
-                                        "The requested application component name ({}) is ambiguous.",
-                                        component_name.0.log_color_error_highlight()
-                                    ));
+                                    "The requested application component name ({}) is ambiguous.",
+                                    component_name.0.log_color_error_highlight()
+                                ));
                                     logln("");
                                     logln("Did you mean one of");
                                     for option in highlighted_options {
