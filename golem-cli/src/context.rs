@@ -165,6 +165,10 @@ impl Context {
         Ok(&self.clients().await?.golem)
     }
 
+    pub async fn file_download_client(&self) -> anyhow::Result<reqwest::Client> {
+        Ok(self.clients().await?.file_download.clone())
+    }
+
     pub async fn golem_clients_cloud(&self) -> anyhow::Result<&GolemClientsCloud> {
         match &self.clients().await?.golem {
             GolemClients::Oss(_) => Err(anyhow!(HintError::ExpectedCloudProfile)),
@@ -251,7 +255,7 @@ impl Context {
 // TODO: add healthcheck clients
 pub struct Clients {
     pub golem: GolemClients,
-    pub file_download_http_client: reqwest::Client,
+    pub file_download: reqwest::Client,
 }
 
 impl Clients {
@@ -362,7 +366,7 @@ impl Clients {
                             context: worker_context(),
                         },
                     }),
-                    file_download_http_client,
+                    file_download: file_download_http_client,
                 })
             }
             None => {
@@ -397,7 +401,7 @@ impl Clients {
                             context: worker_context(),
                         },
                     }),
-                    file_download_http_client,
+                    file_download: file_download_http_client,
                 })
             }
         }
