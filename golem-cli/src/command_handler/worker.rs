@@ -1166,7 +1166,7 @@ impl WorkerCommandHandler {
                 Ok(())
             }
             Err(error) => {
-                log_error_action("Failed", "to trigger update for worker, error:".to_string());
+                log_error_action("Failed", "to trigger update for worker, error:");
                 let _indent = LogIndent::new();
                 logln(format!("{}", error));
                 Err(anyhow!(error))

@@ -778,8 +778,10 @@ pub mod worker {
         Revert {
             #[command(flatten)]
             worker_name: WorkerNameArg,
+            /// Revert by oplog index
             #[arg(long, conflicts_with = "number_of_invocations")]
             last_oplog_index: Option<u64>,
+            /// Revert by number of invocations
             #[arg(long, conflicts_with = "last_oplog_index")]
             number_of_invocations: Option<u64>,
         },
