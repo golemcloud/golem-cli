@@ -46,15 +46,20 @@ use colored::Colorize;
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use golem_client::api::WorkerClient as WorkerClientOss;
 use golem_client::model::{
-    InvokeParameters as InvokeParametersOss, ScanCursor,
+    InvokeParameters as InvokeParametersOss, PublicOplogEntry,
+    RevertLastInvocations as RevertLastInvocationsOss, RevertToOplogIndex as RevertToOplogIndexOss,
+    RevertWorkerTarget as RevertWorkerTargetOss, ScanCursor,
     UpdateWorkerRequest as UpdateWorkerRequestOss,
     WorkerCreationRequest as WorkerCreationRequestOss,
 };
 use golem_cloud_client::api::WorkerClient as WorkerClientCloud;
 use golem_cloud_client::model::{
-    InvokeParameters as InvokeParametersCloud, UpdateWorkerRequest as UpdateWorkerRequestCloud,
+    InvokeParameters as InvokeParametersCloud, RevertLastInvocations as RevertLastInvocationsCloud,
+    RevertToOplogIndex as RevertToOplogIndexCloud, RevertWorkerTarget as RevertWorkerTargetCloud,
+    UpdateWorkerRequest as UpdateWorkerRequestCloud,
     WorkerCreationRequest as WorkerCreationRequestCloud,
 };
+use golem_common::model::public_oplog::OplogCursor;
 use golem_common::model::{ComponentType, WorkerEvent};
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
@@ -139,6 +144,23 @@ impl WorkerCommandHandler {
             WorkerSubcommand::SimulateCrash { worker_name } => {
                 self.simulate_crash(worker_name).await
             }
+            WorkerSubcommand::Oplog {
+                worker_name,
+                from,
+                query,
+            } => self.oplog(worker_name, from, query).await,
+            WorkerSubcommand::Revert {
+                worker_name,
+                last_oplog_index,
+                number_of_invocations,
+            } => {
+                self.revert(worker_name, last_oplog_index, number_of_invocations)
+                    .await
+            }
+            WorkerSubcommand::CancelInvocation {
+                worker_name,
+                idempotency_key,
+            } => self.cancel_invocation(worker_name, idempotency_key).await,
         }
     }
 
@@ -600,13 +622,13 @@ impl WorkerCommandHandler {
         match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => clients
                 .worker
-                .delete_worker(&component_id, &worker_name)
+                .delete_worker(&component_id, worker_name)
                 .await
                 .map(|_| ())
                 .map_service_error(),
             GolemClients::Cloud(clients) => clients
                 .worker
-                .get_worker_metadata(&component_id, &worker_name)
+                .get_worker_metadata(&component_id, worker_name)
                 .await
                 .map(|_| ())
                 .map_service_error(),
@@ -715,6 +737,222 @@ impl WorkerCommandHandler {
                 format_worker_name_match(&worker_name_match)
             ),
         );
+
+        Ok(())
+    }
+
+    async fn oplog(
+        &mut self,
+        worker_name: WorkerNameArg,
+        from: Option<u64>,
+        query: Option<String>,
+    ) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        let batch_size = self.ctx.http_batch_size();
+        let mut entries = Vec::<(u64, PublicOplogEntry)>::new();
+        let mut cursor = Option::<OplogCursor>::None;
+        loop {
+            cursor = match self.ctx.golem_clients().await? {
+                GolemClients::Oss(clients) => {
+                    let result = clients
+                        .worker
+                        .get_oplog(
+                            &component.versioned_component_id.component_id,
+                            &worker_name.0,
+                            from,
+                            batch_size,
+                            cursor.as_ref(),
+                            query.as_deref(),
+                        )
+                        .await
+                        .map_service_error()?;
+                    entries.extend(
+                        result
+                            .entries
+                            .into_iter()
+                            .map(|entry| (entry.oplog_index, entry.entry)),
+                    );
+                    result.next
+                }
+                GolemClients::Cloud(clients) => {
+                    let result = clients
+                        .worker
+                        .get_oplog(
+                            &component.versioned_component_id.component_id,
+                            &worker_name.0,
+                            from,
+                            batch_size,
+                            cursor.as_ref(),
+                            query.as_deref(),
+                        )
+                        .await
+                        .map_service_error()?;
+                    entries.extend(
+                        result
+                            .entries
+                            .into_iter()
+                            .map(|entry| (entry.oplog_index, entry.entry)),
+                    );
+                    result.next
+                }
+            };
+            if cursor.is_none() {
+                break;
+            }
+        }
+
+        if entries.is_empty() {
+            log_warn("No results.")
+        }
+
+        self.ctx.log_handler().log_view(&entries);
+
+        Ok(())
+    }
+
+    async fn revert(
+        &mut self,
+        worker_name: WorkerNameArg,
+        last_oplog_index: Option<u64>,
+        number_of_invocations: Option<u64>,
+    ) -> anyhow::Result<()> {
+        if last_oplog_index.is_none() && number_of_invocations.is_none() {
+            log_error(format!(
+                "One of [{}, {}] must be specified",
+                "last-oplog-index".log_color_highlight(),
+                "number of invocations".log_color_highlight()
+            ));
+            bail!(NonSuccessfulExit)
+        }
+
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Reverting",
+            format!("worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => {
+                let target = {
+                    if let Some(last_oplog_index) = last_oplog_index {
+                        RevertWorkerTargetOss::RevertToOplogIndex(RevertToOplogIndexOss {
+                            last_oplog_index,
+                        })
+                    } else if let Some(number_of_invocations) = number_of_invocations {
+                        RevertWorkerTargetOss::RevertLastInvocations(RevertLastInvocationsOss {
+                            number_of_invocations,
+                        })
+                    } else {
+                        bail!("Expected either last_oplog_index or number_of_invocations")
+                    }
+                };
+
+                clients
+                    .worker
+                    .revert_worker(
+                        &component.versioned_component_id.component_id,
+                        &worker_name.0,
+                        &target,
+                    )
+                    .await
+                    .map(|_| ())
+                    .map_service_error()?
+            }
+            GolemClients::Cloud(clients) => {
+                let target = {
+                    if let Some(last_oplog_index) = last_oplog_index {
+                        RevertWorkerTargetCloud::RevertToOplogIndex(RevertToOplogIndexCloud {
+                            last_oplog_index,
+                        })
+                    } else if let Some(number_of_invocations) = number_of_invocations {
+                        RevertWorkerTargetCloud::RevertLastInvocations(RevertLastInvocationsCloud {
+                            number_of_invocations,
+                        })
+                    } else {
+                        bail!("Expected either last_oplog_index or number_of_invocations")
+                    }
+                };
+
+                clients
+                    .worker
+                    .revert_worker(
+                        &component.versioned_component_id.component_id,
+                        &worker_name.0,
+                        &target,
+                    )
+                    .await
+                    .map(|_| ())
+                    .map_service_error()?
+            }
+        }
+
+        log_action(
+            "Reverted",
+            format!("worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        Ok(())
+    }
+
+    async fn cancel_invocation(
+        &mut self,
+        worker_name: WorkerNameArg,
+        idempotency_key: IdempotencyKey,
+    ) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_warn_action(
+            "Canceling invocation",
+            format!(
+                "for worker {} using idempotency key: {}",
+                format_worker_name_match(&worker_name_match),
+                idempotency_key.0.log_color_highlight()
+            ),
+        );
+
+        let canceled = match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => clients
+                .worker
+                .cancel_invocation(
+                    &component.versioned_component_id.component_id,
+                    &worker_name.0,
+                    &idempotency_key.0,
+                )
+                .await
+                .map(|result| (result.canceled))
+                .map_service_error()?,
+            GolemClients::Cloud(clients) => clients
+                .worker
+                .cancel_invocation(
+                    &component.versioned_component_id.component_id,
+                    &worker_name.0,
+                    &idempotency_key.0,
+                )
+                .await
+                .map(|result| (result.canceled))
+                .map_service_error()?,
+        };
+
+        // TODO: json / yaml response?
+        if canceled {
+            log_action("Canceled", "");
+        } else {
+            log_warn_action("Failed", "to cancel, invocation already started");
+        }
 
         Ok(())
     }
@@ -884,7 +1122,7 @@ impl WorkerCommandHandler {
                 .worker
                 .update_worker(
                     &component_id,
-                    &worker_name,
+                    worker_name,
                     &UpdateWorkerRequestOss {
                         mode: match update_mode {
                             WorkerUpdateMode::Automatic => {
@@ -904,7 +1142,7 @@ impl WorkerCommandHandler {
                 .worker
                 .update_worker(
                     &component_id,
-                    &worker_name,
+                    worker_name,
                     &UpdateWorkerRequestCloud {
                         mode: match update_mode {
                             WorkerUpdateMode::Automatic => {
@@ -924,7 +1162,7 @@ impl WorkerCommandHandler {
 
         match result {
             Ok(_) => {
-                log_action("Triggered update", "".to_string());
+                log_action("Triggered update", "");
                 Ok(())
             }
             Err(error) => {
@@ -1002,7 +1240,7 @@ impl WorkerCommandHandler {
             &worker_metadata.worker_id.worker_name,
         )
         .await?;
-        log_action("Deleted", "worker".to_string());
+        log_action("Deleted", "worker");
 
         log_action(
             "Recreating",
@@ -1019,7 +1257,7 @@ impl WorkerCommandHandler {
             worker_metadata.env,
         )
         .await?;
-        log_action("Recreated", "worker".to_string());
+        log_action("Recreated", "worker");
 
         Ok(())
     }

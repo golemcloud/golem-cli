@@ -522,10 +522,10 @@ pub mod shared_args {
     pub struct WorkerUpdateOrRedeployArgs {
         /// Update existing workers with auto or manual update mode
         #[clap(long, short, conflicts_with_all = ["redeploy"])]
-        pub update: Option<WorkerUpdateMode>,
+        pub update_workers: Option<WorkerUpdateMode>,
         /// Delete and recreate existing workers
         #[clap(long, short, conflicts_with_all = ["update"])]
-        pub redeploy: bool,
+        pub redeploy_workers: bool,
     }
 }
 
@@ -691,14 +691,12 @@ pub mod worker {
         List {
             #[command(flatten)]
             component_name: ComponentOptionalComponentName,
-
             /// Filter for worker metadata in form of `property op value`.
             ///
             /// Filter examples: `name = worker-name`, `version >= 0`, `status = Running`, `env.var1 = value`.
             /// Can be used multiple times (AND condition is applied between them)
             #[arg(long)]
             filter: Vec<String>,
-
             /// Cursor position, if not provided, starts from the beginning.
             ///
             /// Cursor can be used to get the next page of results, use the cursor returned
@@ -706,12 +704,10 @@ pub mod worker {
             /// The cursor has the format 'layer/position' where both layer and position are numbers.
             #[arg(long, short, value_parser = parse_cursor)]
             scan_cursor: Option<ScanCursor>,
-
             /// The maximum the number of returned workers, returns all values is not specified.
             /// When multiple component is selected, then the limit it is applied separately
             #[arg(long, short)]
             max_count: Option<u64>,
-
             /// When set to true it queries for most up-to-date status for each worker, default is false
             #[arg(long, default_value_t = false)]
             precise: bool,
@@ -739,6 +735,33 @@ pub mod worker {
         SimulateCrash {
             #[command(flatten)]
             worker_name: WorkerNameArg,
+        },
+        /// Queries and dumps a worker's full oplog
+        Oplog {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+            /// Index of the first oplog entry to get. If missing, the whole oplog is returned
+            #[arg(long, conflicts_with = "query")]
+            from: Option<u64>,
+            /// Lucene query to look for oplog entries. If missing, the whole oplog is returned
+            #[arg(long, conflicts_with = "from")]
+            query: Option<String>,
+        },
+        /// Reverts a worker by undoing its last recorded operations
+        Revert {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+            #[arg(long, conflicts_with = "number_of_invocations")]
+            last_oplog_index: Option<u64>,
+            #[arg(long, conflicts_with = "last_oplog_index")]
+            number_of_invocations: Option<u64>,
+        },
+        /// Cancels an enqueued invocation if it has not started yet
+        CancelInvocation {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+            /// Idempotency key of the invocation to be cancelled
+            idempotency_key: IdempotencyKey,
         },
     }
 }

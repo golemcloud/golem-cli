@@ -1170,14 +1170,14 @@ pub mod worker {
                         "{pad}args:              {}",
                         format_id(&params.args.join(", ")),
                     ));
-                    logln("{pad}env:");
+                    logln(format!("{pad}env:"));
                     for (k, v) in &params.env {
                         logln(format!("{pad}  - {}: {}", k, format_id(&v)));
                     }
                     if let Some(parent) = params.parent.as_ref() {
                         logln(format!("{pad}parent:            {}", format_id(parent)));
                     }
-                    logln("{pad}initial active plugins:");
+                    logln(format!("{pad}initial active plugins:"));
                     for plugin in &params.initial_active_plugins {
                         logln(format!(
                             "{pad}  - installation id: {}",
@@ -1220,7 +1220,7 @@ pub mod worker {
                         "{pad}idempotency key:   {}",
                         format_id(&params.idempotency_key),
                     ));
-                    logln("{pad}input:");
+                    logln(format!("{pad}input:"));
                     for param in &params.request {
                         logln(format!("{pad}  - {}", value_to_string(param)));
                     }
@@ -1379,7 +1379,7 @@ pub mod worker {
                             format_id(&inner_params.idempotency_key),
                         ));
                         if let Some(input) = &inner_params.function_input {
-                            logln("{pad}input:");
+                            logln(format!("{pad}input:"));
                             for param in input {
                                 logln(format!("{pad}  - {}", value_to_string(param)));
                             }

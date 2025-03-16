@@ -259,7 +259,7 @@ impl ComponentCommandHandler {
             components
         };
 
-        if let Some(update) = update_or_redeploy.update {
+        if let Some(update) = update_or_redeploy.update_workers {
             {
                 log_action(
                     "Updating",
@@ -284,14 +284,13 @@ impl ComponentCommandHandler {
 
                 self.ctx.log_handler().log_view(&update_results);
             }
-        } else if update_or_redeploy.redeploy {
+        } else if update_or_redeploy.redeploy_workers {
             {
                 log_action("Redeploying", "existing workers");
                 let _indent = LogIndent::new();
 
                 for component in &components {
-                    self
-                        .ctx
+                    self.ctx
                         .worker_handler()
                         .redeploy_component_workers(
                             &component.component_name,
