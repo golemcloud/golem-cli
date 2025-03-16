@@ -382,10 +382,23 @@ impl FromStr for PathBufOrStdin {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum WorkerUpdateMode {
     Automatic,
     Manual,
+}
+
+impl Display for WorkerUpdateMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WorkerUpdateMode::Automatic => {
+                write!(f, "auto")
+            }
+            WorkerUpdateMode::Manual => {
+                write!(f, "manual")
+            }
+        }
+    }
 }
 
 impl FromStr for WorkerUpdateMode {
@@ -396,7 +409,7 @@ impl FromStr for WorkerUpdateMode {
             "auto" => Ok(WorkerUpdateMode::Automatic),
             "manual" => Ok(WorkerUpdateMode::Manual),
             _ => Err(format!(
-                "Unknown mode: {s}. Expected one of \"auto\", \"manual\""
+                "Unknown worker update mode: {s}. Expected one of \"auto\", \"manual\""
             )),
         }
     }

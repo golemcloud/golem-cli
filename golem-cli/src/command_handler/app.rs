@@ -64,6 +64,7 @@ impl AppCommandHandler {
             AppSubcommand::Deploy {
                 component_name,
                 force_build,
+                update_or_redeploy,
             } => {
                 self.ctx
                     .component_handler()
@@ -76,6 +77,7 @@ impl AppCommandHandler {
                         component_name.component_name,
                         Some(force_build),
                         &ComponentSelectMode::All,
+                        update_or_redeploy,
                     )
                     .await
             }

@@ -14,7 +14,9 @@
 
 use crate::cloud::AccountId;
 use crate::command::component::ComponentSubcommand;
-use crate::command::shared_args::{BuildArgs, ComponentTemplatePositionalArg, ForceBuildArg};
+use crate::command::shared_args::{
+    BuildArgs, ComponentTemplatePositionalArg, ForceBuildArg, WorkerUpdateOrRedeployArgs,
+};
 use crate::command_handler::component::ifs::IfsArchiveBuilder;
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
@@ -22,6 +24,7 @@ use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
 use crate::model::app_ext::{GolemComponentExtensions, InitialComponentFile};
 use crate::model::component::{Component, ComponentView};
+use crate::model::deploy::TryUpdateAllWorkersResult;
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
 use crate::model::text::fmt::{log_error, log_text_view, log_warn};
 use crate::model::text::help::ComponentNameHelp;
@@ -85,6 +88,7 @@ impl ComponentCommandHandler {
             ComponentSubcommand::Deploy {
                 component_name,
                 force_build,
+                update_or_redeploy,
             } => {
                 self.deploy(
                     self.ctx
@@ -95,6 +99,7 @@ impl ComponentCommandHandler {
                     component_name.component_name,
                     Some(force_build),
                     &ComponentSelectMode::CurrentDir,
+                    update_or_redeploy,
                 )
                 .await
             }
@@ -212,6 +217,7 @@ impl ComponentCommandHandler {
         component_names: Vec<ComponentName>,
         force_build: Option<ForceBuildArg>,
         default_component_select_mode: &ComponentSelectMode,
+        update_or_redeploy: WorkerUpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
         self.ctx
             .app_handler()
@@ -238,163 +244,227 @@ impl ComponentCommandHandler {
         };
         let build_profile = self.ctx.build_profile().cloned();
 
-        log_action("Deploying", "components");
-
-        for component_name in &selected_component_names {
+        let components = {
+            log_action("Deploying", "components");
             let _indent = LogIndent::new();
 
-            let component_id = self
-                .component_id_by_name(project, &component_name.as_str().into())
-                .await?;
-            let deploy_properties = {
-                let mut app_ctx = self.ctx.app_context_lock_mut().await;
-                let app_ctx = app_ctx.some_or_err_mut()?;
-                component_deploy_properties(app_ctx, component_name, build_profile.clone())?
-            };
+            let mut components = Vec::with_capacity(selected_component_names.len());
+            for component_name in &selected_component_names {
+                components.push(
+                    self.deploy_component(build_profile.as_ref(), project, component_name)
+                        .await?,
+                );
+            }
 
-            let ifs_files = {
-                if !deploy_properties.files.is_empty() {
-                    Some(
-                        IfsArchiveBuilder::new(self.ctx.file_download_client().await?)
-                            .build_files_archive(deploy_properties.files)
-                            .await?,
-                    )
-                } else {
-                    None
-                }
-            };
-            let ifs_properties = ifs_files.as_ref().map(|f| &f.properties);
-            let ifs_archive = {
-                if let Some(files) = ifs_files.as_ref() {
-                    Some(File::open(&files.archive_path).await.with_context(|| {
-                        anyhow!(
-                            "Failed to open IFS archive: {}",
-                            files.archive_path.display()
+            components
+        };
+
+        if let Some(update) = update_or_redeploy.update {
+            {
+                log_action(
+                    "Updating",
+                    format!("existing workers using {} mode", update),
+                );
+                let _indent = LogIndent::new();
+
+                let mut update_results = TryUpdateAllWorkersResult::default();
+                for component in &components {
+                    let result = self
+                        .ctx
+                        .worker_handler()
+                        .update_component_workers(
+                            &component.component_name,
+                            component.versioned_component_id.component_id,
+                            update,
+                            component.versioned_component_id.version,
                         )
-                    })?)
-                } else {
-                    None
+                        .await?;
+                    update_results.extend(result);
                 }
-            };
 
-            let linked_wasm = File::open(&deploy_properties.linked_wasm_path)
-                .await
-                .with_context(|| {
-                    anyhow!(
-                        "Failed to open component linked WASM at {}",
-                        deploy_properties
-                            .linked_wasm_path
-                            .display()
-                            .to_string()
-                            .log_color_error_highlight()
-                    )
-                })?;
+                self.ctx.log_handler().log_view(&update_results);
+            }
+        } else if update_or_redeploy.redeploy {
+            {
+                log_action("Redeploying", "existing workers");
+                let _indent = LogIndent::new();
 
-            match &component_id {
-                Some(component_id) => {
-                    // TODO: use hashes for checking if component files has to be updated?
-                    log_action(
-                        "Updating",
-                        format!(
-                            "component {}",
-                            component_name.as_str().log_color_highlight()
-                        ),
-                    );
-                    let _indent = LogIndent::new();
-                    let component = match self.ctx.golem_clients().await? {
-                        GolemClients::Oss(clients) => {
-                            let component = clients
-                                .component
-                                .update_component(
-                                    component_id,
-                                    Some(&deploy_properties.component_type),
-                                    linked_wasm,
-                                    ifs_properties,
-                                    ifs_archive,
-                                    deploy_properties.dynamic_linking.as_ref(),
-                                )
-                                .await
-                                .map_service_error()?;
-                            Component::from(component)
-                        }
-                        GolemClients::Cloud(clients) => {
-                            let component = clients
-                                .component
-                                .update_component(
-                                    component_id,
-                                    Some(&deploy_properties.component_type),
-                                    linked_wasm,
-                                    ifs_properties,
-                                    ifs_archive,
-                                    deploy_properties
-                                        .dynamic_linking
-                                        .map(|dl| dl.to_cloud())
-                                        .as_ref(),
-                                )
-                                .await
-                                .map_service_error()?;
-                            Component::from(component)
-                        }
-                    };
-                    self.ctx
-                        .log_handler()
-                        .log_view(&ComponentUpdateView(ComponentView::from(component)));
+                for component in &components {
+                    self
+                        .ctx
+                        .worker_handler()
+                        .redeploy_component_workers(
+                            &component.component_name,
+                            component.versioned_component_id.component_id,
+                        )
+                        .await?;
                 }
-                None => {
-                    log_action(
-                        "Creating",
-                        format!(
-                            "component {}",
-                            component_name.as_str().log_color_highlight()
-                        ),
-                    );
-                    let _indent = self.ctx.log_handler().nested_text_view_indent();
-                    let component = match self.ctx.golem_clients().await? {
-                        GolemClients::Oss(clients) => {
-                            let component = clients
-                                .component
-                                .create_component(
-                                    component_name.as_str(),
-                                    Some(&deploy_properties.component_type),
-                                    linked_wasm,
-                                    ifs_properties,
-                                    ifs_archive,
-                                    deploy_properties.dynamic_linking.as_ref(),
-                                )
-                                .await
-                                .map_service_error()?;
-                            Component::from(component)
-                        }
-                        GolemClients::Cloud(clients) => {
-                            let component = clients
-                                .component
-                                .create_component(
-                                    &ComponentQuery {
-                                        project_id: project.map(|p| p.project_id.0),
-                                        component_name: component_name.to_string(),
-                                    },
-                                    linked_wasm,
-                                    Some(&deploy_properties.component_type),
-                                    ifs_properties,
-                                    ifs_archive,
-                                    deploy_properties
-                                        .dynamic_linking
-                                        .map(|dl| dl.to_cloud())
-                                        .as_ref(),
-                                )
-                                .await
-                                .map_service_error()?;
-                            Component::from(component)
-                        }
-                    };
-                    self.ctx
-                        .log_handler()
-                        .log_view(&ComponentCreateView(ComponentView::from(component)));
-                }
+
+                // TODO: json / yaml output?
             }
         }
 
         Ok(())
+    }
+
+    async fn deploy_component(
+        &mut self,
+        build_profile: Option<&BuildProfileName>,
+        project: Option<&ProjectNameAndId>,
+        component_name: &AppComponentName,
+    ) -> anyhow::Result<Component> {
+        let component_id = self
+            .component_id_by_name(project, &component_name.as_str().into())
+            .await?;
+        let deploy_properties = {
+            let mut app_ctx = self.ctx.app_context_lock_mut().await;
+            let app_ctx = app_ctx.some_or_err_mut()?;
+            component_deploy_properties(app_ctx, component_name, build_profile)?
+        };
+
+        let ifs_files = {
+            if !deploy_properties.files.is_empty() {
+                Some(
+                    IfsArchiveBuilder::new(self.ctx.file_download_client().await?)
+                        .build_files_archive(deploy_properties.files)
+                        .await?,
+                )
+            } else {
+                None
+            }
+        };
+        let ifs_properties = ifs_files.as_ref().map(|f| &f.properties);
+        let ifs_archive = {
+            if let Some(files) = ifs_files.as_ref() {
+                Some(File::open(&files.archive_path).await.with_context(|| {
+                    anyhow!(
+                        "Failed to open IFS archive: {}",
+                        files.archive_path.display()
+                    )
+                })?)
+            } else {
+                None
+            }
+        };
+
+        let linked_wasm = File::open(&deploy_properties.linked_wasm_path)
+            .await
+            .with_context(|| {
+                anyhow!(
+                    "Failed to open component linked WASM at {}",
+                    deploy_properties
+                        .linked_wasm_path
+                        .display()
+                        .to_string()
+                        .log_color_error_highlight()
+                )
+            })?;
+
+        let component = match &component_id {
+            Some(component_id) => {
+                // TODO: use hashes for checking if component files has to be updated?
+                log_action(
+                    "Updating",
+                    format!(
+                        "component {}",
+                        component_name.as_str().log_color_highlight()
+                    ),
+                );
+                let _indent = LogIndent::new();
+                let component = match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => {
+                        let component = clients
+                            .component
+                            .update_component(
+                                component_id,
+                                Some(&deploy_properties.component_type),
+                                linked_wasm,
+                                ifs_properties,
+                                ifs_archive,
+                                deploy_properties.dynamic_linking.as_ref(),
+                            )
+                            .await
+                            .map_service_error()?;
+                        Component::from(component)
+                    }
+                    GolemClients::Cloud(clients) => {
+                        let component = clients
+                            .component
+                            .update_component(
+                                component_id,
+                                Some(&deploy_properties.component_type),
+                                linked_wasm,
+                                ifs_properties,
+                                ifs_archive,
+                                deploy_properties
+                                    .dynamic_linking
+                                    .map(|dl| dl.to_cloud())
+                                    .as_ref(),
+                            )
+                            .await
+                            .map_service_error()?;
+                        Component::from(component)
+                    }
+                };
+                self.ctx
+                    .log_handler()
+                    .log_view(&ComponentUpdateView(ComponentView::from(component.clone())));
+                component
+            }
+            None => {
+                log_action(
+                    "Creating",
+                    format!(
+                        "component {}",
+                        component_name.as_str().log_color_highlight()
+                    ),
+                );
+                let _indent = self.ctx.log_handler().nested_text_view_indent();
+                let component = match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => {
+                        let component = clients
+                            .component
+                            .create_component(
+                                component_name.as_str(),
+                                Some(&deploy_properties.component_type),
+                                linked_wasm,
+                                ifs_properties,
+                                ifs_archive,
+                                deploy_properties.dynamic_linking.as_ref(),
+                            )
+                            .await
+                            .map_service_error()?;
+                        Component::from(component)
+                    }
+                    GolemClients::Cloud(clients) => {
+                        let component = clients
+                            .component
+                            .create_component(
+                                &ComponentQuery {
+                                    project_id: project.map(|p| p.project_id.0),
+                                    component_name: component_name.to_string(),
+                                },
+                                linked_wasm,
+                                Some(&deploy_properties.component_type),
+                                ifs_properties,
+                                ifs_archive,
+                                deploy_properties
+                                    .dynamic_linking
+                                    .map(|dl| dl.to_cloud())
+                                    .as_ref(),
+                            )
+                            .await
+                            .map_service_error()?;
+                        Component::from(component)
+                    }
+                };
+                self.ctx
+                    .log_handler()
+                    .log_view(&ComponentCreateView(ComponentView::from(component.clone())));
+                component
+            }
+        };
+        Ok(component)
     }
 
     async fn list(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
@@ -776,12 +846,23 @@ impl ComponentCommandHandler {
                         component_name.0.log_color_highlight()
                     ));
                     // TODO: fuzzy match from service to list components?
+
+                    let app_ctx = self.ctx.app_context_lock().await;
+                    if let Some(app_ctx) = app_ctx.opt()? {
+                        logln("");
+                        app_ctx.log_dynamic_help(&DynamicHelpSections {
+                            components: true,
+                            custom_commands: false,
+                        })?
+                    }
+
                     bail!(NonSuccessfulExit)
                 }
 
                 // TODO: we will need hashes to reliably detect if "update" deploy is needed
                 //       and for now we should not blindly keep updating, so for now
                 //       only missing ones are handled
+                // TODO: add confirm
                 log_action(
                     "Auto deploying",
                     format!(
@@ -796,6 +877,7 @@ impl ComponentCommandHandler {
                         vec![component_name.clone()],
                         None,
                         &ComponentSelectMode::CurrentDir,
+                        WorkerUpdateOrRedeployArgs::default(),
                     )
                     .await?;
                 self.ctx
@@ -871,14 +953,14 @@ struct ComponentDeployProperties {
 fn component_deploy_properties(
     app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
     component_name: &AppComponentName,
-    build_profile: Option<BuildProfileName>,
+    build_profile: Option<&BuildProfileName>,
 ) -> anyhow::Result<ComponentDeployProperties> {
     let linked_wasm_path = app_ctx
         .application
-        .component_linked_wasm(component_name, build_profile.as_ref());
+        .component_linked_wasm(component_name, build_profile);
     let component_properties = &app_ctx
         .application
-        .component_properties(component_name, build_profile.as_ref());
+        .component_properties(component_name, build_profile);
     let extensions = &component_properties.extensions;
     let component_type = extensions.component_type;
     let files = extensions.files.clone();

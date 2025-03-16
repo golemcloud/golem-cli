@@ -429,7 +429,7 @@ pub enum GolemCliSubcommand {
 }
 
 pub mod shared_args {
-    use crate::model::{ComponentName, WorkerName};
+    use crate::model::{ComponentName, WorkerName, WorkerUpdateMode};
     use clap::Args;
     use golem_templates::model::GuestLanguage;
     use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
@@ -517,10 +517,22 @@ pub mod shared_args {
         #[clap(long, short = 'T')]
         pub stream_no_timestamp: bool,
     }
+
+    #[derive(Debug, Args, Default)]
+    pub struct WorkerUpdateOrRedeployArgs {
+        /// Update existing workers with auto or manual update mode
+        #[clap(long, short, conflicts_with_all = ["redeploy"])]
+        pub update: Option<WorkerUpdateMode>,
+        /// Delete and recreate existing workers
+        #[clap(long, short, conflicts_with_all = ["update"])]
+        pub redeploy: bool,
+    }
 }
 
 pub mod app {
-    use crate::command::shared_args::{AppOptionalComponentNames, BuildArgs, ForceBuildArg};
+    use crate::command::shared_args::{
+        AppOptionalComponentNames, BuildArgs, ForceBuildArg, WorkerUpdateOrRedeployArgs,
+    };
     use clap::Subcommand;
     use golem_templates::model::GuestLanguage;
 
@@ -547,6 +559,8 @@ pub mod app {
             component_name: AppOptionalComponentNames,
             #[command(flatten)]
             force_build: ForceBuildArg,
+            #[command(flatten)]
+            update_or_redeploy: WorkerUpdateOrRedeployArgs,
         },
         /// Clean all components in the application or by selection
         Clean {
@@ -562,7 +576,7 @@ pub mod app {
 pub mod component {
     use crate::command::shared_args::{
         BuildArgs, ComponentOptionalComponentName, ComponentOptionalComponentNames,
-        ComponentTemplatePositionalArg, ForceBuildArg,
+        ComponentTemplatePositionalArg, ForceBuildArg, WorkerUpdateOrRedeployArgs,
     };
     use clap::Subcommand;
     use golem_templates::model::PackageName;
@@ -595,6 +609,8 @@ pub mod component {
             component_name: ComponentOptionalComponentNames,
             #[command(flatten)]
             force_build: ForceBuildArg,
+            #[command(flatten)]
+            update_or_redeploy: WorkerUpdateOrRedeployArgs,
         },
         /// Clean component(s) based on the current directory or by selection
         Clean {

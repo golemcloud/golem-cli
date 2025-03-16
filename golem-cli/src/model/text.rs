@@ -1103,21 +1103,7 @@ pub mod worker {
 
     impl TextView for TryUpdateAllWorkersResult {
         fn log(&self) {
-            if !self.triggered.is_empty() {
-                logln("Triggered update for the following workers:");
-                self.triggered.iter().for_each(|worker_name| {
-                    logln(format!("  - {}", worker_name));
-                });
-            }
-
-            if !self.failed.is_empty() {
-                logln(format_warn(
-                    "Failed to trigger update for the following workers:",
-                ));
-                self.failed.iter().for_each(|worker_name| {
-                    logln(format!("  - {}", worker_name));
-                });
-            }
+            // NOP
         }
     }
 
