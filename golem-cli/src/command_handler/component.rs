@@ -936,6 +936,7 @@ mod ifs {
     use golem_common::model::{
         ComponentFilePath, ComponentFilePathWithPermissions, ComponentFilePathWithPermissionsList,
     };
+    use golem_wasm_rpc_stubgen::log::{log_action, LogColorize, LogIndent};
     use std::collections::{HashSet, VecDeque};
     use std::path::PathBuf;
     use tempfile::TempDir;
@@ -969,6 +970,9 @@ mod ifs {
             &self,
             component_files: Vec<InitialComponentFile>,
         ) -> anyhow::Result<ComponentFilesArchive> {
+            log_action("Creating", "IFS archive");
+            let _indent = LogIndent::new();
+
             let temp_dir = tempfile::Builder::new()
                 .prefix("golem-cli-zip")
                 .tempdir()
@@ -993,6 +997,14 @@ mod ifs {
                     let zip_entry_name = target.path.to_string();
                     let builder =
                         ZipEntryBuilder::new(zip_entry_name.clone().into(), Compression::Deflate);
+
+                    log_action(
+                        "Adding",
+                        format!(
+                            "entry {} to IFS archive",
+                            zip_entry_name.log_color_highlight()
+                        ),
+                    );
 
                     zip_writer
                         .write_entry_whole(builder, &content)
@@ -1078,6 +1090,13 @@ mod ifs {
                         queue.push_back((next_path, new_target));
                     }
                 } else {
+                    log_action(
+                        "Loading",
+                        format!(
+                            "local file: {}",
+                            path.display().to_string().log_color_highlight()
+                        ),
+                    );
                     let content = tokio::fs::read(&path).await.with_context(|| {
                         anyhow!("Error reading component file: {}", path.display())
                     })?;
@@ -1092,6 +1111,10 @@ mod ifs {
             component_file: InitialComponentFile,
         ) -> anyhow::Result<LoadedFile> {
             let url = component_file.source_path.into_url();
+            log_action(
+                "Downloading",
+                format!("remote file: {}", url.as_str().log_color_highlight()),
+            );
             let response = self
                 .client
                 .get(url.clone())
