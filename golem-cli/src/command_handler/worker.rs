@@ -41,7 +41,6 @@ use crate::model::{
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use bytes::Bytes;
-use colored::control::SHOULD_COLORIZE;
 use colored::Colorize;
 use futures_util::{future, pin_mut, SinkExt, StreamExt};
 use golem_client::api::WorkerClient as WorkerClientOss;
@@ -342,7 +341,7 @@ impl WorkerCommandHandler {
                     let connection = connect_to_worker(
                         self.ctx.worker_service_url().clone(),
                         self.ctx.auth_token().await?,
-                        component.versioned_component_id.component_id.clone(),
+                        component.versioned_component_id.component_id,
                         worker_name.0,
                         stream_args.into(),
                         self.ctx.allow_insecure(),
@@ -561,7 +560,7 @@ impl WorkerCommandHandler {
             format!("worker {}", format_worker_name_match(&worker_name_match)),
         );
 
-        let _ = match self.ctx.golem_clients().await? {
+        match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => {
                 clients
                     .worker
@@ -611,7 +610,7 @@ impl WorkerCommandHandler {
         let connection = connect_to_worker(
             self.ctx.worker_service_url().clone(),
             self.ctx.auth_token().await?,
-            component.versioned_component_id.component_id.clone(),
+            component.versioned_component_id.component_id,
             worker_name.0.clone(),
             stream_args.into(),
             self.ctx.allow_insecure(),
@@ -636,8 +635,7 @@ impl WorkerCommandHandler {
             format!("worker {}", format_worker_name_match(&worker_name_match)),
         );
 
-        let _ = self
-            .interrupt_worker(&component, &worker_name, false)
+        self.interrupt_worker(&component, &worker_name, false)
             .await?;
 
         log_action(
@@ -660,9 +658,7 @@ impl WorkerCommandHandler {
             format!("worker {}", format_worker_name_match(&worker_name_match)),
         );
 
-        let _ = self
-            .interrupt_worker(&component, &worker_name, true)
-            .await?;
+        self.resume_worker(&component, &worker_name).await?;
 
         log_action(
             "Resumed",
@@ -687,8 +683,7 @@ impl WorkerCommandHandler {
             ),
         );
 
-        let _ = self
-            .interrupt_worker(&component, &worker_name, true)
+        self.interrupt_worker(&component, &worker_name, true)
             .await?;
 
         log_action(
@@ -1079,6 +1074,36 @@ impl WorkerCommandHandler {
         };
 
         Ok((component, worker_name.clone()))
+    }
+
+    async fn resume_worker(
+        &mut self,
+        component: &Component,
+        worker_name: &WorkerName,
+    ) -> anyhow::Result<()> {
+        match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => {
+                clients
+                    .worker
+                    .resume_worker(
+                        &component.versioned_component_id.component_id,
+                        &worker_name.0,
+                    )
+                    .await
+                    .map(|_| ())
+                    .map_service_error()?;
+            }
+            GolemClients::Cloud(clients) => clients
+                .worker
+                .resume_worker(
+                    &component.versioned_component_id.component_id,
+                    &worker_name.0,
+                )
+                .await
+                .map(|_| ())
+                .map_service_error()?,
+        }
+        Ok(())
     }
 
     async fn interrupt_worker(
