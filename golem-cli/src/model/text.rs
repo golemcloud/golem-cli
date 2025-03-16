@@ -385,16 +385,16 @@ pub mod fmt {
 
     pub fn format_worker_name_match(worker_name_match: &WorkerNameMatch) -> String {
         format!(
-            "{}{}{} / {}",
+            "{}{}{}/{}",
             match &worker_name_match.account_id {
                 Some(account_id) => {
-                    format!("{} / ", account_id.0.blue().bold())
+                    format!("{}/", account_id.0.blue().bold())
                 }
                 None => "".to_string(),
             },
             match &worker_name_match.project {
                 Some(project) => {
-                    format!("{} / ", project.project_name.0.blue().bold())
+                    format!("{}/", project.project_name.0.blue().bold())
                 }
                 None => "".to_string(),
             },

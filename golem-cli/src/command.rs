@@ -533,6 +533,7 @@ pub mod app {
     use crate::command::shared_args::{
         AppOptionalComponentNames, BuildArgs, ForceBuildArg, WorkerUpdateOrRedeployArgs,
     };
+    use crate::model::WorkerUpdateMode;
     use clap::Subcommand;
     use golem_templates::model::GuestLanguage;
 
@@ -567,6 +568,19 @@ pub mod app {
             #[command(flatten)]
             component_name: AppOptionalComponentNames,
         },
+        /// Try to automatically update all existing workers of the application to the latest version
+        UpdateWorkers {
+            #[command(flatten)]
+            component_name: AppOptionalComponentNames,
+            /// Update mode - auto or manual, defaults to "auto"
+            #[arg(long, short, default_value = "auto")]
+            update_mode: WorkerUpdateMode,
+        },
+        /// Redeploy all workers of the application using the latest version
+        RedeployWorkers {
+            #[command(flatten)]
+            component_name: AppOptionalComponentNames,
+        },
         /// Run custom command
         #[clap(external_subcommand)]
         CustomCommand(Vec<String>),
@@ -578,6 +592,7 @@ pub mod component {
         BuildArgs, ComponentOptionalComponentName, ComponentOptionalComponentNames,
         ComponentTemplatePositionalArg, ForceBuildArg, WorkerUpdateOrRedeployArgs,
     };
+    use crate::model::WorkerUpdateMode;
     use clap::Subcommand;
     use golem_templates::model::PackageName;
 
@@ -602,7 +617,6 @@ pub mod component {
             #[command(flatten)]
             build: BuildArgs,
         },
-        // TODO: update-mode, try-update, redeploy
         /// Deploy component(s) based on the current directory or by selection
         Deploy {
             #[command(flatten)]
@@ -628,6 +642,19 @@ pub mod component {
             component_name: ComponentOptionalComponentName,
             /// Optional component version to get
             version: Option<u64>,
+        },
+        /// Try to automatically update all existing workers of the selected component to the latest version
+        UpdateWorkers {
+            #[command(flatten)]
+            component_name: ComponentOptionalComponentName,
+            /// Update mode - auto or manual, defaults to "auto"
+            #[arg(long, short, default_value_t = WorkerUpdateMode::Automatic)]
+            update_mode: WorkerUpdateMode,
+        },
+        /// Redeploy all workers of the selected component using the latest version
+        RedeployWorkers {
+            #[command(flatten)]
+            component_name: ComponentOptionalComponentName,
         },
     }
 }

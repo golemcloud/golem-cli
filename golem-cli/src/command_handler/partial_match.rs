@@ -117,7 +117,7 @@ impl ErrorHandler {
                     };
 
                     logln(format!(
-                        "[{}]{} component: {} / worker: {}, {}",
+                        "[{}]{} component: {}/worker: {}, {}",
                         project_formatted,
                         "ok".green(),
                         worker_name_match.component_name.0.log_color_highlight(),

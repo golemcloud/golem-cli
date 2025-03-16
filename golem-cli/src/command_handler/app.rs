@@ -18,9 +18,10 @@ use crate::command_handler::Handlers;
 use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::fuzzy::{Error, FuzzySearch};
-use crate::model::text::fmt::{log_error, log_fuzzy_matches, log_text_view};
+use crate::model::component::Component;
+use crate::model::text::fmt::{log_error, log_fuzzy_matches, log_text_view, log_warn};
 use crate::model::text::help::AvailableComponentNamesHelp;
-use crate::model::ComponentName;
+use crate::model::{ComponentName, WorkerUpdateMode};
 use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_templates::add_component_by_template;
@@ -84,6 +85,16 @@ impl AppCommandHandler {
             AppSubcommand::Clean { component_name } => {
                 self.clean(component_name.component_name, &ComponentSelectMode::All)
                     .await
+            }
+            AppSubcommand::UpdateWorkers {
+                component_name,
+                update_mode,
+            } => {
+                self.update_workers(component_name.component_name, update_mode)
+                    .await
+            }
+            AppSubcommand::RedeployWorkers { component_name } => {
+                self.redeploy_workers(component_name.component_name).await
             }
             AppSubcommand::CustomCommand(command) => {
                 if command.len() != 1 {
@@ -228,6 +239,77 @@ impl AppCommandHandler {
             .await?;
         let app_ctx = self.ctx.app_context_lock().await;
         app_ctx.some_or_err()?.clean()
+    }
+
+    async fn update_workers(
+        &mut self,
+        component_names: Vec<ComponentName>,
+        update_mode: WorkerUpdateMode,
+    ) -> anyhow::Result<()> {
+        self.must_select_components(component_names, &ComponentSelectMode::All)
+            .await?;
+
+        let components = self.components_for_update_or_redeploy().await?;
+        self.ctx
+            .component_handler()
+            .update_workers_by_components(components, update_mode)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn redeploy_workers(
+        &mut self,
+        component_names: Vec<ComponentName>,
+    ) -> anyhow::Result<()> {
+        self.must_select_components(component_names, &ComponentSelectMode::All)
+            .await?;
+
+        let components = self.components_for_update_or_redeploy().await?;
+        self.ctx
+            .component_handler()
+            .redeploy_workers_by_components(components)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn components_for_update_or_redeploy(&self) -> anyhow::Result<Vec<Component>> {
+        let app_ctx = self.ctx.app_context_lock().await;
+        let app_ctx = app_ctx.some_or_err()?;
+
+        let selected_component_names = app_ctx
+            .selected_component_names()
+            .iter()
+            .map(|cn| cn.as_str().into())
+            .collect::<Vec<ComponentName>>();
+
+        let project = self
+            .ctx
+            .cloud_project_handler()
+            .opt_select_project(None, None)
+            .await?;
+
+        let mut components = Vec::with_capacity(selected_component_names.len());
+        for component_name in &selected_component_names {
+            match self
+                .ctx
+                .component_handler()
+                .component_by_name(project.as_ref(), component_name)
+                .await?
+            {
+                Some(component) => {
+                    components.push(component);
+                }
+                None => {
+                    log_warn(format!(
+                        "Component {} is not deployed!",
+                        component_name.0.log_color_highlight()
+                    ));
+                }
+            }
+        }
+        Ok(components)
     }
 
     async fn must_select_components(

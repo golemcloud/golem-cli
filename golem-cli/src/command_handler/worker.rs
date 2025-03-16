@@ -361,7 +361,7 @@ impl WorkerCommandHandler {
             log_action(
                 "Enqueueing",
                 format!(
-                    "invocation for worker {} / {}",
+                    "invocation for worker {}/{}",
                     format_worker_name_match(&worker_name_match),
                     format_export(&function_name)
                 ),
@@ -370,7 +370,7 @@ impl WorkerCommandHandler {
             log_action(
                 "Invoking",
                 format!(
-                    "worker {} / {} ",
+                    "worker {}/{} ",
                     format_worker_name_match(&worker_name_match),
                     format_export(&function_name)
                 ),
@@ -1109,7 +1109,7 @@ impl WorkerCommandHandler {
         log_warn_action(
             "Triggering update",
             format!(
-                "for worker {} / {} to version {} using {} update mode",
+                "for worker {}/{} to version {} using {} update mode",
                 component_name.0.bold().blue(),
                 worker_name.bold().green(),
                 target_version.to_string().log_color_highlight(),
@@ -1166,10 +1166,9 @@ impl WorkerCommandHandler {
                 Ok(())
             }
             Err(error) => {
-                log_error_action(
-                    "Failed to trigger update",
-                    format!("for worker, error: {}", error),
-                );
+                log_error_action("Failed", "to trigger update for worker, error:".to_string());
+                let _indent = LogIndent::new();
+                logln(format!("{}", error));
                 Err(anyhow!(error))
             }
         }
@@ -1220,7 +1219,7 @@ impl WorkerCommandHandler {
         log_warn_action(
             "Redeploying",
             format!(
-                "worker {} / {} to latest version",
+                "worker {}/{} to latest version",
                 component_name.0.bold().blue(),
                 worker_metadata.worker_id.worker_name.bold().green(),
             ),
@@ -1230,7 +1229,7 @@ impl WorkerCommandHandler {
         log_warn_action(
             "Deleting",
             format!(
-                "worker {} / {}",
+                "worker {}/{}",
                 component_name.0.bold().blue(),
                 worker_metadata.worker_id.worker_name.bold().green(),
             ),
@@ -1245,7 +1244,7 @@ impl WorkerCommandHandler {
         log_action(
             "Recreating",
             format!(
-                "worker {} / {}",
+                "worker {}/{}",
                 component_name.0.bold().blue(),
                 worker_metadata.worker_id.worker_name.bold().green(),
             ),

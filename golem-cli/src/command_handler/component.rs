@@ -29,7 +29,9 @@ use crate::model::text::component::{ComponentCreateView, ComponentGetView, Compo
 use crate::model::text::fmt::{log_error, log_text_view, log_warn};
 use crate::model::text::help::ComponentNameHelp;
 use crate::model::to_cloud::ToCloud;
-use crate::model::{ComponentName, ComponentNameMatchKind, ProjectNameAndId, SelectedComponents};
+use crate::model::{
+    ComponentName, ComponentNameMatchKind, ProjectNameAndId, SelectedComponents, WorkerUpdateMode,
+};
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
 use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
@@ -119,6 +121,17 @@ impl ComponentCommandHandler {
                 component_name,
                 version,
             } => self.get(component_name.component_name, version).await,
+
+            ComponentSubcommand::UpdateWorkers {
+                component_name,
+                update_mode,
+            } => {
+                self.update_workers(component_name.component_name, update_mode)
+                    .await
+            }
+            ComponentSubcommand::RedeployWorkers { component_name } => {
+                self.redeploy_workers(component_name.component_name).await
+            }
         }
     }
 
@@ -260,47 +273,10 @@ impl ComponentCommandHandler {
         };
 
         if let Some(update) = update_or_redeploy.update_workers {
-            {
-                log_action(
-                    "Updating",
-                    format!("existing workers using {} mode", update),
-                );
-                let _indent = LogIndent::new();
-
-                let mut update_results = TryUpdateAllWorkersResult::default();
-                for component in &components {
-                    let result = self
-                        .ctx
-                        .worker_handler()
-                        .update_component_workers(
-                            &component.component_name,
-                            component.versioned_component_id.component_id,
-                            update,
-                            component.versioned_component_id.version,
-                        )
-                        .await?;
-                    update_results.extend(result);
-                }
-
-                self.ctx.log_handler().log_view(&update_results);
-            }
+            self.update_workers_by_components(components, update)
+                .await?;
         } else if update_or_redeploy.redeploy_workers {
-            {
-                log_action("Redeploying", "existing workers");
-                let _indent = LogIndent::new();
-
-                for component in &components {
-                    self.ctx
-                        .worker_handler()
-                        .redeploy_component_workers(
-                            &component.component_name,
-                            component.versioned_component_id.component_id,
-                        )
-                        .await?;
-                }
-
-                // TODO: json / yaml output?
-            }
+            self.redeploy_workers_by_components(components).await?;
         }
 
         Ok(())
@@ -671,6 +647,118 @@ impl ComponentCommandHandler {
             bail!(NonSuccessfulExit)
         }
 
+        Ok(())
+    }
+
+    async fn update_workers(
+        &self,
+        component_name: Option<ComponentName>,
+        update_mode: WorkerUpdateMode,
+    ) -> anyhow::Result<()> {
+        let components = self
+            .components_for_update_or_redeploy(component_name)
+            .await?;
+        self.update_workers_by_components(components, update_mode)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn redeploy_workers(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
+        let components = self
+            .components_for_update_or_redeploy(component_name)
+            .await?;
+        self.redeploy_workers_by_components(components).await?;
+
+        Ok(())
+    }
+
+    async fn components_for_update_or_redeploy(
+        &self,
+        component_name: Option<ComponentName>,
+    ) -> anyhow::Result<Vec<Component>> {
+        let selected_component_names = self
+            .opt_select_components_by_app_or_name(component_name.as_ref())
+            .await?;
+
+        let mut components = Vec::with_capacity(selected_component_names.component_names.len());
+        for component_name in &selected_component_names.component_names {
+            match self
+                .component_by_name(selected_component_names.project.as_ref(), component_name)
+                .await?
+            {
+                Some(component) => {
+                    components.push(component);
+                }
+                None => {
+                    log_warn(format!(
+                        "Component {} is not deployed!",
+                        component_name.0.log_color_highlight()
+                    ));
+                }
+            }
+        }
+        Ok(components)
+    }
+
+    pub async fn update_workers_by_components(
+        &self,
+        components: Vec<Component>,
+        update: WorkerUpdateMode,
+    ) -> anyhow::Result<()> {
+        if components.is_empty() {
+            return Ok(());
+        }
+
+        log_action(
+            "Updating",
+            format!("existing workers using {} mode", update),
+        );
+        let _indent = LogIndent::new();
+
+        let mut update_results = TryUpdateAllWorkersResult::default();
+        for component in &components {
+            let result = self
+                .ctx
+                .worker_handler()
+                .update_component_workers(
+                    &component.component_name,
+                    component.versioned_component_id.component_id,
+                    update,
+                    component.versioned_component_id.version,
+                )
+                .await?;
+            update_results.extend(result);
+        }
+
+        self.ctx.log_handler().log_view(&update_results);
+        Ok(())
+    }
+
+    pub async fn redeploy_workers_by_components(
+        &self,
+        components: Vec<Component>,
+    ) -> anyhow::Result<()> {
+        if components.is_empty() {
+            return Ok(());
+        }
+
+        log_action("Redeploying", "existing workers");
+        let _indent = LogIndent::new();
+
+        for component in &components {
+            self.ctx
+                .worker_handler()
+                .redeploy_component_workers(
+                    &component.component_name,
+                    component.versioned_component_id.component_id,
+                )
+                .await?;
+        }
+
+        // TODO: json / yaml output?
+        // TODO: unlike updating, redeploy is short-circuiting, should we normalize?
+        // TODO: should we expose "delete-workers" too for development?
         Ok(())
     }
 
