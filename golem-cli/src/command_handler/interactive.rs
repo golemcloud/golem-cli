@@ -47,7 +47,7 @@ impl InteractiveHandler {
         self.confirm(
             true,
             format!(
-                "Redeploying will {} then recreate {} worker(sÖ, do you want to continue?",
+                "Redeploying will {} then recreate {} worker(s), do you want to continue?",
                 "delete".log_color_warn(),
                 number_of_workers.to_string().log_color_highlight()
             ),
