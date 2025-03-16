@@ -18,6 +18,8 @@ use crate::command::cloud::CloudSubcommand;
 use crate::command::component::ComponentSubcommand;
 use crate::command::plugin::PluginSubcommand;
 use crate::command::profile::ProfileSubcommand;
+#[cfg(feature = "server-commands")]
+use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use crate::model::{Format, WorkerName};
@@ -32,9 +34,7 @@ use lenient_bool::LenientBool;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
-
-#[cfg(feature = "server-commands")]
-use crate::command::server::ServerSubcommand;
+use uuid::Uuid;
 
 /// Golem Command Line Interface
 #[derive(Debug, Parser)]
@@ -96,6 +96,9 @@ pub struct GolemCliGlobalFlags {
 
     #[arg(skip)]
     pub http_batch_size: Option<u64>,
+
+    #[arg(skip)]
+    pub auth_token: Option<Uuid>,
 }
 
 impl GolemCliGlobalFlags {
@@ -155,6 +158,15 @@ impl GolemCliGlobalFlags {
                     })
                     .unwrap(),
             )
+        }
+
+        if let Ok(auth_token) = std::env::var("GOLEM_AUTH_TOKEN") {
+            self.auth_token = Some(
+                auth_token
+                    .parse()
+                    .context("Failed to parse GOLEM_AUTH_TOKEN, expected uuid")
+                    .unwrap(),
+            );
         }
 
         self

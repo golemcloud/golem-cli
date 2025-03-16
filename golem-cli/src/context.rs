@@ -72,6 +72,7 @@ pub struct Context {
     profile: Profile,
     app_context_config: ApplicationContextConfig,
     http_batch_size: u64,
+    auth_token_override: Option<Uuid>,
     client_config: ClientConfig,
 
     // Lazy initialized
@@ -117,6 +118,7 @@ impl Context {
                 },
             },
             http_batch_size: global_flags.http_batch_size.unwrap_or(50),
+            auth_token_override: global_flags.auth_token,
             client_config,
             clients: tokio::sync::OnceCell::new(),
             templates: std::sync::OnceLock::new(),
@@ -154,7 +156,7 @@ impl Context {
             .get_or_try_init(|| async {
                 Clients::new(
                     self.client_config.clone(),
-                    None, // TODO: token override
+                    self.auth_token_override,
                     &self.profile_name,
                     match &self.profile {
                         Profile::Golem(_) => None,
