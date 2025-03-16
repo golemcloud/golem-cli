@@ -39,12 +39,14 @@ use tracing::{debug, Level};
 
 #[cfg(feature = "server-commands")]
 use crate::command::server::ServerSubcommand;
+use crate::command_handler::interactive::InteractiveHandler;
 #[cfg(feature = "server-commands")]
 use clap_verbosity_flag::Verbosity;
 
 mod app;
 mod cloud;
 mod component;
+mod interactive;
 mod log;
 mod partial_match;
 mod profile;
@@ -236,6 +238,7 @@ trait Handlers {
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler;
     fn component_handler(&self) -> ComponentCommandHandler;
     fn error_handler(&self) -> ErrorHandler;
+    fn interactive_handler(&self) -> InteractiveHandler;
     fn log_handler(&self) -> LogHandler;
     fn profile_config_handler(&self) -> ProfileConfigCommandHandler;
     fn profile_handler(&self) -> ProfileCommandHandler;
@@ -261,6 +264,10 @@ impl Handlers for Arc<Context> {
 
     fn error_handler(&self) -> ErrorHandler {
         ErrorHandler::new(Arc::clone(self))
+    }
+
+    fn interactive_handler(&self) -> InteractiveHandler {
+        InteractiveHandler::new(Arc::clone(self))
     }
 
     fn log_handler(&self) -> LogHandler {

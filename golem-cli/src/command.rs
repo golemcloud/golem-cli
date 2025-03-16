@@ -18,8 +18,6 @@ use crate::command::cloud::CloudSubcommand;
 use crate::command::component::ComponentSubcommand;
 use crate::command::plugin::PluginSubcommand;
 use crate::command::profile::ProfileSubcommand;
-#[cfg(feature = "server-commands")]
-use crate::command::server::ServerSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use crate::model::{Format, WorkerName};
@@ -35,6 +33,9 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use uuid::Uuid;
+
+#[cfg(feature = "server-commands")]
+use crate::command::server::ServerSubcommand;
 
 /// Golem Command Line Interface
 #[derive(Debug, Parser)]
@@ -82,6 +83,10 @@ pub struct GolemCliGlobalFlags {
 
     #[command(flatten)]
     pub verbosity: Verbosity,
+
+    /// Automatically answer "yes" to any interactive confirm questions
+    #[arg(long, short, global = true)]
+    pub yes: bool,
 
     // The flags below can only be set through env vars, as they are mostly
     // useful for testing, so we do not want to pollute the flag space with them
