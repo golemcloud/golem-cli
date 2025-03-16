@@ -507,6 +507,16 @@ pub mod shared_args {
         #[arg(verbatim_doc_comment)]
         pub worker_name: WorkerName,
     }
+
+    #[derive(Debug, Args)]
+    pub struct StreamArgs {
+        /// Hide log levels in stream output
+        #[clap(long, short = 'L')]
+        pub stream_no_log_level: bool,
+        /// Hide timestamp in stream output
+        #[clap(long, short = 'T')]
+        pub stream_no_timestamp: bool,
+    }
 }
 
 pub mod app {
@@ -610,7 +620,7 @@ pub mod worker {
     use crate::command::parse_cursor;
     use crate::command::parse_key_val;
     use crate::command::shared_args::{
-        ComponentOptionalComponentName, NewWorkerArgument, WorkerFunctionArgument,
+        ComponentOptionalComponentName, NewWorkerArgument, StreamArgs, WorkerFunctionArgument,
         WorkerFunctionName, WorkerNameArg,
     };
     use crate::model::IdempotencyKey;
@@ -630,7 +640,6 @@ pub mod worker {
             env: Vec<(String, String)>,
         },
         // TODO: json args
-        // TODO: connect
         /// Invoke (or enqueue invocation for) worker
         Invoke {
             #[command(flatten)]
@@ -640,13 +649,17 @@ pub mod worker {
             /// Worker function arguments in WAVE format
             arguments: Vec<WorkerFunctionArgument>,
             /// Enqueue invocation, and do not wait for it
-            #[clap(long, short, default_value = "false")]
+            #[clap(long, short)]
             enqueue: bool,
             /// Set idempotency key for the call, use "-" for auto generated key
             #[clap(long, short)]
             idempotency_key: Option<IdempotencyKey>,
             #[clap(long, short)]
-            connect: bool,
+            /// Connect to the worker before invoke (the worker must already exist)
+            /// and live stream its standard output, error and log channels
+            stream: bool,
+            #[command(flatten)]
+            stream_args: StreamArgs,
         },
         /// Get worker metadata
         Get {
@@ -688,10 +701,11 @@ pub mod worker {
             precise: bool,
         },
         /// Connect to a worker and live stream its standard output, error and log channels
-        Connect {
+        Stream {
             #[command(flatten)]
             worker_name: WorkerNameArg,
-            // TODO: connect options
+            #[command(flatten)]
+            stream_args: StreamArgs,
         },
         /// Interrupts a running worker
         Interrupt {

@@ -14,7 +14,7 @@
 
 use crate::cloud::AccountId;
 use crate::command::shared_args::{
-    NewWorkerArgument, WorkerFunctionArgument, WorkerFunctionName, WorkerNameArg,
+    NewWorkerArgument, StreamArgs, WorkerFunctionArgument, WorkerFunctionName, WorkerNameArg,
 };
 use crate::command::worker::WorkerSubcommand;
 use crate::command_handler::Handlers;
@@ -93,7 +93,8 @@ impl WorkerCommandHandler {
                 arguments,
                 enqueue,
                 idempotency_key,
-                connect,
+                stream,
+                stream_args,
             } => {
                 self.invoke(
                     worker_name,
@@ -101,7 +102,8 @@ impl WorkerCommandHandler {
                     arguments,
                     enqueue,
                     idempotency_key,
-                    connect,
+                    stream,
+                    stream_args,
                 )
                 .await
             }
@@ -123,7 +125,10 @@ impl WorkerCommandHandler {
                 )
                 .await
             }
-            WorkerSubcommand::Connect { worker_name } => self.connect(worker_name).await,
+            WorkerSubcommand::Stream {
+                worker_name,
+                stream_args,
+            } => self.stream(worker_name, stream_args).await,
             WorkerSubcommand::Interrupt { worker_name } => self.interrupt(worker_name).await,
             WorkerSubcommand::Resume { worker_name } => self.resume(worker_name).await,
             WorkerSubcommand::SimulateCrash { worker_name } => {
@@ -220,7 +225,8 @@ impl WorkerCommandHandler {
         arguments: Vec<WorkerFunctionArgument>,
         enqueue: bool,
         idempotency_key: Option<IdempotencyKey>,
-        connect: bool,
+        stream: bool,
+        stream_args: StreamArgs,
     ) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
 
@@ -332,21 +338,13 @@ impl WorkerCommandHandler {
 
         let connect_handle = match worker_name_match.worker_name.clone() {
             Some(worker_name) => {
-                if connect {
-                    log_action(
-                        "Connecting",
-                        format!("to worker {}", format_worker_name_match(&worker_name_match)),
-                    );
+                if stream {
                     let connection = connect_to_worker(
                         self.ctx.worker_service_url().clone(),
                         self.ctx.auth_token().await?,
                         component.versioned_component_id.component_id.clone(),
                         worker_name.0,
-                        WorkerConnectOptions {
-                            colors: SHOULD_COLORIZE.should_colorize(),
-                            show_timestamp: true, // TODO
-                            show_level: true,     // TODO
-                        },
+                        stream_args.into(),
                         self.ctx.allow_insecure(),
                         self.ctx.format(),
                     )
@@ -594,7 +592,11 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn connect(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    async fn stream(
+        &mut self,
+        worker_name: WorkerNameArg,
+        stream_args: StreamArgs,
+    ) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -611,11 +613,7 @@ impl WorkerCommandHandler {
             self.ctx.auth_token().await?,
             component.versioned_component_id.component_id.clone(),
             worker_name.0.clone(),
-            WorkerConnectOptions {
-                colors: SHOULD_COLORIZE.should_colorize(),
-                show_timestamp: true, // TODO
-                show_level: true,     // TODO
-            },
+            stream_args.into(),
             self.ctx.allow_insecure(),
             self.ctx.format(),
         )
