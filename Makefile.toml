@@ -146,6 +146,20 @@ script = '''
 exec --fail-on-error cargo test --package golem-templates --test integration -- --nocapture --test-threads=1 --report-time %{JUNIT_OPTS}
 '''
 
+## ** Single executable **
+[tasks.build-se]
+private = true
+description = """Build the single executable in debug mode"""
+dependencies = ["set-version"]
+command = "cargo"
+args = ["build", "-p", "golem"]
+
+[tasks.run-se]
+description = """Build the single executable in debug mode"""
+dependencies = ["build-se"]
+command = "./target/debug/golem"
+args = [  "server", "run", "--clean", "--data-dir", ".golem/se-data" ]
+
 ## ** DESKTOP APP **
 [tasks.desktop]
 description = "Builds the desktop application"
@@ -198,6 +212,7 @@ foreach ($file in $cargoFiles)
 [tasks.publish]
 description = "Publishes packages to crates.io"
 dependencies = [
+    "build-release",
     "publish-golem-cli",
 ]
 
@@ -213,9 +228,24 @@ args = [
     "--no-verify",
 ]
 
+[tasks.publish-wasm-rpc-stubgen]
+description = "Publishes golem-wasm-rpc-stubgen package to crates.io"
+command = "cargo"
+args = [
+    "publish",
+    "-p",
+    "golem-wasm-rpc-stubgen",
+    "--all-features",
+    "--allow-dirty",
+    "--no-verify",
+]
+
 [tasks.publish-golem-cli]
 description = "Publishes golem-wasm-ast package to crates.io"
-dependencies = ["publish-golem-templates"]
+dependencies = [
+    "publish-golem-templates",
+    "publish-wasm-rpc-stubgen"
+]
 command = "cargo"
 args = [
     "publish",
