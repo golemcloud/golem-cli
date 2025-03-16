@@ -212,6 +212,7 @@ foreach ($file in $cargoFiles)
 [tasks.publish]
 description = "Publishes packages to crates.io"
 dependencies = [
+    "build-release",
     "publish-golem-cli",
 ]
 
