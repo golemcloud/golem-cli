@@ -938,11 +938,13 @@ pub mod api {
             Deploy {
                 #[command(flatten)]
                 project: ProjectNameOptionalArg,
-                /// API definition ids with version
+                /// API definition IDs with version
                 #[arg(required = true)]
                 definitions: Vec<ApiDefinitionIdWithVersion>,
                 #[arg(long)]
+                /// API definition host
                 host: String,
+                /// Optional API definition subdomain
                 #[arg(long)]
                 subdomain: Option<String>,
             },
