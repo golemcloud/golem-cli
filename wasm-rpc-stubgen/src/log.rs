@@ -1,10 +1,20 @@
 use crate::fs::{OverwriteSafeAction, OverwriteSafeActionPlan, PathExtra};
 use colored::{ColoredString, Colorize};
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, RwLock};
+use std::sync::{LazyLock, OnceLock, RwLock};
+use terminal_size::terminal_size;
 use tracing::debug;
 
 static LOG_STATE: LazyLock<RwLock<LogState>> = LazyLock::new(RwLock::default);
+
+static TERMINAL_WIDTH: OnceLock<Option<u16>> = OnceLock::new();
+
+fn terminal_width() -> Option<u16> {
+    TERMINAL_WIDTH
+        .get_or_init(|| terminal_size().map(|(width, _)| width.0))
+        .clone()
+}
 
 // TODO: let's add another output for tracing debug and use that for silent mode in cli
 #[derive(Debug, Clone, Copy)]
@@ -110,55 +120,56 @@ pub fn set_log_output(output: Output) {
 }
 
 pub fn log_action<T: AsRef<str>>(action: &str, subject: T) {
-    let state = LOG_STATE.read().unwrap();
-    let message = format!(
-        "{}{} {}",
-        state.calculated_indent,
+    logln_internal(&format!(
+        "{} {}",
         action.log_color_action(),
         subject.as_ref()
-    );
-    logln_internal(state.output, &message);
+    ));
 }
 
 pub fn log_warn_action<T: AsRef<str>>(action: &str, subject: T) {
-    let state = LOG_STATE.read().unwrap();
-    let message = format!(
-        "{}{} {}",
-        state.calculated_indent,
-        action.log_color_warn(),
-        subject.as_ref(),
-    );
-    logln_internal(state.output, &message);
+    logln_internal(&format!("{} {}", action.log_color_warn(), subject.as_ref(),));
 }
 
 pub fn log_error_action<T: AsRef<str>>(action: &str, subject: T) {
-    let state = LOG_STATE.read().unwrap();
-    let message = format!(
-        "{}{} {}",
-        state.calculated_indent,
+    logln_internal(&format!(
+        "{} {}",
         action.log_color_error(),
         subject.as_ref(),
-    );
-    logln_internal(state.output, &message);
+    ));
 }
 
 pub fn logln<T: AsRef<str>>(message: T) {
-    let state = LOG_STATE.read().unwrap();
-    let message = format!("{}{}", state.calculated_indent, message.as_ref());
-    logln_internal(state.output, &message);
+    logln_internal(message.as_ref());
 }
 
-pub fn logln_internal(output: Output, message: &str) {
-    match output {
-        Output::Stdout => {
-            println!("{}", message)
+pub fn logln_internal(message: &str) {
+    let state = LOG_STATE.read().unwrap();
+
+    let lines = match terminal_width() {
+        Some(width) => textwrap::wrap(
+            message,
+            textwrap::Options::new((width as usize) - state.calculated_indent.len() - 2)
+                // deliberately 3 spaces, to makes this indent different from normal ones
+                .subsequent_indent("   "),
+        ),
+        None => {
+            vec![Cow::from(message)]
         }
-        Output::Stderr => {
-            eprintln!("{}", message)
-        }
-        Output::None => {}
-        Output::TracingDebug => {
-            debug!("{}", message);
+    };
+
+    for line in lines {
+        match state.output {
+            Output::Stdout => {
+                println!("{}{}", state.calculated_indent, line)
+            }
+            Output::Stderr => {
+                eprintln!("{}{}", state.calculated_indent, line)
+            }
+            Output::None => {}
+            Output::TracingDebug => {
+                debug!("{}{}", state.calculated_indent, line);
+            }
         }
     }
 }
