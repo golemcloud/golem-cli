@@ -79,7 +79,7 @@ impl AppCommandHandler {
                 self.cmd_redeploy_workers(component_name.component_name)
                     .await
             }
-            AppSubcommand::CustomCommand(command) => self.cmd_custom_command(&command).await,
+            AppSubcommand::CustomCommand(command) => self.cmd_custom_command(command).await,
         }
     }
 
@@ -221,7 +221,7 @@ impl AppCommandHandler {
             .await
     }
 
-    async fn cmd_custom_command(&mut self, command: &Vec<String>) -> anyhow::Result<()> {
+    async fn cmd_custom_command(&mut self, command: Vec<String>) -> anyhow::Result<()> {
         if command.len() != 1 {
             bail!(
                 "Expected exactly one custom subcommand, got: {}",
