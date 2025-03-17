@@ -39,10 +39,18 @@ use tracing::{debug, Level};
 
 #[cfg(feature = "server-commands")]
 use crate::command::server::ServerSubcommand;
+use crate::command_handler::api::cloud::certificate::ApiCloudCertificateCommandHandler;
+use crate::command_handler::api::cloud::domain::ApiCloudDomainCommandHandler;
+use crate::command_handler::api::cloud::ApiCloudCommandHandler;
+use crate::command_handler::api::definition::ApiDefinitionCommandHandler;
+use crate::command_handler::api::deployment::ApiDeploymentCommandHandler;
+use crate::command_handler::api::security_scheme::ApiSecuritySchemeCommandHandler;
+use crate::command_handler::api::ApiCommandHandler;
 use crate::command_handler::interactive::InteractiveHandler;
 #[cfg(feature = "server-commands")]
 use clap_verbosity_flag::Verbosity;
 
+mod api;
 mod app;
 mod cloud;
 mod component;
@@ -201,8 +209,8 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
             GolemCliSubcommand::Worker { subcommand } => {
                 self.ctx.worker_handler().handle_command(subcommand).await
             }
-            GolemCliSubcommand::Api { .. } => {
-                todo!()
+            GolemCliSubcommand::Api { subcommand } => {
+                self.ctx.api_handler().handle_command(subcommand).await
             }
             GolemCliSubcommand::Plugin { .. } => {
                 todo!()
@@ -233,6 +241,13 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
 //       by moving these simple factory methods into the specific handlers on demand,
 //       if the need ever arises
 trait Handlers {
+    fn api_cloud_certificate_handler(&self) -> ApiCloudCertificateCommandHandler;
+    fn api_cloud_domain_handler(&self) -> ApiCloudDomainCommandHandler;
+    fn api_cloud_handler(&self) -> ApiCloudCommandHandler;
+    fn api_definition_handler(&self) -> ApiDefinitionCommandHandler;
+    fn api_deployment_handler(&self) -> ApiDeploymentCommandHandler;
+    fn api_handler(&self) -> ApiCommandHandler;
+    fn api_security_scheme_handler(&self) -> ApiSecuritySchemeCommandHandler;
     fn app_handler(&self) -> AppCommandHandler;
     fn cloud_handler(&self) -> CloudCommandHandler;
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler;
@@ -246,6 +261,34 @@ trait Handlers {
 }
 
 impl Handlers for Arc<Context> {
+    fn api_cloud_certificate_handler(&self) -> ApiCloudCertificateCommandHandler {
+        ApiCloudCertificateCommandHandler::new(self.clone())
+    }
+
+    fn api_cloud_domain_handler(&self) -> ApiCloudDomainCommandHandler {
+        ApiCloudDomainCommandHandler::new(self.clone())
+    }
+
+    fn api_cloud_handler(&self) -> ApiCloudCommandHandler {
+        ApiCloudCommandHandler::new(self.clone())
+    }
+
+    fn api_definition_handler(&self) -> ApiDefinitionCommandHandler {
+        ApiDefinitionCommandHandler::new(self.clone())
+    }
+
+    fn api_deployment_handler(&self) -> ApiDeploymentCommandHandler {
+        ApiDeploymentCommandHandler::new(self.clone())
+    }
+
+    fn api_handler(&self) -> ApiCommandHandler {
+        ApiCommandHandler::new(self.clone())
+    }
+
+    fn api_security_scheme_handler(&self) -> ApiSecuritySchemeCommandHandler {
+        ApiSecuritySchemeCommandHandler::new(self.clone())
+    }
+
     fn app_handler(&self) -> AppCommandHandler {
         AppCommandHandler::new(Arc::clone(self))
     }

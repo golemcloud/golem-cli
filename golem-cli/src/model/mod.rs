@@ -272,7 +272,8 @@ impl From<String> for ApiDefinitionId {
     }
 }
 
-#[derive(ValueEnum, Clone, Debug)]
+// TODO: given YAML is a JSON superset, we might want to get rid of this altogether
+#[derive(ValueEnum, Clone, Copy, Debug)]
 pub enum ApiDefinitionFileFormat {
     Json,
     Yaml,
