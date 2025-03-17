@@ -21,7 +21,6 @@ pub mod plugin_cloud;
 pub mod plugin_manifest;
 pub mod project;
 pub mod text;
-pub mod to_cli;
 pub mod to_cloud;
 pub mod to_oss;
 pub mod wave;
@@ -603,6 +602,18 @@ pub struct ApiSecurityScheme {
 
 impl From<golem_client::model::SecuritySchemeData> for ApiSecurityScheme {
     fn from(value: golem_client::model::SecuritySchemeData) -> Self {
+        ApiSecurityScheme {
+            scheme_identifier: value.scheme_identifier,
+            client_id: value.client_id,
+            client_secret: value.client_secret,
+            redirect_url: value.redirect_url,
+            scopes: value.scopes,
+        }
+    }
+}
+
+impl From<golem_cloud_client::model::SecuritySchemeData> for ApiSecurityScheme {
+    fn from(value: golem_cloud_client::model::SecuritySchemeData) -> Self {
         ApiSecurityScheme {
             scheme_identifier: value.scheme_identifier,
             client_id: value.client_id,

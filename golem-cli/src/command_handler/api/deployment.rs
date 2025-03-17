@@ -26,7 +26,7 @@ use golem_client::model::{
     ApiDefinitionInfo as ApiDefinitionInfoOss, ApiDeploymentRequest as ApiDeploymentRequestOss,
     ApiSite as ApiSiteOss,
 };
-use golem_cloud_client::api::ApiDeploymentClient as ApiDeploymentCloudOss;
+use golem_cloud_client::api::ApiDeploymentClient as ApiDeploymentClientCloud;
 use golem_cloud_client::model::{
     ApiDefinitionInfo as ApiDefinitionInfoCloud, ApiDeploymentRequest as ApiDeploymentRequestCloud,
     ApiSite as ApiSiteCloud,

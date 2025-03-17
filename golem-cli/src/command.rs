@@ -969,10 +969,43 @@ pub mod api {
     }
 
     pub mod security_scheme {
+        use crate::command::shared_args::ProjectNameOptionalArg;
+        use crate::model::IdentityProviderType;
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
-        pub enum ApiSecuritySchemeSubcommand {}
+        pub enum ApiSecuritySchemeSubcommand {
+            /// Create API Security Scheme
+            Create {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
+                /// Security Scheme ID
+                security_scheme_id: String,
+                /// Security Scheme provider (Google, Facebook, Gitlab, Microsoft)
+                #[arg(long)]
+                provider_type: IdentityProviderType,
+                /// Security Scheme client ID
+                #[arg(long)]
+                client_id: String,
+                /// Security Scheme client secret
+                #[arg(long)]
+                client_secret: String,
+                #[arg(long)]
+                /// Security Scheme Scopes, can be defined multiple times
+                scope: Vec<String>,
+                #[arg(long)]
+                /// Security Scheme redirect URL
+                redirect_url: String,
+            },
+
+            /// Get API security
+            Get {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
+                /// Security Scheme ID
+                security_scheme_id: String,
+            },
+        }
     }
 
     pub mod cloud {

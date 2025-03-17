@@ -815,6 +815,102 @@ pub mod service {
         }
     }
 
+    impl HasServiceName for golem_client::api::ApiSecurityError {
+        fn service_name() -> &'static str {
+            "API Security Scheme"
+        }
+    }
+
+    impl From<golem_client::api::ApiSecurityError> for ServiceErrorResponse {
+        fn from(value: golem_client::api::ApiSecurityError) -> Self {
+            match value {
+                golem_client::api::ApiSecurityError::Error400(error) => match error {
+                    WorkerServiceErrorsBody::Messages(errors) => ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    },
+                    WorkerServiceErrorsBody::Validation(errors) => ServiceErrorResponse {
+                        status_code: 400,
+                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
+                    },
+                },
+                golem_client::api::ApiSecurityError::Error401(error) => ServiceErrorResponse {
+                    status_code: 401,
+                    message: error.error,
+                },
+                golem_client::api::ApiSecurityError::Error403(error) => ServiceErrorResponse {
+                    status_code: 403,
+                    message: error.error,
+                },
+                golem_client::api::ApiSecurityError::Error404(error) => ServiceErrorResponse {
+                    status_code: 404,
+                    message: error.error,
+                },
+                golem_client::api::ApiSecurityError::Error409(error) => ServiceErrorResponse {
+                    status_code: 409,
+                    message: error,
+                },
+                golem_client::api::ApiSecurityError::Error500(error) => ServiceErrorResponse {
+                    status_code: 500,
+                    message: error.error,
+                },
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::ApiSecurityError {
+        fn service_name() -> &'static str {
+            "Cloud API Security Scheme"
+        }
+    }
+
+    impl From<golem_cloud_client::api::ApiSecurityError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::ApiSecurityError) -> Self {
+            match value {
+                golem_cloud_client::api::ApiSecurityError::Error400(error) => match error {
+                    WorkerServiceErrorsBody::Messages(errors) => ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    },
+                    WorkerServiceErrorsBody::Validation(errors) => ServiceErrorResponse {
+                        status_code: 400,
+                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
+                    },
+                },
+                golem_cloud_client::api::ApiSecurityError::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ApiSecurityError::Error403(error) => {
+                    ServiceErrorResponse {
+                        status_code: 403,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ApiSecurityError::Error404(error) => {
+                    ServiceErrorResponse {
+                        status_code: 404,
+                        message: error.message,
+                    }
+                }
+                golem_cloud_client::api::ApiSecurityError::Error409(error) => {
+                    ServiceErrorResponse {
+                        status_code: 409,
+                        message: error,
+                    }
+                }
+                golem_cloud_client::api::ApiSecurityError::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
     // TODO: re-add callstack highlighting here?
     pub fn display_golem_error(error: GolemError) -> String {
         match error {
