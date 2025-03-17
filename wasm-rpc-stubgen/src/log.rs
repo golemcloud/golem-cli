@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, OnceLock, RwLock};
 use terminal_size::terminal_size;
+use textwrap::WordSplitter;
 use tracing::debug;
 
 static LOG_STATE: LazyLock<RwLock<LogState>> = LazyLock::new(RwLock::default);
@@ -150,8 +151,9 @@ pub fn logln_internal(message: &str) {
         Some(width) => textwrap::wrap(
             message,
             textwrap::Options::new((width as usize) - state.calculated_indent.len() - 2)
-                // deliberately 3 spaces, to makes this indent different from normal ones
-                .subsequent_indent("   "),
+                // deliberately 5 spaces, to makes this indent different from normal ones
+                .subsequent_indent("     ")
+                .word_splitter(WordSplitter::NoHyphenation),
         ),
         None => {
             vec![Cow::from(message)]
