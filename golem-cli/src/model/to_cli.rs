@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::model::to_oss::ToOss;
-
 pub trait ToCli<T> {
     fn to_cli(self) -> T;
 }
@@ -27,17 +25,6 @@ impl<A: ToCli<B>, B> ToCli<Option<B>> for Option<A> {
 impl<A: ToCli<B>, B> ToCli<Vec<B>> for Vec<A> {
     fn to_cli(self) -> Vec<B> {
         self.into_iter().map(|v| v.to_cli()).collect()
-    }
-}
-
-impl ToCli<crate::model::ApiDeployment> for golem_cloud_client::model::ApiDeployment {
-    fn to_cli(self) -> crate::model::ApiDeployment {
-        crate::model::ApiDeployment {
-            api_definitions: self.api_definitions.to_oss(),
-            project_id: Some(self.project_id),
-            site: self.site.to_oss(),
-            created_at: self.created_at,
-        }
     }
 }
 

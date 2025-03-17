@@ -577,6 +577,17 @@ impl From<golem_client::model::ApiDeployment> for ApiDeployment {
     }
 }
 
+impl From<golem_cloud_client::model::ApiDeployment> for ApiDeployment {
+    fn from(value: golem_cloud_client::model::ApiDeployment) -> Self {
+        ApiDeployment {
+            api_definitions: value.api_definitions.to_oss(),
+            project_id: Some(value.project_id),
+            site: value.site.to_oss(),
+            created_at: value.created_at,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ApiSecurityScheme {
     #[serde(rename = "schemeIdentifier")]

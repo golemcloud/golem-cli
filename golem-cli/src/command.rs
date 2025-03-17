@@ -928,10 +928,44 @@ pub mod api {
     }
 
     pub mod deployment {
+        use crate::command::shared_args::ProjectNameOptionalArg;
+        use crate::model::{ApiDefinitionId, ApiDefinitionIdWithVersion};
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
-        pub enum ApiDeploymentSubcommand {}
+        pub enum ApiDeploymentSubcommand {
+            /// Create or update deployment
+            Deploy {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
+                /// API definition ids with version
+                #[arg(required = true)]
+                definitions: Vec<ApiDefinitionIdWithVersion>,
+                #[arg(long)]
+                host: String,
+                #[arg(long)]
+                subdomain: Option<String>,
+            },
+            /// Get API deployment
+            Get {
+                /// Deployment site
+                #[arg(value_name = "subdomain.host")]
+                site: String,
+            },
+            /// List API deployment for API definition
+            List {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
+                /// API definition id
+                definition: Option<ApiDefinitionId>,
+            },
+            /// Delete api deployment
+            Delete {
+                /// Deployment site
+                #[arg(value_name = "subdomain.host")]
+                site: String,
+            },
+        }
     }
 
     pub mod security_scheme {

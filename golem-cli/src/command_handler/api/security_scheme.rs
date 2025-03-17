@@ -17,12 +17,12 @@ use crate::context::Context;
 use std::sync::Arc;
 
 pub struct ApiSecuritySchemeCommandHandler {
-    ctx: Arc<Context>,
+    _ctx: Arc<Context>,
 }
 
 impl ApiSecuritySchemeCommandHandler {
     pub fn new(ctx: Arc<Context>) -> Self {
-        Self { ctx }
+        Self { _ctx: ctx }
     }
 
     pub async fn handle_command(
