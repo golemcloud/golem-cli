@@ -2392,11 +2392,11 @@ pub mod project {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub struct ProjectShareView(pub ProjectGrant);
+    pub struct ProjectGrantView(pub ProjectGrant);
 
-    impl MessageWithFields for ProjectShareView {
+    impl MessageWithFields for ProjectGrantView {
         fn message(&self) -> String {
-            "Shared project".to_string()
+            "Granted project".to_string()
         }
 
         fn fields(&self) -> Vec<(String, String)> {
@@ -2435,12 +2435,12 @@ pub mod project {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub struct ProjectPolicyAddView(pub ProjectPolicy);
+    pub struct ProjectPolicyNewView(pub ProjectPolicy);
 
-    impl MessageWithFields for ProjectPolicyAddView {
+    impl MessageWithFields for ProjectPolicyNewView {
         fn message(&self) -> String {
             format!(
-                "Added project policy {}",
+                "Created new project policy {}",
                 format_message_highlight(&self.0.name)
             )
         }

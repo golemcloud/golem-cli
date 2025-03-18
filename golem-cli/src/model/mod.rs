@@ -773,6 +773,17 @@ impl FromStr for TokenId {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ProjectPolicyId(pub Uuid);
+
+impl FromStr for ProjectPolicyId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(ProjectPolicyId(Uuid::parse_str(s)?))
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug, EnumIter, Serialize, Deserialize)]
 pub enum Role {
     Admin,
@@ -861,6 +872,98 @@ impl From<golem_cloud_client::model::Role> for Role {
             golem_cloud_client::model::Role::ViewPlugin => Role::ViewPlugin,
             golem_cloud_client::model::Role::CreatePlugin => Role::CreatePlugin,
             golem_cloud_client::model::Role::DeletePlugin => Role::DeletePlugin,
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, EnumIter)]
+pub enum ProjectAction {
+    ViewComponent,
+    CreateComponent,
+    UpdateComponent,
+    DeleteComponent,
+    ViewWorker,
+    CreateWorker,
+    UpdateWorker,
+    DeleteWorker,
+    ViewProjectGrants,
+    CreateProjectGrants,
+    DeleteProjectGrants,
+}
+
+impl Display for ProjectAction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ProjectAction::ViewComponent => "ViewComponent",
+            ProjectAction::CreateComponent => "CreateComponent",
+            ProjectAction::UpdateComponent => "UpdateComponent",
+            ProjectAction::DeleteComponent => "DeleteComponent",
+            ProjectAction::ViewWorker => "ViewWorker",
+            ProjectAction::CreateWorker => "CreateWorker",
+            ProjectAction::UpdateWorker => "UpdateWorker",
+            ProjectAction::DeleteWorker => "DeleteWorker",
+            ProjectAction::ViewProjectGrants => "ViewProjectGrants",
+            ProjectAction::CreateProjectGrants => "CreateProjectGrants",
+            ProjectAction::DeleteProjectGrants => "DeleteProjectGrants",
+        };
+
+        Display::fmt(s, f)
+    }
+}
+
+impl FromStr for ProjectAction {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ViewComponent" => Ok(ProjectAction::ViewComponent),
+            "CreateComponent" => Ok(ProjectAction::CreateComponent),
+            "UpdateComponent" => Ok(ProjectAction::UpdateComponent),
+            "DeleteComponent" => Ok(ProjectAction::DeleteComponent),
+            "ViewWorker" => Ok(ProjectAction::ViewWorker),
+            "CreateWorker" => Ok(ProjectAction::CreateWorker),
+            "UpdateWorker" => Ok(ProjectAction::UpdateWorker),
+            "DeleteWorker" => Ok(ProjectAction::DeleteWorker),
+            "ViewProjectGrants" => Ok(ProjectAction::ViewProjectGrants),
+            "CreateProjectGrants" => Ok(ProjectAction::CreateProjectGrants),
+            "DeleteProjectGrants" => Ok(ProjectAction::DeleteProjectGrants),
+            _ => {
+                let all = ProjectAction::iter()
+                    .map(|x| format!("\"{x}\""))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                Err(format!("Unknown action: {s}. Expected one of {all}"))
+            }
+        }
+    }
+}
+
+impl From<ProjectAction> for golem_cloud_client::model::ProjectAction {
+    fn from(value: ProjectAction) -> Self {
+        match value {
+            ProjectAction::ViewComponent => golem_cloud_client::model::ProjectAction::ViewComponent,
+            ProjectAction::CreateComponent => {
+                golem_cloud_client::model::ProjectAction::CreateComponent
+            }
+            ProjectAction::UpdateComponent => {
+                golem_cloud_client::model::ProjectAction::UpdateComponent
+            }
+            ProjectAction::DeleteComponent => {
+                golem_cloud_client::model::ProjectAction::DeleteComponent
+            }
+            ProjectAction::ViewWorker => golem_cloud_client::model::ProjectAction::ViewWorker,
+            ProjectAction::CreateWorker => golem_cloud_client::model::ProjectAction::CreateWorker,
+            ProjectAction::UpdateWorker => golem_cloud_client::model::ProjectAction::UpdateWorker,
+            ProjectAction::DeleteWorker => golem_cloud_client::model::ProjectAction::DeleteWorker,
+            ProjectAction::ViewProjectGrants => {
+                golem_cloud_client::model::ProjectAction::ViewProjectGrants
+            }
+            ProjectAction::CreateProjectGrants => {
+                golem_cloud_client::model::ProjectAction::CreateProjectGrants
+            }
+            ProjectAction::DeleteProjectGrants => {
+                golem_cloud_client::model::ProjectAction::DeleteProjectGrants
+            }
         }
     }
 }

@@ -944,6 +944,86 @@ pub mod service {
         }
     }
 
+    impl HasServiceName for golem_cloud_client::api::ProjectPolicyError {
+        fn service_name() -> &'static str {
+            "Cloud Project Policy"
+        }
+    }
+
+    impl From<golem_cloud_client::api::ProjectPolicyError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::ProjectPolicyError) -> Self {
+            match value {
+                golem_cloud_client::api::ProjectPolicyError::Error400(error) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: error.errors.iter().join("\n"),
+                    }
+                }
+                golem_cloud_client::api::ProjectPolicyError::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ProjectPolicyError::Error404(error) => {
+                    ServiceErrorResponse {
+                        status_code: 404,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ProjectPolicyError::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::ProjectGrantError {
+        fn service_name() -> &'static str {
+            "Cloud Project Grant"
+        }
+    }
+
+    impl From<golem_cloud_client::api::ProjectGrantError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::ProjectGrantError) -> Self {
+            match value {
+                golem_cloud_client::api::ProjectGrantError::Error400(error) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: error.errors.iter().join("\n"),
+                    }
+                }
+                golem_cloud_client::api::ProjectGrantError::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ProjectGrantError::Error403(error) => {
+                    ServiceErrorResponse {
+                        status_code: 403,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ProjectGrantError::Error404(error) => {
+                    ServiceErrorResponse {
+                        status_code: 404,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ProjectGrantError::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
     impl From<golem_client::model::WorkerServiceErrorsBody> for ServiceErrorResponse {
         fn from(error: golem_client::model::WorkerServiceErrorsBody) -> Self {
             match error {

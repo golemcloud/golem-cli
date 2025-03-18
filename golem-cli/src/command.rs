@@ -1198,7 +1198,7 @@ pub mod cloud {
             /// Delete an existing token
             Delete {
                 /// Token ID
-                token_id: TokenId
+                token_id: TokenId,
             },
         }
     }
@@ -1274,8 +1274,21 @@ pub mod cloud {
     }
 
     pub mod project {
-        use crate::model::ProjectName;
+        use crate::cloud::AccountId;
+        use crate::command::cloud::project::policy::PolicySubcommand;
+        use crate::model::{ProjectAction, ProjectName, ProjectPolicyId};
         use clap::Subcommand;
+
+        #[derive(clap::Args, Debug)]
+        #[group(required = true, multiple = false)]
+        pub struct ProjectActionsOrPolicyId {
+            /// The sharing policy's identifier. If not provided, use `--action` instead
+            #[arg(long, required = true, group = "project_actions_or_policy")]
+            pub policy_id: Option<ProjectPolicyId>,
+            /// A list of actions to be granted to the recipient account. If not provided, use `--policy-id` instead
+            #[arg(long, required = true, group = "project_actions_or_policy")]
+            pub action: Option<Vec<ProjectAction>>,
+        }
 
         #[derive(Debug, Subcommand)]
         pub enum ProjectSubcommand {
@@ -1283,20 +1296,53 @@ pub mod cloud {
             New {
                 /// The new project's name
                 project_name: ProjectName,
-
                 /// The new project's description
                 #[arg(short, long)]
                 description: Option<String>,
             },
-
             /// Lists existing projects
             List {
                 /// Optionally filter projects by name
                 project_name: Option<ProjectName>,
             },
-
             /// Gets the default project which is used when no explicit project is specified
             GetDefault,
+            /// Share a project with another account
+            Grant {
+                /// The project to be shared
+                project_name: ProjectName,
+                /// User account the project will be shared with
+                recipient_account_id: AccountId,
+                #[command(flatten)]
+                project_actions_or_policy_id: ProjectActionsOrPolicyId,
+            },
+            /// Manage project policies
+            Policy {
+                #[command(subcommand)]
+                subcommand: PolicySubcommand,
+            },
+        }
+
+        pub mod policy {
+            use crate::model::{ProjectAction, ProjectPolicyId};
+            use clap::Subcommand;
+
+            #[derive(Subcommand, Debug)]
+            pub enum PolicySubcommand {
+                /// Creates a new project sharing policy
+                New {
+                    /// Name of the policy
+                    policy_name: String,
+                    /// List of actions allowed by the policy
+                    actions: Vec<ProjectAction>,
+                },
+                /// Gets the existing project sharing policies
+                #[command()]
+                Get {
+                    /// Project policy ID
+                    policy_id: ProjectPolicyId,
+                },
+            }
         }
     }
 }
