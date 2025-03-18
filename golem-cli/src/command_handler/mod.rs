@@ -12,14 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "server-commands")]
+use crate::command::server::ServerSubcommand;
 use crate::command::{
     GolemCliCommand, GolemCliCommandParseResult, GolemCliFallbackCommand, GolemCliGlobalFlags,
     GolemCliSubcommand,
 };
+use crate::command_handler::api::cloud::certificate::ApiCloudCertificateCommandHandler;
+use crate::command_handler::api::cloud::domain::ApiCloudDomainCommandHandler;
+use crate::command_handler::api::cloud::ApiCloudCommandHandler;
+use crate::command_handler::api::definition::ApiDefinitionCommandHandler;
+use crate::command_handler::api::deployment::ApiDeploymentCommandHandler;
+use crate::command_handler::api::security_scheme::ApiSecuritySchemeCommandHandler;
+use crate::command_handler::api::ApiCommandHandler;
 use crate::command_handler::app::AppCommandHandler;
 use crate::command_handler::cloud::project::CloudProjectCommandHandler;
 use crate::command_handler::cloud::CloudCommandHandler;
 use crate::command_handler::component::ComponentCommandHandler;
+use crate::command_handler::interactive::InteractiveHandler;
 use crate::command_handler::log::LogHandler;
 use crate::command_handler::partial_match::ErrorHandler;
 use crate::command_handler::profile::config::ProfileConfigCommandHandler;
@@ -30,25 +40,15 @@ use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::init_tracing;
 use crate::model::text::fmt::log_error;
-
+use clap::CommandFactory;
+use clap_complete::Shell;
+#[cfg(feature = "server-commands")]
+use clap_verbosity_flag::Verbosity;
 use golem_wasm_rpc_stubgen::log::{logln, set_log_output, Output};
 use std::ffi::OsString;
 use std::process::ExitCode;
 use std::sync::Arc;
 use tracing::{debug, Level};
-
-#[cfg(feature = "server-commands")]
-use crate::command::server::ServerSubcommand;
-use crate::command_handler::api::cloud::certificate::ApiCloudCertificateCommandHandler;
-use crate::command_handler::api::cloud::domain::ApiCloudDomainCommandHandler;
-use crate::command_handler::api::cloud::ApiCloudCommandHandler;
-use crate::command_handler::api::definition::ApiDefinitionCommandHandler;
-use crate::command_handler::api::deployment::ApiDeploymentCommandHandler;
-use crate::command_handler::api::security_scheme::ApiSecuritySchemeCommandHandler;
-use crate::command_handler::api::ApiCommandHandler;
-use crate::command_handler::interactive::InteractiveHandler;
-#[cfg(feature = "server-commands")]
-use clap_verbosity_flag::Verbosity;
 
 mod api;
 mod app;
@@ -230,10 +230,22 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
             GolemCliSubcommand::Diagnose => {
                 todo!()
             }
-            GolemCliSubcommand::Completion => {
-                todo!()
-            }
+            GolemCliSubcommand::Completion { shell } => self.cmd_completion(shell),
         }
+    }
+
+    fn cmd_completion(&self, shell: Shell) -> anyhow::Result<()> {
+        let mut command = GolemCliCommand::command();
+        let command_name = std::env::current_exe()
+            .ok()
+            .and_then(|path| {
+                path.file_name()
+                    .map(|name| name.to_string_lossy().to_string())
+            })
+            .unwrap_or("golem-cli".to_string());
+        debug!(command_name, shell=%shell, "completion");
+        clap_complete::generate(shell, &mut command, command_name, &mut std::io::stdout());
+        Ok(())
     }
 }
 

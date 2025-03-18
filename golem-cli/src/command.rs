@@ -442,7 +442,10 @@ pub enum GolemCliSubcommand {
     /// Diagnose possible problems
     Diagnose,
     /// Generate shell completion
-    Completion,
+    Completion {
+        /// Selects shell
+        shell: clap_complete::Shell,
+    },
 }
 
 pub mod shared_args {
