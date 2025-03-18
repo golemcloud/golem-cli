@@ -3566,6 +3566,7 @@ dependencies = [
  "version-compare",
  "walkdir",
  "wasm-wave 0.222.1",
+ "wax",
 ]
 
 [[package]]

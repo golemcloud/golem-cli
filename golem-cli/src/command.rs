@@ -439,8 +439,6 @@ pub enum GolemCliSubcommand {
         #[clap(subcommand)]
         subcommand: CloudSubcommand,
     },
-    /// Diagnose possible problems
-    Diagnose,
     /// Generate shell completion
     Completion {
         /// Selects shell
@@ -608,6 +606,11 @@ pub mod app {
             #[command(flatten)]
             component_name: AppOptionalComponentNames,
         },
+        /// Diagnose possible tooling problems
+        Diagnose {
+            #[command(flatten)]
+            component_name: AppOptionalComponentNames,
+        },
         /// Run custom command
         #[clap(external_subcommand)]
         CustomCommand(Vec<String>),
@@ -682,6 +685,11 @@ pub mod component {
         RedeployWorkers {
             #[command(flatten)]
             component_name: ComponentOptionalComponentName,
+        },
+        /// Diagnose possible tooling problems
+        Diagnose {
+            #[command(flatten)]
+            component_name: ComponentOptionalComponentNames,
         },
     }
 }

@@ -227,9 +227,6 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
             GolemCliSubcommand::Cloud { subcommand } => {
                 self.ctx.cloud_handler().handle_command(subcommand).await
             }
-            GolemCliSubcommand::Diagnose => {
-                todo!()
-            }
             GolemCliSubcommand::Completion { shell } => self.cmd_completion(shell),
         }
     }
