@@ -1196,7 +1196,10 @@ pub mod cloud {
                 expires_at: DateTime<Utc>,
             },
             /// Delete an existing token
-            Delete { token_id: TokenId },
+            Delete {
+                /// Token ID
+                token_id: TokenId
+            },
         }
     }
 
