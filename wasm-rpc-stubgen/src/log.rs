@@ -8,12 +8,12 @@ use textwrap::WordSplitter;
 use tracing::debug;
 
 static LOG_STATE: LazyLock<RwLock<LogState>> = LazyLock::new(RwLock::default);
+static TERMINAL_WIDTH: OnceLock<Option<usize>> = OnceLock::new();
+static WRAP_PADDING: usize = 2;
 
-static TERMINAL_WIDTH: OnceLock<Option<u16>> = OnceLock::new();
-
-fn terminal_width() -> Option<u16> {
+fn terminal_width() -> Option<usize> {
     TERMINAL_WIDTH
-        .get_or_init(|| terminal_size().map(|(width, _)| width.0))
+        .get_or_init(|| terminal_size().map(|(width, _)| width.0 as usize))
         .clone()
 }
 
@@ -29,6 +29,7 @@ pub enum Output {
 struct LogState {
     indents: Vec<Option<String>>,
     calculated_indent: String,
+    max_width: Option<usize>,
     output: Output,
 }
 
@@ -37,6 +38,7 @@ impl LogState {
         Self {
             indents: Vec::new(),
             calculated_indent: String::new(),
+            max_width: terminal_width().map(|w| w - WRAP_PADDING),
             output: Output::Stdout,
         }
     }
@@ -57,6 +59,7 @@ impl LogState {
             self.calculated_indent
                 .push_str(indent.as_ref().map(|s| s.as_str()).unwrap_or("  "))
         }
+        self.max_width = terminal_width().map(|w| w - WRAP_PADDING - self.calculated_indent.len());
     }
 
     fn set_output(&mut self, output: Output) {
@@ -147,15 +150,17 @@ pub fn logln<T: AsRef<str>>(message: T) {
 pub fn logln_internal(message: &str) {
     let state = LOG_STATE.read().unwrap();
 
-    let lines = match terminal_width() {
-        Some(width) => textwrap::wrap(
-            message,
-            textwrap::Options::new((width as usize) - state.calculated_indent.len() - 2)
-                // deliberately 5 spaces, to makes this indent different from normal ones
-                .subsequent_indent("     ")
-                .word_splitter(WordSplitter::NoHyphenation),
-        ),
-        None => {
+    let lines = match state.max_width {
+        Some(width) if width > message.len() && !message.contains("\n") => {
+            textwrap::wrap(
+                message,
+                textwrap::Options::new(width)
+                    // deliberately 5 spaces, to makes this indent different from normal ones
+                    .subsequent_indent("     ")
+                    .word_splitter(WordSplitter::NoHyphenation),
+            )
+        }
+        _ => {
             vec![Cow::from(message)]
         }
     };

@@ -1843,6 +1843,7 @@ pub mod help {
     use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
     use golem_wasm_rpc_stubgen::model::app::ComponentName as AppComponentName;
     use indoc::indoc;
+    use textwrap::WordSplitter;
 
     pub struct WorkerNameHelp;
 
@@ -2055,7 +2056,11 @@ pub mod help {
     impl From<&ArgumentError> for ParameterErrorTable {
         fn from(value: &ArgumentError) -> Self {
             Self {
-                parameter_type_: value.type_.as_ref().map(render_type).unwrap_or_default(),
+                parameter_type_: textwrap::wrap(
+                    &value.type_.as_ref().map(render_type).unwrap_or_default(),
+                    textwrap::Options::new(30).word_splitter(WordSplitter::NoHyphenation),
+                )
+                .join("\n"),
                 argument_value: value.value.clone().unwrap_or_default(),
                 error: value.error.clone().unwrap_or_default(),
             }
