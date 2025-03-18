@@ -26,6 +26,7 @@ use crate::command_handler::api::deployment::ApiDeploymentCommandHandler;
 use crate::command_handler::api::security_scheme::ApiSecuritySchemeCommandHandler;
 use crate::command_handler::api::ApiCommandHandler;
 use crate::command_handler::app::AppCommandHandler;
+use crate::command_handler::cloud::account::grant::CloudAccountGrantCommandHandler;
 use crate::command_handler::cloud::account::CloudAccountCommandHandler;
 use crate::command_handler::cloud::project::CloudProjectCommandHandler;
 use crate::command_handler::cloud::token::CloudTokenCommandHandler;
@@ -261,6 +262,7 @@ trait Handlers {
     fn api_security_scheme_handler(&self) -> ApiSecuritySchemeCommandHandler;
     fn app_handler(&self) -> AppCommandHandler;
     fn cloud_account_handler(&self) -> CloudAccountCommandHandler;
+    fn cloud_account_grant_handler(&self) -> CloudAccountGrantCommandHandler;
     fn cloud_handler(&self) -> CloudCommandHandler;
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler;
     fn cloud_token_handler(&self) -> CloudTokenCommandHandler;
@@ -308,6 +310,10 @@ impl Handlers for Arc<Context> {
 
     fn cloud_account_handler(&self) -> CloudAccountCommandHandler {
         CloudAccountCommandHandler::new(self.clone())
+    }
+
+    fn cloud_account_grant_handler(&self) -> CloudAccountGrantCommandHandler {
+        CloudAccountGrantCommandHandler::new(self.clone())
     }
 
     fn cloud_handler(&self) -> CloudCommandHandler {

@@ -772,3 +772,95 @@ impl FromStr for TokenId {
         Ok(TokenId(Uuid::parse_str(s)?))
     }
 }
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, EnumIter, Serialize, Deserialize)]
+pub enum Role {
+    Admin,
+    MarketingAdmin,
+    ViewProject,
+    DeleteProject,
+    CreateProject,
+    InstanceServer,
+    UpdateProject,
+    ViewPlugin,
+    CreatePlugin,
+    DeletePlugin,
+}
+
+impl Display for Role {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Role::Admin => "Admin",
+            Role::MarketingAdmin => "MarketingAdmin",
+            Role::ViewProject => "ViewProject",
+            Role::DeleteProject => "DeleteProject",
+            Role::CreateProject => "CreateProject",
+            Role::InstanceServer => "InstanceServer",
+            Role::UpdateProject => "UpdateProject",
+            Role::ViewPlugin => "ViewPlugin",
+            Role::CreatePlugin => "CreatePlugin",
+            Role::DeletePlugin => "DeletePlugin",
+        };
+
+        Display::fmt(s, f)
+    }
+}
+
+impl FromStr for Role {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Admin" => Ok(Role::Admin),
+            "MarketingAdmin" => Ok(Role::MarketingAdmin),
+            "ViewProject" => Ok(Role::ViewProject),
+            "DeleteProject" => Ok(Role::DeleteProject),
+            "CreateProject" => Ok(Role::CreateProject),
+            "InstanceServer" => Ok(Role::InstanceServer),
+            "UpdateProject" => Ok(Role::UpdateProject),
+            "ViewPlugin" => Ok(Role::ViewPlugin),
+            "CreatePlugin" => Ok(Role::CreatePlugin),
+            _ => {
+                let all = Role::iter()
+                    .map(|x| format!("\"{x}\""))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                Err(format!("Unknown role: {s}. Expected one of {all}"))
+            }
+        }
+    }
+}
+
+impl From<Role> for golem_cloud_client::model::Role {
+    fn from(value: Role) -> Self {
+        match value {
+            Role::Admin => golem_cloud_client::model::Role::Admin,
+            Role::MarketingAdmin => golem_cloud_client::model::Role::MarketingAdmin,
+            Role::ViewProject => golem_cloud_client::model::Role::ViewProject,
+            Role::DeleteProject => golem_cloud_client::model::Role::DeleteProject,
+            Role::CreateProject => golem_cloud_client::model::Role::CreateProject,
+            Role::InstanceServer => golem_cloud_client::model::Role::InstanceServer,
+            Role::UpdateProject => golem_cloud_client::model::Role::UpdateProject,
+            Role::ViewPlugin => golem_cloud_client::model::Role::ViewPlugin,
+            Role::CreatePlugin => golem_cloud_client::model::Role::CreatePlugin,
+            Role::DeletePlugin => golem_cloud_client::model::Role::DeletePlugin,
+        }
+    }
+}
+
+impl From<golem_cloud_client::model::Role> for Role {
+    fn from(value: golem_cloud_client::model::Role) -> Self {
+        match value {
+            golem_cloud_client::model::Role::Admin => Role::Admin,
+            golem_cloud_client::model::Role::MarketingAdmin => Role::MarketingAdmin,
+            golem_cloud_client::model::Role::ViewProject => Role::ViewProject,
+            golem_cloud_client::model::Role::DeleteProject => Role::DeleteProject,
+            golem_cloud_client::model::Role::CreateProject => Role::CreateProject,
+            golem_cloud_client::model::Role::InstanceServer => Role::InstanceServer,
+            golem_cloud_client::model::Role::UpdateProject => Role::UpdateProject,
+            golem_cloud_client::model::Role::ViewPlugin => Role::ViewPlugin,
+            golem_cloud_client::model::Role::CreatePlugin => Role::CreatePlugin,
+            golem_cloud_client::model::Role::DeletePlugin => Role::DeletePlugin,
+        }
+    }
+}

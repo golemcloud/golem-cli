@@ -176,11 +176,7 @@ impl CloudProjectCommandHandler {
                     project_id: project.project_id.into(),
                 }))
             }
-            (ProfileKind::Cloud, None) => {
-                // TODO: from global flags
-                // TODO: should we query the default here?
-                Ok(None)
-            }
+            (ProfileKind::Cloud, None) => Ok(None),
         }
     }
 

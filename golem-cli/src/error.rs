@@ -886,6 +886,12 @@ pub mod service {
         }
     }
 
+    impl HasServiceName for golem_cloud_client::api::AccountError {
+        fn service_name() -> &'static str {
+            "Cloud Account"
+        }
+    }
+
     impl From<golem_cloud_client::api::AccountError> for ServiceErrorResponse {
         fn from(value: golem_cloud_client::api::AccountError) -> Self {
             match value {
@@ -902,6 +908,35 @@ pub mod service {
                     message: error.error,
                 },
                 golem_cloud_client::api::AccountError::Error500(error) => ServiceErrorResponse {
+                    status_code: 500,
+                    message: error.error,
+                },
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::GrantError {
+        fn service_name() -> &'static str {
+            "Cloud Grant"
+        }
+    }
+
+    impl From<golem_cloud_client::api::GrantError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::GrantError) -> Self {
+            match value {
+                golem_cloud_client::api::GrantError::Error400(error) => ServiceErrorResponse {
+                    status_code: 400,
+                    message: error.errors.iter().join("\n"),
+                },
+                golem_cloud_client::api::GrantError::Error401(error) => ServiceErrorResponse {
+                    status_code: 401,
+                    message: error.error,
+                },
+                golem_cloud_client::api::GrantError::Error404(error) => ServiceErrorResponse {
+                    status_code: 404,
+                    message: error.error,
+                },
+                golem_cloud_client::api::GrantError::Error500(error) => ServiceErrorResponse {
                     status_code: 500,
                     message: error.error,
                 },

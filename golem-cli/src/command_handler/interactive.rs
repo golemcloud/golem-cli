@@ -22,6 +22,7 @@ use crate::model::text::fmt::log_warn;
 use crate::model::{ComponentName, Format};
 use anyhow::{anyhow, bail};
 use colored::Colorize;
+use golem_cloud_client::model::Account;
 use golem_wasm_rpc_stubgen::log::{log_warn_action, LogColorize};
 use inquire::validator::{ErrorMessage, Validation};
 use inquire::{Confirm, CustomType, InquireError, Select, Text};
@@ -60,6 +61,17 @@ impl InteractiveHandler {
                 "Redeploying will {} then recreate {} worker(s), do you want to continue?",
                 "delete".log_color_warn(),
                 number_of_workers.to_string().log_color_highlight()
+            ),
+        )
+    }
+
+    pub fn confirm_delete_account(&self, account: &Account) -> anyhow::Result<bool> {
+        self.confirm(
+            false,
+            format!(
+                "Are you sure you want to delete the requested account? ({}, {})",
+                account.name.log_color_highlight(),
+                account.email.log_color_highlight()
             ),
         )
     }

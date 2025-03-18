@@ -2109,11 +2109,14 @@ pub mod account {
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct AccountAddView(pub Account);
+    pub struct AccountNewView(pub Account);
 
-    impl MessageWithFields for AccountAddView {
+    impl MessageWithFields for AccountNewView {
         fn message(&self) -> String {
-            format!("Added account {}", format_message_highlight(&self.0.id))
+            format!(
+                "Created new account {}",
+                format_message_highlight(&self.0.id)
+            )
         }
 
         fn fields(&self) -> Vec<(String, String)> {

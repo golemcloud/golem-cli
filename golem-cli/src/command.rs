@@ -449,6 +449,7 @@ pub enum GolemCliSubcommand {
 }
 
 pub mod shared_args {
+    use crate::cloud::AccountId;
     use crate::model::{ComponentName, ProjectName, WorkerName, WorkerUpdateMode};
     use clap::Args;
     use golem_templates::model::GuestLanguage;
@@ -553,6 +554,13 @@ pub mod shared_args {
         /// Project Name
         #[arg(long)]
         pub project: Option<ProjectName>,
+    }
+
+    #[derive(Debug, Args)]
+    pub struct AccountIdOptionalArg {
+        /// Account ID
+        #[arg(long)]
+        pub account_id: Option<AccountId>,
     }
 }
 
@@ -1193,10 +1201,73 @@ pub mod cloud {
     }
 
     pub mod account {
+        use crate::command::cloud::account::grant::GrantSubcommand;
+        use crate::command::shared_args::AccountIdOptionalArg;
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
-        pub enum AccountSubcommand {}
+        pub enum AccountSubcommand {
+            /// Get information about the account
+            Get {
+                #[command(flatten)]
+                account_id: AccountIdOptionalArg,
+            },
+            /// Update some information about the account
+            Update {
+                #[command(flatten)]
+                account_id: AccountIdOptionalArg,
+                /// Set the account's name
+                account_name: Option<String>,
+                /// Set the account's email address
+                account_email: Option<String>,
+            },
+            /// Add a new account
+            New {
+                /// The new account's name
+                account_name: String,
+                /// The new account's email address
+                account_email: String,
+            },
+            /// Delete the account
+            Delete {
+                #[command(flatten)]
+                account_id: AccountIdOptionalArg,
+            },
+            /// Manage the account roles
+            Grant {
+                #[command(subcommand)]
+                subcommand: GrantSubcommand,
+            },
+        }
+
+        pub mod grant {
+            use crate::command::shared_args::AccountIdOptionalArg;
+            use crate::model::Role;
+            use clap::Subcommand;
+
+            #[derive(Subcommand, Debug)]
+            pub enum GrantSubcommand {
+                /// Get the roles granted to the account
+                Get {
+                    #[command(flatten)]
+                    account_id: AccountIdOptionalArg,
+                },
+                /// Grant a new role to the account
+                New {
+                    #[command(flatten)]
+                    account_id: AccountIdOptionalArg,
+                    /// The role to be granted
+                    role: Role,
+                },
+                /// Remove a role from the account
+                Delete {
+                    #[command(flatten)]
+                    account_id: AccountIdOptionalArg,
+                    /// The role to be deleted
+                    role: Role,
+                },
+            }
+        }
     }
 
     pub mod project {
