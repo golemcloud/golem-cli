@@ -2474,9 +2474,9 @@ pub mod token {
     use uuid::Uuid;
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub struct UnsafeTokenView(pub UnsafeToken);
+    pub struct TokenNewView(pub UnsafeToken);
 
-    impl MessageWithFields for UnsafeTokenView {
+    impl MessageWithFields for TokenNewView {
         fn message(&self) -> String {
             format!(
                 "Created new token\n{}",

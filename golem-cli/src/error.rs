@@ -36,7 +36,7 @@ pub mod service {
         GolemErrorPromiseAlreadyCompleted, GolemErrorPromiseDropped, GolemErrorPromiseNotFound,
         GolemErrorRuntimeError, GolemErrorUnexpectedOplogEntry, GolemErrorUnknown,
         GolemErrorValueMismatch, GolemErrorWorkerAlreadyExists, GolemErrorWorkerCreationFailed,
-        GolemErrorWorkerNotFound, WorkerServiceErrorsBody,
+        GolemErrorWorkerNotFound,
     };
     use golem_common::model::{PromiseId, WorkerId};
     use golem_wasm_rpc_stubgen::log::LogColorize;
@@ -632,16 +632,7 @@ pub mod service {
     impl From<golem_client::api::ApiDefinitionError> for ServiceErrorResponse {
         fn from(value: golem_client::api::ApiDefinitionError) -> Self {
             match value {
-                golem_client::api::ApiDefinitionError::Error400(error) => match error {
-                    WorkerServiceErrorsBody::Messages(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: errors.errors.join("\n"),
-                    },
-                    WorkerServiceErrorsBody::Validation(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
-                    },
-                },
+                golem_client::api::ApiDefinitionError::Error400(error) => error.into(),
                 golem_client::api::ApiDefinitionError::Error401(error) => ServiceErrorResponse {
                     status_code: 401,
                     message: error.error,
@@ -675,16 +666,7 @@ pub mod service {
     impl From<golem_cloud_client::api::ApiDefinitionError> for ServiceErrorResponse {
         fn from(value: golem_cloud_client::api::ApiDefinitionError) -> Self {
             match value {
-                golem_cloud_client::api::ApiDefinitionError::Error400(error) => match error {
-                    WorkerServiceErrorsBody::Messages(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: errors.errors.join("\n"),
-                    },
-                    WorkerServiceErrorsBody::Validation(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
-                    },
-                },
+                golem_cloud_client::api::ApiDefinitionError::Error400(error) => error.into(),
                 golem_cloud_client::api::ApiDefinitionError::Error401(error) => {
                     ServiceErrorResponse {
                         status_code: 401,
@@ -728,16 +710,7 @@ pub mod service {
     impl From<golem_client::api::ApiDeploymentError> for ServiceErrorResponse {
         fn from(value: golem_client::api::ApiDeploymentError) -> Self {
             match value {
-                golem_client::api::ApiDeploymentError::Error400(error) => match error {
-                    WorkerServiceErrorsBody::Messages(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: errors.errors.join("\n"),
-                    },
-                    WorkerServiceErrorsBody::Validation(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
-                    },
-                },
+                golem_client::api::ApiDeploymentError::Error400(error) => error.into(),
                 golem_client::api::ApiDeploymentError::Error401(error) => ServiceErrorResponse {
                     status_code: 401,
                     message: error.error,
@@ -771,16 +744,7 @@ pub mod service {
     impl From<golem_cloud_client::api::ApiDeploymentError> for ServiceErrorResponse {
         fn from(value: golem_cloud_client::api::ApiDeploymentError) -> Self {
             match value {
-                golem_cloud_client::api::ApiDeploymentError::Error400(error) => match error {
-                    WorkerServiceErrorsBody::Messages(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: errors.errors.join("\n"),
-                    },
-                    WorkerServiceErrorsBody::Validation(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
-                    },
-                },
+                golem_cloud_client::api::ApiDeploymentError::Error400(error) => error.into(),
                 golem_cloud_client::api::ApiDeploymentError::Error401(error) => {
                     ServiceErrorResponse {
                         status_code: 401,
@@ -824,16 +788,7 @@ pub mod service {
     impl From<golem_client::api::ApiSecurityError> for ServiceErrorResponse {
         fn from(value: golem_client::api::ApiSecurityError) -> Self {
             match value {
-                golem_client::api::ApiSecurityError::Error400(error) => match error {
-                    WorkerServiceErrorsBody::Messages(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: errors.errors.join("\n"),
-                    },
-                    WorkerServiceErrorsBody::Validation(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
-                    },
-                },
+                golem_client::api::ApiSecurityError::Error400(error) => error.into(),
                 golem_client::api::ApiSecurityError::Error401(error) => ServiceErrorResponse {
                     status_code: 401,
                     message: error.error,
@@ -867,16 +822,7 @@ pub mod service {
     impl From<golem_cloud_client::api::ApiSecurityError> for ServiceErrorResponse {
         fn from(value: golem_cloud_client::api::ApiSecurityError) -> Self {
             match value {
-                golem_cloud_client::api::ApiSecurityError::Error400(error) => match error {
-                    WorkerServiceErrorsBody::Messages(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: errors.errors.join("\n"),
-                    },
-                    WorkerServiceErrorsBody::Validation(errors) => ServiceErrorResponse {
-                        status_code: 400,
-                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
-                    },
-                },
+                golem_cloud_client::api::ApiSecurityError::Error400(error) => error.into(),
                 golem_cloud_client::api::ApiSecurityError::Error401(error) => {
                     ServiceErrorResponse {
                         status_code: 401,
@@ -905,6 +851,77 @@ pub mod service {
                     ServiceErrorResponse {
                         status_code: 500,
                         message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::TokenError {
+        fn service_name() -> &'static str {
+            "Cloud Token"
+        }
+    }
+
+    impl From<golem_cloud_client::api::TokenError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::TokenError) -> Self {
+            match value {
+                golem_cloud_client::api::TokenError::Error400(error) => ServiceErrorResponse {
+                    status_code: 400,
+                    message: error.errors.iter().join("\n"),
+                },
+                golem_cloud_client::api::TokenError::Error401(error) => ServiceErrorResponse {
+                    status_code: 401,
+                    message: error.error,
+                },
+                golem_cloud_client::api::TokenError::Error404(error) => ServiceErrorResponse {
+                    status_code: 404,
+                    message: error.error,
+                },
+                golem_cloud_client::api::TokenError::Error500(error) => ServiceErrorResponse {
+                    status_code: 500,
+                    message: error.error,
+                },
+            }
+        }
+    }
+
+    impl From<golem_cloud_client::api::AccountError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::AccountError) -> Self {
+            match value {
+                golem_cloud_client::api::AccountError::Error400(error) => ServiceErrorResponse {
+                    status_code: 400,
+                    message: error.errors.iter().join("\n"),
+                },
+                golem_cloud_client::api::AccountError::Error401(error) => ServiceErrorResponse {
+                    status_code: 401,
+                    message: error.error,
+                },
+                golem_cloud_client::api::AccountError::Error404(error) => ServiceErrorResponse {
+                    status_code: 404,
+                    message: error.error,
+                },
+                golem_cloud_client::api::AccountError::Error500(error) => ServiceErrorResponse {
+                    status_code: 500,
+                    message: error.error,
+                },
+            }
+        }
+    }
+
+    impl From<golem_client::model::WorkerServiceErrorsBody> for ServiceErrorResponse {
+        fn from(error: golem_client::model::WorkerServiceErrorsBody) -> Self {
+            match error {
+                golem_client::model::WorkerServiceErrorsBody::Messages(errors) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: errors.errors.join("\n"),
+                    }
+                }
+                golem_client::model::WorkerServiceErrorsBody::Validation(errors) => {
+                    ServiceErrorResponse {
+                        status_code: 400,
+                        message: format!("Validation error(s): {}", errors.errors.join("\n"),),
                     }
                 }
             }

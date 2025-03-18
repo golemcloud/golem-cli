@@ -26,7 +26,9 @@ use crate::command_handler::api::deployment::ApiDeploymentCommandHandler;
 use crate::command_handler::api::security_scheme::ApiSecuritySchemeCommandHandler;
 use crate::command_handler::api::ApiCommandHandler;
 use crate::command_handler::app::AppCommandHandler;
+use crate::command_handler::cloud::account::CloudAccountCommandHandler;
 use crate::command_handler::cloud::project::CloudProjectCommandHandler;
+use crate::command_handler::cloud::token::CloudTokenCommandHandler;
 use crate::command_handler::cloud::CloudCommandHandler;
 use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::interactive::InteractiveHandler;
@@ -258,8 +260,10 @@ trait Handlers {
     fn api_handler(&self) -> ApiCommandHandler;
     fn api_security_scheme_handler(&self) -> ApiSecuritySchemeCommandHandler;
     fn app_handler(&self) -> AppCommandHandler;
+    fn cloud_account_handler(&self) -> CloudAccountCommandHandler;
     fn cloud_handler(&self) -> CloudCommandHandler;
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler;
+    fn cloud_token_handler(&self) -> CloudTokenCommandHandler;
     fn component_handler(&self) -> ComponentCommandHandler;
     fn error_handler(&self) -> ErrorHandler;
     fn interactive_handler(&self) -> InteractiveHandler;
@@ -299,43 +303,51 @@ impl Handlers for Arc<Context> {
     }
 
     fn app_handler(&self) -> AppCommandHandler {
-        AppCommandHandler::new(Arc::clone(self))
+        AppCommandHandler::new(self.clone())
+    }
+
+    fn cloud_account_handler(&self) -> CloudAccountCommandHandler {
+        CloudAccountCommandHandler::new(self.clone())
     }
 
     fn cloud_handler(&self) -> CloudCommandHandler {
-        CloudCommandHandler::new(Arc::clone(self))
+        CloudCommandHandler::new(self.clone())
     }
 
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler {
-        CloudProjectCommandHandler::new(Arc::clone(self))
+        CloudProjectCommandHandler::new(self.clone())
+    }
+
+    fn cloud_token_handler(&self) -> CloudTokenCommandHandler {
+        CloudTokenCommandHandler::new(self.clone())
     }
 
     fn component_handler(&self) -> ComponentCommandHandler {
-        ComponentCommandHandler::new(Arc::clone(self))
+        ComponentCommandHandler::new(self.clone())
     }
 
     fn error_handler(&self) -> ErrorHandler {
-        ErrorHandler::new(Arc::clone(self))
+        ErrorHandler::new(self.clone())
     }
 
     fn interactive_handler(&self) -> InteractiveHandler {
-        InteractiveHandler::new(Arc::clone(self))
+        InteractiveHandler::new(self.clone())
     }
 
     fn log_handler(&self) -> LogHandler {
-        LogHandler::new(Arc::clone(self))
+        LogHandler::new(self.clone())
     }
 
     fn profile_config_handler(&self) -> ProfileConfigCommandHandler {
-        ProfileConfigCommandHandler::new(Arc::clone(self))
+        ProfileConfigCommandHandler::new(self.clone())
     }
 
     fn profile_handler(&self) -> ProfileCommandHandler {
-        ProfileCommandHandler::new(Arc::clone(self))
+        ProfileCommandHandler::new(self.clone())
     }
 
     fn worker_handler(&self) -> WorkerCommandHandler {
-        WorkerCommandHandler::new(Arc::clone(self))
+        WorkerCommandHandler::new(self.clone())
     }
 }
 

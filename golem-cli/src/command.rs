@@ -22,6 +22,7 @@ use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use crate::model::{Format, WorkerName};
 use anyhow::{anyhow, bail, Context as AnyhowContext};
+use chrono::{DateTime, Utc};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
@@ -1147,34 +1148,48 @@ pub mod profile {
 
 pub mod cloud {
     use crate::command::cloud::account::AccountSubcommand;
-    use crate::command::cloud::auth_token::AuthTokenSubcommand;
     use crate::command::cloud::project::ProjectSubcommand;
+    use crate::command::cloud::token::TokenSubcommand;
     use clap::Subcommand;
 
     #[derive(Debug, Subcommand)]
     pub enum CloudSubcommand {
-        /// Manage Cloud Auth Tokens
-        AuthToken {
+        /// Manage Cloud Projects
+        Project {
             #[clap(subcommand)]
-            subcommand: AuthTokenSubcommand,
+            subcommand: ProjectSubcommand,
         },
         /// Manage Cloud Account
         Account {
             #[clap(subcommand)]
             subcommand: AccountSubcommand,
         },
-        /// Manage Cloud Projects
-        Project {
+        /// Manage Cloud Tokens
+        Token {
             #[clap(subcommand)]
-            subcommand: ProjectSubcommand,
+            subcommand: TokenSubcommand,
         },
     }
 
-    pub mod auth_token {
+    pub mod token {
+        use crate::command::parse_instant;
+        use crate::model::TokenId;
+        use chrono::{DateTime, Utc};
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
-        pub enum AuthTokenSubcommand {}
+        pub enum TokenSubcommand {
+            /// List tokens
+            List,
+            /// Create new token
+            New {
+                /// Expiration date of the generated token
+                #[arg(long, value_parser = parse_instant, default_value = "2100-01-01T00:00:00Z")]
+                expires_at: DateTime<Utc>,
+            },
+            /// Delete an existing token
+            Delete { token_id: TokenId },
+        }
     }
 
     pub mod account {
@@ -1270,6 +1285,15 @@ fn parse_cursor(cursor: &str) -> anyhow::Result<ScanCursor> {
         layer: parts[0].parse()?,
         cursor: parts[1].parse()?,
     })
+}
+
+fn parse_instant(
+    s: &str,
+) -> Result<DateTime<Utc>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    match s.parse::<DateTime<Utc>>() {
+        Ok(dt) => Ok(dt),
+        Err(err) => Err(err.into()),
+    }
 }
 
 #[cfg(test)]

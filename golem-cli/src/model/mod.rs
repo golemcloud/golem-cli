@@ -761,3 +761,14 @@ pub struct SelectedComponents {
     pub project: Option<ProjectNameAndId>,
     pub component_names: Vec<ComponentName>,
 }
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TokenId(pub Uuid);
+
+impl FromStr for TokenId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(TokenId(Uuid::parse_str(s)?))
+    }
+}
