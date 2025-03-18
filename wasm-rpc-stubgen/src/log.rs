@@ -12,9 +12,7 @@ static TERMINAL_WIDTH: OnceLock<Option<usize>> = OnceLock::new();
 static WRAP_PADDING: usize = 2;
 
 fn terminal_width() -> Option<usize> {
-    TERMINAL_WIDTH
-        .get_or_init(|| terminal_size().map(|(width, _)| width.0 as usize))
-        .clone()
+    *TERMINAL_WIDTH.get_or_init(|| terminal_size().map(|(width, _)| width.0 as usize))
 }
 
 // TODO: let's add another output for tracing debug and use that for silent mode in cli

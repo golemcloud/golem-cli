@@ -832,40 +832,40 @@ pub mod template {
 }
 
 pub mod profile {
-    use crate::config::ProfileConfig;
+    use crate::config::{ProfileConfig, ProfileKind};
     use crate::model::text::fmt::*;
-    use crate::model::{ProfileType, ProfileView};
+    use crate::model::ProfileView;
     use colored::Colorize;
-    use golem_wasm_rpc_stubgen::log::logln;
-    use itertools::Itertools;
+    use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
 
     impl TextView for Vec<ProfileView> {
         fn log(&self) {
-            let res = self
-                .iter()
-                .map(|p| {
-                    if p.is_active {
-                        format!(" * {}", format_id(&p.name))
+            logln("Available profiles:".log_color_help_group().to_string());
+            for profile in self {
+                logln(format!(
+                    " {} {}, {}{}",
+                    if profile.is_active { "*" } else { " " },
+                    format_id(&profile.name),
+                    profile.kind,
+                    if profile.name.is_builtin() {
+                        ", builtin"
                     } else {
-                        format!("   {}", p.name)
-                    }
-                })
-                .join("\n");
-
-            logln(res)
+                        ""
+                    },
+                ));
+            }
         }
     }
 
     impl MessageWithFields for ProfileView {
         fn message(&self) -> String {
-            match self.typ {
-                ProfileType::Golem => {
-                    format!("Golem profile {}", format_message_highlight(&self.name))
+            match self.kind {
+                ProfileKind::Oss => {
+                    format!("OSS profile {}", format_message_highlight(&self.name))
                 }
-                ProfileType::GolemCloud => format!(
-                    "Golem Cloud profile {}'",
-                    format_message_highlight(&self.name)
-                ),
+                ProfileKind::Cloud => {
+                    format!("Cloud profile {}'", format_message_highlight(&self.name))
+                }
             }
         }
 

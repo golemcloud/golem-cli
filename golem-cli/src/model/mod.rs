@@ -27,7 +27,9 @@ pub mod wave;
 
 use crate::cloud::{AccountId, ProjectId};
 use crate::command::shared_args::StreamArgs;
-use crate::config::{CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileName};
+use crate::config::{
+    CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileKind, ProfileName,
+};
 use crate::model::to_oss::ToOss;
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
@@ -677,7 +679,7 @@ impl From<StreamArgs> for WorkerConnectOptions {
 pub struct ProfileView {
     pub is_active: bool,
     pub name: ProfileName,
-    pub typ: ProfileType,
+    pub kind: ProfileKind,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub url: Option<Url>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -689,12 +691,6 @@ pub struct ProfileView {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub authenticated: Option<bool>,
     pub config: ProfileConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-pub enum ProfileType {
-    Golem,
-    GolemCloud,
 }
 
 impl ProfileView {
@@ -710,7 +706,7 @@ impl ProfileView {
             }) => ProfileView {
                 is_active: &name == active,
                 name,
-                typ: ProfileType::Golem,
+                kind: ProfileKind::Oss,
                 url: Some(url),
                 cloud_url: None,
                 worker_url,
@@ -728,7 +724,7 @@ impl ProfileView {
             }) => ProfileView {
                 is_active: &name == active,
                 name,
-                typ: ProfileType::GolemCloud,
+                kind: ProfileKind::Cloud,
                 url: custom_url,
                 cloud_url: custom_cloud_url,
                 worker_url: custom_worker_url,

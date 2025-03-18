@@ -756,7 +756,7 @@ pub fn diagnose(dir: &Path, language: Option<GuestLanguage>) {
         Some(selected_language) => {
             match &selected_language.detected_by_reason {
                 Some(reason) => {
-                    logln(reason.to_string());
+                    logln(reason);
                     logln(format!(
                         "Detected language: {}",
                         selected_language.language.to_string().bold().green(),
@@ -787,7 +787,7 @@ pub fn diagnose(dir: &Path, language: Option<GuestLanguage>) {
                 report_tools(
                     Tool::with_all_dependencies(Language::common_rpc_tools())
                         .iter()
-                        .map(|t| DetectedTool::new(&dir, *t))
+                        .map(|t| DetectedTool::new(dir, *t))
                         .collect(),
                 );
             }

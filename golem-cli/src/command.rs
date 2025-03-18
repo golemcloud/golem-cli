@@ -372,6 +372,7 @@ struct InvalidArgMatcher {
     pub to_partial_match: fn(Vec<String>) -> GolemCliCommandPartialMatch,
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum GolemCliCommandParseResult {
     FullMatch(GolemCliCommand),
     ErrorWithPartialMatch {
@@ -1065,55 +1066,65 @@ pub mod plugin {
 
 pub mod profile {
     use crate::command::profile::config::ProfileConfigSubcommand;
-    use crate::config::ProfileName;
+    use crate::config::{ProfileKind, ProfileName};
+    use crate::model::Format;
     use clap::Subcommand;
+    use url::Url;
 
+    #[allow(clippy::large_enum_variant)]
     #[derive(Debug, Subcommand)]
     pub enum ProfileSubcommand {
-        /// Creates new profile
-        #[command()]
+        /// Create new profile, call without <PROFILE_NAME> for interactive setup
         New {
-            /// Create the new profile interactively
-            #[arg(short, long)]
-            interactive: bool,
-
+            /// Profile kind
+            profile_kind: ProfileKind,
+            /// Name of the newly created profile
+            name: Option<ProfileName>,
             /// Switch to the profile after creation
-            #[arg(short, long)]
+            #[arg(long)]
             set_active: bool,
-            // TODO: add args
+            /// URL of Golem Component service
+            #[arg(long)]
+            component_url: Option<Url>,
+            /// URL of Golem Worker service, if not provided defaults to component-url
+            #[arg(long)]
+            worker_url: Option<Url>,
+            /// URL of Golem Cloud service, if not provided defaults to component-url
+            #[arg(long)]
+            cloud_url: Option<Url>,
+            /// Default output format
+            #[arg(long, default_value_t = Format::Text)]
+            default_format: Format,
+            /// Accept invalid certificates.
+            ///
+            /// Disables certificate validation.
+            /// Warning! Any certificate will be trusted for use.
+            /// This includes expired certificates.
+            /// This introduces significant vulnerabilities, and should only be used as a last resort.
+            #[arg(long, hide = true)]
+            allow_insecure: bool,
         },
-
         /// List profiles
-        #[command()]
-        List {},
-
+        List,
         /// Set the active default profile
-        #[command()]
         Switch {
             /// Profile name to switch to
             profile_name: ProfileName,
         },
-
         /// Show profile details
-        #[command()]
         Get {
             /// Name of profile to show, shows active profile if not specified.
-            name: Option<ProfileName>,
+            profile_name: Option<ProfileName>,
         },
-
         /// Remove profile
-        #[command()]
         Delete {
             /// Profile name to delete
             profile_name: ProfileName,
         },
-
         /// Profile config
-        #[command()]
         Config {
-            /// Profile name. Default value - active profile.
+            /// Profile name
             profile_name: ProfileName,
-
             #[command(subcommand)]
             subcommand: ProfileConfigSubcommand,
         },
