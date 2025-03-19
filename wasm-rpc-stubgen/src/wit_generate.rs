@@ -74,8 +74,13 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
         );
         stub_interface.use_type(
             format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}"),
-            "uri",
-            Some(Ident::new("golem-rpc-uri")),
+            "component-id",
+            Some(Ident::new("golem-rpc-component-id")),
+        );
+        stub_interface.use_type(
+            format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}"),
+            "worker-id",
+            Some(Ident::new("golem-rpc-worker-id")),
         );
         stub_interface.use_type(
             format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}"),
@@ -105,9 +110,25 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
         for interface in def.stub_imported_interfaces() {
             let mut stub_functions = Vec::<ResourceFunc>::new();
 
-            // Constructor
+            // Constructors
             {
                 let mut constructor = ResourceFunc::constructor();
+                let mut params = match &interface.constructor_params {
+                    Some(constructor_params) => constructor_params.to_encoder(def)?,
+                    None => Params::empty(),
+                };
+
+                if !def.config.is_ephemeral {
+                    params
+                        .items_mut()
+                        .insert(0, (Ident::new("name"), Type::String));
+                }
+                constructor.set_params(params);
+                stub_functions.push(constructor);
+            }
+
+            {
+                let mut custom_constructor = ResourceFunc::static_("custom");
                 let mut params = match &interface.constructor_params {
                     Some(constructor_params) => constructor_params.to_encoder(def)?,
                     None => Params::empty(),
@@ -116,11 +137,17 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
                     0,
                     (
                         Ident::new("location"),
-                        Type::Named(Ident::new("golem-rpc-uri")),
+                        Type::Named(Ident::new(if def.config.is_ephemeral {
+                            "golem-rpc-component-id"
+                        } else {
+                            "golem-rpc-worker-id"
+                        })),
                     ),
                 );
-                constructor.set_params(params);
-                stub_functions.push(constructor);
+                custom_constructor.set_params(params);
+                custom_constructor
+                    .set_results(Results::Anon(Type::Named(Ident::new(interface.name.clone()))));
+                stub_functions.push(custom_constructor);
             }
 
             // Functions

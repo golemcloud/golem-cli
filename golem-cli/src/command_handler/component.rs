@@ -1134,6 +1134,8 @@ fn app_component_dynamic_linking(
     if mapping.is_empty() {
         Ok(None)
     } else {
+        // TODO: we have to associate default COMPONENT NAMEs to the links too
+
         Ok(Some(DynamicLinkingOss {
             dynamic_linking: HashMap::from_iter(mapping.into_iter().map(|stub_interfaces| {
                 (

@@ -16,7 +16,7 @@
 
 // TODO: test compose with multiple stubs
 
-use crate::{cargo_component_build, test_data_path, wasm_rpc_override};
+use crate::{cargo_component_build, test_data_path, golem_rust_override};
 use fs_extra::dir::CopyOptions;
 use golem_wasm_ast::component::Component;
 use golem_wasm_ast::DefaultAst;
@@ -27,6 +27,7 @@ use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use test_r::test;
+use golem_wasm_rpc_stubgen::model::app::ComponentName;
 
 #[test]
 async fn compose_with_single_stub() {
@@ -77,9 +78,11 @@ async fn init_stub(name: &str) -> (TempDir, TempDir, PathBuf) {
         client_root: canonical_target_root,
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
-        wasm_rpc_override: wasm_rpc_override(),
+        golem_rust_override: golem_rust_override(),
         extract_source_exports_package: true,
         seal_cargo_workspace: true,
+        component_name: ComponentName::from("test:component"),
+        is_ephemeral: false
     })
     .unwrap();
     let wasm_path = generate_and_build_client(&def, false).await.unwrap();
