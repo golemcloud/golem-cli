@@ -1024,6 +1024,84 @@ pub mod service {
         }
     }
 
+    impl HasServiceName for golem_cloud_client::api::ApiCertificateError {
+        fn service_name() -> &'static str {
+            "Cloud API Certificate"
+        }
+    }
+
+    impl From<golem_cloud_client::api::ApiCertificateError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::ApiCertificateError) -> Self {
+            match value {
+                golem_cloud_client::api::ApiCertificateError::Error400(error) => error.into(),
+                golem_cloud_client::api::ApiCertificateError::Error401(error) => {
+                    ServiceErrorResponse {
+                        status_code: 401,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ApiCertificateError::Error403(error) => {
+                    ServiceErrorResponse {
+                        status_code: 403,
+                        message: error.error,
+                    }
+                }
+                golem_cloud_client::api::ApiCertificateError::Error404(error) => {
+                    ServiceErrorResponse {
+                        status_code: 404,
+                        message: error.message,
+                    }
+                }
+                golem_cloud_client::api::ApiCertificateError::Error409(error) => {
+                    ServiceErrorResponse {
+                        status_code: 404,
+                        message: error,
+                    }
+                }
+                golem_cloud_client::api::ApiCertificateError::Error500(error) => {
+                    ServiceErrorResponse {
+                        status_code: 500,
+                        message: error.error,
+                    }
+                }
+            }
+        }
+    }
+
+    impl HasServiceName for golem_cloud_client::api::ApiDomainError {
+        fn service_name() -> &'static str {
+            "Cloud API Domain"
+        }
+    }
+
+    impl From<golem_cloud_client::api::ApiDomainError> for ServiceErrorResponse {
+        fn from(value: golem_cloud_client::api::ApiDomainError) -> Self {
+            match value {
+                golem_cloud_client::api::ApiDomainError::Error400(error) => error.into(),
+                golem_cloud_client::api::ApiDomainError::Error401(error) => ServiceErrorResponse {
+                    status_code: 401,
+                    message: error.error,
+                },
+                golem_cloud_client::api::ApiDomainError::Error403(error) => ServiceErrorResponse {
+                    status_code: 403,
+                    message: error.error,
+                },
+                golem_cloud_client::api::ApiDomainError::Error404(error) => ServiceErrorResponse {
+                    status_code: 404,
+                    message: error.message,
+                },
+                golem_cloud_client::api::ApiDomainError::Error409(error) => ServiceErrorResponse {
+                    status_code: 404,
+                    message: error,
+                },
+                golem_cloud_client::api::ApiDomainError::Error500(error) => ServiceErrorResponse {
+                    status_code: 500,
+                    message: error.error,
+                },
+            }
+        }
+    }
+
     impl From<golem_client::model::WorkerServiceErrorsBody> for ServiceErrorResponse {
         fn from(error: golem_client::model::WorkerServiceErrorsBody) -> Self {
             match error {

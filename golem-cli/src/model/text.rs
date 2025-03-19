@@ -2162,12 +2162,12 @@ pub mod api_domain {
     use uuid::Uuid;
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub struct ApiDomainAddView(pub ApiDomain);
+    pub struct ApiDomainNewView(pub ApiDomain);
 
-    impl MessageWithFields for ApiDomainAddView {
+    impl MessageWithFields for ApiDomainNewView {
         fn message(&self) -> String {
             format!(
-                "Added API domain {}",
+                "Created new API domain {}",
                 format_message_highlight(&self.0.domain_name)
             )
         }
@@ -2240,12 +2240,12 @@ pub mod certificate {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub struct CertificateAddView(pub Certificate);
+    pub struct CertificateNewView(pub Certificate);
 
-    impl MessageWithFields for CertificateAddView {
+    impl MessageWithFields for CertificateNewView {
         fn message(&self) -> String {
             format!(
-                "Added certificate {}",
+                "Created new certificate {}",
                 format_message_highlight(&self.0.domain_name)
             )
         }

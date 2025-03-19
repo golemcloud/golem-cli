@@ -31,7 +31,7 @@ use crate::config::{
     CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileKind, ProfileName,
 };
 use crate::model::to_oss::ToOss;
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use chrono::{DateTime, Utc};
 use clap::builder::{StringValueParser, TypedValueParser};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
@@ -46,12 +46,14 @@ use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::fmt::{Debug, Display, Formatter};
+use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use url::Url;
 use uuid::Uuid;
+
 // TODO: move arg thing into command
 // TODO: move non generic entities into mods
 
@@ -370,6 +372,29 @@ impl TemplateDescription {
 pub enum PathBufOrStdin {
     Path(PathBuf),
     Stdin,
+}
+
+impl PathBufOrStdin {
+    pub fn read_to_string(&self) -> anyhow::Result<String> {
+        match self {
+            PathBufOrStdin::Path(path) => std::fs::read_to_string(path)
+                .with_context(|| anyhow!("Failed to read file: {}", path.display())),
+            PathBufOrStdin::Stdin => {
+                let mut content = String::new();
+                let _ = std::io::stdin()
+                    .read_to_string(&mut content)
+                    .with_context(|| anyhow!("Failed to read from STDIN"))?;
+                Ok(content)
+            }
+        }
+    }
+
+    pub fn is_stdin(&self) -> bool {
+        match self {
+            PathBufOrStdin::Path(_) => false,
+            PathBufOrStdin::Stdin => true,
+        }
+    }
 }
 
 impl FromStr for PathBufOrStdin {

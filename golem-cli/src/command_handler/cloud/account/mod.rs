@@ -92,8 +92,8 @@ impl CloudAccountCommandHandler {
             .update_account(
                 &account.id,
                 &AccountData {
-                    name: account_name.unwrap_or_else(|| account.name),
-                    email: account_email.unwrap_or_else(|| account.email),
+                    name: account_name.unwrap_or(account.name),
+                    email: account_email.unwrap_or(account.email),
                 },
             )
             .await
