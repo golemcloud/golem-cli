@@ -1100,10 +1100,10 @@ pub mod api {
                     #[arg(short, long)]
                     domain_name: String,
                     /// Certificate
-                    #[arg(short = 'b', long, value_hint = clap::ValueHint::FilePath)]
+                    #[arg(long, value_hint = clap::ValueHint::FilePath)]
                     certificate_body: PathBufOrStdin,
                     /// Certificate private key
-                    #[arg(short = 'k', long, value_hint = clap::ValueHint::FilePath)]
+                    #[arg(long, value_hint = clap::ValueHint::FilePath)]
                     certificate_private_key: PathBufOrStdin,
                 },
                 /// Delete an existing certificate
@@ -1111,7 +1111,7 @@ pub mod api {
                 Delete {
                     /// Project name
                     project_name: ProjectName,
-                    #[arg(value_name = "certificate-id")]
+                    /// Certificate ID
                     certificate_id: Uuid,
                 },
             }
