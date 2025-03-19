@@ -127,7 +127,7 @@ impl From<&Component> for ComponentView {
         ComponentView {
             component_name: value.component_name.clone(),
             component_id: value.versioned_component_id.component_id,
-            component_type: value.component_type.clone(),
+            component_type: value.component_type,
             component_version: value.versioned_component_id.version,
             component_size: value.component_size,
             created_at: value.created_at,
