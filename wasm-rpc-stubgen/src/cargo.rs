@@ -22,7 +22,6 @@ use cargo_toml::{
     Dependency, DependencyDetail, DepsSet, Edition, Inheritable, LtoSetting, Manifest, Profile,
     Profiles, StripSetting, Workspace,
 };
-use golem_wasm_rpc::WASM_RPC_VERSION;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -139,15 +138,15 @@ pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
 
         with.insert(
             format!("wasi:io/poll@{WASI_WIT_VERSION}"),
-            "golem_wasm_rpc::wasi::io::poll".to_string(),
+            "golem_rust::wasm_rpc::wasi::io::poll".to_string(),
         );
         with.insert(
             format!("wasi:clocks/wall-clock@{WASI_WIT_VERSION}"),
-            "golem_wasm_rpc::wasi::clocks::wall_clock".to_string(),
+            "golem_rust::wasm_rpc::wasi::clocks::wall_clock".to_string(),
         );
         with.insert(
             format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}"),
-            "golem_wasm_rpc::golem_rpc_0_1_x::types".to_string(),
+            "golem_rust::wasm_rpc::golem_rpc_0_2_x::types".to_string(),
         );
 
         Bindings { with }
@@ -206,44 +205,44 @@ pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
         ..Default::default()
     }));
 
-    let dep_golem_wasm_rpc = Dependency::Detailed(Box::new(DependencyDetail {
+    let dep_golem_rust = Dependency::Detailed(Box::new(DependencyDetail {
         version: if def
             .config
-            .wasm_rpc_override
-            .wasm_rpc_path_override
+            .golem_rust_override
+            .path_override
             .is_none()
         {
             if let Some(version) = def
                 .config
-                .wasm_rpc_override
-                .wasm_rpc_version_override
+                .golem_rust_override
+                .version_override
                 .as_ref()
             {
                 Some(version.to_string())
             } else {
-                Some(WASM_RPC_VERSION.to_string())
+                Some("1.3.0".to_string()) // TODO: constant
             }
         } else {
             None
         },
         path: def
             .config
-            .wasm_rpc_override
-            .wasm_rpc_path_override
+            .golem_rust_override
+            .path_override
             .as_ref()
             .map(|path| {
                 path.to_str()
-                    .expect("Failed to convert wasm rpc override path to string")
+                    .expect("Failed to convert golem-rust override path to string")
                     .to_string()
             }),
         default_features: false,
-        features: vec!["stub".to_string()],
+        features: vec![],
         ..Default::default()
     }));
 
     let mut deps = DepsSet::new();
     deps.insert("wit-bindgen-rt".to_string(), dep_wit_bindgen);
-    deps.insert("golem-wasm-rpc".to_string(), dep_golem_wasm_rpc);
+    deps.insert("golem-rust".to_string(), dep_golem_rust);
     manifest.dependencies = deps;
 
     let cargo_toml = toml::to_string(&manifest)?;

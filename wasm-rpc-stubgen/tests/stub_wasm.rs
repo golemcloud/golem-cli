@@ -15,7 +15,7 @@
 //! Tests in this module are verifying the STUB WASM created by the stub generator
 //! regardless of how the actual wasm generator is implemented. (Currently generates Rust code and compiles it)
 
-use crate::{test_data_path, wasm_rpc_override};
+use crate::{test_data_path, golem_rust_override};
 use fs_extra::dir::CopyOptions;
 use golem_wasm_ast::analysis::analysed_type::*;
 use golem_wasm_ast::analysis::{
@@ -29,6 +29,7 @@ use golem_wasm_rpc_stubgen::commands::generate::generate_and_build_client;
 use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
 use tempfile::tempdir;
 use test_r::test;
+use golem_wasm_rpc_stubgen::model::app::ComponentName;
 
 #[test]
 async fn all_wit_types() {
@@ -50,9 +51,11 @@ async fn all_wit_types() {
         client_root: canonical_target_root,
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
-        wasm_rpc_override: wasm_rpc_override(),
+        golem_rust_override: golem_rust_override(),
         extract_source_exports_package: true,
         seal_cargo_workspace: false,
+        component_name: ComponentName::from("test:component"),
+        is_ephemeral: false
     })
     .unwrap();
 
@@ -359,9 +362,11 @@ async fn resource() {
         client_root: canonical_target_root,
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
-        wasm_rpc_override: wasm_rpc_override(),
+        golem_rust_override: golem_rust_override(),
         extract_source_exports_package: true,
         seal_cargo_workspace: false,
+        component_name: ComponentName::from("test:component"),
+        is_ephemeral: false
     })
     .unwrap();
 

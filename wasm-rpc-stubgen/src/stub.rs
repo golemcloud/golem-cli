@@ -27,6 +27,7 @@ use wit_parser::{
     Function, FunctionKind, Interface, InterfaceId, Package, PackageId, PackageName, Resolve,
     Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, World, WorldId, WorldItem, WorldKey,
 };
+use crate::model::app::ComponentName;
 
 #[derive(Clone, Debug)]
 pub struct StubConfig {
@@ -34,15 +35,17 @@ pub struct StubConfig {
     pub client_root: PathBuf,
     pub selected_world: Option<String>,
     pub stub_crate_version: String,
-    pub wasm_rpc_override: WasmRpcOverride,
+    pub golem_rust_override: RustDependencyOverride,
     pub extract_source_exports_package: bool,
     pub seal_cargo_workspace: bool,
+    pub component_name: ComponentName,
+    pub is_ephemeral: bool
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct WasmRpcOverride {
-    pub wasm_rpc_path_override: Option<PathBuf>,
-    pub wasm_rpc_version_override: Option<String>,
+pub struct RustDependencyOverride {
+    pub path_override: Option<PathBuf>,
+    pub version_override: Option<String>,
 }
 
 pub struct StubDefinition {
