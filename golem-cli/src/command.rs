@@ -792,7 +792,7 @@ pub mod worker {
         ComponentOptionalComponentName, NewWorkerArgument, StreamArgs, WorkerFunctionArgument,
         WorkerFunctionName, WorkerNameArg,
     };
-    use crate::model::IdempotencyKey;
+    use crate::model::{IdempotencyKey, WorkerUpdateMode};
     use clap::Subcommand;
     use golem_client::model::ScanCursor;
 
@@ -871,6 +871,15 @@ pub mod worker {
             worker_name: WorkerNameArg,
             #[command(flatten)]
             stream_args: StreamArgs,
+        },
+        /// Updates a worker
+        Update {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+            /// Update mode - auto or manual
+            mode: WorkerUpdateMode,
+            /// The new version of the updated worker
+            target_version: u64,
         },
         /// Interrupts a running worker
         Interrupt {
