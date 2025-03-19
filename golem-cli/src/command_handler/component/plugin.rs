@@ -41,19 +41,19 @@ impl ComponentPluginCommandHandler {
         subcommand: ComponentPluginSubcommand,
     ) -> anyhow::Result<()> {
         match subcommand {
-            ComponentPluginSubcommand::New {
+            ComponentPluginSubcommand::Install {
                 component_name,
                 plugin_name,
                 plugin_version,
                 priority,
-                parameter,
+                param,
             } => {
                 self.cmd_new(
                     component_name.component_name,
                     plugin_name,
                     plugin_version,
                     priority,
-                    parameter,
+                    param,
                 )
                 .await
             }
@@ -61,7 +61,7 @@ impl ComponentPluginCommandHandler {
                 component_name,
                 version,
             } => self.cmd_get(component_name.component_name, version).await,
-            ComponentPluginSubcommand::Delete {
+            ComponentPluginSubcommand::Uninstall {
                 component_name,
                 installation_id,
             } => {

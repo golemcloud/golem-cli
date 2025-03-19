@@ -40,7 +40,7 @@ use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
 use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
 use golem_cloud_client::model::ComponentQuery;
-use golem_common::model::ComponentType;
+use golem_common::model::{ComponentId, ComponentType};
 use golem_templates::add_component_by_template;
 use golem_templates::model::{GuestLanguage, PackageName};
 use golem_wasm_rpc_stubgen::commands::app::{
@@ -54,7 +54,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
-use uuid::Uuid;
 
 pub mod ifs;
 pub mod plugin;
@@ -110,7 +109,7 @@ impl ComponentCommandHandler {
                 self.cmd_redeploy_workers(component_name.component_name)
                     .await
             }
-            ComponentSubcommand::PluginInstallation { subcommand } => {
+            ComponentSubcommand::Plugin { subcommand } => {
                 self.ctx
                     .component_plugin_handler()
                     .handle_command(subcommand)
@@ -396,7 +395,7 @@ impl ComponentCommandHandler {
                         Some(version) => {
                             let result = clients
                                 .component
-                                .get_component_metadata(&component_id, &version.to_string())
+                                .get_component_metadata(&component_id.0, &version.to_string())
                                 .await
                                 .map_service_error()?;
                             component_views.push(Component::from(result).into());
@@ -404,7 +403,7 @@ impl ComponentCommandHandler {
                         None => {
                             let result = clients
                                 .component
-                                .get_latest_component_metadata(&component_id)
+                                .get_latest_component_metadata(&component_id.0)
                                 .await
                                 .map_service_error()?;
                             component_views.push(Component::from(result).into());
@@ -414,7 +413,7 @@ impl ComponentCommandHandler {
                         Some(version) => {
                             let result = clients
                                 .component
-                                .get_component_metadata(&component_id, &version.to_string())
+                                .get_component_metadata(&component_id.0, &version.to_string())
                                 .await
                                 .map_service_error()?;
                             component_views.push(Component::from(result).into());
@@ -422,7 +421,7 @@ impl ComponentCommandHandler {
                         None => {
                             let result = clients
                                 .component
-                                .get_latest_component_metadata(&component_id)
+                                .get_latest_component_metadata(&component_id.0)
                                 .await
                                 .map_service_error()?;
                             component_views.push(Component::from(result).into());
@@ -633,7 +632,7 @@ impl ComponentCommandHandler {
                         let component = clients
                             .component
                             .update_component(
-                                component_id,
+                                &component_id.0,
                                 Some(&deploy_properties.component_type),
                                 linked_wasm,
                                 ifs_properties,
@@ -648,7 +647,7 @@ impl ComponentCommandHandler {
                         let component = clients
                             .component
                             .update_component(
-                                component_id,
+                                &component_id.0,
                                 Some(&deploy_properties.component_type),
                                 linked_wasm,
                                 ifs_properties,
@@ -1078,15 +1077,15 @@ impl ComponentCommandHandler {
         }
     }
 
-    async fn component_id_by_name(
+    pub async fn component_id_by_name(
         &self,
         project: Option<&ProjectNameAndId>,
         component_name: &ComponentName,
-    ) -> anyhow::Result<Option<Uuid>> {
+    ) -> anyhow::Result<Option<ComponentId>> {
         Ok(self
             .component_by_name(project, component_name)
             .await?
-            .map(|c| c.versioned_component_id.component_id))
+            .map(|c| ComponentId(c.versioned_component_id.component_id)))
     }
 }
 

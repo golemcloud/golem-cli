@@ -579,16 +579,16 @@ pub mod shared_args {
     pub struct PluginScopeArgs {
         /// Global scope (plugin available for all components)
         #[arg(long, conflicts_with_all=["account_id", "project_name", "component_name"])]
-        global: bool,
+        pub global: bool,
         /// Account id, optionally specifies the account id for the project name
         #[arg(long, conflicts_with_all = ["global"])]
-        account: Option<AccountId>,
+        pub account: Option<AccountId>,
         /// Project name; Required when component name is used. Without a given component, it defines a project scope.
         #[arg(long, conflicts_with_all = ["global"])]
-        project: Option<ProjectName>,
+        pub project: Option<ProjectName>,
         /// Component scope given by the component's name (plugin only available for this component)
         #[arg(long, conflicts_with_all=["global"])]
-        component: Option<ComponentName>,
+        pub component: Option<ComponentName>,
     }
 
     impl PluginScopeArgs {
@@ -733,7 +733,7 @@ pub mod component {
             component_name: ComponentOptionalComponentName,
         },
         /// Manage component plugin installations
-        PluginInstallation {
+        Plugin {
             #[command(subcommand)]
             subcommand: ComponentPluginSubcommand,
         },
@@ -753,7 +753,7 @@ pub mod component {
         #[derive(Debug, Subcommand)]
         pub enum ComponentPluginSubcommand {
             /// Install a plugin for this component
-            New {
+            Install {
                 #[command(flatten)]
                 component_name: ComponentOptionalComponentName,
                 /// The plugin to install
@@ -763,8 +763,8 @@ pub mod component {
                 /// Priority of the plugin - largest priority is applied first
                 priority: i32,
                 /// List of parameters (key-value pairs) passed to the plugin
-                #[arg(short, long, value_parser = parse_key_val, value_name = "KEY=VAL")]
-                parameter: Vec<(String, String)>,
+                #[arg(long, value_parser = parse_key_val, value_name = "KEY=VAL")]
+                param: Vec<(String, String)>,
             },
             /// Get the installed plugins of the component
             Get {
@@ -774,7 +774,7 @@ pub mod component {
                 version: Option<u64>,
             },
             /// Uninstall a plugin for this component
-            Delete {
+            Uninstall {
                 /// The component to install the plugin for
                 #[command(flatten)]
                 component_name: ComponentOptionalComponentName,
@@ -1202,8 +1202,8 @@ pub mod api {
 
 pub mod plugin {
     use crate::command::shared_args::PluginScopeArgs;
+    use crate::model::PathBufOrStdin;
     use clap::Subcommand;
-    use std::path::PathBuf;
 
     #[derive(Debug, Subcommand)]
     pub enum PluginSubcommand {
@@ -1224,8 +1224,8 @@ pub mod plugin {
         Register {
             #[command(flatten)]
             scope: PluginScopeArgs,
-            /// Path to the plugin manifest JSON
-            manifest: PathBuf,
+            /// Path to the plugin manifest JSON or '-' to use STDIN
+            manifest: PathBufOrStdin,
         },
         /// Unregister a plugin
         Unregister {

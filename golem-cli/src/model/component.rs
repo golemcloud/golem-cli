@@ -96,6 +96,7 @@ impl ComponentUpsertResult {
 pub struct ComponentView {
     pub component_name: ComponentName,
     pub component_id: Uuid,
+    // TODO: add component type
     pub component_version: u64,
     pub component_size: u64,
     pub created_at: Option<DateTime<Utc>>,
