@@ -8,12 +8,12 @@ on:
   push:
     branches:
     - main
-    # TODO: Tag and publishing is not enabled until merging history
-    # tags:
-    # - "v*.*.*"
+    tags:
+    - "v*.*.*"
     paths:
     - "desktop-app/**"
     - ".github/workflows/desktop-ci.yaml"
+  
 
 jobs:
   build-tauri:
