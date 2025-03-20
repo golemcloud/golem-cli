@@ -8,9 +8,8 @@ on:
   push:
     branches:
     - main
-    # TODO: Tag and publishing is not enabled until merging history
-    # tags:
-    # - "v*.*.*"
+    tags:
+    - "v*.*.*"
     paths:
     - "desktop-app/**"
     - ".github/workflows/desktop-ci.yaml"
@@ -78,7 +77,7 @@ jobs:
         projectPath: "./desktop-app"
 
     - name: Upload artifacts
-      if: startsWith(github.ref, 'refs/tags/')
+      # if: startsWith(github.ref, 'refs/tags/')
       uses: actions/upload-artifact@v4
       with:
         name: golem-app-${{ matrix.platform }}-${{ matrix.target || 'default' }}
