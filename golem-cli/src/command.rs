@@ -41,7 +41,7 @@ use crate::command::server::ServerSubcommand;
 
 /// Golem Command Line Interface
 #[derive(Debug, Parser)]
-#[command(version = version())]
+#[command(long_version = version())]
 pub struct GolemCliCommand {
     #[command(flatten)]
     pub global_flags: GolemCliGlobalFlags,
