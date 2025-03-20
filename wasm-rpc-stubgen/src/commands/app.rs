@@ -10,7 +10,7 @@ use crate::model::app::{
     DEFAULT_CONFIG_FILE_NAME,
 };
 use crate::model::app_raw;
-use crate::stub::{StubConfig, StubDefinition, RustDependencyOverride};
+use crate::stub::{RustDependencyOverride, StubConfig, StubDefinition};
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wit_generate::{
     add_client_as_dependency_to_wit_dir, extract_exports_as_wit_dep, AddClientAsDepConfig,

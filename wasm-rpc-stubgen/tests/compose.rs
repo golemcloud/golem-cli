@@ -16,18 +16,18 @@
 
 // TODO: test compose with multiple stubs
 
-use crate::{cargo_component_build, test_data_path, golem_rust_override};
+use crate::{cargo_component_build, golem_rust_override, test_data_path};
 use fs_extra::dir::CopyOptions;
 use golem_wasm_ast::component::Component;
 use golem_wasm_ast::DefaultAst;
 use golem_wasm_rpc_stubgen::commands::composition::compose;
 use golem_wasm_rpc_stubgen::commands::dependencies::{add_stub_dependency, UpdateCargoToml};
 use golem_wasm_rpc_stubgen::commands::generate::generate_and_build_client;
+use golem_wasm_rpc_stubgen::model::app::ComponentName;
 use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use test_r::test;
-use golem_wasm_rpc_stubgen::model::app::ComponentName;
 
 #[test]
 async fn compose_with_single_stub() {
@@ -82,7 +82,7 @@ async fn init_stub(name: &str) -> (TempDir, TempDir, PathBuf) {
         extract_source_exports_package: true,
         seal_cargo_workspace: true,
         component_name: ComponentName::from("test:component"),
-        is_ephemeral: false
+        is_ephemeral: false,
     })
     .unwrap();
     let wasm_path = generate_and_build_client(&def, false).await.unwrap();

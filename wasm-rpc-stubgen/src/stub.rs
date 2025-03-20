@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::model::app::ComponentName;
 use crate::naming;
 use crate::wit_encode::EncodedWitDir;
 use crate::wit_generate::extract_exports_as_wit_dep;
@@ -27,7 +28,6 @@ use wit_parser::{
     Function, FunctionKind, Interface, InterfaceId, Package, PackageId, PackageName, Resolve,
     Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, World, WorldId, WorldItem, WorldKey,
 };
-use crate::model::app::ComponentName;
 
 #[derive(Clone, Debug)]
 pub struct StubConfig {
@@ -39,7 +39,7 @@ pub struct StubConfig {
     pub extract_source_exports_package: bool,
     pub seal_cargo_workspace: bool,
     pub component_name: ComponentName,
-    pub is_ephemeral: bool
+    pub is_ephemeral: bool,
 }
 
 #[derive(Debug, Clone, Default)]

@@ -19,7 +19,8 @@ use test_r::test;
 use assert2::assert;
 use fs_extra::dir::CopyOptions;
 use golem_wasm_rpc_stubgen::commands::generate::generate_client_wit_dir;
-use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition, RustDependencyOverride};
+use golem_wasm_rpc_stubgen::model::app::ComponentName;
+use golem_wasm_rpc_stubgen::stub::{RustDependencyOverride, StubConfig, StubDefinition};
 use golem_wasm_rpc_stubgen::wit_generate::{
     add_client_as_dependency_to_wit_dir, AddClientAsDepConfig, UpdateCargoToml,
 };
@@ -30,7 +31,6 @@ use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use wit_encoder::{packages_from_parsed, Package, PackageName};
 use wit_parser::Resolve;
-use golem_wasm_rpc_stubgen::model::app::ComponentName;
 
 test_r::enable!();
 
@@ -578,7 +578,7 @@ fn init_stub(name: &str) -> (TempDir, TempDir) {
         extract_source_exports_package: true,
         seal_cargo_workspace: false,
         component_name: ComponentName::from("test:component"),
-        is_ephemeral: false
+        is_ephemeral: false,
     })
     .unwrap();
     let _ = generate_client_wit_dir(&def).unwrap();
@@ -595,7 +595,7 @@ fn regenerate_stub(stub_dir: &Path, source_wit_root: &Path) {
         extract_source_exports_package: true,
         seal_cargo_workspace: false,
         component_name: ComponentName::from("test:component"),
-        is_ephemeral: false
+        is_ephemeral: false,
     })
     .unwrap();
     let _ = generate_client_wit_dir(&def).unwrap();

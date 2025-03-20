@@ -145,8 +145,9 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
                     ),
                 );
                 custom_constructor.set_params(params);
-                custom_constructor
-                    .set_results(Results::Anon(Type::Named(Ident::new(interface.name.clone()))));
+                custom_constructor.set_results(Results::Anon(Type::Named(Ident::new(
+                    interface.name.clone(),
+                ))));
                 stub_functions.push(custom_constructor);
             }
 

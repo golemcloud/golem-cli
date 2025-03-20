@@ -18,11 +18,11 @@ use test_r::test;
 
 use fs_extra::dir::CopyOptions;
 use golem_wasm_rpc_stubgen::commands::generate::generate_client_wit_dir;
-use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition, RustDependencyOverride};
+use golem_wasm_rpc_stubgen::model::app::ComponentName;
+use golem_wasm_rpc_stubgen::stub::{RustDependencyOverride, StubConfig, StubDefinition};
 use std::path::Path;
 use tempfile::{tempdir, TempDir};
 use wit_parser::{FunctionKind, Resolve, TypeDefKind, TypeOwner};
-use golem_wasm_rpc_stubgen::model::app::ComponentName;
 
 test_r::enable!();
 
@@ -40,7 +40,7 @@ fn all_wit_types() {
         extract_source_exports_package: true,
         seal_cargo_workspace: false,
         component_name: ComponentName::from("test:component"),
-        is_ephemeral: false
+        is_ephemeral: false,
     })
     .unwrap();
     let resolve = generate_client_wit_dir(&def).unwrap().resolve;
@@ -145,7 +145,7 @@ fn many_ways_to_export() {
         extract_source_exports_package: true,
         seal_cargo_workspace: false,
         component_name: ComponentName::from("test:component"),
-        is_ephemeral: false
+        is_ephemeral: false,
     })
     .unwrap();
     let resolve = generate_client_wit_dir(&def).unwrap().resolve;
