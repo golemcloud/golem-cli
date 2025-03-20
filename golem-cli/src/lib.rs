@@ -35,6 +35,16 @@ test_r::enable!();
 
 shadow!(build);
 
+pub fn command_name() -> String {
+    std::env::current_exe()
+        .ok()
+        .and_then(|path| {
+            path.file_stem()
+                .map(|name| name.to_string_lossy().to_string())
+        })
+        .unwrap_or("golem-cli".to_string())
+}
+
 pub fn version() -> &'static str {
     if build::PKG_VERSION != "0.0.0" {
         build::PKG_VERSION
