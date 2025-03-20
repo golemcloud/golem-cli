@@ -21,6 +21,7 @@ use crate::command::profile::ProfileSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
 use crate::model::{Format, WorkerName};
+use crate::version;
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use chrono::{DateTime, Utc};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
@@ -40,6 +41,7 @@ use crate::command::server::ServerSubcommand;
 
 /// Golem Command Line Interface
 #[derive(Debug, Parser)]
+#[command(version = version())]
 pub struct GolemCliCommand {
     #[command(flatten)]
     pub global_flags: GolemCliGlobalFlags,
