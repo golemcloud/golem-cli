@@ -13,19 +13,19 @@
 // limitations under the License.
 
 use assert2::{assert, check};
+use clap::CommandFactory;
 use colored::Colorize;
+use golem_cli::command::GolemCliCommand;
 use golem_common::tracing::{init_tracing_with_default_debug_env_filter, TracingConfig};
 use golem_templates::model::GuestLanguage;
 use itertools::Itertools;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
-use clap::CommandFactory;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 use test_r::{test, test_dep};
 use tracing::info;
-use golem_cli::command::GolemCliCommand;
 
 test_r::enable!();
 
