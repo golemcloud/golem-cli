@@ -8,7 +8,8 @@ project(component-name)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_subdirectory(../../common-cpp/lib common_lib)
+# Use the following for including common code
+# add_subdirectory(../../common-cpp/lib common_lib)
 
 add_executable(component_name.wasm
         src/component.c
