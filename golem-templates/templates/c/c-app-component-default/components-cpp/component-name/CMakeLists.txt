@@ -8,8 +8,8 @@ project(component-name)
 
 set(CMAKE_CXX_STANDARD 20)
 
-# Use the following for including common shared libs
-# add_subdirectory(../../common-cpp/lib common_lib)
+# Use the following for including common shared libs:
+#add_subdirectory(../../common-cpp/lib common_lib)
 
 add_executable(component_name.wasm
         src/component.cpp
@@ -22,7 +22,7 @@ target_include_directories(component_name.wasm
         PRIVATE binding
 )
 
-# Use the following for including common shared libs
-# target_link_libraries(component_name.wasm
-#        PRIVATE common_lib
-# )
+# Use the following for including common shared libs:
+#target_link_libraries(component_name.wasm
+#       PRIVATE common_lib
+#)
