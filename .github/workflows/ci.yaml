@@ -60,6 +60,7 @@ jobs:
       - uses: acifani/setup-tinygo@v2.0.0
         with:
           tinygo-version: '0.35.0'
+      - uses: sbt/setup-sbt@v1.1.7
       - name: Install moonbit
         run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
       - uses: useblacksmith/rust-cache@v3
