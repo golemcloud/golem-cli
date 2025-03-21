@@ -49,6 +49,7 @@ export default function componentRollupConfig() {
             }),
             typescript({
                 noEmitOnError: true,
+                include: ["./src/**/*.ts", "../../common-ts/src/**/*.ts"]
             })
         ],
     };
