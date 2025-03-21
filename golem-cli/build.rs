@@ -31,7 +31,7 @@ fn hook(file: &File) -> SdResult<()> {
 }
 
 fn append_write_git_describe_tags(mut file: &File) -> SdResult<()> {
-    let output = Command::new("git").args(&["describe", "--tags"]).output()?;
+    let output = Command::new("git").args(["describe", "--tags"]).output()?;
     if !output.status.success() {
         println!("cargo::error=git describe --tags failed");
         return Err(ShadowError::from("git describe --tags failed"));
