@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use assert2::{assert, check};
-use clap::CommandFactory;
 use colored::Colorize;
-use golem_cli::command::GolemCliCommand;
 use golem_common::tracing::{init_tracing_with_default_debug_env_filter, TracingConfig};
 use golem_templates::model::GuestLanguage;
 use itertools::Itertools;
