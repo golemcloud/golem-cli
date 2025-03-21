@@ -133,6 +133,9 @@ pub fn main() -> anyhow::Result<()> {
             for (language, templates) in &app_templates {
                 if !languages.is_empty() && !languages.contains(language) {
                     continue;
+                } else if languages.is_empty() && *language == GuestLanguage::ScalaJs {
+                    // Disable ScalaJs, unless explicitly asked for
+                    continue;
                 }
 
                 println!("Adding components for language {}", language.name().blue());
