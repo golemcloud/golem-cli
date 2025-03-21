@@ -141,8 +141,12 @@ pub fn main() -> anyhow::Result<()> {
                 let default_templates = templates.get(&ComposableAppGroupName::default()).unwrap();
                 for (name, component_template) in &default_templates.components {
                     for _ in 1..=2 {
-                        let component_name =
-                            format!("app:comp-{}-{}", name, nanoid!(10, &alphabet));
+                        let component_name = format!(
+                            "app:comp-{}-{}-{}",
+                            language.id(),
+                            name,
+                            nanoid!(10, &alphabet)
+                        );
                         println!(
                             "Adding component {} ({})",
                             component_name.bright_blue(),
