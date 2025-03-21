@@ -569,9 +569,14 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
 
         {
             let mut any_changed = false;
-            for component_name in self.application.component_names() {
-                let changed = create_generated_wit(self, component_name)?;
-                update_cargo_toml(self, changed, component_name)?;
+            let component_names = self
+                .application
+                .component_names()
+                .cloned()
+                .collect::<Vec<_>>();
+            for component_name in component_names {
+                let changed = create_generated_wit(self, &component_name)?;
+                update_cargo_toml(self, changed, &component_name)?;
                 any_changed |= changed;
             }
             if any_changed {
@@ -1508,7 +1513,7 @@ fn create_generated_wit<CPE: ComponentPropertiesExtensions>(
 }
 
 fn update_cargo_toml<CPE: ComponentPropertiesExtensions>(
-    ctx: &ApplicationContext<CPE>,
+    ctx: &mut ApplicationContext<CPE>,
     mut skip_up_to_date_checks: bool,
     component_name: &ComponentName,
 ) -> anyhow::Result<()> {

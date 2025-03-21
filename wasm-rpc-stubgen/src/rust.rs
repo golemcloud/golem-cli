@@ -15,15 +15,17 @@
 use crate::fs::PathExtra;
 use crate::log::{log_action, LogColorize};
 use crate::stub::{FunctionResultStub, FunctionStub, InterfaceStub, StubDefinition};
-use crate::{fs, naming};
+use crate::{fs, naming, GOLEM_RPC_WIT_VERSION, WASI_WIT_VERSION};
 use anyhow::anyhow;
 use heck::{ToShoutySnakeCase, ToUpperCamelCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use std::collections::HashSet;
+use semver::Version;
+use std::collections::{HashMap, HashSet};
 use wit_bindgen_rust::to_rust_ident;
 use wit_parser::{
-    Enum, Flags, Handle, Record, Result_, Tuple, Type, TypeDef, TypeDefKind, TypeOwner, Variant,
+    Enum, Flags, Handle, PackageName, Record, Result_, Tuple, Type, TypeDef, TypeDefKind,
+    TypeOwner, Variant,
 };
 
 pub fn generate_stub_source(def: &StubDefinition) -> anyhow::Result<()> {
@@ -446,7 +448,11 @@ fn generate_function_stub_source(
     let remote_function_name = get_remote_function_name(
         owner.interface_name(),
         owner.resource_name(),
-        &function.name,
+        if mode == FunctionMode::CustomConstructor {
+            "new" // custom constructors still have to call the real remote constructor
+        } else {
+            &function.name
+        },
     );
 
     let rpc = match mode {
@@ -841,6 +847,7 @@ fn type_to_rust_ident(typ: &Type, def: &StubDefinition) -> anyhow::Result<TokenS
                             .to_upper_camel_case(),
                         Span::call_site(),
                     );
+
                     let mut path = Vec::new();
                     path.push(quote! { crate });
                     path.push(quote! { bindings });
@@ -869,17 +876,31 @@ fn type_to_rust_ident(typ: &Type, def: &StubDefinition) -> anyhow::Result<TokenS
                                 .name
                                 .as_ref()
                                 .ok_or(anyhow!("interface has no name"))?;
-                            let ns_ident = Ident::new(
-                                &to_rust_ident(&package.name.namespace),
-                                Span::call_site(),
-                            );
-                            let name_ident =
-                                Ident::new(&to_rust_ident(&package.name.name), Span::call_site());
-                            let interface_ident =
-                                Ident::new(&to_rust_ident(interface_name), Span::call_site());
-                            path.push(quote! { #ns_ident });
-                            path.push(quote! { #name_ident });
-                            path.push(quote! { #interface_ident });
+
+                            if let Some(module_path) = def
+                                .client_binding_mapping
+                                .get_mapped_module_path(&package.name, interface_name)
+                            {
+                                path.clear();
+                                for entry in module_path {
+                                    let ident = Ident::new(&entry, Span::call_site());
+                                    path.push(quote! { #ident });
+                                }
+                            } else {
+                                let ns_ident = Ident::new(
+                                    &to_rust_ident(&package.name.namespace),
+                                    Span::call_site(),
+                                );
+                                let name_ident = Ident::new(
+                                    &to_rust_ident(&package.name.name),
+                                    Span::call_site(),
+                                );
+                                let interface_ident =
+                                    Ident::new(&to_rust_ident(interface_name), Span::call_site());
+                                path.push(quote! { #ns_ident });
+                                path.push(quote! { #name_ident });
+                                path.push(quote! { #interface_ident });
+                            }
                         }
                         TypeOwner::None => {}
                     }
@@ -1671,5 +1692,109 @@ fn extract_from_handle_value(
                 }
             })
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct BindingMappingKey {
+    package_name: PackageName,
+    interface_name: String,
+}
+
+#[derive(Debug, Clone)]
+struct BindingMappingEntry {
+    module_path: Vec<String>,
+}
+
+pub struct BindingMapping {
+    mappings: HashMap<BindingMappingKey, BindingMappingEntry>,
+}
+
+impl BindingMapping {
+    pub fn add_to_cargo_bindings_table(&self, target: &mut HashMap<String, String>) {
+        for (key, entry) in &self.mappings {
+            let string_key = key.package_name.interface_id(&key.interface_name);
+            let string_value = entry.module_path.join("::");
+            target.insert(string_key, string_value);
+        }
+    }
+
+    pub fn get_mapped_module_path(
+        &self,
+        package_name: &PackageName,
+        interface_name: &str,
+    ) -> Option<Vec<String>> {
+        let key = BindingMappingKey {
+            package_name: package_name.clone(),
+            interface_name: interface_name.to_string(),
+        };
+        self.mappings
+            .get(&key)
+            .map(|value| value.module_path.clone())
+    }
+}
+
+impl Default for BindingMapping {
+    fn default() -> Self {
+        let mut mappings = HashMap::new();
+
+        mappings.insert(
+            BindingMappingKey {
+                package_name: PackageName {
+                    namespace: "wasi".to_string(),
+                    name: "io".to_string(),
+                    version: Some(Version::parse(WASI_WIT_VERSION).unwrap()),
+                },
+                interface_name: "poll".to_string(),
+            },
+            BindingMappingEntry {
+                module_path: vec![
+                    "golem_rust".to_string(),
+                    "wasm_rpc".to_string(),
+                    "wasi".to_string(),
+                    "io".to_string(),
+                    "poll".to_string(),
+                ],
+            },
+        );
+        mappings.insert(
+            BindingMappingKey {
+                package_name: PackageName {
+                    namespace: "wasi".to_string(),
+                    name: "clocks".to_string(),
+                    version: Some(Version::parse(WASI_WIT_VERSION).unwrap()),
+                },
+                interface_name: "wall-clock".to_string(),
+            },
+            BindingMappingEntry {
+                module_path: vec![
+                    "golem_rust".to_string(),
+                    "wasm_rpc".to_string(),
+                    "wasi".to_string(),
+                    "clocks".to_string(),
+                    "wall_clock".to_string(),
+                ],
+            },
+        );
+        mappings.insert(
+            BindingMappingKey {
+                package_name: PackageName {
+                    namespace: "golem".to_string(),
+                    name: "rpc".to_string(),
+                    version: Some(Version::parse(GOLEM_RPC_WIT_VERSION).unwrap()),
+                },
+                interface_name: "types".to_string(),
+            },
+            BindingMappingEntry {
+                module_path: vec![
+                    "golem_rust".to_string(),
+                    "wasm_rpc".to_string(),
+                    "golem_rpc_0_2_x".to_string(),
+                    "types".to_string(),
+                ],
+            },
+        );
+
+        BindingMapping { mappings }
     }
 }

@@ -704,7 +704,7 @@ fn assert_has_wasm_rpc_wit_deps(wit_dir: &Path) {
         deps.as_slice(),
     );
     assert_has_same_wit_package(
-        &PackageName::new("golem", "rpc", Some(Version::new(0, 1, 3))),
+        &PackageName::new("golem", "rpc", Some(Version::new(0, 2, 0))),
         wit_dir,
         deps.as_slice(),
     );

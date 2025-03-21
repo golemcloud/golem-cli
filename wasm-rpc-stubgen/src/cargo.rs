@@ -87,7 +87,7 @@ pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
     wit_dependencies.insert(
         "golem:rpc".to_string(),
         WitDependency {
-            path: "wit/deps/wasm-rpc".to_string(),
+            path: "wit/deps/golem-rpc".to_string(),
         },
     );
 
@@ -137,19 +137,8 @@ pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
     let bindings = {
         let mut with = HashMap::new();
 
-        with.insert(
-            format!("wasi:io/poll@{WASI_WIT_VERSION}"),
-            "golem_rust::wasm_rpc::wasi::io::poll".to_string(),
-        );
-        with.insert(
-            format!("wasi:clocks/wall-clock@{WASI_WIT_VERSION}"),
-            "golem_rust::wasm_rpc::wasi::clocks::wall_clock".to_string(),
-        );
-        with.insert(
-            format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}"),
-            "golem_rust::wasm_rpc::golem_rpc_0_2_x::types".to_string(),
-        );
-
+        def.client_binding_mapping
+            .add_to_cargo_bindings_table(&mut with);
         Bindings { with }
     };
 
@@ -368,11 +357,6 @@ pub fn regenerate_cargo_package_component(
     } else {
         false
     };
-    println!(
-        "DEBUG!!! has golem-rust dependency in {} => {}",
-        cargo_toml_path.display(),
-        has_golem_rust
-    );
 
     let component = manifest["package"] //
         .or_insert(toml_edit::table())["metadata"]
@@ -446,41 +430,40 @@ pub fn regenerate_cargo_package_component(
         let dep_package_name = &dep_package.name;
         let dep_name = format_package_name_without_version(dep_package_name);
 
-        println!(
-            "DEBUG!!! processing {dep_name} in {}",
-            cargo_toml_path.display()
-        );
+        let used = wit_dir.used_interfaces()?;
+        let used = used.into_iter().map(|(id, _, _)| id).collect::<HashSet<_>>();
 
         if has_golem_rust && wit_packages_in_golem_rust.contains(dep_name.as_str()) {
-            for (interface_name, _interface_id) in &dep_package.interfaces {
-                let interface_path =
-                    format_fully_qualified_interface_name(dep_package_name, interface_name);
+            for (interface_name, interface_id) in &dep_package.interfaces {
+                if used.contains(interface_id) {
+                    let interface_path = dep_package_name.interface_id(&interface_name);
 
-                if interface_path == format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}") {
-                    bind_to_golem_rust.push((
-                        interface_path,
-                        "golem_rust::wasm_rpc::golem_rpc_0_2_x::types".to_string(),
-                    ));
-                } else if interface_path == format!("wasi:io/poll@{WASI_WIT_VERSION}") {
-                    bind_to_golem_rust.push((
-                        interface_path,
-                        "golem_rust::wasm_rpc::wasi::io::poll".to_string(),
-                    ));
-                } else if interface_path == format!("wasi:clocks/wall-clock@{WASI_WIT_VERSION}") {
-                    bind_to_golem_rust.push((
-                        interface_path,
-                        "golem_rust::wasm_rpc::wasi::clocks::wall_clock".to_string(),
-                    ));
-                } else {
-                    bind_to_golem_rust.push((
-                        interface_path,
-                        format!(
-                            "golem_rust::bindings::{}::{}::{}",
-                            dep_package_name.namespace.to_snake_case(),
-                            dep_package_name.name.to_snake_case(),
-                            interface_name.to_snake_case()
-                        ),
-                    ))
+                    if interface_path == format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}") {
+                        bind_to_golem_rust.push((
+                            interface_path,
+                            "golem_rust::wasm_rpc::golem_rpc_0_2_x::types".to_string(),
+                        ));
+                    } else if interface_path == format!("wasi:io/poll@{WASI_WIT_VERSION}") {
+                        bind_to_golem_rust.push((
+                            interface_path,
+                            "golem_rust::wasm_rpc::wasi::io::poll".to_string(),
+                        ));
+                    } else if interface_path == format!("wasi:clocks/wall-clock@{WASI_WIT_VERSION}") {
+                        bind_to_golem_rust.push((
+                            interface_path,
+                            "golem_rust::wasm_rpc::wasi::clocks::wall_clock".to_string(),
+                        ));
+                    } else {
+                        bind_to_golem_rust.push((
+                            interface_path,
+                            format!(
+                                "golem_rust::bindings::{}::{}::{}",
+                                dep_package_name.namespace.to_snake_case(),
+                                dep_package_name.name.to_snake_case(),
+                                interface_name.to_snake_case()
+                            ),
+                        ))
+                    }
                 }
             }
         }
@@ -519,21 +502,4 @@ pub fn regenerate_cargo_package_component(
 
 fn format_package_name_without_version(package_name: &PackageName) -> String {
     format!("{}:{}", package_name.namespace, package_name.name)
-}
-
-fn format_fully_qualified_interface_name(
-    package_name: &PackageName,
-    interface_name: &str,
-) -> String {
-    format!(
-        "{}:{}/{}{}",
-        package_name.namespace,
-        package_name.name,
-        interface_name,
-        package_name
-            .version
-            .as_ref()
-            .map(|v| format!("@{v}"))
-            .unwrap_or_default()
-    )
 }

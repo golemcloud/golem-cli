@@ -121,7 +121,7 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
                 if !def.config.is_ephemeral {
                     params
                         .items_mut()
-                        .insert(0, (Ident::new("name"), Type::String));
+                        .insert(0, (Ident::new("worker-name"), Type::String));
                 }
                 constructor.set_params(params);
                 stub_functions.push(constructor);
@@ -346,7 +346,7 @@ pub fn add_dependencies_to_stub_wit_dir(def: &StubDefinition) -> anyhow::Result<
     }
 
     write_embedded_source(
-        &target_deps.join("wasm-rpc"),
+        &target_deps.join("golem-rpc"),
         "wasm-rpc.wit",
         golem_wit::WASM_RPC_WIT,
     )?;
