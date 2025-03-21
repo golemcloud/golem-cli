@@ -418,7 +418,7 @@ impl PluginCommandHandler {
             Some(project) => Some(
                 self.ctx
                     .cloud_project_handler()
-                    .select_project(scope.account.as_ref(), project)
+                    .select_project(scope.account_id.as_ref(), project)
                     .await?,
             ),
             None => None,
