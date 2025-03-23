@@ -20,8 +20,7 @@ use fs_extra::dir::CopyOptions;
 use golem_wasm_ast::analysis::analysed_type::*;
 use golem_wasm_ast::analysis::{
     AnalysedExport, AnalysedFunctionParameter, AnalysedInstance, AnalysedResourceId,
-    AnalysedResourceMode, AnalysedType, AnalysisContext, TypeHandle, TypeOption
-    ,
+    AnalysedResourceMode, AnalysedType, AnalysisContext, TypeHandle, TypeOption,
 };
 use golem_wasm_ast::component::Component;
 use golem_wasm_ast::IgnoreAllButMetadata;
