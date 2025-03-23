@@ -136,7 +136,11 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
                 params.items_mut().insert(
                     0,
                     (
-                        Ident::new("location"),
+                        if def.config.is_ephemeral {
+                            Ident::new("component-id")
+                        } else {
+                            Ident::new("worker-id")
+                        },
                         Type::Named(Ident::new(if def.config.is_ephemeral {
                             "golem-rpc-component-id"
                         } else {

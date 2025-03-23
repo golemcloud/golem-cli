@@ -20,8 +20,8 @@ use fs_extra::dir::CopyOptions;
 use golem_wasm_ast::analysis::analysed_type::*;
 use golem_wasm_ast::analysis::{
     AnalysedExport, AnalysedFunctionParameter, AnalysedInstance, AnalysedResourceId,
-    AnalysedResourceMode, AnalysedType, AnalysisContext, NameTypePair, TypeHandle, TypeOption,
-    TypeRecord, TypeStr,
+    AnalysedResourceMode, AnalysedType, AnalysisContext, TypeHandle, TypeOption
+    ,
 };
 use golem_wasm_ast::component::Component;
 use golem_wasm_ast::IgnoreAllButMetadata;
@@ -411,13 +411,39 @@ fn assert_has_rpc_resource_constructor(exported_interface: &AnalysedInstance, na
     assert_eq!(
         fun.parameters,
         vec![AnalysedFunctionParameter {
-            name: "location".to_string(),
-            typ: AnalysedType::Record(TypeRecord {
-                fields: vec![NameTypePair {
-                    name: "value".to_string(),
-                    typ: AnalysedType::Str(TypeStr)
-                }]
-            })
+            name: "worker-name".to_string(),
+            typ: str()
+        }]
+    );
+
+    let custom_fun = exported_interface
+        .functions
+        .iter()
+        .find(|f| f.name == format!("[static]{name}.custom"))
+        .unwrap_or_else(|| panic!("missing custom constructor for {name}"));
+
+    assert_eq!(custom_fun.results.len(), 1);
+    assert!(matches!(
+        custom_fun.results[0].typ,
+        AnalysedType::Handle(TypeHandle {
+            mode: AnalysedResourceMode::Owned,
+            ..
+        })
+    ));
+    assert_eq!(
+        custom_fun.parameters,
+        vec![AnalysedFunctionParameter {
+            name: "worker-id".to_string(),
+            typ: record(vec![
+                field(
+                    "component-id",
+                    record(vec![field(
+                        "uuid",
+                        record(vec![field("high-bits", u64()), field("low-bits", u64()),])
+                    ),])
+                ),
+                field("worker-name", str()),
+            ])
         }]
     );
 }
