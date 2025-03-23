@@ -64,22 +64,19 @@ impl ResolvedWitDir {
                 .get(*world_id)
                 .ok_or_else(|| anyhow!("Could not find world {world_name} in resolve"))?;
             for (key, item) in world.imports.iter().chain(world.exports.iter()) {
-                match item {
-                    WorldItem::Interface { id, .. } => {
-                        let interface = self.resolve.interfaces.get(*id).ok_or_else(|| {
-                            anyhow!("Could not find interface {key:?} in resolve")
-                        })?;
-                        if let Some(package_id) = interface.package {
-                            let package =
-                                self.resolve.packages.get(package_id).ok_or_else(|| {
-                                    anyhow!("Could not find package {package_id:?} in resolve")
-                                })?;
-                            if let Some(interface_name) = &interface.name {
-                                result.insert((*id, package.name.clone(), interface_name.clone()));
-                            }
+                if let WorldItem::Interface { id, .. } = item {
+                    let interface = self.resolve.interfaces.get(*id).ok_or_else(|| {
+                        anyhow!("Could not find interface {key:?} in resolve")
+                    })?;
+                    if let Some(package_id) = interface.package {
+                        let package =
+                            self.resolve.packages.get(package_id).ok_or_else(|| {
+                                anyhow!("Could not find package {package_id:?} in resolve")
+                            })?;
+                        if let Some(interface_name) = &interface.name {
+                            result.insert((*id, package.name.clone(), interface_name.clone()));
                         }
                     }
-                    _ => {}
                 }
             }
         }

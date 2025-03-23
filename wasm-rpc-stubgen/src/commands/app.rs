@@ -101,6 +101,8 @@ pub struct DynamicHelpSections {
 #[derive(Debug)]
 pub struct ComponentStubInterfaces {
     pub stub_interface_name: String,
+    pub component_name: ComponentName,
+    pub is_ephemeral: bool,
     pub exported_interfaces_per_stub_resource: BTreeMap<String, String>,
 }
 
@@ -361,15 +363,16 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
         &mut self,
         component_name: &ComponentName,
     ) -> anyhow::Result<ComponentStubInterfaces> {
-        let stub_def = self.component_stub_def(
-            component_name,
-            self.application
-                .component_properties(component_name, self.profile())
-                .extensions
-                .is_ephemeral(),
-        )?;
+        let is_ephemeral = self
+            .application
+            .component_properties(component_name, self.profile())
+            .extensions
+            .is_ephemeral();
+        let stub_def = self.component_stub_def(component_name, is_ephemeral)?;
         let client_package_name = stub_def.client_parser_package_name();
         let result = ComponentStubInterfaces {
+            component_name: component_name.clone(),
+            is_ephemeral,
             stub_interface_name: client_package_name
                 .interface_id(&stub_def.client_interface_name()),
             exported_interfaces_per_stub_resource: BTreeMap::from_iter(

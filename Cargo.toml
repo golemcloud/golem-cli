@@ -15,17 +15,17 @@ exclude = [
 [workspace.dependencies]
 
 # Golem dep
-golem-client = { path = "../golem-services/golem-client" }
-golem-common = { path = "../golem-services/golem-common" }
-golem-rib = { path = "../golem-services/golem-rib" }
-golem-service-base = { path = "../golem-services/golem-service-base" }
-golem-test-framework = { path = "../golem-services/golem-test-framework" }
-golem-wasm-ast = { path = "../golem-services/wasm-ast", default-features = false, features = ["analysis", "wave"] }
-golem-wasm-rpc = { path = "../golem-services/wasm-rpc", default-features = false, features = ["host"] }
-golem-wit = { path = "../golem-wit" }
+golem-client = "=1.2.0-rc4"
+golem-common = "=1.2.0-rc4"
+golem-rib = "=1.2.0-rc4"
+golem-service-base = "=1.2.0-rc4"
+golem-test-framework = "=1.2.0-rc4"
+golem-wasm-ast = { version = "=1.2.0-rc4", default-features = false, features = ["analysis", "wave"] }
+golem-wasm-rpc = { version = "=1.2.0-rc4", default-features = false, features = ["host"] }
+golem-wit = "=1.2.0-rc2"
 
 # Golem cloud deps
-golem-cloud-client = { path = "../golem-cloud/golem-cloud-client" }
+golem-cloud-client = "=1.2.0-rc4"
 
 # External deps
 anyhow = "1.0.97"

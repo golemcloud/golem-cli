@@ -436,7 +436,7 @@ pub fn regenerate_cargo_package_component(
         if has_golem_rust && wit_packages_in_golem_rust.contains(dep_name.as_str()) {
             for (interface_name, interface_id) in &dep_package.interfaces {
                 if used.contains(interface_id) {
-                    let interface_path = dep_package_name.interface_id(&interface_name);
+                    let interface_path = dep_package_name.interface_id(interface_name);
 
                     if interface_path == format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}") {
                         bind_to_golem_rust.push((
