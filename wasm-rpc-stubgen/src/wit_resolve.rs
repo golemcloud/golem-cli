@@ -11,7 +11,10 @@ use indoc::formatdoc;
 use itertools::Itertools;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use wit_parser::{InterfaceId, Package, PackageId, PackageName, PackageSourceMap, Resolve, UnresolvedPackageGroup, WorldItem};
+use wit_parser::{
+    InterfaceId, Package, PackageId, PackageName, PackageSourceMap, Resolve,
+    UnresolvedPackageGroup, WorldItem,
+};
 
 pub struct PackageSource {
     pub dir: PathBuf,
@@ -65,14 +68,14 @@ impl ResolvedWitDir {
                 .ok_or_else(|| anyhow!("Could not find world {world_name} in resolve"))?;
             for (key, item) in world.imports.iter().chain(world.exports.iter()) {
                 if let WorldItem::Interface { id, .. } = item {
-                    let interface = self.resolve.interfaces.get(*id).ok_or_else(|| {
-                        anyhow!("Could not find interface {key:?} in resolve")
-                    })?;
+                    let interface =
+                        self.resolve.interfaces.get(*id).ok_or_else(|| {
+                            anyhow!("Could not find interface {key:?} in resolve")
+                        })?;
                     if let Some(package_id) = interface.package {
-                        let package =
-                            self.resolve.packages.get(package_id).ok_or_else(|| {
-                                anyhow!("Could not find package {package_id:?} in resolve")
-                            })?;
+                        let package = self.resolve.packages.get(package_id).ok_or_else(|| {
+                            anyhow!("Could not find package {package_id:?} in resolve")
+                        })?;
                         if let Some(interface_name) = &interface.name {
                             result.insert((*id, package.name.clone(), interface_name.clone()));
                         }

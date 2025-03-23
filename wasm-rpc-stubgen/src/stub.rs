@@ -14,6 +14,7 @@
 
 use crate::model::app::ComponentName;
 use crate::naming;
+use crate::rust::BindingMapping;
 use crate::wit_encode::EncodedWitDir;
 use crate::wit_generate::extract_exports_as_wit_dep;
 use crate::wit_resolve::{PackageSource, ResolvedWitDir};
@@ -28,7 +29,6 @@ use wit_parser::{
     Function, FunctionKind, Interface, InterfaceId, Package, PackageId, PackageName, Resolve,
     Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, World, WorldId, WorldItem, WorldKey,
 };
-use crate::rust::BindingMapping;
 
 #[derive(Clone, Debug)]
 pub struct StubConfig {
@@ -63,7 +63,7 @@ pub struct StubDefinition {
     pub source_package_id: PackageId,
     pub source_package_name: PackageName,
 
-    pub client_binding_mapping: BindingMapping
+    pub client_binding_mapping: BindingMapping,
 }
 
 impl StubDefinition {
@@ -102,7 +102,7 @@ impl StubDefinition {
             stub_dep_package_ids: OnceLock::new(),
             source_package_id: resolved_source.package_id,
             source_package_name,
-            client_binding_mapping: BindingMapping::default()
+            client_binding_mapping: BindingMapping::default(),
         })
     }
 

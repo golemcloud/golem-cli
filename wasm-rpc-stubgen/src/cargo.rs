@@ -431,7 +431,10 @@ pub fn regenerate_cargo_package_component(
         let dep_name = format_package_name_without_version(dep_package_name);
 
         let used = wit_dir.used_interfaces()?;
-        let used = used.into_iter().map(|(id, _, _)| id).collect::<HashSet<_>>();
+        let used = used
+            .into_iter()
+            .map(|(id, _, _)| id)
+            .collect::<HashSet<_>>();
 
         if has_golem_rust && wit_packages_in_golem_rust.contains(dep_name.as_str()) {
             for (interface_name, interface_id) in &dep_package.interfaces {
@@ -448,7 +451,8 @@ pub fn regenerate_cargo_package_component(
                             interface_path,
                             "golem_rust::wasm_rpc::wasi::io::poll".to_string(),
                         ));
-                    } else if interface_path == format!("wasi:clocks/wall-clock@{WASI_WIT_VERSION}") {
+                    } else if interface_path == format!("wasi:clocks/wall-clock@{WASI_WIT_VERSION}")
+                    {
                         bind_to_golem_rust.push((
                             interface_path,
                             "golem_rust::wasm_rpc::wasi::clocks::wall_clock".to_string(),

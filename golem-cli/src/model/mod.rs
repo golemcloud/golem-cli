@@ -17,7 +17,6 @@ pub mod app_ext_raw;
 pub mod component;
 pub mod deploy;
 pub mod invoke_result_view;
-pub mod plugin_cloud;
 pub mod plugin_manifest;
 pub mod project;
 pub mod text;
@@ -35,10 +34,14 @@ use anyhow::{anyhow, Context};
 use chrono::{DateTime, Utc};
 use clap::builder::{StringValueParser, TypedValueParser};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
-use clap::{Arg, Error, ValueEnum};
+use clap::{Arg, Error};
 use clap_verbosity_flag::Verbosity;
 use colored::control::SHOULD_COLORIZE;
-use golem_client::model::{ApiDefinitionInfo, ApiSite, Provider};
+use golem_client::model::{
+    ApiDefinitionInfo, ApiSite, PluginDefinitionDefaultPluginOwnerDefaultPluginScope,
+    PluginTypeSpecificDefinition, Provider,
+};
+use golem_cloud_client::model::PluginDefinitionCloudPluginOwnerCloudPluginScope;
 use golem_common::model::trim_date::TrimDateTime;
 use golem_templates::model::{GuestLanguage, GuestLanguageTier, Template, TemplateName};
 use serde::{Deserialize, Serialize};
@@ -275,23 +278,6 @@ impl From<String> for ApiDefinitionId {
     }
 }
 
-// TODO: given YAML is a JSON superset, we might want to get rid of this altogether
-#[derive(ValueEnum, Clone, Copy, Debug)]
-pub enum ApiDefinitionFileFormat {
-    Json,
-    Yaml,
-}
-
-impl Display for ApiDefinitionFileFormat {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Json => "json",
-            Self::Yaml => "yaml",
-        };
-        Display::fmt(&s, f)
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ApiDefinitionVersion(pub String);
 
@@ -496,7 +482,6 @@ impl From<WorkerMetadata> for WorkerMetadataView {
     }
 }
 
-// TODO: active plugins?
 #[derive(Debug, Clone, PartialEq)]
 pub struct WorkerMetadata {
     pub worker_id: golem_client::model::WorkerId,
@@ -653,34 +638,6 @@ impl From<golem_cloud_client::model::SecuritySchemeData> for ApiSecurityScheme {
 
 pub trait HasVerbosity {
     fn verbosity(&self) -> Verbosity;
-}
-
-#[derive(clap::Args, Debug, Clone)]
-#[group(required = false, multiple = false)]
-pub struct OssPluginScopeArgs {
-    /// Global scope (plugin available for all components)
-    #[arg(long, group = "plugin-scope-args")]
-    global: bool,
-
-    /// Component scope given by a component URN or URL (plugin only available for this component)
-    #[arg(long, short = 'C', value_name = "URI", group = "plugin-scope-args")]
-    component: Option<ComponentName>,
-
-    /// Component scope given by the component's name (plugin only available for this component)
-    #[arg(long, short = 'c', group = "plugin-scope-args")]
-    component_name: Option<String>,
-}
-
-pub fn decode_api_definition<'de, T: Deserialize<'de>>(
-    input: &'de str,
-    format: &ApiDefinitionFileFormat,
-) -> anyhow::Result<T> {
-    match format {
-        ApiDefinitionFileFormat::Json => serde_json::from_str(input)
-            .map_err(|e| anyhow!("Failed to parse json api definition: {e:?}")),
-        ApiDefinitionFileFormat::Yaml => serde_yaml::from_str(input)
-            .map_err(|e| anyhow!("Failed to parse yaml api definition: {e:?}")),
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -990,5 +947,99 @@ impl From<ProjectAction> for golem_cloud_client::model::ProjectAction {
                 golem_cloud_client::model::ProjectAction::DeleteProjectGrants
             }
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginDefinition {
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub homepage: String,
+    pub scope: String,
+    #[serde(rename = "type")]
+    pub typ: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component_transformer_validate_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component_transformer_transform_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oplog_processor_component_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oplog_processor_component_version: Option<u64>,
+}
+
+impl From<PluginDefinitionDefaultPluginOwnerDefaultPluginScope> for PluginDefinition {
+    fn from(value: PluginDefinitionDefaultPluginOwnerDefaultPluginScope) -> Self {
+        let mut plugin_definition = Self {
+            name: value.name,
+            version: value.version,
+            description: value.description,
+            homepage: value.homepage,
+            scope: value.scope.to_string(),
+            typ: "".to_string(),
+            component_transformer_validate_url: None,
+            component_transformer_transform_url: None,
+            oplog_processor_component_id: None,
+            oplog_processor_component_version: None,
+        };
+
+        match value.specs {
+            PluginTypeSpecificDefinition::ComponentTransformer(specs) => {
+                plugin_definition.typ = "Component Transformer".to_string();
+                plugin_definition.component_transformer_validate_url = Some(specs.validate_url);
+                plugin_definition.component_transformer_transform_url = Some(specs.transform_url);
+            }
+            PluginTypeSpecificDefinition::OplogProcessor(specs) => {
+                plugin_definition.typ = "Oplog Processor".to_string();
+                plugin_definition.oplog_processor_component_id =
+                    Some(specs.component_id.to_string());
+                plugin_definition.oplog_processor_component_version = Some(specs.component_version);
+            }
+            PluginTypeSpecificDefinition::Library(_) => {
+                plugin_definition.typ = "Library".to_string();
+            }
+            PluginTypeSpecificDefinition::App(_) => plugin_definition.typ = "App".to_string(),
+        };
+
+        plugin_definition
+    }
+}
+
+impl From<PluginDefinitionCloudPluginOwnerCloudPluginScope> for PluginDefinition {
+    fn from(value: PluginDefinitionCloudPluginOwnerCloudPluginScope) -> Self {
+        let mut plugin_definition = Self {
+            name: value.name,
+            version: value.version,
+            description: value.description,
+            homepage: value.homepage,
+            scope: value.scope.to_string(),
+            typ: "".to_string(),
+            component_transformer_validate_url: None,
+            component_transformer_transform_url: None,
+            oplog_processor_component_id: None,
+            oplog_processor_component_version: None,
+        };
+
+        match value.specs {
+            PluginTypeSpecificDefinition::ComponentTransformer(specs) => {
+                plugin_definition.typ = "Component Transformer".to_string();
+                plugin_definition.component_transformer_validate_url = Some(specs.validate_url);
+                plugin_definition.component_transformer_transform_url = Some(specs.transform_url);
+            }
+            PluginTypeSpecificDefinition::OplogProcessor(specs) => {
+                plugin_definition.typ = "Oplog Processor".to_string();
+                plugin_definition.oplog_processor_component_id =
+                    Some(specs.component_id.to_string());
+                plugin_definition.oplog_processor_component_version = Some(specs.component_version);
+            }
+            PluginTypeSpecificDefinition::Library(_) => {
+                plugin_definition.typ = "Library".to_string();
+            }
+            PluginTypeSpecificDefinition::App(_) => plugin_definition.typ = "App".to_string(),
+        };
+
+        plugin_definition
     }
 }
