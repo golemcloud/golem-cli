@@ -5,7 +5,7 @@
     "components-js/*/*"
   ],
   "dependencies": {
-    "@golemcloud/golem-ts": "1.1.2"
+    "@golemcloud/golem-ts": "1.2.0"
   },
   "devDependencies": {
     "@golemcloud/componentize-js": "0.10.5-golem.4",
