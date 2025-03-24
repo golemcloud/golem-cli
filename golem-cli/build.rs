@@ -31,9 +31,11 @@ fn hook(file: &File) -> SdResult<()> {
 }
 
 fn append_write_git_describe_tags(mut file: &File) -> SdResult<()> {
-    let output = Command::new("git").args(["describe", "--tags"]).output()?;
+    let output = Command::new("git")
+        .args(["describe", "--tags", "--always"])
+        .output()?;
     if !output.status.success() {
-        println!("cargo::error=git describe --tags failed:");
+        println!("cargo::error=git describe failed:");
         for line in String::from_utf8_lossy(&output.stdout).lines() {
             println!("cargo::error=stdout: {}", line);
         }
@@ -41,10 +43,10 @@ fn append_write_git_describe_tags(mut file: &File) -> SdResult<()> {
             println!("cargo::error=stderr: {}", line);
         }
 
-        return Err(ShadowError::from("git describe --tags failed"));
+        return Err(ShadowError::from("git describe failed"));
     }
-    let version = String::from_utf8(output.stdout)?;
-    println!("cargo::warning=git describe --tags: {}", version);
+    let version = String::from_utf8(output.stdout)?.trim().to_string();
+    println!("cargo::warning=git describe result: {}", version);
 
     let git_describe_tags = format!(
         r#"#[allow(clippy::all, clippy::pedantic, clippy::restriction, clippy::nursery)]
