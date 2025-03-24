@@ -146,9 +146,9 @@ pub fn main() -> anyhow::Result<()> {
                     for _ in 1..=2 {
                         let component_name = format!(
                             "app:comp-{}-{}-{}",
+                            nanoid!(10, &alphabet)
                             language.id(),
                             name,
-                            nanoid!(10, &alphabet)
                         );
                         println!(
                             "Adding component {} ({})",
