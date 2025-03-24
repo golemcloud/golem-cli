@@ -62,7 +62,9 @@ jobs:
           tinygo-version: '0.35.0'
       - uses: sbt/setup-sbt@v1.1.7
       - name: Install moonbit
-        run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
       - uses: useblacksmith/rust-cache@v3
         with:
           prefix-key: 'v0-rust'
