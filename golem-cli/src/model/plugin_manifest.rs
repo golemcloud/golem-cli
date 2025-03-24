@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use golem_client::model::{
-    PluginDefinitionWithoutOwnerDefaultPluginScope, PluginTypeSpecificDefinition,
+    PluginDefinitionCreationDefaultPluginScope, PluginTypeSpecificCreation,
+    PluginTypeSpecificDefinition,
 };
 use golem_common::model::plugin::DefaultPluginScope;
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,8 @@ use std::path::PathBuf;
 pub enum PluginTypeSpecificManifest {
     ComponentTransformer(ComponentTransformerManifest),
     OplogProcessor(OplogProcessorManifest),
+    App(AppManifest),
+    Library(LibraryManifest),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -39,6 +42,18 @@ pub struct ComponentTransformerManifest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OplogProcessorManifest {
+    pub component: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppManifest {
+    pub component: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryManifest {
     pub component: PathBuf,
 }
 
@@ -75,7 +90,7 @@ pub trait FromPluginManifest {
     ) -> Self;
 }
 
-impl FromPluginManifest for PluginDefinitionWithoutOwnerDefaultPluginScope {
+impl FromPluginManifest for PluginDefinitionCreationDefaultPluginScope {
     type PluginScope = DefaultPluginScope;
 
     fn from_plugin_manifest(
@@ -84,13 +99,22 @@ impl FromPluginManifest for PluginDefinitionWithoutOwnerDefaultPluginScope {
         specs: PluginTypeSpecificDefinition,
         icon: Vec<u8>,
     ) -> Self {
-        PluginDefinitionWithoutOwnerDefaultPluginScope {
+        PluginDefinitionCreationDefaultPluginScope {
             name: manifest.name,
             version: manifest.version,
             description: manifest.description,
             icon,
             homepage: manifest.homepage,
-            specs,
+            specs: match specs {
+                PluginTypeSpecificDefinition::ComponentTransformer(params) => {
+                    PluginTypeSpecificCreation::ComponentTransformer(params)
+                }
+                PluginTypeSpecificDefinition::OplogProcessor(params) => {
+                    PluginTypeSpecificCreation::OplogProcessor(params)
+                }
+                PluginTypeSpecificDefinition::Library(_) => unimplemented!(), // TODO
+                PluginTypeSpecificDefinition::App(_) => unimplemented!(),     // TODO
+            },
             scope,
         }
     }

@@ -21,6 +21,7 @@ use crate::stub::{
 use crate::wit_encode::EncodedWitDir;
 use crate::wit_resolve::ResolvedWitDir;
 use crate::{cargo, fs, naming};
+use crate::{GOLEM_RPC_WIT_VERSION, WASI_WIT_VERSION};
 use anyhow::{anyhow, bail, Context};
 use itertools::Itertools;
 use semver::Version;
@@ -62,14 +63,29 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
 
         // Common used types
         stub_interface.use_type(
-            "golem:rpc/types@0.1.3",
-            "uri",
-            Some(Ident::new("golem-rpc-uri")),
-        );
-        stub_interface.use_type(
-            "wasi:io/poll@0.2.0",
+            format!("wasi:io/poll@{WASI_WIT_VERSION}"),
             "pollable",
             Some(Ident::new("wasi-io-pollable")),
+        );
+        stub_interface.use_type(
+            format!("wasi:clocks/wall-clock@{WASI_WIT_VERSION}"),
+            "datetime",
+            Some(Ident::new("wasi-clocks-datetime")),
+        );
+        stub_interface.use_type(
+            format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}"),
+            "component-id",
+            Some(Ident::new("golem-rpc-component-id")),
+        );
+        stub_interface.use_type(
+            format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}"),
+            "worker-id",
+            Some(Ident::new("golem-rpc-worker-id")),
+        );
+        stub_interface.use_type(
+            format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}"),
+            "cancellation-token",
+            Some(Ident::new("golem-rpc-cancellation-token")),
         );
 
         // Used or inlined type defs
@@ -94,9 +110,25 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
         for interface in def.stub_imported_interfaces() {
             let mut stub_functions = Vec::<ResourceFunc>::new();
 
-            // Constructor
+            // Constructors
             {
                 let mut constructor = ResourceFunc::constructor();
+                let mut params = match &interface.constructor_params {
+                    Some(constructor_params) => constructor_params.to_encoder(def)?,
+                    None => Params::empty(),
+                };
+
+                if !def.config.is_ephemeral {
+                    params
+                        .items_mut()
+                        .insert(0, (Ident::new("worker-name"), Type::String));
+                }
+                constructor.set_params(params);
+                stub_functions.push(constructor);
+            }
+
+            {
+                let mut custom_constructor = ResourceFunc::static_("custom");
                 let mut params = match &interface.constructor_params {
                     Some(constructor_params) => constructor_params.to_encoder(def)?,
                     None => Params::empty(),
@@ -104,12 +136,23 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
                 params.items_mut().insert(
                     0,
                     (
-                        Ident::new("location"),
-                        Type::Named(Ident::new("golem-rpc-uri")),
+                        if def.config.is_ephemeral {
+                            Ident::new("component-id")
+                        } else {
+                            Ident::new("worker-id")
+                        },
+                        Type::Named(Ident::new(if def.config.is_ephemeral {
+                            "golem-rpc-component-id"
+                        } else {
+                            "golem-rpc-worker-id"
+                        })),
                     ),
                 );
-                constructor.set_params(params);
-                stub_functions.push(constructor);
+                custom_constructor.set_params(params);
+                custom_constructor.set_results(Results::Anon(Type::Named(Ident::new(
+                    interface.name.clone(),
+                ))));
+                stub_functions.push(custom_constructor);
             }
 
             // Functions
@@ -147,6 +190,31 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
                         ))));
                     }
                     stub_functions.push(async_function);
+                }
+
+                // Scheduled
+                {
+                    let mut scheduled_function = {
+                        let function_name = naming::wit::schedule_function_name(function);
+                        if is_static {
+                            ResourceFunc::static_(function_name)
+                        } else {
+                            ResourceFunc::method(function_name)
+                        }
+                    };
+
+                    let mut params: Params = function.params.to_encoder(def)?;
+                    params.push(
+                        Ident::new("scheduled-for"),
+                        Type::named(Ident::new("wasi-clocks-datetime")),
+                    );
+                    scheduled_function.set_params(params);
+
+                    let results: Results =
+                        Results::anon(Type::named("golem-rpc-cancellation-token"));
+                    scheduled_function.set_results(results);
+
+                    stub_functions.push(scheduled_function);
                 }
             }
 
@@ -282,7 +350,7 @@ pub fn add_dependencies_to_stub_wit_dir(def: &StubDefinition) -> anyhow::Result<
     }
 
     write_embedded_source(
-        &target_deps.join("wasm-rpc"),
+        &target_deps.join("golem-rpc"),
         "wasm-rpc.wit",
         golem_wit::WASM_RPC_WIT,
     )?;

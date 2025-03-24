@@ -1,6 +1,8 @@
 use crate::fs::PathExtra;
 use crate::log::{log_action, LogColorize, LogIndent};
-use crate::model::app::{Application, ComponentName, ComponentPropertiesExtensions, ProfileName};
+use crate::model::app::{
+    Application, BuildProfileName, ComponentName, ComponentPropertiesExtensions,
+};
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::{fs, naming};
 use anyhow::{anyhow, bail, Context, Error};
@@ -10,7 +12,8 @@ use itertools::Itertools;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use wit_parser::{
-    Package, PackageId, PackageName, PackageSourceMap, Resolve, UnresolvedPackageGroup,
+    InterfaceId, Package, PackageId, PackageName, PackageSourceMap, Resolve,
+    UnresolvedPackageGroup, WorldItem,
 };
 
 pub struct PackageSource {
@@ -53,10 +56,40 @@ impl ResolvedWitDir {
     pub fn main_package(&self) -> anyhow::Result<&Package> {
         self.package(self.package_id)
     }
+
+    pub fn used_interfaces(&self) -> anyhow::Result<HashSet<(InterfaceId, PackageName, String)>> {
+        let mut result = HashSet::new();
+        let main = self.main_package()?;
+        for (world_name, world_id) in &main.worlds {
+            let world = self
+                .resolve
+                .worlds
+                .get(*world_id)
+                .ok_or_else(|| anyhow!("Could not find world {world_name} in resolve"))?;
+            for (key, item) in world.imports.iter().chain(world.exports.iter()) {
+                if let WorldItem::Interface { id, .. } = item {
+                    let interface =
+                        self.resolve.interfaces.get(*id).ok_or_else(|| {
+                            anyhow!("Could not find interface {key:?} in resolve")
+                        })?;
+                    if let Some(package_id) = interface.package {
+                        let package = self.resolve.packages.get(package_id).ok_or_else(|| {
+                            anyhow!("Could not find package {package_id:?} in resolve")
+                        })?;
+                        if let Some(interface_name) = &interface.name {
+                            result.insert((*id, package.name.clone(), interface_name.clone()));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
 }
 
 fn resolve_wit_dir(path: &Path) -> anyhow::Result<ResolvedWitDir> {
-    // TODO: Can be removed once we fixed all docs and examples
+    // TODO: Can be removed once we fixed all docs and templates
     std::env::set_var("WIT_REQUIRE_F32_F64", "0");
 
     let mut resolve = Resolve::new();
@@ -184,9 +217,9 @@ pub struct ResolvedWitApplication {
 impl ResolvedWitApplication {
     pub fn new<CPE: ComponentPropertiesExtensions>(
         app: &Application<CPE>,
-        profile: Option<&ProfileName>,
+        profile: Option<&BuildProfileName>,
     ) -> ValidatedResult<Self> {
-        // TODO: Can be removed once we fixed all docs and examples
+        // TODO: Can be removed once we fixed all docs and templates
         std::env::set_var("WIT_REQUIRE_F32_F64", "0");
 
         log_action("Resolving", "application wit directories");
@@ -266,7 +299,7 @@ impl ResolvedWitApplication {
         &mut self,
         validation: &mut ValidationBuilder,
         app: &Application<CPE>,
-        profile: Option<&ProfileName>,
+        profile: Option<&BuildProfileName>,
     ) {
         for component_name in app.component_names() {
             validation.push_context("component name", component_name.to_string());
@@ -302,9 +335,7 @@ impl ResolvedWitApplication {
                     .collect();
 
                 let source_contained_package_deps = {
-                    let deps_path =
-                        Path::new(&app.component_properties(component_name, profile).source_wit)
-                            .join("deps");
+                    let deps_path = source_wit_dir.join("deps");
                     if !deps_path.exists() {
                         HashSet::new()
                     } else {
@@ -691,7 +722,7 @@ pub struct WitDepsResolver {
 
 impl WitDepsResolver {
     pub fn new(sources: Vec<PathBuf>) -> anyhow::Result<Self> {
-        // TODO: Can be removed once we fixed all docs and examples
+        // TODO: Can be removed once we fixed all docs and templates
         std::env::set_var("WIT_REQUIRE_F32_F64", "0");
 
         let mut packages = HashMap::<PathBuf, HashMap<PackageName, UnresolvedPackageGroup>>::new();

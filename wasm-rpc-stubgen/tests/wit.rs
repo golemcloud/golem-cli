@@ -18,8 +18,8 @@ use test_r::test;
 
 use fs_extra::dir::CopyOptions;
 use golem_wasm_rpc_stubgen::commands::generate::generate_client_wit_dir;
-use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition, StubSourceTransform};
-use golem_wasm_rpc_stubgen::WasmRpcOverride;
+use golem_wasm_rpc_stubgen::model::app::ComponentName;
+use golem_wasm_rpc_stubgen::stub::{RustDependencyOverride, StubConfig, StubDefinition, StubSourceTransform};
 use std::path::Path;
 use tempfile::{tempdir, TempDir};
 use wit_parser::{FunctionKind, Resolve, TypeDefKind, TypeOwner};
@@ -36,9 +36,11 @@ fn all_wit_types() {
         client_root: target_root.path().to_path_buf(),
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
-        wasm_rpc_override: WasmRpcOverride::default(),
+        golem_rust_override: RustDependencyOverride::default(),
         source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: false,
+        component_name: ComponentName::from("test:component"),
+        is_ephemeral: false,
     })
     .unwrap();
     let resolve = generate_client_wit_dir(&def).unwrap().resolve;
@@ -139,9 +141,11 @@ fn many_ways_to_export() {
         client_root: target_root.path().to_path_buf(),
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
-        wasm_rpc_override: WasmRpcOverride::default(),
+        golem_rust_override: RustDependencyOverride::default(),
         source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: false,
+        component_name: ComponentName::from("test:component"),
+        is_ephemeral: false,
     })
     .unwrap();
     let resolve = generate_client_wit_dir(&def).unwrap().resolve;

@@ -15,17 +15,17 @@
 //! Tests in this module are verifying the STUB WASM created by the stub generator
 //! regardless of how the actual wasm generator is implemented. (Currently generates Rust code and compiles it)
 
-use crate::{test_data_path, wasm_rpc_override};
+use crate::{golem_rust_override, test_data_path};
 use fs_extra::dir::CopyOptions;
 use golem_wasm_ast::analysis::analysed_type::*;
 use golem_wasm_ast::analysis::{
     AnalysedExport, AnalysedFunctionParameter, AnalysedInstance, AnalysedResourceId,
-    AnalysedResourceMode, AnalysedType, AnalysisContext, NameTypePair, TypeHandle, TypeOption,
-    TypeRecord, TypeStr,
+    AnalysedResourceMode, AnalysedType, AnalysisContext, TypeHandle, TypeOption,
 };
 use golem_wasm_ast::component::Component;
 use golem_wasm_ast::IgnoreAllButMetadata;
 use golem_wasm_rpc_stubgen::commands::generate::generate_and_build_client;
+use golem_wasm_rpc_stubgen::model::app::ComponentName;
 use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition, StubSourceTransform};
 use tempfile::tempdir;
 use test_r::test;
@@ -50,9 +50,11 @@ async fn all_wit_types() {
         client_root: canonical_target_root,
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
-        wasm_rpc_override: wasm_rpc_override(),
+        golem_rust_override: golem_rust_override(),
         source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: false,
+        component_name: ComponentName::from("test:component"),
+        is_ephemeral: false,
     })
     .unwrap();
 
@@ -359,9 +361,11 @@ async fn resource() {
         client_root: canonical_target_root,
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
-        wasm_rpc_override: wasm_rpc_override(),
+        golem_rust_override: golem_rust_override(),
         source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: false,
+        component_name: ComponentName::from("test:component"),
+        is_ephemeral: false,
     })
     .unwrap();
 
@@ -406,13 +410,39 @@ fn assert_has_rpc_resource_constructor(exported_interface: &AnalysedInstance, na
     assert_eq!(
         fun.parameters,
         vec![AnalysedFunctionParameter {
-            name: "location".to_string(),
-            typ: AnalysedType::Record(TypeRecord {
-                fields: vec![NameTypePair {
-                    name: "value".to_string(),
-                    typ: AnalysedType::Str(TypeStr)
-                }]
-            })
+            name: "worker-name".to_string(),
+            typ: str()
+        }]
+    );
+
+    let custom_fun = exported_interface
+        .functions
+        .iter()
+        .find(|f| f.name == format!("[static]{name}.custom"))
+        .unwrap_or_else(|| panic!("missing custom constructor for {name}"));
+
+    assert_eq!(custom_fun.results.len(), 1);
+    assert!(matches!(
+        custom_fun.results[0].typ,
+        AnalysedType::Handle(TypeHandle {
+            mode: AnalysedResourceMode::Owned,
+            ..
+        })
+    ));
+    assert_eq!(
+        custom_fun.parameters,
+        vec![AnalysedFunctionParameter {
+            name: "worker-id".to_string(),
+            typ: record(vec![
+                field(
+                    "component-id",
+                    record(vec![field(
+                        "uuid",
+                        record(vec![field("high-bits", u64()), field("low-bits", u64()),])
+                    ),])
+                ),
+                field("worker-name", str()),
+            ])
         }]
     );
 }
@@ -440,6 +470,7 @@ fn assert_has_stub(
 
     let async_fun_name = format!("[method]{resource_name}.{function_name}");
     let blocking_fun_name = format!("[method]{resource_name}.blocking-{function_name}");
+    let scheduled_fun_name = format!("[method]{resource_name}.schedule-{function_name}");
 
     let async_fun = exported_interface
         .functions
@@ -451,6 +482,11 @@ fn assert_has_stub(
         .iter()
         .find(|f| f.name == blocking_fun_name)
         .unwrap_or_else(|| panic!("missing blocking function {blocking_fun_name}"));
+    let scheduled_fun = exported_interface
+        .functions
+        .iter()
+        .find(|f| f.name == scheduled_fun_name)
+        .unwrap_or_else(|| panic!("missing scheduled function {scheduled_fun_name}"));
 
     let async_parameter_types = async_fun
         .parameters
@@ -459,6 +495,12 @@ fn assert_has_stub(
         .cloned()
         .collect::<Vec<_>>();
     let blocking_parameter_types = blocking_fun
+        .parameters
+        .iter()
+        .map(|p| &p.typ)
+        .cloned()
+        .collect::<Vec<_>>();
+    let scheduled_parameter_types = scheduled_fun
         .parameters
         .iter()
         .map(|p| &p.typ)
@@ -474,8 +516,19 @@ fn assert_has_stub(
     ]
     .concat();
 
+    let scheduled_function_parameters = [
+        parameters_with_self.clone(),
+        // schedule_for parameter
+        vec![record(vec![
+            field("seconds", u64()),
+            field("nanoseconds", u32()),
+        ])],
+    ]
+    .concat();
+
     assert_eq!(async_parameter_types, parameters_with_self);
     assert_eq!(blocking_parameter_types, parameters_with_self);
+    assert_eq!(scheduled_parameter_types, scheduled_function_parameters);
 
     if let Some(return_type) = return_type {
         assert_eq!(async_fun.results.len(), 1);
@@ -495,6 +548,15 @@ fn assert_has_stub(
         assert_eq!(async_fun.results.len(), 0);
         assert_eq!(blocking_fun.results.len(), 0);
     }
+
+    assert_eq!(scheduled_fun.results.len(), 1);
+    assert!(matches!(
+        scheduled_fun.results[0].typ,
+        AnalysedType::Handle(TypeHandle {
+            mode: AnalysedResourceMode::Owned,
+            ..
+        })
+    ));
 }
 
 fn assert_valid_polling_resource(

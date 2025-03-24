@@ -16,15 +16,15 @@ use crate::fs::PathExtra;
 use crate::log::{log_action, log_warn_action, LogColorize};
 use crate::stub::StubDefinition;
 use crate::wit_resolve::ResolvedWitDir;
-use crate::{fs, naming};
+use crate::{fs, naming, GOLEM_RPC_WIT_VERSION, WASI_WIT_VERSION, WIT_BINDGEN_VERSION};
 use anyhow::{anyhow, Context};
 use cargo_toml::{
     Dependency, DependencyDetail, DepsSet, Edition, Inheritable, LtoSetting, Manifest, Profile,
     Profiles, StripSetting, Workspace,
 };
-use golem_wasm_rpc::WASM_RPC_VERSION;
+use heck::ToSnakeCase;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use toml::Value;
 use toml_edit::{DocumentMut, InlineTable};
@@ -39,6 +39,7 @@ struct MetadataRoot {
 struct ComponentMetadata {
     package: Option<String>,
     target: Option<ComponentTarget>,
+    bindings: Option<Bindings>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,6 +70,11 @@ struct WitDependency {
     path: String,
 }
 
+#[derive(Serialize, Deserialize)]
+struct Bindings {
+    with: HashMap<String, String>,
+}
+
 pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
     let mut manifest = Manifest::default();
 
@@ -81,7 +87,7 @@ pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
     wit_dependencies.insert(
         "golem:rpc".to_string(),
         WitDependency {
-            path: "wit/deps/wasm-rpc".to_string(),
+            path: "wit/deps/golem-rpc".to_string(),
         },
     );
 
@@ -128,6 +134,14 @@ pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
         }
     }
 
+    let bindings = {
+        let mut with = HashMap::new();
+
+        def.client_binding_mapping
+            .add_to_cargo_bindings_table(&mut with);
+        Bindings { with }
+    };
+
     let metadata = MetadataRoot {
         component: Some(ComponentMetadata {
             package: Some(format_package_name_without_version(
@@ -138,6 +152,7 @@ pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
                 path: "wit".to_string(),
                 dependencies: wit_dependencies,
             }),
+            bindings: Some(bindings),
         }),
     };
 
@@ -175,40 +190,39 @@ pub fn generate_client_cargo_toml(def: &StubDefinition) -> anyhow::Result<()> {
     };
 
     let dep_wit_bindgen = Dependency::Detailed(Box::new(DependencyDetail {
-        version: Some("0.26.0".to_string()),
+        version: Some(WIT_BINDGEN_VERSION.to_string()),
         features: vec!["bitflags".to_string()],
         ..Default::default()
     }));
 
-    let dep_golem_wasm_rpc = Dependency::Detailed(Box::new(DependencyDetail {
-        version: if def
-            .config
-            .wasm_rpc_override
-            .wasm_rpc_path_override
-            .is_none()
-        {
-            if let Some(version) = def
-                .config
-                .wasm_rpc_override
-                .wasm_rpc_version_override
-                .as_ref()
-            {
+    let dep_golem_rust = Dependency::Detailed(Box::new(DependencyDetail {
+        version: if def.config.golem_rust_override.path_override.is_none() {
+            if let Some(version) = def.config.golem_rust_override.version_override.as_ref() {
                 Some(version.to_string())
             } else {
-                Some(WASM_RPC_VERSION.to_string())
+                Some("1.3.0".to_string()) // TODO: constant
             }
         } else {
             None
         },
-        path: def.config.wasm_rpc_override.wasm_rpc_path_override.clone(),
+        path: def
+            .config
+            .golem_rust_override
+            .path_override
+            .as_ref()
+            .map(|path| {
+                path.to_str()
+                    .expect("Failed to convert golem-rust override path to string")
+                    .to_string()
+            }),
         default_features: false,
-        features: vec!["stub".to_string()],
+        features: vec![],
         ..Default::default()
     }));
 
     let mut deps = DepsSet::new();
     deps.insert("wit-bindgen-rt".to_string(), dep_wit_bindgen);
-    deps.insert("golem-wasm-rpc".to_string(), dep_golem_wasm_rpc);
+    deps.insert("golem-rust".to_string(), dep_golem_rust);
     manifest.dependencies = deps;
 
     let cargo_toml = toml::to_string(&manifest)?;
@@ -249,26 +263,6 @@ pub fn is_cargo_workspace_toml(path: &Path) -> anyhow::Result<bool> {
     } else {
         Ok(false)
     }
-}
-
-pub fn add_workspace_members(path: &Path, members: &[String]) -> anyhow::Result<()> {
-    let mut manifest = Manifest::from_path(path)?;
-    if let Some(workspace) = manifest.workspace.as_mut() {
-        for member in members {
-            if !workspace.members.contains(member) {
-                workspace.members.push(member.to_string());
-            }
-        }
-    }
-
-    let cargo_toml = toml::to_string(&manifest)?;
-
-    log_action(
-        "Writing",
-        format!("updated Cargo.toml to {:?}", path.log_color_highlight()),
-    );
-    fs::write(path, cargo_toml)?;
-    Ok(())
 }
 
 pub fn add_cargo_package_component_deps(
@@ -352,6 +346,18 @@ pub fn regenerate_cargo_package_component(
         )
     })?;
 
+    let has_golem_rust = if let Some(dependencies) = manifest.get("dependencies") {
+        let deps_table = dependencies.as_table().ok_or_else(|| {
+            anyhow!(
+                "Expected table for dependencies in {}",
+                cargo_toml_path.display()
+            )
+        })?;
+        deps_table.contains_key("golem-rust")
+    } else {
+        false
+    };
+
     let component = manifest["package"] //
         .or_insert(toml_edit::table())["metadata"]
         .or_insert(toml_edit::table())["component"]
@@ -396,13 +402,75 @@ pub fn regenerate_cargo_package_component(
 
     dependencies.clear();
 
+    let wit_packages_in_golem_rust: HashSet<&'static str> = HashSet::from_iter([
+        "golem:api",
+        "golem:durability",
+        "golem:rdbms",
+        "golem:rpc",
+        "wasi:clocks",
+        "wasi:io",
+        "wasi:http",
+        "wasi:random",
+        "wasi:cli",
+        "wasi:filesystem",
+        "wasi:sockets",
+        "wasi:blobstore",
+        "wasi:keyvalue",
+        "wasi:logging",
+    ]);
+    let mut bind_to_golem_rust = Vec::new();
+
     let wit_dir = ResolvedWitDir::new(wit_path)?;
     for (package_id, package_sources) in &wit_dir.package_sources {
         if *package_id == wit_dir.package_id {
             continue;
         }
 
-        let dep_name = format_package_name_without_version(&wit_dir.package(*package_id)?.name);
+        let dep_package = wit_dir.package(*package_id)?;
+        let dep_package_name = &dep_package.name;
+        let dep_name = format_package_name_without_version(dep_package_name);
+
+        let used = wit_dir.used_interfaces()?;
+        let used = used
+            .into_iter()
+            .map(|(id, _, _)| id)
+            .collect::<HashSet<_>>();
+
+        if has_golem_rust && wit_packages_in_golem_rust.contains(dep_name.as_str()) {
+            for (interface_name, interface_id) in &dep_package.interfaces {
+                if used.contains(interface_id) {
+                    let interface_path = dep_package_name.interface_id(interface_name);
+
+                    if interface_path == format!("golem:rpc/types@{GOLEM_RPC_WIT_VERSION}") {
+                        bind_to_golem_rust.push((
+                            interface_path,
+                            "golem_rust::wasm_rpc::golem_rpc_0_2_x::types".to_string(),
+                        ));
+                    } else if interface_path == format!("wasi:io/poll@{WASI_WIT_VERSION}") {
+                        bind_to_golem_rust.push((
+                            interface_path,
+                            "golem_rust::wasm_rpc::wasi::io::poll".to_string(),
+                        ));
+                    } else if interface_path == format!("wasi:clocks/wall-clock@{WASI_WIT_VERSION}")
+                    {
+                        bind_to_golem_rust.push((
+                            interface_path,
+                            "golem_rust::wasm_rpc::wasi::clocks::wall_clock".to_string(),
+                        ));
+                    } else {
+                        bind_to_golem_rust.push((
+                            interface_path,
+                            format!(
+                                "golem_rust::bindings::{}::{}::{}",
+                                dep_package_name.namespace.to_snake_case(),
+                                dep_package_name.name.to_snake_case(),
+                                interface_name.to_snake_case()
+                            ),
+                        ))
+                    }
+                }
+            }
+        }
 
         let mut dep = InlineTable::new();
         dep.insert(
@@ -413,6 +481,22 @@ pub fn regenerate_cargo_package_component(
         );
 
         dependencies[&dep_name] = toml_edit::value(dep);
+    }
+
+    if has_golem_rust && !bind_to_golem_rust.is_empty() {
+        let with = component["bindings"].or_insert(toml_edit::table())["with"]
+            .or_insert(toml_edit::table())
+            .as_table_mut()
+            .ok_or_else(|| {
+                anyhow!(
+                    "Expected table for package.metadata.component.bindings.with in {}",
+                    cargo_toml_path.display()
+                )
+            })?;
+
+        for (from, to) in bind_to_golem_rust {
+            with[&from] = toml_edit::value(to);
+        }
     }
 
     fs::write(cargo_toml_path, manifest.to_string())?;

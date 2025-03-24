@@ -13,31 +13,30 @@
 // limitations under the License.
 
 use crate::cloud::ProjectId;
+use crate::model::to_oss::ToOss;
 use crate::model::wave::function_wave_compatible;
-use crate::model::GolemError;
+use crate::model::ComponentName;
+use anyhow::{anyhow, bail};
 use chrono::{DateTime, Utc};
 use golem_client::model::{
     AnalysedType, ComponentMetadata, ComponentType, InitialComponentFile, VersionedComponentId,
 };
 use golem_common::model::component_metadata::DynamicLinkedInstance;
 use golem_common::model::trim_date::TrimDateTime;
-use golem_common::model::ComponentId;
-use golem_common::uri::oss::urn::ComponentUrn;
 use golem_wasm_ast::analysis::wave::DisplayNamedFunc;
 use golem_wasm_ast::analysis::{
-    AnalysedExport, AnalysedFunction, AnalysedFunctionResult, AnalysedInstance,
-    AnalysedResourceMode, NameOptionTypePair, NameTypePair, TypeEnum, TypeFlags, TypeRecord,
-    TypeTuple, TypeVariant,
+    AnalysedExport, AnalysedFunction, AnalysedInstance, AnalysedResourceMode, NameOptionTypePair,
+    NameTypePair, TypeEnum, TypeFlags, TypeRecord, TypeTuple, TypeVariant,
 };
 use rib::{ParsedFunctionName, ParsedFunctionSite};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tracing::info;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Component {
     pub versioned_component_id: VersionedComponentId,
-    pub component_name: String,
+    pub component_name: ComponentName,
     pub component_size: u64,
     pub component_type: ComponentType,
     pub metadata: ComponentMetadata,
@@ -48,26 +47,30 @@ pub struct Component {
 
 impl From<golem_client::model::Component> for Component {
     fn from(value: golem_client::model::Component) -> Self {
-        let golem_client::model::Component {
-            versioned_component_id,
-            component_name,
-            component_size,
-            component_type,
-            metadata,
-            created_at,
-            files,
-            installed_plugins: _installed_plugins,
-        } = value;
-
         Component {
-            versioned_component_id,
-            component_name,
-            component_size,
-            component_type: component_type.unwrap_or(ComponentType::Durable),
-            metadata,
+            versioned_component_id: value.versioned_component_id,
+            component_name: value.component_name.into(),
+            component_size: value.component_size,
+            component_type: value.component_type.unwrap_or(ComponentType::Durable),
+            metadata: value.metadata,
             project_id: None,
-            created_at,
-            files,
+            created_at: value.created_at,
+            files: value.files,
+        }
+    }
+}
+
+impl From<golem_cloud_client::model::Component> for Component {
+    fn from(value: golem_cloud_client::model::Component) -> Self {
+        Component {
+            versioned_component_id: value.versioned_component_id.to_oss(),
+            component_name: value.component_name.into(),
+            component_size: value.component_size,
+            metadata: value.metadata,
+            project_id: Some(ProjectId(value.project_id)),
+            created_at: value.created_at,
+            component_type: value.component_type.unwrap_or(ComponentType::Durable),
+            files: value.files,
         }
     }
 }
@@ -91,9 +94,10 @@ impl ComponentUpsertResult {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComponentView {
-    pub component_urn: ComponentUrn,
+    pub component_name: ComponentName,
+    pub component_id: Uuid,
+    pub component_type: ComponentType,
     pub component_version: u64,
-    pub component_name: String,
     pub component_size: u64,
     pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,31 +125,14 @@ impl From<Component> for ComponentView {
 impl From<&Component> for ComponentView {
     fn from(value: &Component) -> Self {
         ComponentView {
-            component_urn: ComponentUrn {
-                id: ComponentId(value.versioned_component_id.component_id),
-            },
+            component_name: value.component_name.clone(),
+            component_id: value.versioned_component_id.component_id,
+            component_type: value.component_type,
             component_version: value.versioned_component_id.version,
-            component_name: value.component_name.to_string(),
             component_size: value.component_size,
             created_at: value.created_at,
             project_id: value.project_id,
-            exports: value
-                .metadata
-                .exports
-                .iter()
-                .flat_map(|exp| match exp {
-                    AnalysedExport::Instance(AnalysedInstance { name, functions }) => {
-                        let fs: Vec<String> = functions
-                            .iter()
-                            .map(|f| show_exported_function(Some(name), f))
-                            .collect();
-                        fs
-                    }
-                    AnalysedExport::Function(f) => {
-                        vec![show_exported_function(None, f)]
-                    }
-                })
-                .collect(),
+            exports: show_exported_functions(&value.metadata.exports),
             dynamic_linking: value
                 .metadata
                 .dynamic_linking
@@ -155,9 +142,11 @@ impl From<&Component> for ComponentView {
                         name.clone(),
                         match link {
                             DynamicLinkedInstance::WasmRpc(links) => links
-                                .target_interface_name
+                                .targets
                                 .iter()
-                                .map(|(resource, interface)| (resource.clone(), interface.clone()))
+                                .map(|(resource, target)| {
+                                    (resource.clone(), target.interface_name.clone())
+                                })
                                 .collect::<BTreeMap<String, String>>(),
                         },
                     )
@@ -167,7 +156,7 @@ impl From<&Component> for ComponentView {
     }
 }
 
-fn render_type(typ: &AnalysedType) -> String {
+pub fn render_type(typ: &AnalysedType) -> String {
     match typ {
         AnalysedType::Variant(TypeVariant { cases }) => {
             let cases_str = cases
@@ -232,11 +221,28 @@ fn render_type(typ: &AnalysedType) -> String {
     }
 }
 
-fn render_result(r: &AnalysedFunctionResult) -> String {
-    render_type(&r.typ)
+pub fn show_exported_functions(exports: &[AnalysedExport]) -> Vec<String> {
+    exports
+        .iter()
+        .flat_map(|exp| match exp {
+            AnalysedExport::Instance(AnalysedInstance { name, functions }) => {
+                let fs: Vec<String> = functions
+                    .iter()
+                    .map(|f| render_exported_function(Some(name), f))
+                    .collect();
+                fs
+            }
+            AnalysedExport::Function(f) => {
+                vec![render_exported_function(None, f)]
+            }
+        })
+        .collect()
 }
 
-pub fn show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> String {
+pub fn render_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> String {
+    // TODO: now that the formatter is implemented, and wave still not supports handles
+    //       is there a point in using the customized wave formatter?
+    //       Or maybe it should handled in the customized DisplayNamedFunc?
     if function_wave_compatible(f) {
         DisplayNamedFunc {
             name: format_function_name(prefix, &f.name),
@@ -244,11 +250,14 @@ pub fn show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> Str
         }
         .to_string()
     } else {
-        custom_show_exported_function(prefix, f)
+        render_non_wave_compatible_exported_function(prefix, f)
     }
 }
 
-fn custom_show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> String {
+fn render_non_wave_compatible_exported_function(
+    prefix: Option<&str>,
+    f: &AnalysedFunction,
+) -> String {
     let params = f
         .parameters
         .iter()
@@ -256,7 +265,11 @@ fn custom_show_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> 
         .collect::<Vec<String>>()
         .join(", ");
 
-    let results = f.results.iter().map(render_result).collect::<Vec<String>>();
+    let results = f
+        .results
+        .iter()
+        .map(|res| render_type(&res.typ))
+        .collect::<Vec<String>>();
 
     let res_str = results.join(", ");
 
@@ -280,8 +293,8 @@ pub fn format_function_name(prefix: Option<&str>, name: &str) -> String {
 fn resolve_function<'t>(
     component: &'t Component,
     function: &str,
-) -> Result<(&'t AnalysedFunction, ParsedFunctionName), GolemError> {
-    let parsed = ParsedFunctionName::parse(function).map_err(GolemError)?;
+) -> anyhow::Result<(&'t AnalysedFunction, ParsedFunctionName)> {
+    let parsed = ParsedFunctionName::parse(function).map_err(|err| anyhow!(err))?;
     let mut functions = Vec::new();
 
     for export in &component.metadata.exports {
@@ -306,24 +319,21 @@ fn resolve_function<'t>(
     }
 
     if functions.len() > 1 {
-        info!("Multiple function with the same name '{function}' declared");
-
-        Err(GolemError(
-            "Multiple function results with the same name declared".to_string(),
-        ))
+        bail!(
+            "Multiple function results with the same name ({}) declared",
+            function
+        )
     } else if let Some(func) = functions.first() {
         Ok((func, parsed))
     } else {
-        info!("No function '{function}' declared for component");
-
-        Err(GolemError("Can't find function in component".to_string()))
+        bail!("Can't find function ({}) in component", function)
     }
 }
 
 pub fn function_result_types<'t>(
     component: &'t Component,
     function: &str,
-) -> Result<Vec<&'t AnalysedType>, GolemError> {
+) -> anyhow::Result<Vec<&'t AnalysedType>> {
     let (func, _) = resolve_function(component, function)?;
 
     Ok(func.results.iter().map(|r| &r.typ).collect())
@@ -332,7 +342,7 @@ pub fn function_result_types<'t>(
 pub fn function_params_types<'t>(
     component: &'t Component,
     function: &str,
-) -> Result<Vec<&'t AnalysedType>, GolemError> {
+) -> anyhow::Result<Vec<&'t AnalysedType>> {
     let (func, parsed) = resolve_function(component, function)?;
 
     if parsed.function().is_indexed_resource() {
@@ -346,7 +356,7 @@ pub fn function_params_types<'t>(
 mod tests {
     use test_r::test;
 
-    use crate::model::component::show_exported_function;
+    use crate::model::component::render_exported_function;
     use golem_wasm_ast::analysis::analysed_type::{
         bool, case, chr, f32, f64, field, flags, handle, list, option, r#enum, record, result,
         result_err, result_ok, s16, s32, s64, s8, str, tuple, u16, u32, u64, u8, unit_case,
@@ -367,7 +377,7 @@ mod tests {
                 typ: handle(AnalysedResourceId(1), AnalysedResourceMode::Borrowed),
             }],
         };
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "n() -> &handle<1>")
     }
@@ -380,7 +390,7 @@ mod tests {
             results: vec![],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc()")
     }
@@ -396,7 +406,7 @@ mod tests {
             results: vec![],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc(n: handle<1>)")
     }
@@ -412,7 +422,7 @@ mod tests {
             }],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc() -> bool")
     }
@@ -428,7 +438,7 @@ mod tests {
             }],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc() -> handle<1>")
     }
@@ -459,7 +469,7 @@ mod tests {
             ],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc(n1: bool, n2: bool) -> (bool, bool)")
     }
@@ -490,7 +500,7 @@ mod tests {
             ],
         };
 
-        let repr = show_exported_function(None, &f);
+        let repr = render_exported_function(None, &f);
 
         assert_eq!(repr, "abc(n1: bool, n2: handle<1>) -> (bool, bool)")
     }
@@ -507,7 +517,7 @@ mod tests {
                 typ: typ.clone(),
             }],
         };
-        let wave_res = show_exported_function(None, &wave_f);
+        let wave_res = render_exported_function(None, &wave_f);
         assert_eq!(wave_res, expected_wave);
 
         let custom_f = AnalysedFunction {
@@ -521,7 +531,7 @@ mod tests {
                 ]),
             }],
         };
-        let custom_res = show_exported_function(None, &custom_f);
+        let custom_res = render_exported_function(None, &custom_f);
         assert_eq!(custom_res, expected_custom);
     }
 
