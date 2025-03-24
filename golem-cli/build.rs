@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use shadow_rs::{BuildPattern, SdResult, ShadowBuilder, ShadowError};
+use shadow_rs::{BuildPattern, SdResult, ShadowBuilder};
 use std::fs::File;
 use std::io::Write;
 use std::process::Command;
