@@ -106,11 +106,28 @@ pub mod wit {
         ))
     }
 
-    pub fn client_import_exports_prefix_from_client_package_name(
+    pub fn client_import_prefix_from_client_package_name_extract_mode(
         client_package: &wit_parser::PackageName,
     ) -> anyhow::Result<String> {
         Ok(format!(
             "{}:{}-exports/",
+            client_package.namespace,
+            client_package
+                .name
+                .clone()
+                .strip_suffix("-client")
+                .ok_or_else(|| anyhow!(
+                    "Expected \"-client\" suffix in client package name: {}",
+                    client_package.to_string()
+                ))?
+        ))
+    }
+
+    pub fn client_import_exports_prefix_from_client_package_name_stripped_mode(
+        client_package: &wit_parser::PackageName,
+    ) -> anyhow::Result<String> {
+        Ok(format!(
+            "{}:{}/",
             client_package.namespace,
             client_package
                 .name

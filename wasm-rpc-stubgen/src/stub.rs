@@ -475,7 +475,41 @@ impl StubDefinition {
                 .filter(|function| function.kind == FunctionKind::Freestanding),
         );
 
+        // TODO: ?
+        /*let used_function_types = functions
+            .iter()
+            .flat_map(|function| {
+                function
+                    .params
+                    .iter()
+                    .flat_map(|param| match &param.typ {
+                        Type::Id(id) => Some(*id),
+                        _ => None,
+                    })
+                    .chain(match &function.results {
+                        FunctionResultStub::Anon(typ) => match typ {
+                            Type::Id(id) => vec![*id],
+                            _ => vec![],
+                        },
+                        FunctionResultStub::Named(stubs) => stubs
+                            .iter()
+                            .flat_map(|stub| match stub.typ {
+                                Type::Id(id) => vec![id],
+                                _ => vec![],
+                            })
+                            .collect::<Vec<_>>(),
+                        FunctionResultStub::SelfType => vec![],
+                    })
+            })
+            .collect::<Vec<_>>();*/
+
         let (used_types, _) = self.extract_resource_interface_stubs_from_types(types.into_iter());
+
+        // TODO
+        /*let used_types = used_types
+            .into_iter()
+            .chain(used_function_types)
+            .collect::<Vec<_>>();*/
 
         Some(InterfaceStub {
             name: name.to_string(),

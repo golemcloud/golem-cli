@@ -20,7 +20,9 @@ use assert2::assert;
 use fs_extra::dir::CopyOptions;
 use golem_wasm_rpc_stubgen::commands::generate::generate_client_wit_dir;
 use golem_wasm_rpc_stubgen::model::app::ComponentName;
-use golem_wasm_rpc_stubgen::stub::{RustDependencyOverride, StubConfig, StubDefinition, StubSourceTransform};
+use golem_wasm_rpc_stubgen::stub::{
+    RustDependencyOverride, StubConfig, StubDefinition, StubSourceTransform,
+};
 use golem_wasm_rpc_stubgen::wit_generate::{
     add_client_as_dependency_to_wit_dir, AddClientAsDepConfig, UpdateCargoToml,
 };
@@ -59,7 +61,11 @@ fn all_wit_types_no_collision(source_transform: StubSourceTransform) {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "main-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "main"),
+            None,
+        ),
         &dest_wit_root,
         &stub_wit_root,
     );
@@ -95,12 +101,20 @@ fn all_wit_types_re_add_with_changes(source_transform: StubSourceTransform) {
     assert_valid_wit_root(&dest_wit_root);
     assert_has_wasm_rpc_wit_deps(&dest_wit_root);
     assert_has_same_wit_package(
-        &PackageName::new("test", "main-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "main"),
+            None,
+        ),
         source_dir.path(),
         &stub_wit_root,
     );
     assert_has_same_wit_package(
-        &PackageName::new("test", "main-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "main"),
+            None,
+        ),
         source_dir.path(),
         &dest_wit_root,
     );
@@ -120,12 +134,20 @@ fn all_wit_types_re_add_with_changes(source_transform: StubSourceTransform) {
     assert_valid_wit_root(&dest_wit_root);
     assert_has_wasm_rpc_wit_deps(&dest_wit_root);
     assert_has_same_wit_package(
-        &PackageName::new("test", "main-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "main"),
+            None,
+        ),
         alternative_source_dir.path(),
         &alternative_stub_wit_root,
     );
     assert_has_same_wit_package(
-        &PackageName::new("test", "main-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "main"),
+            None,
+        ),
         alternative_source_dir.path(),
         &dest_wit_root,
     );
@@ -136,10 +158,12 @@ fn all_wit_types_re_add_with_changes(source_transform: StubSourceTransform) {
     );
 }
 
+#[test]
 fn all_wit_types_re_add_with_changes_extract() {
     all_wit_types_re_add_with_changes(StubSourceTransform::ExtractExportsPackage);
 }
 
+#[test]
 fn all_wit_types_re_add_with_changes_strip() {
     all_wit_types_re_add_with_changes(StubSourceTransform::StripSourcePackage);
 }
@@ -169,7 +193,11 @@ fn many_ways_to_export_no_collision(source_transform: StubSourceTransform) {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "exports-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "exports"),
+            None,
+        ),
         source_dir.path(),
         &dest_wit_root,
     );
@@ -223,7 +251,11 @@ fn direct_circular(source_transform: StubSourceTransform) {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "b-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "b"),
+            None,
+        ),
         dest_a.path(),
         _source_b_dir.path(),
     );
@@ -237,25 +269,29 @@ fn direct_circular(source_transform: StubSourceTransform) {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "a-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "a"),
+            None,
+        ),
         dest_b.path(),
         _source_a_dir.path(),
     );
 }
 
+#[test]
 fn direct_circular_extract() {
     direct_circular(StubSourceTransform::ExtractExportsPackage);
 }
 
-fn direct_circular_strip(source_transform: StubSourceTransform) {
+#[test]
+fn direct_circular_strip() {
     direct_circular(StubSourceTransform::StripSourcePackage);
 }
 
-/* TODO
-#[test]
-fn direct_circular_readd() {
-    let (_source_a_dir, stub_a_dir) = init_stub("direct-circular-a");
-    let (_source_b_dir, stub_b_dir) = init_stub("direct-circular-b");
+fn direct_circular_readd(source_transform: StubSourceTransform) {
+    let (_source_a_dir, stub_a_dir) = init_stub("direct-circular-a", source_transform);
+    let (_source_b_dir, stub_b_dir) = init_stub("direct-circular-b", source_transform);
 
     let dest_a = init_caller("direct-circular-a");
     let dest_b = init_caller("direct-circular-b");
@@ -279,8 +315,8 @@ fn direct_circular_readd() {
     // At this point we simulate doing stub generation and add-stub-dependency _again_ on the a.wit and b.wit which are already have the corresponding
     // stubs imported
 
-    regenerate_stub(stub_a_dir.path(), dest_a.path());
-    regenerate_stub(stub_b_dir.path(), dest_b.path());
+    regenerate_stub(stub_a_dir.path(), dest_a.path(), source_transform);
+    regenerate_stub(stub_b_dir.path(), dest_b.path(), source_transform);
 
     println!("Second round of add_stub_dependency calls");
     add_client_as_dependency_to_wit_dir(AddClientAsDepConfig {
@@ -333,9 +369,20 @@ fn direct_circular_readd() {
 }
 
 #[test]
-fn direct_circular_same_world_name() {
-    let (source_a_dir, stub_a_dir) = init_stub("direct-circular-a-same-world-name");
-    let (source_b_dir, stub_b_dir) = init_stub("direct-circular-b-same-world-name");
+fn direct_circular_readd_extract() {
+    direct_circular_readd(StubSourceTransform::ExtractExportsPackage);
+}
+
+#[test]
+fn direct_circular_readd_strip() {
+    direct_circular_readd(StubSourceTransform::StripSourcePackage);
+}
+
+fn direct_circular_same_world_name(source_transform: StubSourceTransform) {
+    let (source_a_dir, stub_a_dir) =
+        init_stub("direct-circular-a-same-world-name", source_transform);
+    let (source_b_dir, stub_b_dir) =
+        init_stub("direct-circular-b-same-world-name", source_transform);
 
     let dest_a = init_caller("direct-circular-a-same-world-name");
     let dest_b = init_caller("direct-circular-b-same-world-name");
@@ -365,7 +412,11 @@ fn direct_circular_same_world_name() {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "b-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "b"),
+            None,
+        ),
         dest_a.path(),
         source_b_dir.path(),
     );
@@ -379,17 +430,30 @@ fn direct_circular_same_world_name() {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "a-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "a"),
+            None,
+        ),
         dest_b.path(),
         source_a_dir.path(),
     );
 }
 
 #[test]
-fn indirect_circular() {
-    let (source_a_dir, stub_a_dir) = init_stub("indirect-circular-a");
-    let (_source_b_dir, stub_b_dir) = init_stub("indirect-circular-b");
-    let (_source_c_dir, stub_c_dir) = init_stub("indirect-circular-c");
+fn direct_circular_same_world_name_extract() {
+    direct_circular_same_world_name(StubSourceTransform::ExtractExportsPackage);
+}
+
+#[test]
+fn direct_circular_same_world_name_strip() {
+    direct_circular_same_world_name(StubSourceTransform::StripSourcePackage);
+}
+
+fn indirect_circular(source_transform: StubSourceTransform) {
+    let (source_a_dir, stub_a_dir) = init_stub("indirect-circular-a", source_transform);
+    let (_source_b_dir, stub_b_dir) = init_stub("indirect-circular-b", source_transform);
+    let (_source_c_dir, stub_c_dir) = init_stub("indirect-circular-c", source_transform);
 
     let dest_a = init_caller("indirect-circular-a");
     let dest_b = init_caller("indirect-circular-b");
@@ -427,7 +491,11 @@ fn indirect_circular() {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "b-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "b"),
+            None,
+        ),
         dest_a.path(),
         &stub_b_dir.path().join("wit"),
     );
@@ -449,17 +517,30 @@ fn indirect_circular() {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "a-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "a"),
+            None,
+        ),
         dest_c.path(),
         source_a_dir.path(),
     );
 }
 
 #[test]
-fn indirect_circular_readd() {
-    let (_source_a_dir, stub_a_dir) = init_stub("indirect-circular-a");
-    let (_source_b_dir, stub_b_dir) = init_stub("indirect-circular-b");
-    let (_source_c_dir, stub_c_dir) = init_stub("indirect-circular-c");
+fn indirect_circular_extract() {
+    indirect_circular(StubSourceTransform::ExtractExportsPackage);
+}
+
+#[test]
+fn indirect_circular_strip() {
+    indirect_circular(StubSourceTransform::StripSourcePackage);
+}
+
+fn indirect_circular_readd(source_transform: StubSourceTransform) {
+    let (_source_a_dir, stub_a_dir) = init_stub("indirect-circular-a", source_transform);
+    let (_source_b_dir, stub_b_dir) = init_stub("indirect-circular-b", source_transform);
+    let (_source_c_dir, stub_c_dir) = init_stub("indirect-circular-c", source_transform);
 
     let dest_a = init_caller("indirect-circular-a");
     let dest_b = init_caller("indirect-circular-b");
@@ -495,9 +576,9 @@ fn indirect_circular_readd() {
     // At this point we simulate doing stub generation and add-stub-dependency _again_ on the a.wit and b.wit which are already have the corresponding
     // stubs imported
 
-    regenerate_stub(stub_a_dir.path(), dest_a.path());
-    regenerate_stub(stub_b_dir.path(), dest_b.path());
-    regenerate_stub(stub_c_dir.path(), dest_c.path());
+    regenerate_stub(stub_a_dir.path(), dest_a.path(), source_transform);
+    regenerate_stub(stub_b_dir.path(), dest_b.path(), source_transform);
+    regenerate_stub(stub_c_dir.path(), dest_c.path(), source_transform);
 
     println!("Second round of add_stub_dependency calls");
     add_client_as_dependency_to_wit_dir(AddClientAsDepConfig {
@@ -532,7 +613,11 @@ fn indirect_circular_readd() {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "b-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "b-exports"),
+            None,
+        ),
         dest_a.path(),
         dest_b.path(),
     );
@@ -557,7 +642,11 @@ fn indirect_circular_readd() {
     );
 
     assert_has_same_wit_package(
-        &PackageName::new("test", "a-exports", None),
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "a"),
+            None,
+        ),
         dest_c.path(),
         dest_a.path(),
     );
@@ -566,8 +655,17 @@ fn indirect_circular_readd() {
 }
 
 #[test]
-fn self_circular() {
-    let (_source_a_dir, stub_a_dir) = init_stub("self-circular");
+fn indirect_circular_readd_extract() {
+    indirect_circular_readd(StubSourceTransform::ExtractExportsPackage);
+}
+
+#[test]
+fn indirect_circular_readd_strip() {
+    indirect_circular_readd(StubSourceTransform::StripSourcePackage);
+}
+
+fn self_circular(source_transform: StubSourceTransform) {
+    let (_source_a_dir, stub_a_dir) = init_stub("self-circular", source_transform);
 
     let dest_a = init_caller("self-circular");
 
@@ -588,7 +686,16 @@ fn self_circular() {
         &stub_a_dir.path().join("wit"),
     );
 }
-*/
+
+#[test]
+fn self_circular_extract() {
+    self_circular(StubSourceTransform::ExtractExportsPackage);
+}
+
+#[test]
+fn self_circular_strip() {
+    self_circular(StubSourceTransform::StripSourcePackage);
+}
 
 fn init_stub(name: &str, source_transform: StubSourceTransform) -> (TempDir, TempDir) {
     let source = TempDir::new().unwrap();
@@ -743,4 +850,16 @@ fn assert_has_wasm_rpc_wit_deps(wit_dir: &Path) {
         wit_dir,
         deps.as_slice(),
     );
+}
+
+fn transformed_source_package_name(source_transform: StubSourceTransform, name: &str) -> String {
+    match source_transform {
+        StubSourceTransform::None => {
+            unimplemented!()
+        }
+        StubSourceTransform::ExtractExportsPackage => {
+            format!("{}-exports", name)
+        }
+        StubSourceTransform::StripSourcePackage => name.to_string(),
+    }
 }
