@@ -109,7 +109,7 @@ script = '''
 exec --fail-on-error cargo install --debug --path golem --bin golem --target-dir target --locked --offline
 '''
 
-## ** INSTALL - DEBUG **
+## ** INSTALL - RELEASE **
 
 [tasks.install-release]
 description = "Install bins in debug mode"
