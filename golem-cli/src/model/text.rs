@@ -275,7 +275,7 @@ pub mod fmt {
             .join("\n")
     }
 
-    pub fn format_ifs_entry(files: &Vec<InitialComponentFile>) -> String {
+    pub fn format_ifs_entry(files: &[InitialComponentFile]) -> String {
         files
             .iter()
             .map(|file| {
@@ -737,7 +737,7 @@ pub mod component {
             )
             .fmt_field_optional(
                 "Initial file system",
-                &view.files,
+                view.files.as_slice(),
                 !view.files.is_empty(),
                 format_ifs_entry,
             );
