@@ -1236,7 +1236,6 @@ pub mod plugin {
             /// Plugin name
             plugin_name: String,
             /// Plugin version
-            #[arg(long)]
             version: String,
         },
     }
