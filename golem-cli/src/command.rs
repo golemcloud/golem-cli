@@ -778,9 +778,23 @@ pub mod component {
                 /// The version of the component
                 version: Option<u64>,
             },
+            Update {
+                /// The component to update the plugin for
+                #[command(flatten)]
+                component_name: ComponentOptionalComponentName,
+                /// The plugin to update
+                #[arg(long)]
+                installation_id: PluginInstallationId,
+                /// Updated priority of the plugin - largest priority is applied first
+                #[arg(long)]
+                priority: i32,
+                /// Updated list of parameters (key-value pairs) passed to the plugin
+                #[arg(long, value_parser = parse_key_val, value_name = "KEY=VAL")]
+                param: Vec<(String, String)>,
+            },
             /// Uninstall a plugin for selected component
             Uninstall {
-                /// The component to install the plugin for
+                /// The component to uninstall the plugin from
                 #[command(flatten)]
                 component_name: ComponentOptionalComponentName,
                 /// The plugin to uninstall
