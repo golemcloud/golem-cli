@@ -1234,7 +1234,6 @@ pub mod plugin {
         /// Unregister a plugin
         Unregister {
             /// Plugin name
-            #[arg(long)]
             plugin_name: String,
             /// Plugin version
             #[arg(long)]
