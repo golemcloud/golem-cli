@@ -2009,18 +2009,18 @@ impl Display for AppValidationError {
 
 impl std::error::Error for AppValidationError {}
 
-fn format_warns(warns: &Vec<String>) -> String {
+fn format_warns(warns: &[String]) -> String {
     let label = "warning".yellow();
     warns
-        .into_iter()
+        .iter()
         .map(|warn| format!("{}: {}", label, warn))
         .join("\n")
 }
 
-fn format_errors(errors: &Vec<String>) -> String {
+fn format_errors(errors: &[String]) -> String {
     let label = "error".red();
     errors
-        .into_iter()
+        .iter()
         .map(|error| format!("{}: {}", label, error))
         .join("\n")
 }
