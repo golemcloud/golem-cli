@@ -27,7 +27,7 @@ use itertools::Itertools;
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::fmt::Write;
+use std::fmt::{Display, Write};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -1195,46 +1195,6 @@ fn find_main_source() -> Option<PathBuf> {
     last_source
 }
 
-fn to_anyhow<T>(message: &str, result: ValidatedResult<T>) -> anyhow::Result<T> {
-    // TODO: review formatting here
-    fn format_warns(warns: Vec<String>) -> String {
-        let label = "Warning".yellow();
-        warns
-            .into_iter()
-            .map(|warn| format!("{}: {}", label, warn))
-            .join("\n")
-    }
-
-    fn format_errors(errors: Vec<String>) -> String {
-        let label = "Error".red();
-        errors
-            .into_iter()
-            .map(|error| format!("{}: {}", label, error))
-            .join("\n")
-    }
-
-    match result {
-        ValidatedResult::Ok(value) => Ok(value),
-        ValidatedResult::OkWithWarns(components, warns) => {
-            log_warn_action("Found warnings:\n", format_warns(warns));
-            Ok(components)
-        }
-        ValidatedResult::WarnsAndErrors(warns, errors) => {
-            fn with_new_line_if_not_empty(mut str: String) -> String {
-                if !str.is_empty() {
-                    str.write_char('\n').unwrap()
-                }
-                str
-            }
-            let warns = with_new_line_if_not_empty(format_warns(warns));
-            let errors = with_new_line_if_not_empty(format_errors(errors));
-            let message = format!("\n{}{}\n{}", warns, errors, message);
-
-            Err(anyhow!(message))
-        }
-    }
-}
-
 fn is_up_to_date<S, T, FS, FT>(skip_check: bool, sources: FS, targets: FT) -> bool
 where
     S: IntoIterator<Item = PathBuf>,
@@ -2022,4 +1982,60 @@ fn env_var_flag(name: &str) -> bool {
             flag.starts_with("t") || flag == "1"
         })
         .unwrap_or_default()
+}
+
+#[derive(Debug, Clone)]
+pub struct AppValidationError {
+    message: String,
+    warns: Vec<String>,
+    errors: Vec<String>,
+}
+
+impl Display for AppValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fn with_new_line_if_not_empty(mut str: String) -> String {
+            if !str.is_empty() {
+                str.write_char('\n').unwrap()
+            }
+            str
+        }
+
+        let warns = with_new_line_if_not_empty(format_warns(&self.warns));
+        let errors = with_new_line_if_not_empty(format_errors(&self.errors));
+
+        write!(f, "\n{}{}\n{}", warns, errors, &self.message)
+    }
+}
+
+impl std::error::Error for AppValidationError {}
+
+fn format_warns(warns: &Vec<String>) -> String {
+    let label = "warning".yellow();
+    warns
+        .into_iter()
+        .map(|warn| format!("{}: {}", label, warn))
+        .join("\n")
+}
+
+fn format_errors(errors: &Vec<String>) -> String {
+    let label = "error".red();
+    errors
+        .into_iter()
+        .map(|error| format!("{}: {}", label, error))
+        .join("\n")
+}
+
+fn to_anyhow<T>(message: &str, result: ValidatedResult<T>) -> anyhow::Result<T> {
+    match result {
+        ValidatedResult::Ok(value) => Ok(value),
+        ValidatedResult::OkWithWarns(components, warns) => {
+            log_warn_action("App validation warnings:\n", format_warns(&warns));
+            Ok(components)
+        }
+        ValidatedResult::WarnsAndErrors(warns, errors) => Err(anyhow!(AppValidationError {
+            message: message.to_string(),
+            warns,
+            errors,
+        })),
+    }
 }

@@ -51,6 +51,7 @@ use clap::CommandFactory;
 use clap_complete::Shell;
 #[cfg(feature = "server-commands")]
 use clap_verbosity_flag::Verbosity;
+use golem_wasm_rpc_stubgen::commands::app::AppValidationError;
 use golem_wasm_rpc_stubgen::log::{logln, set_log_output, Output};
 use std::ffi::OsString;
 use std::process::ExitCode;
@@ -194,8 +195,18 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
         };
 
         result.unwrap_or_else(|error| {
-            if error.downcast_ref::<NonSuccessfulExit>().is_none() {
-                // TODO: check if this should be display or debug
+            if error.downcast_ref::<NonSuccessfulExit>().is_some() {
+                // NOP
+            } else if error
+                .downcast_ref::<Arc<anyhow::Error>>()
+                .and_then(|err| err.downcast_ref::<AppValidationError>())
+                .is_some()
+            {
+                // App validation errors are already formatted and usually contain multiple
+                // errors (and warns)
+                logln("");
+                logln(format!("{:#}", error));
+            } else {
                 logln("");
                 log_error(format!("{:#}", error));
             }
