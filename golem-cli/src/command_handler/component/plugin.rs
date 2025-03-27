@@ -65,13 +65,13 @@ impl ComponentPluginCommandHandler {
             } => self.cmd_get(component_name.component_name, version).await,
             ComponentPluginSubcommand::Update {
                 component_name,
-                plugin_installation_id,
+                installation_id,
                 priority,
                 param,
             } => {
                 self.cmd_update(
                     component_name.component_name,
-                    plugin_installation_id,
+                    installation_id,
                     priority,
                     param,
                 )
@@ -79,9 +79,9 @@ impl ComponentPluginCommandHandler {
             }
             ComponentPluginSubcommand::Uninstall {
                 component_name,
-                plugin_installation_id,
+                installation_id,
             } => {
-                self.cmd_uninstall(component_name.component_name, plugin_installation_id)
+                self.cmd_uninstall(component_name.component_name, installation_id)
                     .await
             }
         }

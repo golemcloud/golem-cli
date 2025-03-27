@@ -784,7 +784,8 @@ pub mod component {
                 #[command(flatten)]
                 component_name: ComponentOptionalComponentName,
                 /// Installation id of the plugin to update
-                plugin_installation_id: PluginInstallationId,
+                #[arg(long)]
+                installation_id: PluginInstallationId,
                 /// Updated priority of the plugin - largest priority is applied first
                 #[arg(long)]
                 priority: i32,
@@ -798,7 +799,8 @@ pub mod component {
                 #[command(flatten)]
                 component_name: ComponentOptionalComponentName,
                 /// Installation id of the plugin to uninstall
-                plugin_installation_id: PluginInstallationId,
+                #[arg(long)]
+                installation_id: PluginInstallationId,
             },
         }
     }
@@ -1503,6 +1505,7 @@ pub mod cloud {
                 #[command(subcommand)]
                 subcommand: PolicySubcommand,
             },
+            /// Manage project plugins
             Plugin {
                 #[command(subcommand)]
                 subcommand: ProjectPluginSubcommand,
