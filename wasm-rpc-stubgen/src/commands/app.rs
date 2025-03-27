@@ -61,9 +61,7 @@ impl<CPE: ComponentPropertiesExtensions> Config<CPE> {
 #[derive(Debug, Clone)]
 pub enum ApplicationSourceMode {
     Automatic,
-    // TODO: change to only accept the root document with include handling, and switch to that at start
-    // TODO: (and maybe change validation to only allow include in root doc)
-    Explicit(Vec<PathBuf>),
+    Explicit(PathBuf),
     None,
 }
 
@@ -1119,51 +1117,39 @@ fn collect_sources(
     log_action("Collecting", "application manifests");
     let _indent = LogIndent::new();
 
+    fn collect_by_main_source(source: &Path) -> Option<ValidatedResult<BTreeSet<PathBuf>>> {
+        let source_ext = PathExtra::new(&source);
+        let source_dir = source_ext.parent().unwrap();
+        std::env::set_current_dir(source_dir).expect("Failed to set current dir for config parent");
+
+        let includes = includes_from_yaml_file(source);
+        if includes.is_empty() {
+            Some(ValidatedResult::Ok(BTreeSet::from([source.to_path_buf()])))
+        } else {
+            Some(
+                ValidatedResult::from_result(compile_and_collect_globs(source_dir, &includes)).map(
+                    |mut sources| {
+                        sources.insert(0, source.to_path_buf());
+                        sources.into_iter().collect()
+                    },
+                ),
+            )
+        }
+    }
+
     let sources = match mode {
         ApplicationSourceMode::Automatic => match find_main_source() {
-            Some(source) => {
-                let source_ext = PathExtra::new(&source);
-                let source_dir = source_ext.parent().unwrap();
-                std::env::set_current_dir(source_dir)
-                    .expect("Failed to set current dir for config parent");
-
-                let includes = includes_from_yaml_file(source.as_path());
-                if includes.is_empty() {
-                    Some(ValidatedResult::Ok(BTreeSet::from([source])))
-                } else {
-                    Some(
-                        ValidatedResult::from_result(compile_and_collect_globs(
-                            source_dir, &includes,
-                        ))
-                        .map(|mut sources| {
-                            sources.insert(0, source);
-                            sources.into_iter().collect()
-                        }),
-                    )
-                }
-            }
+            Some(source) => collect_by_main_source(&source),
             None => None,
         },
-        ApplicationSourceMode::Explicit(sources) => {
-            let non_unique_source_warns: Vec<_> = sources
-                .iter()
-                .counts()
-                .into_iter()
-                .filter(|(_, count)| *count > 1)
-                .map(|(source, count)| {
-                    format!(
-                        "Source added multiple times, source: {}, count: {}",
-                        source.display(),
-                        count
-                    )
-                })
-                .collect();
-
-            Some(ValidatedResult::from_value_and_warns(
-                sources.iter().cloned().collect(),
-                non_unique_source_warns,
-            ))
-        }
+        ApplicationSourceMode::Explicit(source) => match source.canonicalize() {
+            Ok(source) => collect_by_main_source(&source),
+            Err(err) => Some(ValidatedResult::from_error(format!(
+                "Cannot resolve requested application manifest source {}: {}",
+                source.log_color_highlight(),
+                err
+            ))),
+        },
         ApplicationSourceMode::None => None,
     };
 

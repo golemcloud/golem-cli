@@ -512,7 +512,7 @@ impl ApplicationContextState {
         let config = golem_wasm_rpc_stubgen::commands::app::Config {
             app_source_mode: {
                 match &config.app_manifest_path {
-                    Some(path) => ApplicationSourceMode::Explicit(vec![path.clone()]),
+                    Some(path) => ApplicationSourceMode::Explicit(path.clone()),
                     None => {
                         if config.disable_app_manifest_discovery {
                             ApplicationSourceMode::None
