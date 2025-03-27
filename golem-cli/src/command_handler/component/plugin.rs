@@ -50,7 +50,7 @@ impl ComponentPluginCommandHandler {
                 priority,
                 param,
             } => {
-                self.cmd_new(
+                self.cmd_install(
                     component_name.component_name,
                     plugin_name,
                     plugin_version,
@@ -65,13 +65,13 @@ impl ComponentPluginCommandHandler {
             } => self.cmd_get(component_name.component_name, version).await,
             ComponentPluginSubcommand::Update {
                 component_name,
-                installation_id,
+                plugin_installation_id,
                 priority,
                 param,
             } => {
                 self.cmd_update(
                     component_name.component_name,
-                    installation_id,
+                    plugin_installation_id,
                     priority,
                     param,
                 )
@@ -79,15 +79,15 @@ impl ComponentPluginCommandHandler {
             }
             ComponentPluginSubcommand::Uninstall {
                 component_name,
-                installation_id,
+                plugin_installation_id,
             } => {
-                self.cmd_delete(component_name.component_name, installation_id)
+                self.cmd_uninstall(component_name.component_name, plugin_installation_id)
                     .await
             }
         }
     }
 
-    async fn cmd_new(
+    async fn cmd_install(
         &self,
         component_name: Option<ComponentName>,
         plugin_name: String,
@@ -301,7 +301,7 @@ impl ComponentPluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(
+    async fn cmd_uninstall(
         &self,
         component_name: Option<ComponentName>,
         plugin_installation_id: PluginInstallationId,

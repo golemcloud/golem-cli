@@ -28,7 +28,8 @@ use crate::command_handler::api::ApiCommandHandler;
 use crate::command_handler::app::AppCommandHandler;
 use crate::command_handler::cloud::account::grant::CloudAccountGrantCommandHandler;
 use crate::command_handler::cloud::account::CloudAccountCommandHandler;
-use crate::command_handler::cloud::policy::CloudProjectPolicyCommandHandler;
+use crate::command_handler::cloud::project::plugin::CloudProjectPluginCommandHandler;
+use crate::command_handler::cloud::project::policy::CloudProjectPolicyCommandHandler;
 use crate::command_handler::cloud::project::CloudProjectCommandHandler;
 use crate::command_handler::cloud::token::CloudTokenCommandHandler;
 use crate::command_handler::cloud::CloudCommandHandler;
@@ -263,6 +264,7 @@ trait Handlers {
     fn cloud_account_handler(&self) -> CloudAccountCommandHandler;
     fn cloud_handler(&self) -> CloudCommandHandler;
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler;
+    fn cloud_project_plugin_handler(&self) -> CloudProjectPluginCommandHandler;
     fn cloud_project_policy_handler(&self) -> CloudProjectPolicyCommandHandler;
     fn cloud_token_handler(&self) -> CloudTokenCommandHandler;
     fn component_handler(&self) -> ComponentCommandHandler;
@@ -323,6 +325,10 @@ impl Handlers for Arc<Context> {
 
     fn cloud_project_handler(&self) -> CloudProjectCommandHandler {
         CloudProjectCommandHandler::new(self.clone())
+    }
+
+    fn cloud_project_plugin_handler(&self) -> CloudProjectPluginCommandHandler {
+        CloudProjectPluginCommandHandler::new(self.clone())
     }
 
     fn cloud_project_policy_handler(&self) -> CloudProjectPolicyCommandHandler {

@@ -778,13 +778,13 @@ pub mod component {
                 /// The version of the component
                 version: Option<u64>,
             },
+            /// Update component plugin
             Update {
                 /// The component to update the plugin for
                 #[command(flatten)]
                 component_name: ComponentOptionalComponentName,
-                /// The plugin to update
-                #[arg(long)]
-                installation_id: PluginInstallationId,
+                /// Installation id of the plugin to update
+                plugin_installation_id: PluginInstallationId,
                 /// Updated priority of the plugin - largest priority is applied first
                 #[arg(long)]
                 priority: i32,
@@ -797,9 +797,8 @@ pub mod component {
                 /// The component to uninstall the plugin from
                 #[command(flatten)]
                 component_name: ComponentOptionalComponentName,
-                /// The plugin to uninstall
-                #[arg(long)]
-                installation_id: PluginInstallationId,
+                /// Installation id of the plugin to uninstall
+                plugin_installation_id: PluginInstallationId,
             },
         }
     }
@@ -1225,7 +1224,7 @@ pub mod plugin {
 
     #[derive(Debug, Subcommand)]
     pub enum PluginSubcommand {
-        /// Creates a new component with a given name by uploading the component WASM
+        /// List component for the select scope
         List {
             /// The scope to list components from
             #[command(flatten)]
@@ -1457,6 +1456,7 @@ pub mod cloud {
 
     pub mod project {
         use crate::cloud::AccountId;
+        use crate::command::cloud::project::plugin::ProjectPluginSubcommand;
         use crate::command::cloud::project::policy::PolicySubcommand;
         use crate::model::{ProjectAction, ProjectName, ProjectPolicyId};
         use clap::Subcommand;
@@ -1503,6 +1503,10 @@ pub mod cloud {
                 #[command(subcommand)]
                 subcommand: PolicySubcommand,
             },
+            Plugin {
+                #[command(subcommand)]
+                subcommand: ProjectPluginSubcommand,
+            },
         }
 
         pub mod policy {
@@ -1523,6 +1527,63 @@ pub mod cloud {
                 Get {
                     /// Project policy ID
                     policy_id: ProjectPolicyId,
+                },
+            }
+        }
+
+        pub mod plugin {
+            use crate::command::parse_key_val;
+            use crate::model::ProjectName;
+            use clap::Subcommand;
+            use golem_common::base_model::PluginInstallationId;
+
+            #[derive(Debug, Subcommand)]
+            pub enum ProjectPluginSubcommand {
+                /// Install a plugin for a project
+                Install {
+                    /// Target project for plugin installation
+                    project_name: ProjectName,
+                    /// The plugin to install
+                    #[arg(long)]
+                    plugin_name: String,
+                    /// The version of the plugin to install
+                    #[arg(long)]
+                    plugin_version: String,
+                    /// Priority of the plugin - largest priority is applied first
+                    #[arg(long)]
+                    priority: i32,
+                    /// List of parameters (key-value pairs) passed to the plugin
+                    #[arg(long, value_parser = parse_key_val, value_name = "KEY=VAL")]
+                    param: Vec<(String, String)>,
+                },
+                /// Get the installed plugins for the project
+                Get {
+                    /// Project name
+                    project_name: ProjectName,
+                    /* TODO: Missing from HTTP API
+                    /// The version of the component
+                    version: Option<u64>,
+                    */
+                },
+                /// Update project plugin
+                Update {
+                    /// Target project
+                    project_name: ProjectName,
+                    /// Installation id of the plugin to update
+                    plugin_installation_id: PluginInstallationId,
+                    /// Updated priority of the plugin - largest priority is applied first
+                    #[arg(long)]
+                    priority: i32,
+                    /// Updated list of parameters (key-value pairs) passed to the plugin
+                    #[arg(long, value_parser = parse_key_val, value_name = "KEY=VAL")]
+                    param: Vec<(String, String)>,
+                },
+                /// Uninstall a plugin for selected component
+                Uninstall {
+                    /// Target project
+                    project_name: ProjectName,
+                    /// Installation id of the plugin to uninstall
+                    plugin_installation_id: PluginInstallationId,
                 },
             }
         }
