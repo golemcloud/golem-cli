@@ -15,17 +15,17 @@ exclude = [
 [workspace.dependencies]
 
 # Golem dep
-golem-client = "=1.2.0-rc4"
-golem-common = "=1.2.0-rc4"
-golem-rib = "=1.2.0-rc4"
-golem-service-base = "=1.2.0-rc4"
-golem-test-framework = "=1.2.0-rc4"
-golem-wasm-ast = { version = "=1.2.0-rc4", default-features = false, features = ["analysis", "wave"] }
-golem-wasm-rpc = { version = "=1.2.0-rc4", default-features = false, features = ["host"] }
-golem-wit = "=1.2.0-rc2"
+golem-client = {git = "https://github.com/Nanashi-lab/golem", branch = "openapi"}
+golem-common = {git = "https://github.com/Nanashi-lab/golem", branch = "openapi"}
+golem-rib = {git = "https://github.com/Nanashi-lab/golem", branch = "openapi"}
+golem-service-base = {git = "https://github.com/Nanashi-lab/golem", branch = "openapi"}
+golem-test-framework = {git = "https://github.com/Nanashi-lab/golem", branch = "openapi"}
+golem-wasm-ast = { git = "https://github.com/Nanashi-lab/golem", branch = "openapi", default-features = false, features = ["analysis", "wave"] }
+golem-wasm-rpc = { git = "https://github.com/Nanashi-lab/golem", branch = "openapi", default-features = false, features = ["host"] }
+golem-wit = "1.2.0-rc2"
 
 # Golem cloud deps
-golem-cloud-client = "=1.2.0-rc4"
+golem-cloud-client = { path = "golem-cloud-client" }
 
 # External deps
 anyhow = "1.0.97"
@@ -117,9 +117,12 @@ wax = "0.6.0"
 wit-bindgen-rust = "=0.26.0"
 wit-encoder = "=0.221.2"
 wit-parser = "=0.221.3"
+webbrowser = "0.8.0"
+warp = "0.3"
 
 [patch.crates-io]
 redis-protocol = { git = "https://github.com/golemcloud/redis-protocol.rs.git", branch = "unpin-cookie-factory" }
 wasmtime = { git = "https://github.com/golemcloud/wasmtime.git", branch = "golem-wasmtime-v27.0.0" }
 wasmtime-wasi = { git = "https://github.com/golemcloud/wasmtime.git", branch = "golem-wasmtime-v27.0.0" }
 wasmtime-wasi-http = { git = "https://github.com/golemcloud/wasmtime.git", branch = "golem-wasmtime-v27.0.0" }
+golem-client = { git = "https://github.com/Nanashi-lab/golem", branch = "openapi"}

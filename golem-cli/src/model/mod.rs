@@ -299,6 +299,33 @@ impl From<String> for ApiDefinitionVersion {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiDefinitionFileFormat {
+    Json,
+    Yaml,
+}
+
+impl FromStr for ApiDefinitionFileFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "json" => Ok(ApiDefinitionFileFormat::Json),
+            "yaml" | "yml" => Ok(ApiDefinitionFileFormat::Yaml),
+            _ => Err(format!("Invalid API definition format: {s}. Expected one of \"json\", \"yaml\""))
+        }
+    }
+}
+
+impl Display for ApiDefinitionFileFormat {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApiDefinitionFileFormat::Json => write!(f, "json"),
+            ApiDefinitionFileFormat::Yaml => write!(f, "yaml"),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct JsonValueParser;
 

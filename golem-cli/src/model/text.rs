@@ -470,7 +470,9 @@ pub mod api_definition {
             Self {
                 method: value.method.to_string(),
                 path: value.path.to_string(),
-                component_name: value
+                component_name: "Todo: get component name".into(),
+                /*
+                value
                     .binding
                     .clone()
                     .component_id
@@ -480,6 +482,7 @@ pub mod api_definition {
                     })
                     .unwrap_or("<NA>".to_string())
                     .into(),
+                */
             }
         }
     }
@@ -567,6 +570,19 @@ pub mod api_definition {
 
         fn fields(&self) -> Vec<(String, String)> {
             api_definition_fields(&self.0)
+        }
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ApiDefinitionExportView(pub String);
+
+    impl MessageWithFields for ApiDefinitionExportView {
+        fn message(&self) -> String {
+            self.0.clone()
+        }
+
+        fn fields(&self) -> Vec<(String, String)> {
+            vec![]
         }
     }
 
