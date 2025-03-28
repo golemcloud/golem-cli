@@ -1041,7 +1041,7 @@ pub mod api {
                 #[arg(short = 'V', long)]
                 version: ApiDefinitionVersion,
                 /// Output format (json or yaml)
-                #[arg(short, long, default_value = "yaml")]
+                #[arg(long, default_value = "yaml", name = "def-format")]
                 format: ApiDefinitionFileFormat,
                 /// Custom output file name (without extension)
                 #[arg(short, long)]
