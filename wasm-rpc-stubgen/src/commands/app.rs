@@ -10,7 +10,7 @@ use crate::model::app::{
     DEFAULT_CONFIG_FILE_NAME,
 };
 use crate::model::app_raw;
-use crate::stub::{RustDependencyOverride, StubConfig, StubDefinition};
+use crate::stub::{RustDependencyOverride, StubConfig, StubDefinition, StubSourceTransform};
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wit_generate::{
     add_client_as_dependency_to_wit_dir, extract_exports_as_wit_dep, AddClientAsDepConfig,
@@ -346,7 +346,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
                     selected_world: None,
                     stub_crate_version: WASM_RPC_VERSION.to_string(),
                     golem_rust_override: self.config.golem_rust_override.clone(),
-                    extract_source_exports_package: false,
+                    source_transform: StubSourceTransform::None,
                     seal_cargo_workspace: true,
                     component_name: component_name.clone(),
                     is_ephemeral,

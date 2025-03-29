@@ -72,5 +72,7 @@ world api {
     export test:sub/iface13;
 
     use test:sub2/iface10.{rec1};
-    export func2: func() -> rec1;
+    // TODO: name collision: export func2: func() -> rec1;
+    // TODO: export used type: export func22: func() -> rec1;
+    // TODO: export inlined record
 }

@@ -26,7 +26,7 @@ use golem_wasm_ast::component::Component;
 use golem_wasm_ast::IgnoreAllButMetadata;
 use golem_wasm_rpc_stubgen::commands::generate::generate_and_build_client;
 use golem_wasm_rpc_stubgen::model::app::ComponentName;
-use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
+use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition, StubSourceTransform};
 use tempfile::tempdir;
 use test_r::test;
 
@@ -51,7 +51,7 @@ async fn all_wit_types() {
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
         golem_rust_override: golem_rust_override(),
-        extract_source_exports_package: true,
+        source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: false,
         component_name: ComponentName::from("test:component"),
         is_ephemeral: false,
@@ -362,7 +362,7 @@ async fn resource() {
         selected_world: None,
         stub_crate_version: "1.0.0".to_string(),
         golem_rust_override: golem_rust_override(),
-        extract_source_exports_package: true,
+        source_transform: StubSourceTransform::ExtractExportsPackage,
         seal_cargo_workspace: false,
         component_name: ComponentName::from("test:component"),
         is_ephemeral: false,
