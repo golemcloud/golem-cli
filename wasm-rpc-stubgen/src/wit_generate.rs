@@ -14,7 +14,7 @@
 
 use crate::fs::{OverwriteSafeAction, OverwriteSafeActions, PathExtra};
 use crate::log::{log_action, log_action_plan, log_warn_action, LogColorize, LogIndent};
-use crate::naming::wit::{package_dep_dir_name_from_encoder, DEPS_DIR};
+use crate::naming::wit::package_dep_dir_name_from_encoder;
 use crate::stub::{
     FunctionParamStub, FunctionResultStub, FunctionStub, InterfaceStub, StubDefinition,
 };
@@ -345,7 +345,7 @@ pub fn add_dependencies_to_stub_wit_dir(def: &StubDefinition) -> anyhow::Result<
             for source in &package_sources.files {
                 let relative = source.strip_prefix(&def.config.source_wit_root)?;
                 let dest = target_wit_root
-                    .join(DEPS_DIR)
+                    .join(naming::wit::DEPS_DIR)
                     .join(&package_dir)
                     .join(relative);
                 log_action(
@@ -455,7 +455,7 @@ pub fn add_client_as_dependency_to_wit_dir(config: AddClientAsDepConfig) -> anyh
     let mut dest_encoded_wit_root = EncodedWitDir::new(&dest_resolved_wit_root.resolve)?;
 
     let mut actions = OverwriteSafeActions::new();
-    let mut package_names_to_package_path = BTreeMap::<wit_parser::PackageName, PathBuf>::new();
+    let mut package_names_to_package_path = BTreeMap::<PackageName, PathBuf>::new();
 
     for (package_name, package_id) in &client_resolved_wit_root.resolve.package_names {
         let package_sources = client_resolved_wit_root

@@ -14,7 +14,7 @@
 
 //! Tests for the 'add stub as a dependency' mechanism.
 
-use test_r::{add_test, test};
+use test_r::test;
 
 use assert2::assert;
 use fs_extra::dir::CopyOptions;
@@ -615,7 +615,7 @@ fn indirect_circular_readd(source_transform: StubSourceTransform) {
     assert_has_same_wit_package(
         &PackageName::new(
             "test",
-            transformed_source_package_name(source_transform, "b-exports"),
+            transformed_source_package_name(source_transform, "b"),
             None,
         ),
         dest_a.path(),
@@ -630,8 +630,22 @@ fn indirect_circular_readd(source_transform: StubSourceTransform) {
         &stub_c_dir.path().join("wit"),
     );
 
-    assert_has_no_package_by_name(&PackageName::new("test", "c-exports", None), dest_b.path());
-    assert_has_package_by_name(&PackageName::new("test", "c-exports", None), dest_c.path());
+    assert_has_no_package_by_name(
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "c"),
+            None,
+        ),
+        dest_b.path(),
+    );
+    assert_has_package_by_name(
+        &PackageName::new(
+            "test",
+            transformed_source_package_name(source_transform, "c"),
+            None,
+        ),
+        dest_c.path(),
+    );
 
     assert_has_wasm_rpc_wit_deps(dest_c.path());
 
