@@ -118,8 +118,8 @@ impl ErrorHandler {
 
                     logln(format!(
                         "[{}]{} component: {}/worker: {}, {}",
-                        project_formatted,
                         "ok".green(),
+                        project_formatted,
                         worker_name_match.component_name.0.log_color_highlight(),
                         worker_name_match
                             .worker_name
@@ -144,6 +144,7 @@ impl ErrorHandler {
                     .component_by_name(
                         worker_name_match.project.as_ref(),
                         &worker_name_match.component_name,
+                        worker_name_match.worker_name.as_ref(),
                     )
                     .await
                 {
