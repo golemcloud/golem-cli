@@ -16,7 +16,7 @@ use crate::model::app::ComponentName;
 use crate::naming;
 use crate::rust::BindingMapping;
 use crate::wit_encode::EncodedWitDir;
-use crate::wit_generate::extract_exports_as_wit_dep;
+use crate::wit_generate::{extract_exports_as_wit_dep, strip_main_package_for_client_in_wit_dir};
 use crate::wit_resolve::{PackageSource, ResolvedWitDir};
 use anyhow::{anyhow, Context};
 use indexmap::IndexMap;
@@ -30,6 +30,13 @@ use wit_parser::{
     Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, World, WorldId, WorldItem, WorldKey,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StubSourceTransform {
+    None,
+    ExtractExportsPackage,
+    StripSourcePackage,
+}
+
 #[derive(Clone, Debug)]
 pub struct StubConfig {
     pub source_wit_root: PathBuf,
@@ -37,7 +44,7 @@ pub struct StubConfig {
     pub selected_world: Option<String>,
     pub stub_crate_version: String,
     pub golem_rust_override: RustDependencyOverride,
-    pub extract_source_exports_package: bool,
+    pub source_transform: StubSourceTransform,
     pub seal_cargo_workspace: bool,
     pub component_name: ComponentName,
     pub is_ephemeral: bool,
@@ -68,9 +75,17 @@ pub struct StubDefinition {
 
 impl StubDefinition {
     pub fn new(config: StubConfig) -> anyhow::Result<Self> {
-        if config.extract_source_exports_package {
-            extract_exports_as_wit_dep(&config.source_wit_root)
-                .context("Failed to extract exports package")?
+        match config.source_transform {
+            StubSourceTransform::None => {
+                // NOP
+            }
+            StubSourceTransform::ExtractExportsPackage => {
+                extract_exports_as_wit_dep(&config.source_wit_root)
+                    .context("Failed to extract exports package")?
+            }
+            StubSourceTransform::StripSourcePackage => {
+                strip_main_package_for_client_in_wit_dir(&config.source_wit_root)?
+            }
         }
 
         let resolved_source = ResolvedWitDir::new(&config.source_wit_root)?;
@@ -460,7 +475,41 @@ impl StubDefinition {
                 .filter(|function| function.kind == FunctionKind::Freestanding),
         );
 
+        // TODO: ?
+        /*let used_function_types = functions
+            .iter()
+            .flat_map(|function| {
+                function
+                    .params
+                    .iter()
+                    .flat_map(|param| match &param.typ {
+                        Type::Id(id) => Some(*id),
+                        _ => None,
+                    })
+                    .chain(match &function.results {
+                        FunctionResultStub::Anon(typ) => match typ {
+                            Type::Id(id) => vec![*id],
+                            _ => vec![],
+                        },
+                        FunctionResultStub::Named(stubs) => stubs
+                            .iter()
+                            .flat_map(|stub| match stub.typ {
+                                Type::Id(id) => vec![id],
+                                _ => vec![],
+                            })
+                            .collect::<Vec<_>>(),
+                        FunctionResultStub::SelfType => vec![],
+                    })
+            })
+            .collect::<Vec<_>>();*/
+
         let (used_types, _) = self.extract_resource_interface_stubs_from_types(types.into_iter());
+
+        // TODO
+        /*let used_types = used_types
+            .into_iter()
+            .chain(used_function_types)
+            .collect::<Vec<_>>();*/
 
         Some(InterfaceStub {
             name: name.to_string(),
