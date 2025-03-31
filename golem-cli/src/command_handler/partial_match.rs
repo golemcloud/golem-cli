@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::GolemCliCommandPartialMatch;
+use crate::command::{GolemCliCommandPartialMatch, GolemCliGlobalFlags};
 use crate::command_handler::Handlers;
+use crate::config::Config;
 use crate::context::Context;
-use crate::error::HintError;
+use crate::error::{ContextInitHintError, HintError};
 use crate::model::component::show_exported_functions;
 use crate::model::text::fmt::{log_error, log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
@@ -87,7 +88,21 @@ impl ErrorHandler {
                 logln("");
                 log_text_view(&WorkerNameHelp);
                 logln("");
-                // TODO: maybe also show available component names from app?
+
+                self.ctx.silence_app_context_init().await;
+                self.ctx
+                    .app_handler()
+                    .opt_select_components(vec![], &ComponentSelectMode::All)
+                    .await?;
+
+                let app_ctx = self.ctx.app_context_lock().await;
+                if let Some(app_ctx) = app_ctx.opt()? {
+                    app_ctx.log_dynamic_help(&DynamicHelpSections {
+                        components: true,
+                        custom_commands: false,
+                    })?
+                }
+
                 Ok(())
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName { worker_name } => {
@@ -117,7 +132,7 @@ impl ErrorHandler {
                     };
 
                     logln(format!(
-                        "[{}]{} component: {}/worker: {}, {}",
+                        "[{}]{} component: {} / worker: {}, {}",
                         "ok".green(),
                         project_formatted,
                         worker_name_match.component_name.0.log_color_highlight(),
@@ -183,6 +198,30 @@ impl ErrorHandler {
                 logln(" - use 'profile switch cloud' ");
                 logln(" - set the GOLEM_PROFILE environment variable to 'cloud'");
                 logln("");
+                Ok(())
+            }
+        }
+    }
+
+    pub fn handle_context_init_hint_errors(
+        global_flags: &GolemCliGlobalFlags,
+        hint_error: &ContextInitHintError,
+    ) -> anyhow::Result<()> {
+        match hint_error {
+            ContextInitHintError::ProfileNotFound(profile_name) => {
+                log_error(format!(
+                    "Profile '{}' not found!",
+                    profile_name.0.log_color_highlight()
+                ));
+
+                if let Ok(config) = Config::from_dir(&global_flags.config_dir()) {
+                    logln("");
+                    logln("Available profiles:".log_color_help_group().to_string());
+                    for profile_name in config.profiles.keys() {
+                        println!("- {}", profile_name);
+                    }
+                }
+
                 Ok(())
             }
         }

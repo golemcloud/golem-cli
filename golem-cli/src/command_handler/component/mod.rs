@@ -268,7 +268,6 @@ impl ComponentCommandHandler {
         let mut component_views = Vec::<ComponentView>::new();
 
         if selected_component_names.component_names.is_empty() {
-            // TODO: there is no pagination for components
             match self.ctx.golem_clients().await? {
                 GolemClients::Oss(clients) => {
                     let results = clients
@@ -399,16 +398,20 @@ impl ComponentCommandHandler {
                                 .component
                                 .get_component_metadata(&component_id.0, &version.to_string())
                                 .await
-                                .map_service_error()?;
-                            component_views.push(Component::from(result).into());
+                                .map_service_error_not_found_as_opt()?;
+                            if let Some(result) = result {
+                                component_views.push(Component::from(result).into());
+                            }
                         }
                         None => {
                             let result = clients
                                 .component
                                 .get_latest_component_metadata(&component_id.0)
                                 .await
-                                .map_service_error()?;
-                            component_views.push(Component::from(result).into());
+                                .map_service_error_not_found_as_opt()?;
+                            if let Some(result) = result {
+                                component_views.push(Component::from(result).into());
+                            }
                         }
                     },
                     GolemClients::Cloud(clients) => match version {
@@ -417,16 +420,20 @@ impl ComponentCommandHandler {
                                 .component
                                 .get_component_metadata(&component_id.0, &version.to_string())
                                 .await
-                                .map_service_error()?;
-                            component_views.push(Component::from(result).into());
+                                .map_service_error_not_found_as_opt()?;
+                            if let Some(result) = result {
+                                component_views.push(Component::from(result).into());
+                            }
                         }
                         None => {
                             let result = clients
                                 .component
                                 .get_latest_component_metadata(&component_id.0)
                                 .await
-                                .map_service_error()?;
-                            component_views.push(Component::from(result).into());
+                                .map_service_error_not_found_as_opt()?;
+                            if let Some(result) = result {
+                                component_views.push(Component::from(result).into());
+                            }
                         }
                     },
                 },
@@ -439,7 +446,6 @@ impl ComponentCommandHandler {
             }
         }
 
-        // TODO: code dup
         if component_views.is_empty() && component_name.is_some() {
             // Retry selection (this time with not allowing "not founds")
             // so we get error messages for app component names.
@@ -460,8 +466,56 @@ impl ComponentCommandHandler {
             logln("");
         }
 
-        // TODO: if it was a version request we can try to enumerate valid version numbers
         if no_matches {
+            if version.is_some() && selected_components.component_names.len() == 1 {
+                log_error("Component version not found");
+
+                let versions = match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(client) => client
+                        .component
+                        .get_components(Some(&selected_components.component_names[0].0))
+                        .await
+                        .map_service_error()
+                        .map(|components| {
+                            components
+                                .into_iter()
+                                .map(Component::from)
+                                .collect::<Vec<_>>()
+                        }),
+                    GolemClients::Cloud(client) => client
+                        .component
+                        .get_components(
+                            selected_components
+                                .project
+                                .as_ref()
+                                .map(|p| &p.project_id.0),
+                            Some(&selected_components.component_names[0].0),
+                        )
+                        .await
+                        .map_service_error()
+                        .map(|components| {
+                            components
+                                .into_iter()
+                                .map(Component::from)
+                                .collect::<Vec<_>>()
+                        }),
+                };
+
+                if let Ok(versions) = versions {
+                    logln("");
+                    logln(
+                        "Available component versions:"
+                            .log_color_help_group()
+                            .to_string(),
+                    );
+                    for version in versions {
+                        logln(format!("- {}", version.versioned_component_id.version));
+                    }
+                }
+            } else {
+                log_error("Component not found");
+            }
+
             bail!(NonSuccessfulExit)
         }
 

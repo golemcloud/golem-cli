@@ -44,7 +44,7 @@ use crate::command_handler::profile::ProfileCommandHandler;
 use crate::command_handler::worker::WorkerCommandHandler;
 use crate::config::{Config, ProfileName};
 use crate::context::Context;
-use crate::error::{HintError, NonSuccessfulExit};
+use crate::error::{ContextInitHintError, HintError, NonSuccessfulExit};
 use crate::model::text::fmt::log_error;
 use crate::{command_name, init_tracing};
 use clap::CommandFactory;
@@ -85,7 +85,7 @@ pub trait CommandHandlerHooks {
 }
 
 // CommandHandler is responsible for matching commands and producing CLI output using Context,
-// but NOT responsible for storing state (apart from Context itself), those should be part of Context.
+// but NOT responsible for storing state (apart from Context and Hooks itself), those should be part of Context.
 pub struct CommandHandler<Hooks: CommandHandlerHooks> {
     ctx: Arc<Context>,
     #[allow(unused)]
@@ -155,7 +155,18 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
                             }
                         }
                     }
-                    Err(err) => Err(err),
+                    Err(error) => {
+                        set_log_output(Output::Stderr);
+                        if let Some(hint_error) = error.downcast_ref::<ContextInitHintError>() {
+                            ErrorHandler::handle_context_init_hint_errors(
+                                &command.global_flags,
+                                hint_error,
+                            )
+                            .map(|()| ExitCode::FAILURE)
+                        } else {
+                            Err(error)
+                        }
+                    }
                 }
             }
             GolemCliCommandParseResult::ErrorWithPartialMatch {
