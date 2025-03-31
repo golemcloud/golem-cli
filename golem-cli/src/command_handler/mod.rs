@@ -16,7 +16,7 @@
 use crate::command::server::ServerSubcommand;
 use crate::command::{
     GolemCliCommand, GolemCliCommandParseResult, GolemCliFallbackCommand, GolemCliGlobalFlags,
-    GolemCliSubcommand,
+    GolemCliSubcommand, Shell,
 };
 use crate::command_handler::api::cloud::certificate::ApiCloudCertificateCommandHandler;
 use crate::command_handler::api::cloud::domain::ApiCloudDomainCommandHandler;
@@ -47,8 +47,7 @@ use crate::context::Context;
 use crate::error::{HintError, NonSuccessfulExit};
 use crate::model::text::fmt::log_error;
 use crate::{command_name, init_tracing};
-use clap::CommandFactory;
-use clap_complete::Shell;
+use clap::{Command, CommandFactory};
 #[cfg(feature = "server-commands")]
 use clap_verbosity_flag::Verbosity;
 use golem_wasm_rpc_stubgen::commands::app::AppValidationError;
@@ -254,7 +253,16 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
         let mut command = GolemCliCommand::command();
         let command_name = command_name();
         debug!(command_name, shell=%shell, "completion");
-        clap_complete::generate(shell, &mut command, command_name, &mut std::io::stdout());
+
+        fn recursive_set_bin_name(command: &mut Command, command_name: String) {
+            command.set_bin_name(command_name.clone());
+            for sub in command.get_subcommands_mut() {
+                recursive_set_bin_name(sub, command_name.clone());
+            }
+        }
+
+        recursive_set_bin_name(&mut command, command_name);
+        shell.generator().generate(&command, &mut std::io::stdout());
         Ok(())
     }
 }

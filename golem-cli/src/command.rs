@@ -27,13 +27,16 @@ use chrono::{DateTime, Utc};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
+use clap_complete::Generator;
 use clap_verbosity_flag::Verbosity;
 use golem_client::model::ScanCursor;
 use golem_wasm_rpc_stubgen::log::LogColorize;
 use lenient_bool::LenientBool;
 use std::collections::HashMap;
 use std::ffi::OsString;
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
+use std::str::FromStr;
 use uuid::Uuid;
 
 #[cfg(feature = "server-commands")]
@@ -399,6 +402,70 @@ pub enum GolemCliCommandPartialMatch {
     WorkerInvokeMissingFunctionName { worker_name: WorkerName },
 }
 
+#[derive(Debug, Clone)]
+pub enum Shell {
+    /// Bourne Again `SHell` (bash)
+    Bash,
+    /// Elvish shell
+    Elvish,
+    /// Friendly Interactive `SHell` (fish)
+    Fish,
+    /// `PowerShell`
+    PowerShell,
+    /// Z `SHell` (zsh)
+    Zsh,
+    /// Nushell
+    Nushell,
+}
+
+impl Shell {
+    pub fn generator(&self) -> Box<dyn Generator> {
+        match self {
+            Shell::Bash => Box::new(clap_complete::Shell::Bash),
+            Shell::Elvish => Box::new(clap_complete::Shell::Elvish),
+            Shell::Fish => Box::new(clap_complete::Shell::Fish),
+            Shell::PowerShell => Box::new(clap_complete::Shell::PowerShell),
+            Shell::Zsh => Box::new(clap_complete::Shell::Zsh),
+            Shell::Nushell => Box::new(clap_complete_nushell::Nushell),
+        }
+    }
+}
+
+impl Display for Shell {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Shell::Bash => write!(f, "bash"),
+            Shell::Elvish => write!(f, "elvish"),
+            Shell::Fish => write!(f, "fish"),
+            Shell::PowerShell => write!(f, "powershell"),
+            Shell::Zsh => write!(f, "zsh"),
+            Shell::Nushell => write!(f, "nushell"),
+        }
+    }
+}
+
+impl FromStr for Shell {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "bash" {
+            Ok(Shell::Bash)
+        } else if s == "elvish" {
+            Ok(Shell::Elvish)
+        } else if s == "fish" {
+            Ok(Shell::Fish)
+        } else if s == "powershell" {
+            Ok(Shell::PowerShell)
+        } else if s == "zsh" {
+            Ok(Shell::Zsh)
+        } else if s == "nushell" {
+            Ok(Shell::Nushell)
+        } else {
+            Err(format!("invalid variant: {s}"))
+        }
+    }
+}
+
 #[derive(Debug, Subcommand)]
 pub enum GolemCliSubcommand {
     #[command(alias = "application")]
@@ -446,7 +513,7 @@ pub enum GolemCliSubcommand {
     /// Generate shell completion
     Completion {
         /// Selects shell
-        shell: clap_complete::Shell,
+        shell: Shell,
     },
 }
 

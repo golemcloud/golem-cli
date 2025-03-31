@@ -21,7 +21,6 @@ pub mod auth;
 pub mod cloud;
 pub mod command;
 pub mod command_handler;
-pub mod completion;
 pub mod config;
 pub mod connect_output;
 pub mod context;
