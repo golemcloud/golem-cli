@@ -194,6 +194,36 @@ pub struct GolemCliFallbackCommand {
     pub global_flags: GolemCliGlobalFlags,
 
     pub positional_args: Vec<String>,
+
+    #[arg(skip)]
+    pub parse_error: Option<clap::Error>,
+}
+
+impl GolemCliFallbackCommand {
+    fn try_parse_from<I, T>(args: I, with_env_overrides: bool) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<OsString> + Clone,
+    {
+        let args = args
+            .into_iter()
+            .map(|arg| arg.into())
+            .filter(|arg| arg != "-h" && arg != "--help")
+            .collect::<Vec<OsString>>();
+
+        let mut cmd = <Self as Parser>::try_parse_from(args).unwrap_or_else(|error| {
+            GolemCliFallbackCommand {
+                parse_error: Some(error),
+                ..Self::default()
+            }
+        });
+
+        if with_env_overrides {
+            cmd.global_flags = cmd.global_flags.with_env_overrides();
+        }
+
+        cmd
+    }
 }
 
 impl GolemCliCommand {
@@ -218,17 +248,23 @@ impl GolemCliCommand {
                 GolemCliCommandParseResult::FullMatch(command)
             }
             Err(error) => {
-                let fallback_command = {
-                    let mut fallback_command =
-                        GolemCliFallbackCommand::try_parse_from(args).unwrap_or_default();
-                    if with_env_overrides {
-                        fallback_command.global_flags =
-                            fallback_command.global_flags.with_env_overrides()
-                    }
-                    fallback_command
-                };
+                let fallback_command =
+                    GolemCliFallbackCommand::try_parse_from(&args, with_env_overrides);
 
                 let partial_match = match error.kind() {
+                    ErrorKind::DisplayHelp => {
+                        let positional_args = fallback_command
+                            .positional_args
+                            .iter()
+                            .map(|arg| arg.as_ref())
+                            .collect::<Vec<_>>();
+                        match positional_args.as_slice() {
+                            ["app"] => Some(GolemCliCommandPartialMatch::AppHelp),
+                            ["component"] => Some(GolemCliCommandPartialMatch::ComponentHelp),
+                            ["worker"] => Some(GolemCliCommandPartialMatch::WorkerHelp),
+                            _ => None,
+                        }
+                    }
                     ErrorKind::MissingRequiredArgument => {
                         error.context().find_map(|context| match context {
                             (ContextKind::InvalidArg, ContextValue::Strings(args)) => {
@@ -391,12 +427,15 @@ pub enum GolemCliCommandParseResult {
 
 #[derive(Debug)]
 pub enum GolemCliCommandPartialMatch {
-    AppNewMissingLanguage,
+    AppHelp,
     AppMissingSubcommandHelp,
-    ComponentNewMissingTemplate,
+    AppNewMissingLanguage,
+    ComponentHelp,
     ComponentMissingSubcommandHelp,
-    WorkerInvokeMissingWorkerName,
+    ComponentNewMissingTemplate,
+    WorkerHelp,
     WorkerInvokeMissingFunctionName { worker_name: WorkerName },
+    WorkerInvokeMissingWorkerName,
 }
 
 #[derive(Debug, Subcommand)]
@@ -556,7 +595,8 @@ pub mod shared_args {
     #[derive(Debug, Args, Default)]
     pub struct WorkerUpdateOrRedeployArgs {
         /// Update existing workers with auto or manual update mode
-        #[clap(long, value_name = "UPDATE_MODE", short, conflicts_with_all = ["redeploy_workers"], num_args = 0..=1)]
+        #[clap(long, value_name = "UPDATE_MODE", short, conflicts_with_all = ["redeploy_workers"], num_args = 0..=1
+        )]
         pub update_workers: Option<WorkerUpdateMode>,
         /// Delete and recreate existing workers
         #[clap(long, short, conflicts_with_all = ["update_workers"])]

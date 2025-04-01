@@ -40,12 +40,26 @@ impl ErrorHandler {
         partial_match: GolemCliCommandPartialMatch,
     ) -> anyhow::Result<()> {
         match partial_match {
-            GolemCliCommandPartialMatch::AppNewMissingLanguage => {
-                self.ctx.app_handler().log_languages_help();
+            GolemCliCommandPartialMatch::AppHelp => {
+                self.ctx.silence_app_context_init().await;
+                self.ctx
+                    .app_handler()
+                    .opt_select_components(vec![], &ComponentSelectMode::All)
+                    .await?;
+
+                let app_ctx = self.ctx.app_context_lock().await;
+                if let Some(app_ctx) = app_ctx.opt()? {
+                    logln("");
+                    app_ctx.log_dynamic_help(&DynamicHelpSections {
+                        components: true,
+                        custom_commands: true,
+                    })?
+                }
+
                 Ok(())
             }
-            GolemCliCommandPartialMatch::ComponentNewMissingTemplate => {
-                self.ctx.app_handler().log_templates_help(None, None);
+            GolemCliCommandPartialMatch::AppNewMissingLanguage => {
+                self.ctx.app_handler().log_languages_help();
                 Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
@@ -61,6 +75,24 @@ impl ErrorHandler {
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
                         components: true,
                         custom_commands: true,
+                    })?
+                }
+
+                Ok(())
+            }
+            GolemCliCommandPartialMatch::ComponentHelp => {
+                self.ctx.silence_app_context_init().await;
+                self.ctx
+                    .app_handler()
+                    .opt_select_components(vec![], &ComponentSelectMode::All)
+                    .await?;
+
+                let app_ctx = self.ctx.app_context_lock().await;
+                if let Some(app_ctx) = app_ctx.opt()? {
+                    logln("");
+                    app_ctx.log_dynamic_help(&DynamicHelpSections {
+                        components: true,
+                        custom_commands: false,
                     })?
                 }
 
@@ -84,25 +116,12 @@ impl ErrorHandler {
 
                 Ok(())
             }
-            GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName => {
-                logln("");
-                log_text_view(&WorkerNameHelp);
-                logln("");
-
-                self.ctx.silence_app_context_init().await;
-                self.ctx
-                    .app_handler()
-                    .opt_select_components(vec![], &ComponentSelectMode::All)
-                    .await?;
-
-                let app_ctx = self.ctx.app_context_lock().await;
-                if let Some(app_ctx) = app_ctx.opt()? {
-                    app_ctx.log_dynamic_help(&DynamicHelpSections {
-                        components: true,
-                        custom_commands: false,
-                    })?
-                }
-
+            GolemCliCommandPartialMatch::ComponentNewMissingTemplate => {
+                self.ctx.app_handler().log_templates_help(None, None);
+                Ok(())
+            }
+            GolemCliCommandPartialMatch::WorkerHelp => {
+                // TODO
                 Ok(())
             }
             GolemCliCommandPartialMatch::WorkerInvokeMissingFunctionName { worker_name } => {
@@ -169,6 +188,27 @@ impl ErrorHandler {
                     });
                     logln("");
                 }
+                Ok(())
+            }
+            GolemCliCommandPartialMatch::WorkerInvokeMissingWorkerName => {
+                logln("");
+                log_text_view(&WorkerNameHelp);
+                logln("");
+
+                self.ctx.silence_app_context_init().await;
+                self.ctx
+                    .app_handler()
+                    .opt_select_components(vec![], &ComponentSelectMode::All)
+                    .await?;
+
+                let app_ctx = self.ctx.app_context_lock().await;
+                if let Some(app_ctx) = app_ctx.opt()? {
+                    app_ctx.log_dynamic_help(&DynamicHelpSections {
+                        components: true,
+                        custom_commands: false,
+                    })?
+                }
+
                 Ok(())
             }
         }

@@ -742,7 +742,6 @@ pub mod component {
         fields.build()
     }
 
-    // TODO: rename all "add" to "create"
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ComponentCreateView(pub ComponentView);
 

@@ -47,6 +47,7 @@ use crate::context::Context;
 use crate::error::{ContextInitHintError, HintError, NonSuccessfulExit};
 use crate::model::text::fmt::log_error;
 use crate::{command_name, init_tracing};
+use anyhow::anyhow;
 use clap::CommandFactory;
 use clap_complete::Shell;
 #[cfg(feature = "server-commands")]
@@ -114,6 +115,24 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
         })
     }
 
+    fn new_with_init_hint_error_handler(
+        global_flags: &GolemCliGlobalFlags,
+        hooks: Arc<Hooks>,
+    ) -> anyhow::Result<Self> {
+        match Self::new(global_flags, hooks) {
+            Ok(ok) => Ok(ok),
+            Err(error) => {
+                set_log_output(Output::Stderr);
+                if let Some(hint_error) = error.downcast_ref::<ContextInitHintError>() {
+                    ErrorHandler::handle_context_init_hint_errors(&global_flags, hint_error)
+                        .and_then(|()| Err(anyhow!(NonSuccessfulExit)))
+                } else {
+                    Err(error)
+                }
+            }
+        }
+    }
+
     // TODO: match and enrich "-h" and "--help"
     pub async fn handle_args<I, T>(args_iterator: I, hooks: Arc<Hooks>) -> ExitCode
     where
@@ -132,7 +151,7 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
                 let verbosity = command.global_flags.verbosity;
                 init_tracing(verbosity);
 
-                match Self::new(&command.global_flags, hooks) {
+                match Self::new_with_init_hint_error_handler(&command.global_flags, hooks) {
                     Ok(mut handler) => {
                         let result = handler
                             .handle_command(command)
@@ -155,18 +174,7 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
                             }
                         }
                     }
-                    Err(error) => {
-                        set_log_output(Output::Stderr);
-                        if let Some(hint_error) = error.downcast_ref::<ContextInitHintError>() {
-                            ErrorHandler::handle_context_init_hint_errors(
-                                &command.global_flags,
-                                hint_error,
-                            )
-                            .map(|()| ExitCode::FAILURE)
-                        } else {
-                            Err(error)
-                        }
-                    }
+                    Err(error) => Err(error),
                 }
             }
             GolemCliCommandParseResult::ErrorWithPartialMatch {
@@ -180,15 +188,17 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
                 debug_log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 
-                match Self::new(&fallback_command.global_flags, hooks) {
+                match Self::new_with_init_hint_error_handler(&fallback_command.global_flags, hooks)
+                {
                     Ok(handler) => {
                         set_log_output(Output::Stderr);
+                        let exit_code = clamp_exit_code(error.exit_code());
                         handler
                             .ctx
                             .error_handler()
                             .handle_partial_match(partial_match)
                             .await
-                            .map(|_| clamp_exit_code(error.exit_code()))
+                            .map(|_| exit_code)
                     }
                     Err(err) => Err(err),
                 }
