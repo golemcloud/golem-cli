@@ -3568,6 +3568,7 @@ dependencies = [
  "uuid",
  "version-compare",
  "walkdir",
+ "wasm-metadata 0.227.1",
  "wasm-wave",
  "wax",
 ]
@@ -4229,6 +4230,7 @@ dependencies = [
  "tracing",
  "wac-graph",
  "walkdir",
+ "wasm-metadata 0.227.1",
  "wax",
  "wit-bindgen-rust 0.40.0",
  "wit-encoder",

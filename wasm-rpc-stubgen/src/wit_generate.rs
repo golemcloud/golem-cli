@@ -633,9 +633,7 @@ impl ToEncoder for wit_parser::Type {
                     }
                 }
             }
-            wit_parser::Type::ErrorContext => {
-                Type::ErrorContext
-            }
+            wit_parser::Type::ErrorContext => Type::ErrorContext,
         })
     }
 }
