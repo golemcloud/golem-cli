@@ -143,12 +143,12 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
             GolemCliCommandParseResult::FullMatch(command) => {
                 #[cfg(feature = "server-commands")]
                 let verbosity = if matches!(command.subcommand, GolemCliSubcommand::Server { .. }) {
-                    Hooks::override_verbosity(command.global_flags.verbosity)
+                    Hooks::override_verbosity(command.global_flags.verbosity())
                 } else {
-                    command.global_flags.verbosity
+                    command.global_flags.verbosity()
                 };
                 #[cfg(not(feature = "server-commands"))]
-                let verbosity = command.global_flags.verbosity;
+                let verbosity = command.global_flags.verbosity();
                 init_tracing(verbosity);
 
                 match Self::new_with_init_hint_error_handler(&command.global_flags, hooks) {
@@ -182,7 +182,12 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
                 fallback_command,
                 partial_match,
             } => {
-                init_tracing(fallback_command.global_flags.verbosity);
+                init_tracing(
+                    fallback_command
+                        .global_flags
+                        .verbosity
+                        .as_clap_verbosity_flag(),
+                );
 
                 debug!(partial_match = ?partial_match, "Partial match");
                 debug_log_parse_error(&error, &fallback_command);
@@ -207,7 +212,7 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
                 error,
                 fallback_command,
             } => {
-                init_tracing(fallback_command.global_flags.verbosity);
+                init_tracing(fallback_command.global_flags.verbosity());
                 debug_log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 
