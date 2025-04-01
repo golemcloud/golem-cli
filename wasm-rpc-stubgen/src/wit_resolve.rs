@@ -859,7 +859,7 @@ impl WitDepsResolver {
                     .map(|package_name| format!("- {}", package_name))
                     .join("\n");
 
-                if packages.len() > 0 {
+                if !packages.is_empty() {
                     format!(
                         "{}\n\n{}{}:\n{}",
                         sources,
