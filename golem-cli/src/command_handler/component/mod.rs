@@ -1147,7 +1147,7 @@ impl ComponentCommandHandler {
                     .worker_metadata(
                         component.versioned_component_id.component_id,
                         &component.component_name,
-                        &worker_name,
+                        worker_name,
                     )
                     .await
                     .ok();

@@ -124,7 +124,7 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
             Err(error) => {
                 set_log_output(Output::Stderr);
                 if let Some(hint_error) = error.downcast_ref::<ContextInitHintError>() {
-                    ErrorHandler::handle_context_init_hint_errors(&global_flags, hint_error)
+                    ErrorHandler::handle_context_init_hint_errors(global_flags, hint_error)
                         .and_then(|()| Err(anyhow!(NonSuccessfulExit)))
                 } else {
                     Err(error)
