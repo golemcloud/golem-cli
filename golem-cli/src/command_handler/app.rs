@@ -20,11 +20,15 @@ use crate::command_handler::Handlers;
 use crate::context::Context;
 use crate::diagnose::diagnose;
 use crate::error::{HintError, NonSuccessfulExit};
+use crate::fs;
 use crate::fuzzy::{Error, FuzzySearch};
+use crate::log::{log_action, logln, LogColorize, LogIndent, LogOutput, Output};
+use crate::model::app::CustomCommandError;
 use crate::model::component::Component;
 use crate::model::text::fmt::{log_error, log_fuzzy_matches, log_text_view, log_warn};
 use crate::model::text::help::AvailableComponentNamesHelp;
 use crate::model::{ComponentName, WorkerUpdateMode};
+use crate::wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
 use anyhow::{anyhow, bail};
 use clap::{Command, Subcommand};
 use colored::Colorize;
@@ -32,10 +36,6 @@ use golem_templates::add_component_by_template;
 use golem_templates::model::{
     ComposableAppGroupName, GuestLanguage, PackageName, Template, TemplateName,
 };
-use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
-use golem_wasm_rpc_stubgen::fs;
-use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent, LogOutput, Output};
-use golem_wasm_rpc_stubgen::model::app::CustomCommandError;
 use itertools::Itertools;
 use std::path::PathBuf;
 use std::sync::Arc;

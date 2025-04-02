@@ -19,7 +19,7 @@ use crate::error::NonSuccessfulExit;
 use crate::model::text::fmt::log_error;
 use crate::model::Format;
 use anyhow::bail;
-use golem_wasm_rpc_stubgen::log::log_action;
+use crate::log::log_action;
 use std::sync::Arc;
 
 pub struct ProfileConfigCommandHandler {

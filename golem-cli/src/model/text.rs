@@ -19,7 +19,7 @@ pub mod fmt {
     use colored::control::SHOULD_COLORIZE;
     use colored::Colorize;
     use golem_client::model::{InitialComponentFile, WorkerStatus};
-    use golem_wasm_rpc_stubgen::log::{log_warn_action, logln, LogColorize, LogIndent};
+    use crate::log::{log_warn_action, logln, LogColorize, LogIndent};
     use itertools::Itertools;
     use regex::Regex;
     use std::collections::BTreeMap;
@@ -841,7 +841,7 @@ pub mod profile {
     use crate::model::text::fmt::*;
     use crate::model::ProfileView;
     use colored::Colorize;
-    use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
+    use crate::log::{logln, LogColorize};
 
     impl TextView for Vec<ProfileView> {
         fn log(&self) {
@@ -935,7 +935,7 @@ pub mod worker {
     };
     use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
     use golem_wasm_rpc::{print_type_annotated_value, ValueAndType};
-    use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
+    use crate::log::{logln, LogColorize};
     use indoc::{formatdoc, indoc};
     use itertools::Itertools;
     use serde::{Deserialize, Serialize};
@@ -1826,8 +1826,8 @@ pub mod help {
     use cli_table::Table;
     use colored::Colorize;
     use golem_wasm_ast::analysis::AnalysedType;
-    use golem_wasm_rpc_stubgen::log::{logln, LogColorize};
-    use golem_wasm_rpc_stubgen::model::app::ComponentName as AppComponentName;
+    use crate::log::{logln, LogColorize};
+    use crate::model::app::ComponentName as AppComponentName;
     use indoc::indoc;
     use textwrap::WordSplitter;
 

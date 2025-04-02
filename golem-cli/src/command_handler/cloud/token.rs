@@ -21,7 +21,7 @@ use crate::model::TokenId;
 use chrono::{DateTime, Utc};
 use golem_cloud_client::api::TokenClient;
 use golem_cloud_client::model::CreateTokenDto;
-use golem_wasm_rpc_stubgen::log::{log_warn_action, LogColorize};
+use crate::log::{log_warn_action, LogColorize};
 use std::sync::Arc;
 
 pub struct CloudTokenCommandHandler {

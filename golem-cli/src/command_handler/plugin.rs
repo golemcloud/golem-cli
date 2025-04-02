@@ -33,7 +33,7 @@ use golem_cloud_client::model::{ComponentQuery, PluginDefinitionCreationCloudPlu
 use golem_cloud_client::{CloudPluginScope, ProjectPluginScope};
 use golem_common::model::plugin::ComponentPluginScope;
 use golem_common::model::{ComponentId, Empty};
-use golem_wasm_rpc_stubgen::log::{log_action, log_warn_action, LogColorize, LogIndent};
+use crate::log::{log_action, log_warn_action, LogColorize, LogIndent};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;

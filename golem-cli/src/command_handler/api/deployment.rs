@@ -31,7 +31,7 @@ use golem_cloud_client::model::{
     ApiDefinitionInfo as ApiDefinitionInfoCloud, ApiDeploymentRequest as ApiDeploymentRequestCloud,
     ApiSite as ApiSiteCloud,
 };
-use golem_wasm_rpc_stubgen::log::{log_warn_action, LogColorize};
+use crate::log::{log_warn_action, LogColorize};
 use std::sync::Arc;
 
 pub struct ApiDeploymentCommandHandler {

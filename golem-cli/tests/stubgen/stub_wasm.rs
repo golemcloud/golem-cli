@@ -15,7 +15,6 @@
 //! Tests in this module are verifying the STUB WASM created by the stub generator
 //! regardless of how the actual wasm generator is implemented. (Currently generates Rust code and compiles it)
 
-use crate::{golem_rust_override, test_data_path};
 use fs_extra::dir::CopyOptions;
 use golem_wasm_ast::analysis::analysed_type::*;
 use golem_wasm_ast::analysis::{
@@ -24,11 +23,12 @@ use golem_wasm_ast::analysis::{
 };
 use golem_wasm_ast::component::Component;
 use golem_wasm_ast::IgnoreAllButMetadata;
-use golem_wasm_rpc_stubgen::commands::generate::generate_and_build_client;
-use golem_wasm_rpc_stubgen::model::app::ComponentName;
-use golem_wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
 use tempfile::tempdir;
 use test_r::test;
+use golem_cli::model::app::ComponentName;
+use golem_cli::wasm_rpc_stubgen::commands::generate::generate_and_build_client;
+use golem_cli::wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
+use crate::stubgen::{golem_rust_override, test_data_path};
 
 #[test]
 async fn all_wit_types() {

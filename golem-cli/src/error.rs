@@ -48,7 +48,7 @@ pub mod service {
         GolemErrorWorkerNotFound,
     };
     use golem_common::model::{PromiseId, WorkerId};
-    use golem_wasm_rpc_stubgen::log::LogColorize;
+    use crate::log::LogColorize;
     use itertools::Itertools;
     use reqwest::StatusCode;
     use std::error::Error;

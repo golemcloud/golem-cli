@@ -45,6 +45,7 @@ use crate::command_handler::worker::WorkerCommandHandler;
 use crate::config::{Config, ProfileName};
 use crate::context::Context;
 use crate::error::{ContextInitHintError, HintError, NonSuccessfulExit};
+use crate::log::{logln, set_log_output, Output};
 use crate::model::text::fmt::log_error;
 use crate::{command_name, init_tracing};
 use anyhow::anyhow;
@@ -52,8 +53,7 @@ use clap::CommandFactory;
 use clap_complete::Shell;
 #[cfg(feature = "server-commands")]
 use clap_verbosity_flag::Verbosity;
-use golem_wasm_rpc_stubgen::commands::app::AppValidationError;
-use golem_wasm_rpc_stubgen::log::{logln, set_log_output, Output};
+use crate::wasm_rpc_stubgen::commands::app::AppValidationError;
 use std::ffi::OsString;
 use std::process::ExitCode;
 use std::sync::Arc;

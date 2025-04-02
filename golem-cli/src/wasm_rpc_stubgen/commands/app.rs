@@ -1,4 +1,3 @@
-use crate::cargo::regenerate_cargo_package_component;
 use crate::fs;
 use crate::fs::{resolve_relative_glob, PathExtra};
 use crate::log::{
@@ -10,14 +9,17 @@ use crate::model::app::{
     DEFAULT_CONFIG_FILE_NAME,
 };
 use crate::model::app_raw;
-use crate::stub::{RustDependencyOverride, StubConfig, StubDefinition};
 use crate::validation::{ValidatedResult, ValidationBuilder};
-use crate::wit_generate::{
+use crate::wasm_rpc_stubgen::cargo::regenerate_cargo_package_component;
+use crate::wasm_rpc_stubgen::stub::{RustDependencyOverride, StubConfig, StubDefinition};
+use crate::wasm_rpc_stubgen::wit_generate::{
     add_client_as_dependency_to_wit_dir, extract_exports_as_wit_dep, AddClientAsDepConfig,
     UpdateCargoToml,
 };
-use crate::wit_resolve::{ExportedFunction, ResolvedWitApplication, WitDepsResolver};
-use crate::{commands, naming};
+use crate::wasm_rpc_stubgen::wit_resolve::{
+    ExportedFunction, ResolvedWitApplication, WitDepsResolver,
+};
+use crate::wasm_rpc_stubgen::{commands, naming};
 use anyhow::{anyhow, bail, Context, Error};
 use chrono::{DateTime, Utc};
 use colored::control::SHOULD_COLORIZE;

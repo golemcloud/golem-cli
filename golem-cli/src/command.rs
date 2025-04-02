@@ -29,7 +29,7 @@ use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
 use clap_verbosity_flag::{ErrorLevel, LogLevel};
 use golem_client::model::ScanCursor;
-use golem_wasm_rpc_stubgen::log::LogColorize;
+use crate::log::LogColorize;
 use lenient_bool::LenientBool;
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -536,7 +536,7 @@ pub mod shared_args {
     use crate::model::{ComponentName, ProjectName, WorkerName, WorkerUpdateMode};
     use clap::Args;
     use golem_templates::model::GuestLanguage;
-    use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
+    use crate::model::app::AppBuildStep;
 
     pub type ComponentTemplateName = String;
     pub type NewWorkerArgument = String;

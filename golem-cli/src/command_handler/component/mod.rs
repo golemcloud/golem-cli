@@ -23,6 +23,9 @@ use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
+use crate::log::{log_action, logln, LogColorize, LogIndent};
+use crate::model::app::DependencyType;
+use crate::model::app::{BuildProfileName, ComponentName as AppComponentName};
 use crate::model::app_ext::{GolemComponentExtensions, InitialComponentFile};
 use crate::model::component::{Component, ComponentView};
 use crate::model::deploy::TryUpdateAllWorkersResult;
@@ -33,6 +36,9 @@ use crate::model::to_cloud::ToCloud;
 use crate::model::{
     ComponentName, ComponentNameMatchKind, ProjectNameAndId, SelectedComponents, WorkerName,
     WorkerUpdateMode,
+};
+use crate::wasm_rpc_stubgen::commands::app::{
+    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
@@ -45,12 +51,6 @@ use golem_common::model::component_metadata::WasmRpcTarget;
 use golem_common::model::{ComponentId, ComponentType};
 use golem_templates::add_component_by_template;
 use golem_templates::model::{GuestLanguage, PackageName};
-use golem_wasm_rpc_stubgen::commands::app::{
-    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
-};
-use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent};
-use golem_wasm_rpc_stubgen::model::app::DependencyType;
-use golem_wasm_rpc_stubgen::model::app::{BuildProfileName, ComponentName as AppComponentName};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::path::PathBuf;

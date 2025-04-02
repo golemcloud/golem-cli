@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::model::app::ComponentPropertiesExtensions;
 use crate::model::app_ext_raw;
+use crate::validation::ValidationBuilder;
 use golem_common::model::{
     ComponentFilePathWithPermissions, ComponentFilePermissions, ComponentType,
 };
-use golem_wasm_rpc_stubgen::model::app::ComponentPropertiesExtensions;
-use golem_wasm_rpc_stubgen::validation::ValidationBuilder;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use url::Url;

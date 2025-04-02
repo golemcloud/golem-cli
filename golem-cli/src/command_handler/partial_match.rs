@@ -22,8 +22,8 @@ use crate::model::text::fmt::{log_error, log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
 use crate::model::{ComponentNameMatchKind, Format};
 use colored::Colorize;
-use golem_wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
-use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize};
+use crate::wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
+use crate::log::{log_action, logln, LogColorize};
 use std::sync::Arc;
 
 pub struct ErrorHandler {

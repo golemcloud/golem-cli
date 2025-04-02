@@ -26,7 +26,7 @@ use golem_client::api::ApiDefinitionClient as ApiDefinitionClientOss;
 use golem_client::model::HttpApiDefinitionRequest as HttpApiDefinitionRequestOss;
 use golem_cloud_client::api::ApiDefinitionClient as ApiDefinitionClientCloud;
 use golem_cloud_client::model::HttpApiDefinitionRequest as HttpApiDefinitionRequestCloud;
-use golem_wasm_rpc_stubgen::log::{log_warn_action, LogColorize};
+use crate::log::{log_warn_action, LogColorize};
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 

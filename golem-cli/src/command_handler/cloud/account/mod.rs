@@ -25,7 +25,7 @@ use crate::model::text::fmt::log_error;
 use anyhow::bail;
 use golem_cloud_client::api::AccountClient;
 use golem_cloud_client::model::{Account, AccountData};
-use golem_wasm_rpc_stubgen::log::log_warn_action;
+use crate::log::log_warn_action;
 use std::sync::Arc;
 
 pub struct CloudAccountCommandHandler {

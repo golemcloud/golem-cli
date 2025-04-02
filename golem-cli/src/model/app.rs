@@ -1,9 +1,10 @@
+use crate::fs;
 use crate::model::app::app_builder::build_application;
 use crate::model::app_raw;
 use crate::model::template::Template;
-use crate::naming::wit::package_dep_dir_name_from_parser;
 use crate::validation::{ValidatedResult, ValidationBuilder};
-use crate::{fs, naming};
+use crate::wasm_rpc_stubgen::naming;
+use crate::wasm_rpc_stubgen::naming::wit::package_dep_dir_name_from_parser;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};

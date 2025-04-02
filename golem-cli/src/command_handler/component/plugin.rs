@@ -26,7 +26,7 @@ use golem_client::model::{
 };
 use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
 use golem_common::base_model::PluginInstallationId;
-use golem_wasm_rpc_stubgen::log::{log_action, log_error_action, log_warn_action, LogIndent};
+use crate::log::{log_action, log_error_action, log_warn_action, LogIndent};
 use std::sync::Arc;
 
 pub struct ComponentPluginCommandHandler {

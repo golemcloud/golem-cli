@@ -19,7 +19,7 @@ use async_zip::{Compression, ZipEntryBuilder};
 use golem_common::model::{
     ComponentFilePath, ComponentFilePathWithPermissions, ComponentFilePathWithPermissionsList,
 };
-use golem_wasm_rpc_stubgen::log::{log_action, LogColorize, LogIndent};
+use crate::log::{log_action, LogColorize, LogIndent};
 use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use tempfile::TempDir;

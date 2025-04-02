@@ -23,7 +23,7 @@ use crate::model::{PathBufOrStdin, ProjectName};
 use anyhow::bail;
 use golem_cloud_client::api::ApiCertificateClient;
 use golem_cloud_client::model::CertificateRequest;
-use golem_wasm_rpc_stubgen::log::log_warn_action;
+use crate::log::log_warn_action;
 use std::sync::Arc;
 use uuid::Uuid;
 

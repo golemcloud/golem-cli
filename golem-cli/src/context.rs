@@ -19,8 +19,14 @@ use crate::config::{
     ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
 };
 use crate::error::HintError;
+use crate::log::{set_log_output, LogOutput, Output};
+use crate::model::app::AppBuildStep;
+use crate::model::app::BuildProfileName as AppBuildProfileName;
 use crate::model::app_ext::GolemComponentExtensions;
 use crate::model::{Format, HasFormatConfig};
+use crate::wasm_rpc_stubgen;
+use crate::wasm_rpc_stubgen::commands::app::{ApplicationContext, ApplicationSourceMode};
+use crate::wasm_rpc_stubgen::stub::RustDependencyOverride;
 use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
@@ -49,11 +55,6 @@ use golem_cloud_client::api::{AccountClientLive as AccountClientCloud, LoginClie
 use golem_cloud_client::{Context as ContextCloud, Security};
 use golem_templates::model::{ComposableAppGroupName, GuestLanguage};
 use golem_templates::ComposableAppTemplate;
-use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ApplicationSourceMode};
-use golem_wasm_rpc_stubgen::log::{set_log_output, LogOutput, Output};
-use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
-use golem_wasm_rpc_stubgen::model::app::BuildProfileName as AppBuildProfileName;
-use golem_wasm_rpc_stubgen::stub::RustDependencyOverride;
 use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
@@ -513,7 +514,7 @@ impl ApplicationContextState {
             .silent_init
             .then(|| LogOutput::new(Output::TracingDebug));
 
-        let config = golem_wasm_rpc_stubgen::commands::app::Config {
+        let config = wasm_rpc_stubgen::commands::app::Config {
             app_source_mode: {
                 match &config.app_manifest_path {
                     Some(path) => ApplicationSourceMode::Explicit(path.clone()),

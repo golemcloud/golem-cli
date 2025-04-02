@@ -63,8 +63,8 @@ use golem_common::model::public_oplog::OplogCursor;
 use golem_common::model::{ComponentType, WorkerEvent};
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
-use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
-use golem_wasm_rpc_stubgen::log::{
+use crate::wasm_rpc_stubgen::commands::app::ComponentSelectMode;
+use crate::log::{
     log_action, log_error_action, log_warn_action, logln, LogColorize, LogIndent,
 };
 use itertools::{EitherOrBoth, Itertools};
