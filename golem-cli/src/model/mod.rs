@@ -13,8 +13,6 @@
 // limitations under the License.
 
 pub mod app;
-pub mod app_ext;
-pub mod app_ext_raw;
 pub mod app_raw;
 pub mod component;
 pub mod deploy;

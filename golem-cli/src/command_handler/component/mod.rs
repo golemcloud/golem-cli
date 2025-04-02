@@ -24,9 +24,8 @@ use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
 use crate::log::{log_action, logln, LogColorize, LogIndent};
-use crate::model::app::DependencyType;
 use crate::model::app::{BuildProfileName, ComponentName as AppComponentName};
-use crate::model::app_ext::{GolemComponentExtensions, InitialComponentFile};
+use crate::model::app::{DependencyType, InitialComponentFile};
 use crate::model::component::{Component, ComponentView};
 use crate::model::deploy::TryUpdateAllWorkersResult;
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
@@ -1205,7 +1204,7 @@ struct ComponentDeployProperties {
 }
 
 fn component_deploy_properties(
-    app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
+    app_ctx: &mut ApplicationContext,
     component_name: &AppComponentName,
     build_profile: Option<&BuildProfileName>,
 ) -> anyhow::Result<ComponentDeployProperties> {
@@ -1215,9 +1214,8 @@ fn component_deploy_properties(
     let component_properties = &app_ctx
         .application
         .component_properties(component_name, build_profile);
-    let extensions = &component_properties.extensions;
-    let component_type = extensions.component_type;
-    let files = extensions.files.clone();
+    let component_type = component_properties.component_type;
+    let files = component_properties.files.clone();
     let dynamic_linking = app_component_dynamic_linking(app_ctx, component_name)?;
 
     Ok(ComponentDeployProperties {
@@ -1229,7 +1227,7 @@ fn component_deploy_properties(
 }
 
 fn app_component_dynamic_linking(
-    app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
+    app_ctx: &mut ApplicationContext,
     component_name: &AppComponentName,
 ) -> anyhow::Result<Option<DynamicLinkingOss>> {
     let mut mapping = Vec::new();

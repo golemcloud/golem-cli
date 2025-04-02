@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::model::app::ComponentPropertiesExtensions;
+// TODO:
+
 use crate::model::app_ext_raw;
 use crate::validation::ValidationBuilder;
 use golem_common::model::{
@@ -136,10 +137,6 @@ fn convert_component_files(
 
     (files.len() == source_count).then_some(files)
 }
-
-/// http, https, file, or protocol relative
-#[derive(Clone, Debug)]
-pub struct DownloadableFile(Url);
 
 impl DownloadableFile {
     pub fn make(url_string: &str, relative_to: &Path) -> Result<Self, String> {
