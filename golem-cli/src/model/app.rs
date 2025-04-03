@@ -1,17 +1,21 @@
 use crate::fs;
+use crate::log::LogColorize;
 use crate::model::app::app_builder::build_application;
 use crate::model::app_raw;
 use crate::model::template::Template;
-use crate::validation::ValidatedResult;
+use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wasm_rpc_stubgen::naming;
 use crate::wasm_rpc_stubgen::naming::wit::package_dep_dir_name_from_parser;
-use golem_common::model::{ComponentFilePathWithPermissions, ComponentType};
+use golem_common::model::{
+    ComponentFilePathWithPermissions, ComponentFilePermissions, ComponentType,
+};
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use std::mem::take;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use url::Url;
@@ -54,7 +58,6 @@ impl From<&str> for ComponentName {
     }
 }
 
-// TODO: rename to build profile?
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BuildProfileName(String);
 
@@ -576,8 +579,14 @@ pub struct ComponentProperties {
 }
 
 impl ComponentProperties {
-    fn from_raw(raw: app_raw::ComponentProperties) -> Self {
-        Self {
+    fn from_raw(
+        validation: &mut ValidationBuilder,
+        source: &Path,
+        raw: app_raw::ComponentProperties,
+    ) -> Option<Self> {
+        let files = InitialComponentFile::from_raw_vec(validation, source, raw.files)?;
+
+        Some(Self {
             source_wit: raw.source_wit.unwrap_or_default(),
             generated_wit: raw.generated_wit.unwrap_or_default(),
             component_wasm: raw.component_wasm.unwrap_or_default(),
@@ -585,32 +594,33 @@ impl ComponentProperties {
             build: raw.build,
             custom_commands: raw.custom_commands,
             clean: raw.clean,
-            component_type: match raw.component_type {
-                Some(component_type) => match component_type {
-                    app_raw::ComponentType::Durable => ComponentType::Durable,
-                    app_raw::ComponentType::Ephemeral => ComponentType::Ephemeral,
-                },
-                None => ComponentType::Durable,
-            },
-            files: vec![],
-        }
+            component_type: raw.component_type.unwrap_or_default().into(),
+            files,
+        })
     }
 
     fn from_raw_template<C: Serialize>(
+        validation: &mut ValidationBuilder,
+        source: &Path,
         template_env: &minijinja::Environment,
         template_ctx: &C,
         template_properties: &app_raw::ComponentProperties,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<Option<Self>> {
         Ok(ComponentProperties::from_raw(
+            validation,
+            source,
             template_properties.render(template_env, template_ctx)?,
         ))
     }
 
     fn merge_with_overrides(
         mut self,
+        validation: &mut ValidationBuilder,
+        source: &Path,
         overrides: app_raw::ComponentProperties,
     ) -> anyhow::Result<Option<(Self, bool)>> {
         let mut any_overrides = false;
+        let mut any_errors = false;
 
         if let Some(source_wit) = overrides.source_wit {
             self.source_wit = source_wit;
@@ -637,15 +647,27 @@ impl ComponentProperties {
             any_overrides = true;
         }
 
-        for (custom_command_name, custom_command) in overrides.custom_commands {
-            if self.custom_commands.contains_key(&custom_command_name) {
-                any_overrides = true;
-            }
-            self.custom_commands
-                .insert(custom_command_name, custom_command);
+        if !overrides.custom_commands.is_empty() {
+            any_overrides = true;
+            self.custom_commands.extend(overrides.custom_commands)
         }
 
-        // TODO: merge old "exts"
+        if let Some(component_type) = overrides.component_type {
+            self.component_type = component_type.into();
+            any_overrides = true;
+        }
+
+        if !overrides.files.is_empty() {
+            any_overrides = true;
+            match InitialComponentFile::from_raw_vec(validation, source, overrides.files) {
+                Some(files) => {
+                    self.files.extend(files);
+                }
+                None => {
+                    any_errors = true;
+                }
+            }
+        }
 
         Ok(Some((self, any_overrides)))
     }
@@ -665,10 +687,87 @@ pub struct InitialComponentFile {
     pub target: ComponentFilePathWithPermissions,
 }
 
+impl InitialComponentFile {
+    pub fn from_raw(
+        validation: &mut ValidationBuilder,
+        source: &Path,
+        file: app_raw::InitialComponentFile,
+    ) -> Option<InitialComponentFile> {
+        let source = InitialComponentFileSource::new(&file.source_path, source)
+            .map_err(|err| {
+                validation.push_context("source path", file.source_path.to_string());
+                validation.add_error(err);
+                validation.pop_context();
+            })
+            .ok()?;
+
+        Some(InitialComponentFile {
+            source,
+            target: ComponentFilePathWithPermissions {
+                path: file.target_path,
+                permissions: file
+                    .permissions
+                    .unwrap_or(ComponentFilePermissions::ReadOnly),
+            },
+        })
+    }
+
+    pub fn from_raw_vec(
+        validation: &mut ValidationBuilder,
+        source: &Path,
+        files: Vec<app_raw::InitialComponentFile>,
+    ) -> Option<Vec<Self>> {
+        let source_count = files.len();
+
+        let files = files
+            .into_iter()
+            .filter_map(|file| InitialComponentFile::from_raw(validation, source, file))
+            .collect::<Vec<_>>();
+
+        (files.len() == source_count).then_some(files)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct InitialComponentFileSource(Url);
 
 impl InitialComponentFileSource {
+    pub fn new(url_string: &str, relative_to: &Path) -> Result<Self, String> {
+        // Try to parse the URL as an absolute URL
+        let url = Url::parse(url_string).or_else(|_| {
+            // If that fails, try to parse it as a relative path
+            let canonical_relative_to = relative_to
+                .parent()
+                .expect("Failed to get parent")
+                .canonicalize()
+                .map_err(|_| {
+                    format!(
+                        "Failed to canonicalize relative path: {}",
+                        relative_to.log_color_highlight()
+                    )
+                })?;
+
+            let source = canonical_relative_to.join(PathBuf::from(url_string));
+            Url::from_file_path(&source).map_err(|_| {
+                format!(
+                    "Failed to convert source ({}) to URL",
+                    source.log_color_highlight(),
+                )
+            })
+        })?;
+
+        let source_path_scheme = url.scheme();
+        let supported_schemes = ["http", "https", "file", ""];
+        if !supported_schemes.contains(&source_path_scheme) {
+            return Err(format!(
+                "Unsupported source path scheme: {}, supported schemes {}:",
+                source_path_scheme.log_color_highlight(),
+                supported_schemes.join(", ")
+            ));
+        }
+        Ok(Self(url))
+    }
+
     pub fn as_url(&self) -> &Url {
         &self.0
     }
@@ -1114,6 +1213,7 @@ mod app_builder {
                             match self.templates.get_mut(&template_name) {
                                 Some(template) => Self::resolve_templated_component_properties(
                                     validation,
+                                    &source,
                                     template_env,
                                     template_name,
                                     template,
@@ -1130,7 +1230,7 @@ mod app_builder {
                             }
                         }
                         None => Self::resolve_directly_defined_component_properties(
-                            validation, component,
+                            validation, &source, component,
                         ),
                     };
                     if let Some(properties) = properties {
@@ -1143,6 +1243,7 @@ mod app_builder {
 
         fn resolve_templated_component_properties(
             validation: &mut ValidationBuilder,
+            source: &Path,
             template_env: &minijinja::Environment,
             template_name: TemplateName,
             template: &mut app_raw::ComponentTemplate,
@@ -1197,6 +1298,7 @@ mod app_builder {
                         if template.profiles.is_empty() {
                             Self::resolve_templated_non_profiled_component_properties(
                                 validation,
+                                source,
                                 template_env,
                                 template_name,
                                 template,
@@ -1206,6 +1308,7 @@ mod app_builder {
                         } else {
                             Self::resolve_templated_profiled_component_properties(
                                 validation,
+                                source,
                                 template_env,
                                 template_name,
                                 template,
@@ -1223,6 +1326,7 @@ mod app_builder {
 
         fn resolve_templated_non_profiled_component_properties(
             validation: &mut ValidationBuilder,
+            source: &Path,
             template_env: &minijinja::Environment,
             template_name: TemplateName,
             template: &app_raw::ComponentTemplate,
@@ -1231,6 +1335,7 @@ mod app_builder {
         ) -> Option<ResolvedComponentProperties> {
             Self::convert_and_validate_templated_component_properties(
                 validation,
+                source,
                 template_env,
                 &template_name,
                 &template.component_properties,
@@ -1248,6 +1353,7 @@ mod app_builder {
 
         fn resolve_templated_profiled_component_properties(
             validation: &mut ValidationBuilder,
+            source: &Path,
             template_env: &minijinja::Environment,
             template_name: TemplateName,
             template: &app_raw::ComponentTemplate,
@@ -1268,6 +1374,7 @@ mod app_builder {
                                 let component_properties = profiles.remove(profile_name);
                                 Self::convert_and_validate_templated_component_properties(
                                     validation,
+                                    source,
                                     template_env,
                                     &template_name,
                                     template_component_properties,
@@ -1308,19 +1415,23 @@ mod app_builder {
 
         fn resolve_directly_defined_component_properties(
             validation: &mut ValidationBuilder,
+            source: &Path,
             component: app_raw::Component,
         ) -> Option<ResolvedComponentProperties> {
             if component.profiles.is_empty() {
                 Self::resolve_directly_defined_non_profiled_component_properties(
-                    validation, component,
+                    validation, source, component,
                 )
             } else {
-                Self::resolve_directly_defined_profiled_component_properties(validation, component)
+                Self::resolve_directly_defined_profiled_component_properties(
+                    validation, source, component,
+                )
             }
         }
 
         fn resolve_directly_defined_profiled_component_properties(
             validation: &mut ValidationBuilder,
+            source: &Path,
             component: app_raw::Component,
         ) -> Option<ResolvedComponentProperties> {
             let valid =
@@ -1358,16 +1469,18 @@ mod app_builder {
                     component
                         .profiles
                         .into_iter()
-                        .map(|(profile_name, properties)| {
+                        .filter_map(|(profile_name, properties)| {
                             let (properties, _) = validation.with_context_returning(
                                 vec![("profile", profile_name.to_string())],
                                 |validation| {
                                     Self::convert_and_validate_component_properties(
-                                        validation, properties,
+                                        validation, source, properties,
                                     )
                                 },
                             );
-                            (BuildProfileName::from(profile_name), properties)
+                            properties.map(|properties| {
+                                (BuildProfileName::from(profile_name), properties)
+                            })
                         })
                         .collect()
                 },
@@ -1376,6 +1489,7 @@ mod app_builder {
 
         fn resolve_directly_defined_non_profiled_component_properties(
             validation: &mut ValidationBuilder,
+            source: &Path,
             component: app_raw::Component,
         ) -> Option<ResolvedComponentProperties> {
             let valid = validation.with_context(vec![], |validation| {
@@ -1392,9 +1506,11 @@ mod app_builder {
                 .then(|| {
                     Self::convert_and_validate_component_properties(
                         validation,
+                        source,
                         component.component_properties,
                     )
                 })
+                .flatten()
                 .map(|properties| ResolvedComponentProperties::Properties {
                     template_name: None,
                     any_template_overrides: false,
@@ -1404,6 +1520,7 @@ mod app_builder {
 
         fn convert_and_validate_templated_component_properties(
             validation: &mut ValidationBuilder,
+            source: &Path,
             template_env: &minijinja::Environment,
             template_name: &TemplateName,
             template_properties: &app_raw::ComponentProperties,
@@ -1411,6 +1528,8 @@ mod app_builder {
             component_properties: Option<app_raw::ComponentProperties>,
         ) -> Option<(ComponentProperties, bool)> {
             ComponentProperties::from_raw_template(
+                validation,
+                source,
                 template_env,
                 &Self::template_context(component_name),
                 template_properties,
@@ -1423,20 +1542,25 @@ mod app_builder {
                 ))
             })
             .ok()
-            .and_then(|rendered_template_properties| match component_properties {
-                Some(component_properties) => rendered_template_properties
-                    .merge_with_overrides(component_properties)
-                    .inspect_err(|err| {
-                        validation.add_error(format!(
-                            "Failed to override template {}, error: {}",
-                            template_name.as_str().log_color_highlight(),
-                            err.to_string().log_color_error_highlight()
-                        ))
-                    })
-                    .ok()
-                    .flatten(),
-                None => Some((rendered_template_properties, false)),
-            })
+            .and_then(
+                |rendered_template_properties| match rendered_template_properties {
+                    Some(rendered_template_properties) => match component_properties {
+                        Some(component_properties) => rendered_template_properties
+                            .merge_with_overrides(validation, source, component_properties)
+                            .inspect_err(|err| {
+                                validation.add_error(format!(
+                                    "Failed to override template {}, error: {}",
+                                    template_name.as_str().log_color_highlight(),
+                                    err.to_string().log_color_error_highlight()
+                                ))
+                            })
+                            .ok()
+                            .flatten(),
+                        None => Some((rendered_template_properties, false)),
+                    },
+                    None => None,
+                },
+            )
             .inspect(|(properties, _)| {
                 Self::validate_resolved_component_properties(validation, properties)
             })
@@ -1444,11 +1568,12 @@ mod app_builder {
 
         fn convert_and_validate_component_properties(
             validation: &mut ValidationBuilder,
+            source: &Path,
             component_properties: app_raw::ComponentProperties,
-        ) -> ComponentProperties {
-            let properties = ComponentProperties::from_raw(component_properties);
-            Self::validate_resolved_component_properties(validation, &properties);
-            properties
+        ) -> Option<ComponentProperties> {
+            ComponentProperties::from_raw(validation, source, component_properties).inspect(
+                |properties| Self::validate_resolved_component_properties(validation, &properties),
+            )
         }
 
         fn validate_resolved_component_properties(
@@ -1468,7 +1593,7 @@ mod app_builder {
                 }
             }
 
-            // TODO: !once app model is moved to golem-cli then make this generated from the app command
+            // !TODO: once app model is moved to golem-cli then make this generated from the app command
             let reserved_commands = BTreeSet::from(["build", "clean"]);
 
             for custom_command in properties.custom_commands.keys() {

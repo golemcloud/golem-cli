@@ -16,11 +16,13 @@ use crate::test_r_get_dep_tracing;
 use crate::Tracing;
 use assert2::{assert, check};
 use colored::Colorize;
+use golem_cli::fs;
 use golem_templates::model::GuestLanguage;
+use indoc::indoc;
 use itertools::Itertools;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
+use std::process::{Child, Command, ExitStatus};
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 use test_r::test;
@@ -31,6 +33,7 @@ mod cmd {
     pub static BUILD: &str = "build";
     pub static COMPLETION: &str = "completion";
     pub static COMPONENT: &str = "component";
+    pub static DEPLOY: &str = "deploy";
     pub static NEW: &str = "new";
 }
 
@@ -195,6 +198,140 @@ fn completion(_tracing: &Tracing) {
     assert!(outputs.success(), "zsh");
 }
 
+#[test]
+fn basic_dependencies_build(_tracing: &Tracing) {
+    let mut ctx = TestContext::new();
+    let app_name = "test-app-name";
+
+    let outputs = ctx.cli([cmd::APP, cmd::NEW, app_name, "rust", "ts"]);
+    assert!(outputs.success());
+
+    ctx.cd(app_name);
+
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "rust", "app:rust"]);
+    assert!(outputs.success());
+
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "ts", "app:ts"]);
+    assert!(outputs.success());
+
+    let outputs = ctx.cli([cmd::APP, "ts-npm-install"]);
+    assert!(outputs.success());
+
+    fs::append_str(
+        ctx.cwd_path_join(
+            Path::new("components-rust")
+                .join("app-rust")
+                .join("golem.yaml"),
+        ),
+        indoc! {"
+            dependencies:
+                app:rust:
+                - target: app:rust
+                  type: wasm-rpc
+                - target: app:ts
+                  type: wasm-rpc
+        "},
+    )
+    .unwrap();
+
+    fs::append_str(
+        ctx.cwd_path_join(Path::new("components-ts").join("app-ts").join("golem.yaml")),
+        indoc! {"
+            dependencies:
+                app:ts:
+                - target: app:rust
+                  type: wasm-rpc
+                - target: app:ts
+                  type: wasm-rpc
+        "},
+    )
+    .unwrap();
+
+    let outputs = ctx.cli([cmd::APP]);
+    assert!(!outputs.success());
+    check!(outputs.stderr_count_lines_containing("- app:rust (wasm-rpc)") == 2);
+    check!(outputs.stderr_count_lines_containing("- app:ts (wasm-rpc)") == 2);
+
+    let outputs = ctx.cli([cmd::APP, cmd::BUILD]);
+    assert!(outputs.success());
+}
+
+#[test]
+fn basic_ifs_deploy(_tracing: &Tracing) {
+    let mut ctx = TestContext::new();
+    let app_name = "test-app-name";
+
+    let outputs = ctx.cli([cmd::APP, cmd::NEW, app_name, "rust"]);
+    assert!(outputs.success());
+
+    ctx.cd(app_name);
+
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "rust", "app:rust"]);
+    assert!(outputs.success());
+
+    fs::write_str(
+        ctx.cwd_path_join(
+            Path::new("components-rust")
+                .join("app-rust")
+                .join("golem.yaml"),
+        ),
+        indoc! {"
+            components:
+              app:rust:
+                template: rust
+                profiles:
+                  debug:
+                    files:
+                    - sourcePath: Cargo.toml
+                      targetPath: /Cargo.toml
+                      permissions: read-only
+                    - sourcePath: src/lib.rs
+                      targetPath: /src/lib.rs
+                      permissions: read-write
+
+        "},
+    )
+    .unwrap();
+
+    ctx.start_server();
+
+    let outputs = ctx.cli([cmd::APP, cmd::DEPLOY]);
+    assert!(outputs.success());
+    check!(outputs.stdout_contains("ro /Cargo.toml"));
+    check!(outputs.stdout_contains("rw /src/lib.rs"));
+
+    fs::write_str(
+        ctx.cwd_path_join(
+            Path::new("components-rust")
+                .join("app-rust")
+                .join("golem.yaml"),
+        ),
+        indoc! {"
+            components:
+              app:rust:
+                template: rust
+                profiles:
+                  debug:
+                    files:
+                    - sourcePath: Cargo.toml
+                      targetPath: /Cargo2.toml
+                      permissions: read-only
+                    - sourcePath: src/lib.rs
+                      targetPath: /src/lib.rs
+                      permissions: read-only
+
+        "},
+    )
+    .unwrap();
+
+    let outputs = ctx.cli([cmd::APP, cmd::DEPLOY]);
+    assert!(outputs.success());
+    check!(!outputs.stdout_contains("ro /Cargo.toml"));
+    check!(outputs.stdout_contains("ro /Cargo2.toml"));
+    check!(!outputs.stdout_contains("rw /src/lib.rs"));
+    check!(outputs.stdout_contains("ro /src/lib.rs"));
+}
+
 pub struct Output {
     pub status: ExitStatus,
     pub stdout: Vec<String>,
@@ -212,6 +349,13 @@ impl Output {
 
     fn stderr_contains<S: AsRef<str>>(&self, text: S) -> bool {
         self.stderr.iter().any(|line| line.contains(text.as_ref()))
+    }
+
+    fn stderr_count_lines_containing<S: AsRef<str>>(&self, text: S) -> usize {
+        self.stderr
+            .iter()
+            .filter(|line| line.contains(text.as_ref()))
+            .count()
     }
 }
 
@@ -235,11 +379,19 @@ impl From<std::process::Output> for Output {
 
 #[derive(Debug)]
 struct TestContext {
-    _golem_path: PathBuf, // TODO:
+    golem_path: PathBuf,
     golem_cli_path: PathBuf,
     _test_dir: TempDir,
-    _config_dir: TempDir, // TODO:
+    config_dir: TempDir,
+    data_dir: TempDir,
     working_dir: PathBuf,
+    server_process: Option<Child>,
+}
+
+impl Drop for TestContext {
+    fn drop(&mut self) {
+        self.stop_server();
+    }
 }
 
 impl TestContext {
@@ -248,15 +400,17 @@ impl TestContext {
         let working_dir = test_dir.path().to_path_buf();
 
         let ctx = Self {
-            _golem_path: PathBuf::from("../target/debug/golem")
+            golem_path: PathBuf::from("../target/debug/golem")
                 .canonicalize()
                 .unwrap(),
             golem_cli_path: PathBuf::from("../target/debug/golem-cli")
                 .canonicalize()
                 .unwrap(),
             _test_dir: test_dir,
-            _config_dir: TempDir::new().unwrap(),
+            config_dir: TempDir::new().unwrap(),
+            data_dir: TempDir::new().unwrap(),
             working_dir,
+            server_process: None,
         };
 
         info!(ctx = ?ctx ,"Created test context");
@@ -314,7 +468,50 @@ impl TestContext {
         output
     }
 
+    fn start_server(&mut self) {
+        assert!(self.server_process.is_none(), "server is already running");
+
+        println!("{}", "> starting golem server".bold());
+        println!(
+            "{} {}",
+            "> server config directory:".bold(),
+            self.config_dir.path().display()
+        );
+        println!(
+            "{} {}",
+            "> server data directory:".bold(),
+            self.data_dir.path().display()
+        );
+
+        self.server_process = Some(
+            Command::new(&self.golem_path)
+                .args([
+                    "server",
+                    "run",
+                    "--config-dir",
+                    self.config_dir.path().to_str().unwrap(),
+                    "--data-dir",
+                    self.data_dir.path().to_str().unwrap(),
+                ])
+                .current_dir(&self.working_dir)
+                .spawn()
+                .unwrap(),
+        )
+    }
+
+    fn stop_server(&mut self) {
+        let server_process = self.server_process.take();
+        if let Some(mut server_process) = server_process {
+            println!("{}", "> stopping golem server".bold());
+            server_process.kill().unwrap();
+        }
+    }
+
     fn cd<P: AsRef<Path>>(&mut self, path: P) {
         self.working_dir = self.working_dir.join(path.as_ref());
+    }
+
+    fn cwd_path_join<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+        self.working_dir.join(path)
     }
 }

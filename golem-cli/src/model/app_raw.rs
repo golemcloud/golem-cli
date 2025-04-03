@@ -85,11 +85,21 @@ pub struct Component {
     pub default_profile: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ComponentType {
     Ephemeral,
+    #[default]
     Durable,
+}
+
+impl From<ComponentType> for golem_common::model::ComponentType {
+    fn from(value: ComponentType) -> Self {
+        match value {
+            ComponentType::Ephemeral => Self::Ephemeral,
+            ComponentType::Durable => Self::Durable,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

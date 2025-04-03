@@ -7,8 +7,8 @@
 # - `cargo make fix`: runs rustfmt and clippy checks and applies fixes
 # - `cargo make test`: runs all tests
 # - `cargo make unit-tests`: runs all unit tests
-# - `cargo make integrations-tests`: runs all integrations tests
-# - `cargo make cli-integrations-tests`: runs cli integrations tests only
+# - `cargo make integration-tests`: runs all integrations tests
+# - `cargo make cli-integration-tests`: runs cli integrations tests only
 # - `cargo make template-integration-tests`: runs template tests only
 # - `cargo make publish`: publishes packages to crates.io
 # - `cargo make desktop`: builds the desktop application
