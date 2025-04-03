@@ -1,16 +1,17 @@
 import ErrorBoundary from "@/components/errorBoundary";
-import { Button } from "@/components/ui/button.tsx";
+import { buttonVariants } from "@/components/ui/button.tsx";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card.tsx";
+import { cn } from "@/lib/utils";
 import { API } from "@/service";
 import { ComponentList } from "@/types/component.ts";
 import { ArrowRight, LayoutGrid, PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ComponentCard } from "../components";
 
 export const ComponentsSection = () => {
@@ -24,19 +25,24 @@ export const ComponentsSection = () => {
   }, []);
   return (
     <ErrorBoundary>
-      <Card className="rounded-lg lg:col-span-2">
-        <CardHeader>
-          <div className="flex justify-between items-center mb-6">
-            <CardTitle className="text-2xl font-bold text-primary">
-              Components
-            </CardTitle>
-            <Button variant="ghost" onClick={() => navigate("/components")}>
-              View All
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
+      <Card className="lg:col-span-2 flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-xl font-semibold flex items-center gap-2 text-primary">
+            <LayoutGrid className="w-5 h-5 text-muted-foreground" />
+            Components
+          </CardTitle>
+          <Link
+            to="/components"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "text-sm",
+            )}
+          >
+            View All
+            <ArrowRight className="size-4" />
+          </Link>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1">
           {Object.keys(components).length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 overflow-scroll max-h-[70vh] px-4">
               {Object.values(components).map((data: ComponentList) => (
@@ -50,24 +56,36 @@ export const ComponentsSection = () => {
               ))}
             </div>
           ) : (
-            <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-              <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                <LayoutGrid className="h-8 w-8 text-gray-400" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2 text-center">
-                No Components
-              </h2>
-              <p className="text-gray-500 mb-6 text-center">
-                Create your first component to get started.
-              </p>
-              <Button onClick={() => navigate("/components/create")}>
-                <PlusCircle className="mr-2 size-4" />
-                Create Component
-              </Button>
-            </div>
+            <ComponentEmpty />
           )}
         </CardContent>
       </Card>
     </ErrorBoundary>
+  );
+};
+
+const ComponentEmpty = () => {
+  return (
+    <div className="border-2 h-full border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg p-12 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900/50">
+      <div className="mb-6 flex items-center justify-center">
+        <LayoutGrid className="h-12 w-12 text-zinc-400 dark:text-zinc-500" />
+      </div>
+      <h2 className="text-2xl font-semibold mb-3 text-center text-zinc-800 dark:text-zinc-200">
+        No Components
+      </h2>
+      <p className="text-zinc-600 dark:text-zinc-400 mb-8 text-center max-w-md text-balance text-balance">
+        Create your first component to get started with your project.
+      </p>
+      <Link
+        to="/components/create"
+        className={cn(
+          buttonVariants({ variant: "default" }),
+          "bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-200 dark:hover:bg-zinc-300 dark:text-zinc-900 text-zinc-50 shadow-sm",
+        )}
+      >
+        <PlusCircle className="mr-2 h-4 w-4" />
+        Create Component
+      </Link>
+    </div>
   );
 };

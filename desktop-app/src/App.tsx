@@ -96,7 +96,7 @@ function App() {
       <Router>
         <div className="min-h-screen">
           {/* Wrap Navbar with ErrorBoundary to catch errors in navigation */}
-          <ErrorBoundary>
+          <ErrorBoundary fallback={<div className="flex items-center justify-center py-4 border-destructive text-destructive bg-destructive/5 border-b">Something went wrong.</div>}>
             <Navbar />
           </ErrorBoundary>
           {/* Suspense provides a fallback UI while lazy-loaded components are being fetched */}

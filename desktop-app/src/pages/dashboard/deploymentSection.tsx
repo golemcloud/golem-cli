@@ -1,12 +1,12 @@
-import { Button } from "@/components/ui/button";
+import ErrorBoundary from "@/components/errorBoundary";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
+import { cn, removeDuplicateApis } from "@/lib/utils";
+import { API } from "@/service";
+import { Deployment } from "@/types/deployments";
 import { ArrowRight, Globe, Layers, PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API } from "@/service";
-import ErrorBoundary from "@/components/errorBoundary";
-import { removeDuplicateApis } from "@/lib/utils";
-import { Deployment } from "@/types/deployments";
+import { Link, useNavigate } from "react-router-dom";
 
 export function DeploymentSection() {
   const navigate = useNavigate();
@@ -39,22 +39,23 @@ export function DeploymentSection() {
             <Globe className="w-5 h-5 text-muted-foreground" />
             Deployments
           </CardTitle>
-          <Button
-            variant="ghost"
-            className="text-sm font-medium"
-            size="sm"
-            onClick={() => navigate("/deployments")}
+          <Link
+            to="/deployments"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "text-sm",
+            )}
           >
             View All
-            <ArrowRight className="w-4 h-4 ml-1" />
-          </Button>
+            <ArrowRight className="size-4" />
+          </Link>
         </CardHeader>
         <CardContent className="space-y-2">
           {deployments.length > 0 ? (
             deployments.map((deployment, index) => (
               <div
                 key={index}
-                className="border rounded-lg p-3 hover:bg-muted/50 transition-colors cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
+                className="border rounded-lg hover:bg-muted/50 cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
                 onClick={() => {
                   navigate(`/deployments`);
                 }}
@@ -63,24 +64,36 @@ export function DeploymentSection() {
               </div>
             ))
           ) : (
-            <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-              <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                <Layers className="h-8 w-8 text-gray-400" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2 text-center">
-                No Deployments
-              </h2>
-              <p className="text-gray-500 mb-6 text-center">
-                Create your first deployment to get started.
-              </p>
-              <Button onClick={() => navigate("/deployments/create")}>
-                <PlusCircle className="mr-2 size-4" />
-                Create Deployment
-              </Button>
-            </div>
+            <DeploymentEmpty />
           )}
         </CardContent>
       </Card>
     </ErrorBoundary>
   );
 }
+
+const DeploymentEmpty = () => {
+  return (
+    <div className="border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg p-12 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900/50">
+      <div className="mb-6 flex items-center justify-center">
+        <Layers className="h-12 w-12 text-zinc-400 dark:text-zinc-500" />
+      </div>
+      <h2 className="text-2xl font-semibold mb-3 text-center text-zinc-800 dark:text-zinc-200">
+        No Deployments
+      </h2>
+      <p className="text-zinc-600 dark:text-zinc-400 mb-8 text-center max-w-md text-balance">
+        Create your first deployment to get started with your project.
+      </p>
+      <Link
+        to="/deployments/create"
+        className={cn(
+          buttonVariants({ variant: "default" }),
+          "bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-200 dark:hover:bg-zinc-300 dark:text-zinc-900 text-zinc-50 shadow-sm",
+        )}
+      >
+        <PlusCircle className="mr-2 h-4 w-4" />
+        Create Deployment
+      </Link>
+    </div>
+  );
+};

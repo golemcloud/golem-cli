@@ -109,7 +109,7 @@ export function BackendEndpointInput() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button variant="ghost" size="icon">
           <Settings className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -121,7 +121,7 @@ export function BackendEndpointInput() {
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
+          <div className="flex flex-col items-start gap-4">
             <Label htmlFor="endpoint" className="text-right">
               Endpoint
             </Label>

@@ -1,36 +1,37 @@
 import { Logo } from "@/components/logo.tsx";
 import { ModeToggle } from "@/components/mode-toggle.tsx";
-import NavLink from "@/components/navLink.tsx";
+import NavLink from "@/components/navLink";
+import { routes } from "@/constants/navbar";
 import { BackendEndpointInput } from "./backend-endpoint";
+import MobileNav from "./common/mobile-nav";
 import { ServerStatus } from "./server-status";
 
 const Navbar = () => {
   return (
-    <nav className="border-b">
-      <div className="flex items-center justify-between px-4 py-2">
-        <div className="flex items-center space-x-8">
-          <div className="flex items-center space-x-2">
-            <a href="/">
-              <Logo />
-            </a>
-          </div>
-          <div className="flex space-x-6">
-            <NavLink to="/">Dashboard</NavLink>
-            <NavLink to="/components">Components</NavLink>
-            <NavLink to="/apis">APIs</NavLink>
-            <NavLink to="/deployments">Deployments</NavLink>
-            <NavLink to="/plugins">Plugins</NavLink>
-          </div>
+    <header className="sticky top-0 z-50 px-4 w-full border-b bg-zinc-50 dark:bg-zinc-950">
+      <div className="mx-auto font-sans container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-2">
+          <a href="/">
+            <Logo />
+          </a>
         </div>
-        <div className="flex items-center space-x-8">
-          <div className="flex items-center space-x-2">
-            <ServerStatus />
-            <ModeToggle />
-            <BackendEndpointInput />
-          </div>
+
+        <nav className="hidden md:flex md:gap-6">
+          {routes.map(route => (
+            <NavLink key={route.path} to={route.path}>
+              {route.name}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="flex items-center">
+          <ServerStatus />
+          <ModeToggle />
+          <BackendEndpointInput />
+          <MobileNav />
         </div>
       </div>
-    </nav>
+    </header>
   );
 };
 
