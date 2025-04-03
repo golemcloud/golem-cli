@@ -300,28 +300,30 @@ impl From<String> for ApiDefinitionVersion {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ApiDefinitionFileFormat {
+pub enum OpenApiDefinitionOutputFormat {
     Json,
     Yaml,
 }
 
-impl FromStr for ApiDefinitionFileFormat {
+impl FromStr for OpenApiDefinitionOutputFormat {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "json" => Ok(ApiDefinitionFileFormat::Json),
-            "yaml" | "yml" => Ok(ApiDefinitionFileFormat::Yaml),
-            _ => Err(format!("Invalid API definition format: {s}. Expected one of \"json\", \"yaml\""))
+            "json" => Ok(OpenApiDefinitionOutputFormat::Json),
+            "yaml" | "yml" => Ok(OpenApiDefinitionOutputFormat::Yaml),
+            _ => Err(format!(
+                "Invalid API definition format: {s}. Expected one of \"json\", \"yaml\""
+            )),
         }
     }
 }
 
-impl Display for ApiDefinitionFileFormat {
+impl Display for OpenApiDefinitionOutputFormat {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ApiDefinitionFileFormat::Json => write!(f, "json"),
-            ApiDefinitionFileFormat::Yaml => write!(f, "yaml"),
+            OpenApiDefinitionOutputFormat::Json => write!(f, "json"),
+            OpenApiDefinitionOutputFormat::Yaml => write!(f, "yaml"),
         }
     }
 }

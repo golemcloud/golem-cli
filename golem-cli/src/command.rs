@@ -969,7 +969,9 @@ pub mod api {
 
     pub mod definition {
         use crate::command::shared_args::ProjectNameOptionalArg;
-        use crate::model::{ApiDefinitionId, ApiDefinitionVersion, PathBufOrStdin, ApiDefinitionFileFormat};
+        use crate::model::{
+            ApiDefinitionId, ApiDefinitionVersion, OpenApiDefinitionOutputFormat, PathBufOrStdin,
+        };
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
@@ -1041,8 +1043,8 @@ pub mod api {
                 #[arg(short = 'V', long)]
                 version: ApiDefinitionVersion,
                 /// Output format (json or yaml)
-                #[arg(long, default_value = "yaml", name = "def-format")]
-                format: ApiDefinitionFileFormat,
+                #[arg(long = "def-format", default_value = "yaml", name = "def-format")]
+                format: OpenApiDefinitionOutputFormat,
                 /// Custom output file name (without extension)
                 #[arg(short, long)]
                 output_name: Option<String>,
