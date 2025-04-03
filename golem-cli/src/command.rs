@@ -20,6 +20,7 @@ use crate::command::plugin::PluginSubcommand;
 use crate::command::profile::ProfileSubcommand;
 use crate::command::worker::WorkerSubcommand;
 use crate::config::{BuildProfileName, ProfileName};
+use crate::log::LogColorize;
 use crate::model::{Format, WorkerName};
 use crate::{command_name, version};
 use anyhow::{anyhow, bail, Context as AnyhowContext};
@@ -29,7 +30,6 @@ use clap::{self, CommandFactory, Subcommand};
 use clap::{Args, Parser};
 use clap_verbosity_flag::{ErrorLevel, LogLevel};
 use golem_client::model::ScanCursor;
-use crate::log::LogColorize;
 use lenient_bool::LenientBool;
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -533,10 +533,10 @@ pub enum GolemCliSubcommand {
 
 pub mod shared_args {
     use crate::cloud::AccountId;
+    use crate::model::app::AppBuildStep;
     use crate::model::{ComponentName, ProjectName, WorkerName, WorkerUpdateMode};
     use clap::Args;
     use golem_templates::model::GuestLanguage;
-    use crate::model::app::AppBuildStep;
 
     pub type ComponentTemplateName = String;
     pub type NewWorkerArgument = String;

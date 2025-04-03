@@ -20,8 +20,8 @@ use crate::error::service::AnyhowMapServiceError;
 use crate::model::text::account::GrantGetView;
 use crate::model::Role;
 
-use golem_cloud_client::api::GrantClient;
 use crate::log::log_action;
+use golem_cloud_client::api::GrantClient;
 use std::sync::Arc;
 
 pub struct CloudAccountGrantCommandHandler {

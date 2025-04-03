@@ -17,13 +17,13 @@ use crate::command_handler::Handlers;
 use crate::config::Config;
 use crate::context::Context;
 use crate::error::{ContextInitHintError, HintError};
+use crate::log::{log_action, logln, LogColorize};
 use crate::model::component::show_exported_functions;
 use crate::model::text::fmt::{log_error, log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
 use crate::model::{ComponentNameMatchKind, Format};
-use colored::Colorize;
 use crate::wasm_rpc_stubgen::commands::app::{ComponentSelectMode, DynamicHelpSections};
-use crate::log::{log_action, logln, LogColorize};
+use colored::Colorize;
 use std::sync::Arc;
 
 pub struct ErrorHandler {

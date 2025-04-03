@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use golem_common::tracing::{init_tracing_with_default_debug_env_filter, TracingConfig};
 use test_r::test_dep;
 
@@ -20,7 +19,6 @@ test_r::enable!();
 
 mod app;
 mod stubgen;
-
 
 #[derive(Debug)]
 pub struct Tracing;

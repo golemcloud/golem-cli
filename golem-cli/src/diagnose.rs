@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::diagnose::VersionRequirement::{ExactByNameVersion, ExactVersion, MinimumVersion};
+use crate::log::logln;
 use anyhow::{anyhow, Context};
 use colored::Colorize;
 use golem_templates::model::GuestLanguage;
-use crate::log::logln;
 use indoc::indoc;
 use regex::Regex;
 use std::cmp::max;
