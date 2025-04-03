@@ -133,7 +133,6 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
         }
     }
 
-    // TODO: match and enrich "-h" and "--help"
     pub async fn handle_args<I, T>(args_iterator: I, hooks: Arc<Hooks>) -> ExitCode
     where
         I: IntoIterator<Item = T>,
