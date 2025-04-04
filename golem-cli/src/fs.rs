@@ -126,7 +126,6 @@ pub fn append_str<P: AsRef<Path>, S: AsRef<str>>(path: P, str: S) -> anyhow::Res
     let context = || anyhow!("Failed to write string to {}", path.log_color_highlight());
     let mut file = OpenOptions::new()
         .append(true)
-        .write(true)
         .open(&path)
         .with_context(context)?;
     file.write(str.as_bytes()).with_context(context).map(|_| ())

@@ -15,7 +15,6 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
-use std::mem::take;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use url::Url;
@@ -669,7 +668,7 @@ impl ComponentProperties {
             }
         }
 
-        Ok(Some((self, any_overrides)))
+        Ok((!any_errors).then_some((self, any_overrides)))
     }
 
     pub fn is_ephemeral(&self) -> bool {
@@ -1572,7 +1571,7 @@ mod app_builder {
             component_properties: app_raw::ComponentProperties,
         ) -> Option<ComponentProperties> {
             ComponentProperties::from_raw(validation, source, component_properties).inspect(
-                |properties| Self::validate_resolved_component_properties(validation, &properties),
+                |properties| Self::validate_resolved_component_properties(validation, properties),
             )
         }
 
