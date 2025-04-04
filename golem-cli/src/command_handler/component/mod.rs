@@ -55,6 +55,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
+use crate::command::builtin_app_subcommands;
 
 pub mod ifs;
 pub mod plugin;
@@ -152,6 +153,7 @@ impl ComponentCommandHandler {
                 app_ctx.log_dynamic_help(&DynamicHelpSections {
                     components: true,
                     custom_commands: false,
+                    builtin_commands: builtin_app_subcommands(),
                 })?;
                 bail!(NonSuccessfulExit)
             }
@@ -189,6 +191,7 @@ impl ComponentCommandHandler {
         app_ctx.log_dynamic_help(&DynamicHelpSections {
             components: true,
             custom_commands: false,
+            builtin_commands: builtin_app_subcommands(),
         })?;
 
         Ok(())
@@ -1053,6 +1056,7 @@ impl ComponentCommandHandler {
                         app_ctx.log_dynamic_help(&DynamicHelpSections {
                             components: true,
                             custom_commands: false,
+                            builtin_commands: builtin_app_subcommands(),
                         })?
                     }
 

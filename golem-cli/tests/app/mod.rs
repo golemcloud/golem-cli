@@ -232,11 +232,11 @@ fn basic_dependencies_build(_tracing: &Tracing) {
         ),
         indoc! {"
             dependencies:
-                app:rust:
-                - target: app:rust
-                  type: wasm-rpc
-                - target: app:ts
-                  type: wasm-rpc
+              app:rust:
+              - target: app:rust
+                type: wasm-rpc
+              - target: app:ts
+                type: wasm-rpc
         "},
     )
     .unwrap();
@@ -245,11 +245,11 @@ fn basic_dependencies_build(_tracing: &Tracing) {
         ctx.cwd_path_join(Path::new("components-ts").join("app-ts").join("golem.yaml")),
         indoc! {"
             dependencies:
-                app:ts:
-                - target: app:rust
-                  type: wasm-rpc
-                - target: app:ts
-                  type: wasm-rpc
+              app:ts:
+              - target: app:rust
+                type: wasm-rpc
+              - target: app:ts
+                type: wasm-rpc
         "},
     )
     .unwrap();
@@ -337,6 +337,38 @@ fn basic_ifs_deploy(_tracing: &Tracing) {
     check!(outputs.stdout_contains("ro /Cargo2.toml"));
     check!(!outputs.stdout_contains("rw /src/lib.rs"));
     check!(outputs.stdout_contains("ro /src/lib.rs"));
+}
+
+#[test]
+fn custom_app_subcommand_with_builtin_name() {
+    let mut ctx = TestContext::new();
+    let app_name = "test-app-name";
+
+    let outputs = ctx.cli([cmd::APP, cmd::NEW, app_name, "rust"]);
+    assert!(outputs.success());
+
+    ctx.cd(app_name);
+
+    let outputs = ctx.cli([cmd::COMPONENT, cmd::NEW, "rust", "app:rust"]);
+    assert!(outputs.success());
+
+    fs::append_str(
+        ctx.cwd_path_join("golem.yaml"),
+        indoc! {"
+            customCommands:
+              new:
+                - command: cargo tree
+        "},
+    )
+    .unwrap();
+
+    let outputs = ctx.cli([cmd::APP]);
+    assert!(!outputs.success());
+    check!(outputs.stderr_contains(":new"));
+
+    let outputs = ctx.cli([cmd::APP, ":new"]);
+    assert!(outputs.success());
+    check!(outputs.stdout_contains("Executing external command 'cargo tree'"));
 }
 
 pub struct Output {

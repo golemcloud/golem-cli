@@ -1602,22 +1602,6 @@ mod app_builder {
                     ));
                 }
             }
-
-            // !TODO: once app model is moved to golem-cli then make this generated from the app command
-            let reserved_commands = BTreeSet::from(["build", "clean"]);
-
-            for custom_command in properties.custom_commands.keys() {
-                if reserved_commands.contains(custom_command.as_str()) {
-                    validation.add_error(format!(
-                        "Cannot use {} as custom command name, reserved command names: {}",
-                        custom_command.log_color_error_highlight(),
-                        reserved_commands
-                            .iter()
-                            .map(|s| s.log_color_highlight())
-                            .join(", ")
-                    ));
-                }
-            }
         }
     }
 }

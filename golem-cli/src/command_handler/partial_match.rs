@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::{GolemCliCommandPartialMatch, GolemCliGlobalFlags};
+use crate::command::{builtin_app_subcommands, GolemCliCommandPartialMatch, GolemCliGlobalFlags};
 use crate::command_handler::Handlers;
 use crate::config::Config;
 use crate::context::Context;
@@ -53,6 +53,7 @@ impl ErrorHandler {
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
                         components: true,
                         custom_commands: true,
+                        builtin_commands: builtin_app_subcommands(),
                     })?
                 }
 
@@ -75,6 +76,7 @@ impl ErrorHandler {
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
                         components: true,
                         custom_commands: true,
+                        builtin_commands: builtin_app_subcommands(),
                     })?
                 }
 
@@ -93,6 +95,7 @@ impl ErrorHandler {
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
                         components: true,
                         custom_commands: false,
+                        builtin_commands: builtin_app_subcommands(),
                     })?
                 }
 
@@ -111,6 +114,7 @@ impl ErrorHandler {
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
                         components: true,
                         custom_commands: false,
+                        builtin_commands: builtin_app_subcommands(),
                     })?
                 }
 
@@ -206,6 +210,7 @@ impl ErrorHandler {
                     app_ctx.log_dynamic_help(&DynamicHelpSections {
                         components: true,
                         custom_commands: false,
+                        builtin_commands: builtin_app_subcommands(),
                     })?
                 }
 

@@ -97,6 +97,7 @@ impl ComponentSelectMode {
 pub struct DynamicHelpSections {
     pub components: bool,
     pub custom_commands: bool,
+    pub builtin_commands: BTreeSet<String>,
 }
 
 #[derive(Debug)]
@@ -1050,7 +1051,21 @@ impl ApplicationContext {
                     )),
                 }
                 for command in commands {
-                    logln(format!("  {}", command.bold()))
+                    logln(format!(
+                        "  {}",
+                        format!(
+                            "{}{}",
+                            if config.builtin_commands.contains(&command)
+                                || command.starts_with(':')
+                            {
+                                ":"
+                            } else {
+                                ""
+                            },
+                            command
+                        )
+                        .bold()
+                    ))
                 }
                 logln("")
             }

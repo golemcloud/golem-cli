@@ -31,7 +31,7 @@ use clap::{Args, Parser};
 use clap_verbosity_flag::{ErrorLevel, LogLevel};
 use golem_client::model::ScanCursor;
 use lenient_bool::LenientBool;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -1708,6 +1708,15 @@ pub mod server {
     }
 }
 
+pub fn builtin_app_subcommands() -> BTreeSet<String> {
+    GolemCliCommand::command()
+        .find_subcommand("app")
+        .unwrap()
+        .get_subcommands()
+        .map(|subcommand| subcommand.get_name().to_string())
+        .collect()
+}
+
 fn parse_key_val(key_and_val: &str) -> anyhow::Result<(String, String)> {
     let pos = key_and_val.find('=').ok_or_else(|| {
         anyhow!(
@@ -1746,7 +1755,7 @@ fn parse_instant(
 
 #[cfg(test)]
 mod test {
-    use crate::command::GolemCliCommand;
+    use crate::command::{builtin_app_subcommands, GolemCliCommand};
     use assert2::assert;
     use clap::builder::StyledStr;
     use clap::{Command, CommandFactory};
@@ -1961,5 +1970,10 @@ mod test {
                 .map(|e| format!("{:?}", e))
                 .join("\n")
         );
+    }
+
+    #[test]
+    fn builtin_app_subcommands_no_panic() {
+        println!("{:?}", builtin_app_subcommands())
     }
 }
