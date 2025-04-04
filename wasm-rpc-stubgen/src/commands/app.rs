@@ -777,11 +777,7 @@ impl<CPE: ComponentPropertiesExtensions> ApplicationContext<CPE> {
 
             if is_up_to_date(
                 self.config.skip_up_to_date_checks || !task_result_marker.is_up_to_date(),
-                || {
-                    let mut inputs = Vec::new();
-                    inputs.push(linked_wasm.clone());
-                    inputs
-                },
+                || vec![linked_wasm.clone()],
                 || [final_linked_wasm.clone()],
             ) {
                 log_skipping_up_to_date(format!(
