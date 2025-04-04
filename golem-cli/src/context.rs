@@ -298,6 +298,7 @@ impl Clients {
         config_dir: &Path,
     ) -> anyhow::Result<Self> {
         let service_http_client = new_reqwest_client(&config.service_http_client_config)?;
+        let invoke_http_client = new_reqwest_client(&config.invoke_http_client_config)?;
         let file_download_http_client =
             new_reqwest_client(&config.file_download_http_client_config)?;
 
@@ -324,6 +325,12 @@ impl Clients {
 
                 let worker_context = || ContextCloud {
                     client: service_http_client.clone(),
+                    base_url: config.worker_url.clone(),
+                    security_token: security_token.clone(),
+                };
+
+                let worker_invoke_context = || ContextCloud {
+                    client: invoke_http_client.clone(),
                     base_url: config.worker_url.clone(),
                     security_token: security_token.clone(),
                 };
@@ -394,6 +401,9 @@ impl Clients {
                         worker: WorkerClientCloud {
                             context: worker_context(),
                         },
+                        worker_invoke: WorkerClientCloud {
+                            context: worker_invoke_context(),
+                        },
                     }),
                     file_download: file_download_http_client,
                 })
@@ -406,6 +416,11 @@ impl Clients {
 
                 let worker_context = || ContextOss {
                     client: service_http_client.clone(),
+                    base_url: config.worker_url.clone(),
+                };
+
+                let worker_invoke_context = || ContextOss {
+                    client: invoke_http_client.clone(),
                     base_url: config.worker_url.clone(),
                 };
 
@@ -429,6 +444,9 @@ impl Clients {
                         worker: WorkerClientOss {
                             context: worker_context(),
                         },
+                        worker_invoke: WorkerClientOss {
+                            context: worker_invoke_context(),
+                        },
                     }),
                     file_download: file_download_http_client,
                 })
@@ -449,6 +467,7 @@ pub struct GolemClientsOss {
     pub component: ComponentClientOss,
     pub plugin: PluginClientOss,
     pub worker: WorkerClientOss,
+    pub worker_invoke: WorkerClientOss,
 }
 
 pub struct GolemClientsCloud {
@@ -471,6 +490,7 @@ pub struct GolemClientsCloud {
     pub project_policy: ProjectPolicyClientCloud,
     pub token: TokenClientCloud,
     pub worker: WorkerClientCloud,
+    pub worker_invoke: WorkerClientCloud,
 }
 
 impl GolemClientsCloud {
