@@ -23,7 +23,9 @@ use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
-use crate::model::app_ext::{GolemComponentExtensions, InitialComponentFile};
+use crate::log::{log_action, logln, LogColorize, LogIndent};
+use crate::model::app::{BuildProfileName, ComponentName as AppComponentName};
+use crate::model::app::{DependencyType, InitialComponentFile};
 use crate::model::component::{Component, ComponentView};
 use crate::model::deploy::TryUpdateAllWorkersResult;
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
@@ -33,6 +35,9 @@ use crate::model::to_cloud::ToCloud;
 use crate::model::{
     ComponentName, ComponentNameMatchKind, ProjectNameAndId, SelectedComponents, WorkerName,
     WorkerUpdateMode,
+};
+use crate::wasm_rpc_stubgen::commands::app::{
+    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
@@ -45,17 +50,12 @@ use golem_common::model::component_metadata::WasmRpcTarget;
 use golem_common::model::{ComponentId, ComponentType};
 use golem_templates::add_component_by_template;
 use golem_templates::model::{GuestLanguage, PackageName};
-use golem_wasm_rpc_stubgen::commands::app::{
-    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
-};
-use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent};
-use golem_wasm_rpc_stubgen::model::app::DependencyType;
-use golem_wasm_rpc_stubgen::model::app::{BuildProfileName, ComponentName as AppComponentName};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
+use crate::command::builtin_app_subcommands;
 
 pub mod ifs;
 pub mod plugin;
@@ -153,6 +153,7 @@ impl ComponentCommandHandler {
                 app_ctx.log_dynamic_help(&DynamicHelpSections {
                     components: true,
                     custom_commands: false,
+                    builtin_commands: builtin_app_subcommands(),
                 })?;
                 bail!(NonSuccessfulExit)
             }
@@ -190,6 +191,7 @@ impl ComponentCommandHandler {
         app_ctx.log_dynamic_help(&DynamicHelpSections {
             components: true,
             custom_commands: false,
+            builtin_commands: builtin_app_subcommands(),
         })?;
 
         Ok(())
@@ -1054,6 +1056,7 @@ impl ComponentCommandHandler {
                         app_ctx.log_dynamic_help(&DynamicHelpSections {
                             components: true,
                             custom_commands: false,
+                            builtin_commands: builtin_app_subcommands(),
                         })?
                     }
 
@@ -1205,7 +1208,7 @@ struct ComponentDeployProperties {
 }
 
 fn component_deploy_properties(
-    app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
+    app_ctx: &mut ApplicationContext,
     component_name: &AppComponentName,
     build_profile: Option<&BuildProfileName>,
 ) -> anyhow::Result<ComponentDeployProperties> {
@@ -1215,9 +1218,8 @@ fn component_deploy_properties(
     let component_properties = &app_ctx
         .application
         .component_properties(component_name, build_profile);
-    let extensions = &component_properties.extensions;
-    let component_type = extensions.component_type;
-    let files = extensions.files.clone();
+    let component_type = component_properties.component_type;
+    let files = component_properties.files.clone();
     let dynamic_linking = app_component_dynamic_linking(app_ctx, component_name)?;
 
     Ok(ComponentDeployProperties {
@@ -1229,7 +1231,7 @@ fn component_deploy_properties(
 }
 
 fn app_component_dynamic_linking(
-    app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
+    app_ctx: &mut ApplicationContext,
     component_name: &AppComponentName,
 ) -> anyhow::Result<Option<DynamicLinkingOss>> {
     let mut mapping = Vec::new();
