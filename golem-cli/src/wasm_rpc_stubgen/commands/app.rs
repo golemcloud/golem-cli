@@ -10,6 +10,7 @@ use crate::model::app::{
 use crate::model::app_raw;
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wasm_rpc_stubgen::cargo::regenerate_cargo_package_component;
+use crate::wasm_rpc_stubgen::commands::metadata::add_metadata;
 use crate::wasm_rpc_stubgen::stub::{RustDependencyOverride, StubConfig, StubDefinition};
 use crate::wasm_rpc_stubgen::wit_generate::{
     add_client_as_dependency_to_wit_dir, extract_exports_as_wit_dep, AddClientAsDepConfig,
@@ -38,6 +39,7 @@ use std::time::SystemTime;
 use tracing::debug;
 use walkdir::WalkDir;
 use wax::{Glob, LinkBehavior, WalkBehavior};
+use wit_parser::PackageName;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -655,9 +657,7 @@ impl ApplicationContext {
             let component_wasm = self
                 .application
                 .component_wasm(component_name, self.profile());
-            let linked_wasm = self
-                .application
-                .component_linked_wasm(component_name, self.profile());
+            let linked_wasm = self.application.component_linked_wasm(component_name);
 
             let task_result_marker = TaskResultMarker::new(
                 &self.application.task_result_marker_dir(),
@@ -741,12 +741,57 @@ impl ApplicationContext {
                                 .component_wasm(component_name, self.profile())
                                 .as_path(),
                             &client_wasms,
-                            self.application
-                                .component_linked_wasm(component_name, self.profile())
-                                .as_path(),
+                            linked_wasm.as_path(),
                         )
                         .await
                     }
+                }
+                .await,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    async fn add_metadata(&mut self) -> anyhow::Result<()> {
+        log_action("Adding", "metadata");
+        let _indent = LogIndent::new();
+
+        for component_name in self.selected_component_names() {
+            let linked_wasm = self.application.component_linked_wasm(component_name);
+            let final_linked_wasm = self
+                .application
+                .component_final_linked_wasm(component_name, self.profile());
+
+            let root_package_name = self.wit.root_package_name(component_name)?;
+
+            let task_result_marker = TaskResultMarker::new(
+                &self.application.task_result_marker_dir(),
+                AddMetadataMarkerHash {
+                    component_name,
+                    root_package_name: root_package_name.clone(),
+                },
+            )?;
+
+            if is_up_to_date(
+                self.config.skip_up_to_date_checks || !task_result_marker.is_up_to_date(),
+                || vec![linked_wasm.clone()],
+                || [final_linked_wasm.clone()],
+            ) {
+                log_skipping_up_to_date(format!(
+                    "adding metadata to {}",
+                    component_name.as_str().log_color_highlight(),
+                ));
+                continue;
+            }
+
+            task_result_marker.result(
+                async {
+                    log_action(
+                        "Adding metadata",
+                        format!("{}", component_name.as_str().log_color_highlight()),
+                    );
+                    add_metadata(&linked_wasm, root_package_name, &final_linked_wasm)
                 }
                 .await,
             )?;
@@ -764,6 +809,9 @@ impl ApplicationContext {
         }
         if self.config.should_run_step(AppBuildStep::LinkRpc) {
             self.link_rpc().await?;
+        }
+        if self.config.should_run_step(AppBuildStep::AddMetadata) {
+            self.add_metadata().await?;
         }
 
         Ok(())
@@ -793,7 +841,7 @@ impl ApplicationContext {
                         paths.insert((
                             "linked wasm",
                             self.application
-                                .component_linked_wasm(component_name, profile.as_ref()),
+                                .component_final_linked_wasm(component_name, profile.as_ref()),
                         ));
 
                         let properties = &self
@@ -1966,6 +2014,21 @@ impl TaskResultMarkerHashInput for LinkRpcMarkerHash<'_> {
                 .join(",")
         )
         .into_bytes())
+    }
+}
+
+struct AddMetadataMarkerHash<'a> {
+    component_name: &'a ComponentName,
+    root_package_name: PackageName,
+}
+
+impl TaskResultMarkerHashInput for AddMetadataMarkerHash<'_> {
+    fn task_kind() -> &'static str {
+        "AddMetadataMarkerHash"
+    }
+
+    fn hash_input(&self) -> anyhow::Result<Vec<u8>> {
+        Ok(format!("{}#{}", self.component_name, self.root_package_name).into_bytes())
     }
 }
 

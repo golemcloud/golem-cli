@@ -28,6 +28,7 @@ pub enum AppBuildStep {
     GenRpc,
     Componentize,
     LinkRpc,
+    AddMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -500,7 +501,8 @@ impl Application {
         )
     }
 
-    pub fn component_linked_wasm(
+    /// The final linked component WASM
+    pub fn component_final_linked_wasm(
         &self,
         component_name: &ComponentName,
         profile: Option<&BuildProfileName>,
@@ -513,9 +515,18 @@ impl Application {
                 .map(PathBuf::from)
                 .unwrap_or_else(|| {
                     self.temp_dir()
-                        .join("linked-wasm")
+                        .join("final-linked-wasm")
                         .join(format!("{}.wasm", component_name.as_str()))
                 }),
+        )
+    }
+
+    /// Temporary target of the component composition (linking) step
+    pub fn component_linked_wasm(&self, component_name: &ComponentName) -> PathBuf {
+        self.component_source_dir(component_name).join(
+            self.temp_dir()
+                .join("linked-wasm")
+                .join(format!("{}.wasm", component_name.as_str())),
         )
     }
 
