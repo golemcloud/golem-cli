@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -7,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -16,10 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plug } from "lucide-react";
-import { Update, Worker } from "@/types/worker.ts";
-import { useParams } from "react-router-dom";
 import { API } from "@/service";
+import type { Update, Worker } from "@/types/worker.ts";
+import { format } from "date-fns";
+import { Plug } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
 interface PluginStatusProps {
   activePlugins: string[];
@@ -35,7 +36,6 @@ const UpdateLog: React.FC<{ update: Update }> = ({ update }) => {
         return "bg-red-500";
       case "successfulUpdate":
         return "bg-green-500";
-      case "pendingUpdate":
       default:
         return "bg-gray-500";
     }

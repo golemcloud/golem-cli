@@ -40,7 +40,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
-    "command": "^0.0.5",
+    "command": "^1.1.1",
     "date-fns": "^4.1.0",
     "js-yaml": "^4.1.0",
     "jszip": "^3.10.1",
