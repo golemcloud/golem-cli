@@ -1,44 +1,44 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { API } from "@/service";
-import {
-  ComponentExportFunction,
-  ComponentList,
-  Export,
-} from "@/types/component.ts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTheme } from "@/components/theme-provider.tsx";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CodeBlock } from "@/components/ui/code-block";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CodeBlock, dracula } from "react-code-blocks";
-import {
-  ClipboardCopy,
-  Play,
-  Presentation,
-  TableIcon,
-  TimerReset,
-  Info,
-  Check,
-} from "lucide-react";
-import { cn, sanitizeInput } from "@/lib/utils";
-import ReactJson from "react-json-view";
-import { useTheme } from "@/components/theme-provider.tsx";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
+import { cn, sanitizeInput } from "@/lib/utils";
 import {
   parseToJsonEditor,
+  parseTooltipTypesData,
   parseTypesData,
   safeFormatJSON,
-  parseTooltipTypesData,
   validateJsonStructure,
 } from "@/lib/worker";
-import { toast } from "@/hooks/use-toast";
 import {
   DynamicForm,
   nonStringPrimitives,
 } from "@/pages/workers/details/dynamic-form.tsx";
+import { API } from "@/service";
+import type {
+  ComponentExportFunction,
+  ComponentList,
+  Export,
+} from "@/types/component.ts";
+import ReactJson from "@microlink/react-json-view";
+import {
+  Check,
+  ClipboardCopy,
+  Info,
+  Play,
+  Presentation,
+  TableIcon,
+  TimerReset,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 export default function ComponentInvoke() {
   const { componentId = "" } = useParams();
@@ -186,7 +186,7 @@ export default function ComponentInvoke() {
         <div className="flex">
           <div className="border-r px-8 py-4 min-w-[300px]">
             <div className="flex flex-col gap-4 overflow-scroll h-[85vh]">
-              {componentDetails?.metadata?.exports?.map(exportItem => (
+              {componentDetails?.metadata?.exports?.map((exportItem) => (
                 <div key={exportItem.name}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 font-bold pb-4">
@@ -282,7 +282,7 @@ export default function ComponentInvoke() {
                 {viewMode === "form" && functionDetails && (
                   <DynamicForm
                     functionDetails={functionDetails}
-                    onInvoke={data => onInvoke(data)}
+                    onInvoke={(data) => onInvoke(data)}
                     resetResult={() => setResultValue("")}
                   />
                 )}
@@ -398,13 +398,13 @@ function SectionCard({
     }
   };
 
-  const validateForm = (parsedValue: any[]): Record<string, string> => {
+  const validateForm = (parsedValue: unknown[]): Record<string, string> => {
     const validationErrors: Record<string, string> = {};
     if (!functionDetails) {
       throw new Error("No function details loaded.");
     }
     functionDetails.parameters.forEach((field, index) => {
-      let value = parsedValue[index];
+      const value = parsedValue[index];
       if (nonStringPrimitives.includes(field.typ.type) && value === undefined) {
         validationErrors[field.name] = `${field.name} is required`;
       } else {
@@ -442,8 +442,7 @@ function SectionCard({
                           null,
                           2,
                         )}
-                        language="json"
-                        theme={dracula}
+                        lang="json"
                       />
                     </PopoverContent>
                   </Popover>
@@ -473,7 +472,7 @@ function SectionCard({
             <ReactJson
               src={JSON.parse(value || "{}")}
               name={null}
-              theme={theme == "dark" ? "brewer" : "bright:inverted"}
+              theme={theme === "dark" ? "brewer" : "bright:inverted"}
               collapsed={false}
               enableClipboard={false}
               displayDataTypes={false}
@@ -482,7 +481,7 @@ function SectionCard({
           ) : (
             <Textarea
               value={value}
-              onChange={e => {
+              onChange={(e) => {
                 setErrors({});
                 onValueChange?.(e.target.value);
               }}
