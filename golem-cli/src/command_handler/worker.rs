@@ -394,7 +394,7 @@ impl WorkerCommandHandler {
                     } else {
                         Some(
                             clients
-                                .worker
+                                .worker_invoke
                                 .invoke_and_await_function(
                                     &component.versioned_component_id.component_id,
                                     &worker_name.0,
@@ -423,7 +423,7 @@ impl WorkerCommandHandler {
                     } else {
                         Some(
                             clients
-                                .worker
+                                .worker_invoke
                                 .invoke_and_await_function_without_name(
                                     &component.versioned_component_id.component_id,
                                     Some(&idempotency_key.0),
@@ -454,7 +454,7 @@ impl WorkerCommandHandler {
                     } else {
                         Some(
                             clients
-                                .worker
+                                .worker_invoke
                                 .invoke_and_await_function(
                                     &component.versioned_component_id.component_id,
                                     &worker_name.0,
@@ -483,7 +483,7 @@ impl WorkerCommandHandler {
                     } else {
                         Some(
                             clients
-                                .worker
+                                .worker_invoke
                                 .invoke_and_await_function_without_name(
                                     &component.versioned_component_id.component_id,
                                     Some(&idempotency_key.0),
