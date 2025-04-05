@@ -1,10 +1,13 @@
-import type React from "react";
-import { useEffect, useState } from "react";
-import { ComponentExportFunction } from "@/types/component";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CodeBlock } from "@/components/ui/code-block";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CircleSlash2, Info, Play, TimerReset } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -13,21 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
+import { sanitizeInput } from "@/lib/utils";
 import {
   parseToJsonEditor,
   parseTooltipTypesData,
   safeFormatJSON,
   validateJsonStructure,
 } from "@/lib/worker";
-import { CodeBlock, dracula } from "react-code-blocks";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { sanitizeInput } from "@/lib/utils";
+import { ComponentExportFunction } from "@/types/component";
+import { CircleSlash2, Info, Play, TimerReset } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FormData = Record<string, any>;
@@ -326,8 +326,7 @@ export const DynamicForm = ({
               >
                 <CodeBlock
                   text={JSON.stringify(parsedType?.[0], null, 2)}
-                  language="json"
-                  theme={dracula}
+                  lang="json"
                 />
               </PopoverContent>
             </Popover>
