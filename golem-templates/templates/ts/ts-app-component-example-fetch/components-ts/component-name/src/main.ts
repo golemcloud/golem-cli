@@ -1,8 +1,8 @@
-import type * as World from "pack:name/component-name"
+import type * as bindings from "pack:name/component-name"
 
 let result: any;
 
-export const componentNameApi: typeof World.componentNameApi = {
+export const componentNameApi: typeof bindings.componentNameApi = {
     async getLastResult(): Promise<string> {
         return JSON.stringify(result);
     },
