@@ -22,7 +22,7 @@ golem-service-base = "=1.2.2-dev.4"
 golem-test-framework = "=1.2.2-dev.4"
 golem-wasm-ast = { version = "=1.2.2-dev.4", default-features = false, features = ["analysis", "wave"] }
 golem-wasm-rpc = { version = "=1.2.2-dev.4", default-features = false, features = ["host"] }
-golem-wit = "=1.2.2-dev.4"
+golem-wit = "=1.2.0"
 
 # Golem cloud deps
 golem-cloud-client = "=1.2.2-dev.4"
