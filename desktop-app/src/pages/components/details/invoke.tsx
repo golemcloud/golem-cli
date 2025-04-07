@@ -186,7 +186,7 @@ export default function ComponentInvoke() {
         <div className="flex">
           <div className="border-r px-8 py-4 min-w-[300px]">
             <div className="flex flex-col gap-4 overflow-scroll h-[85vh]">
-              {componentDetails?.metadata?.exports?.map((exportItem) => (
+              {componentDetails?.metadata?.exports?.map(exportItem => (
                 <div key={exportItem.name}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 font-bold pb-4">
@@ -282,7 +282,7 @@ export default function ComponentInvoke() {
                 {viewMode === "form" && functionDetails && (
                   <DynamicForm
                     functionDetails={functionDetails}
-                    onInvoke={(data) => onInvoke(data)}
+                    onInvoke={data => onInvoke(data)}
                     resetResult={() => setResultValue("")}
                   />
                 )}
@@ -481,7 +481,7 @@ function SectionCard({
           ) : (
             <Textarea
               value={value}
-              onChange={(e) => {
+              onChange={e => {
                 setErrors({});
                 onValueChange?.(e.target.value);
               }}
