@@ -88,8 +88,6 @@ wasm-wave = { workspace = true }
 wax = { workspace = true }
 
 [dev-dependencies]
-# Golem deps
-golem-test-framework = { workspace = true }
 
 # External deps
 log = { workspace = true }
