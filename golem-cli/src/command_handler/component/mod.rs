@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::cloud::AccountId;
+use crate::command::builtin_app_subcommands;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{
     BuildArgs, ComponentOptionalComponentNames, ComponentTemplatePositionalArg, ForceBuildArg,
@@ -55,7 +56,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
-use crate::command::builtin_app_subcommands;
 
 pub mod ifs;
 pub mod plugin;
