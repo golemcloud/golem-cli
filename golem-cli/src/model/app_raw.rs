@@ -5,6 +5,7 @@ use golem_common::model::{ComponentFilePath, ComponentFilePermissions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use crate::model::component::AppComponentType;
 
 #[derive(Clone, Debug)]
 pub struct ApplicationWithSource {
@@ -128,7 +129,7 @@ pub struct ComponentProperties {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub clean: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub component_type: Option<ComponentType>,
+    pub component_type: Option<AppComponentType>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<InitialComponentFile>,
 }

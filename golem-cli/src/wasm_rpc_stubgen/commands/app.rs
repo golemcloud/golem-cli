@@ -566,8 +566,10 @@ impl ApplicationContext {
                 create_generated_base_wit(self, &component_name)?;
             }
 
-            for dep in &self.application.all_wasm_rpc_dependencies() {
-                build_client(self, dep).await?;
+            for dep in &self.application.all_dependencies() {
+                if dep.dep_type.is_wasm_rpc() {
+                    build_client(self, dep).await?;
+                }
             }
         }
 
@@ -594,6 +596,8 @@ impl ApplicationContext {
     fn componentize(&mut self) -> anyhow::Result<()> {
         log_action("Building", "components");
         let _indent = LogIndent::new();
+
+        // TODO: recursively add all wasm dependencies to the set of components to build
 
         for component_name in self.selected_component_names() {
             let component_properties = self
@@ -641,13 +645,13 @@ impl ApplicationContext {
         for component_name in self.selected_component_names() {
             let static_dependencies = self
                 .application
-                .component_wasm_rpc_dependencies(component_name)
+                .component_dependencies(component_name)
                 .iter()
                 .filter(|dep| dep.dep_type == DependencyType::StaticWasmRpc)
                 .collect::<BTreeSet<_>>();
             let dynamic_dependencies = self
                 .application
-                .component_wasm_rpc_dependencies(component_name)
+                .component_dependencies(component_name)
                 .iter()
                 .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc)
                 .collect::<BTreeSet<_>>();
@@ -808,6 +812,9 @@ impl ApplicationContext {
         if self.config.should_run_step(AppBuildStep::Componentize) {
             self.componentize()?;
         }
+
+        // TODO: link wasm dependencies
+
         if self.config.should_run_step(AppBuildStep::LinkRpc) {
             self.link_rpc().await?;
         }
@@ -893,19 +900,21 @@ impl ApplicationContext {
             log_action("Cleaning", "component clients");
             let _indent = LogIndent::new();
 
-            for dep in self.application.all_wasm_rpc_dependencies() {
-                log_action(
-                    "Cleaning",
-                    format!(
-                        "component client {}",
-                        dep.name.as_str().log_color_highlight()
-                    ),
-                );
-                let _indent = LogIndent::new();
+            for dep in self.application.all_dependencies() {
+                if dep.dep_type.is_wasm_rpc() {
+                    log_action(
+                        "Cleaning",
+                        format!(
+                            "component client {}",
+                            dep.name.as_str().log_color_highlight()
+                        ),
+                    );
+                    let _indent = LogIndent::new();
 
-                delete_path("client wit", &self.application.client_wit(&dep.name))?;
-                if dep.dep_type == DependencyType::StaticWasmRpc {
-                    delete_path("client wasm", &self.application.client_wasm(&dep.name))?;
+                    delete_path("client wit", &self.application.client_wit(&dep.name))?;
+                    if dep.dep_type == DependencyType::StaticWasmRpc {
+                        delete_path("client wasm", &self.application.client_wasm(&dep.name))?;
+                    }
                 }
             }
         }
@@ -1014,7 +1023,7 @@ impl ApplicationContext {
                     }
                     let dependencies = self
                         .application
-                        .component_wasm_rpc_dependencies(component_name);
+                        .component_dependencies(component_name);
                     if !dependencies.is_empty() {
                         logln(format!("    {}:", LABEL_DEPENDENCIES));
                         for dependency in dependencies {
@@ -1767,6 +1776,10 @@ async fn build_client(
                         )?;
                         commands::generate::generate_and_copy_client_wit(stub_def, &client_wit)
                     }
+                    DependencyType::Wasm => {
+                        // No need to generate RPC clients for this dependency type
+                        Ok(())
+                    }
                 }
             }
             .await,
@@ -1782,7 +1795,7 @@ fn add_client_deps(
 ) -> Result<bool, Error> {
     let dependencies = ctx
         .application
-        .component_wasm_rpc_dependencies(component_name);
+        .component_dependencies(component_name);
     if dependencies.is_empty() {
         Ok(false)
     } else {
@@ -1797,23 +1810,25 @@ fn add_client_deps(
         let _indent = LogIndent::new();
 
         for dep_component in dependencies {
-            log_action(
-                "Adding",
-                format!(
-                    "{} client wit dependency to {}",
-                    dep_component.name.as_str().log_color_highlight(),
-                    component_name.as_str().log_color_highlight()
-                ),
-            );
-            let _indent = LogIndent::new();
+            if dep_component.dep_type.is_wasm_rpc() {
+                log_action(
+                    "Adding",
+                    format!(
+                        "{} client wit dependency to {}",
+                        dep_component.name.as_str().log_color_highlight(),
+                        component_name.as_str().log_color_highlight()
+                    ),
+                );
+                let _indent = LogIndent::new();
 
-            add_client_as_dependency_to_wit_dir(AddClientAsDepConfig {
-                client_wit_root: ctx.application.client_wit(&dep_component.name),
-                dest_wit_root: ctx
-                    .application
-                    .component_generated_wit(component_name, ctx.profile()),
-                update_cargo_toml: UpdateCargoToml::NoUpdate,
-            })?
+                add_client_as_dependency_to_wit_dir(AddClientAsDepConfig {
+                    client_wit_root: ctx.application.client_wit(&dep_component.name),
+                    dest_wit_root: ctx
+                        .application
+                        .component_generated_wit(component_name, ctx.profile()),
+                    update_cargo_toml: UpdateCargoToml::NoUpdate,
+                })?
+            }
         }
 
         Ok(true)

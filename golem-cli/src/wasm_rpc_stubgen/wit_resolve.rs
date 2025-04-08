@@ -428,9 +428,10 @@ impl ResolvedWitApplication {
                     .flatten();
 
                 let app_component_deps = app
-                    .component_wasm_rpc_dependencies(component_name)
+                    .component_dependencies(component_name)
                     .iter()
                     .cloned()
+                    .filter(|dep| dep.dep_type.is_wasm_rpc())
                     .map(|dep| dep.name)
                     .collect();
 
