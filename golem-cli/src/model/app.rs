@@ -6,12 +6,13 @@ use crate::model::template::Template;
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wasm_rpc_stubgen::naming;
 use crate::wasm_rpc_stubgen::naming::wit::package_dep_dir_name_from_parser;
+use crate::wasm_rpc_stubgen::stub::RustDependencyOverride;
 use golem_common::model::{
     ComponentFilePathWithPermissions, ComponentFilePermissions, ComponentType,
 };
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
@@ -21,6 +22,73 @@ use url::Url;
 use wit_parser::PackageName;
 
 pub const DEFAULT_CONFIG_FILE_NAME: &str = "golem.yaml";
+
+#[derive(Clone, Debug)]
+pub struct ApplicationConfig {
+    pub app_source_mode: ApplicationSourceMode,
+    pub skip_up_to_date_checks: bool,
+    pub profile: Option<BuildProfileName>,
+    pub offline: bool,
+    pub steps_filter: HashSet<AppBuildStep>,
+    pub golem_rust_override: RustDependencyOverride,
+}
+
+impl ApplicationConfig {
+    pub fn should_run_step(&self, step: AppBuildStep) -> bool {
+        if self.steps_filter.is_empty() {
+            true
+        } else {
+            self.steps_filter.contains(&step)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ApplicationSourceMode {
+    Automatic,
+    Explicit(PathBuf),
+    None,
+}
+
+#[derive(Debug, Clone)]
+pub enum ApplicationComponentSelectMode {
+    CurrentDir,
+    All,
+    Explicit(Vec<ComponentName>),
+}
+
+impl ApplicationComponentSelectMode {
+    pub fn all_or_explicit(component_names: Vec<ComponentName>) -> Self {
+        if component_names.is_empty() {
+            ApplicationComponentSelectMode::All
+        } else {
+            ApplicationComponentSelectMode::Explicit(component_names)
+        }
+    }
+
+    pub fn current_dir_or_explicit(component_names: Vec<ComponentName>) -> Self {
+        if component_names.is_empty() {
+            ApplicationComponentSelectMode::CurrentDir
+        } else {
+            ApplicationComponentSelectMode::Explicit(component_names)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DynamicHelpSections {
+    pub components: bool,
+    pub custom_commands: bool,
+    pub builtin_commands: BTreeSet<String>,
+}
+
+#[derive(Debug)]
+pub struct ComponentStubInterfaces {
+    pub stub_interface_name: String,
+    pub component_name: ComponentName,
+    pub is_ephemeral: bool,
+    pub exported_interfaces_per_stub_resource: BTreeMap<String, String>,
+}
 
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[clap(rename_all = "kebab_case")]
@@ -1604,9 +1672,4 @@ mod app_builder {
             }
         }
     }
-}
-
-pub enum CustomCommandError {
-    CommandNotFound,
-    CommandError { error: anyhow::Error },
 }
