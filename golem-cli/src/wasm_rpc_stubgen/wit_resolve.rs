@@ -1,7 +1,7 @@
 use crate::fs;
 use crate::fs::PathExtra;
 use crate::log::{log_action, LogColorize, LogIndent};
-use crate::model::app::{Application, BuildProfileName, AppComponentName};
+use crate::model::app::{AppComponentName, Application, BuildProfileName};
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wasm_rpc_stubgen::naming;
 use anyhow::{anyhow, bail, Context, Error};
@@ -473,7 +473,10 @@ impl ResolvedWitApplication {
 
         let mut deps = HashMap::<
             AppComponentName,
-            (BTreeSet<AppComponentName>, Option<HashSet<AppComponentName>>),
+            (
+                BTreeSet<AppComponentName>,
+                Option<HashSet<AppComponentName>>,
+            ),
         >::new();
         for (component_name, component) in &self.components {
             deps.insert(
@@ -727,7 +730,10 @@ impl ResolvedWitApplication {
     // NOTE: this does not mean that the dependencies themselves are up-to-date, rather
     //       only checks if there are difference in set of dependencies specified in the
     //       application model vs in wit dependencies
-    pub fn is_dep_graph_up_to_date(&self, component_name: &AppComponentName) -> anyhow::Result<bool> {
+    pub fn is_dep_graph_up_to_date(
+        &self,
+        component_name: &AppComponentName,
+    ) -> anyhow::Result<bool> {
         let component = self.component(component_name)?;
         Ok(match &component.generated_component_deps {
             Some(generated_deps) => &component.app_component_deps == generated_deps,
@@ -750,7 +756,10 @@ impl ResolvedWitApplication {
         })
     }
 
-    pub fn root_package_name(&self, component_name: &AppComponentName) -> anyhow::Result<PackageName> {
+    pub fn root_package_name(
+        &self,
+        component_name: &AppComponentName,
+    ) -> anyhow::Result<PackageName> {
         let component = self.component(component_name)?;
         Ok(component.main_package_name.clone())
     }

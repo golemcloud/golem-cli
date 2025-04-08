@@ -19,8 +19,8 @@ use crate::app::error::{format_warns, AppValidationError, CustomCommandError};
 use crate::fs::{compile_and_collect_globs, PathExtra};
 use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent};
 use crate::model::app::{
-    includes_from_yaml_file, Application, ApplicationComponentSelectMode, ApplicationConfig,
-    ApplicationSourceMode, BuildProfileName, AppComponentName, ComponentStubInterfaces,
+    includes_from_yaml_file, AppComponentName, Application, ApplicationComponentSelectMode,
+    ApplicationConfig, ApplicationSourceMode, BuildProfileName, ComponentStubInterfaces,
     DynamicHelpSections, DEFAULT_CONFIG_FILE_NAME,
 };
 use crate::model::app_raw;
