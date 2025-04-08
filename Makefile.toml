@@ -250,6 +250,6 @@ command = "aws"
 args = [
     "s3",
     "sync",
+    "schema.golem.cloud",
     "s3://schema.golem.cloud",
-    "schema.golem.cloud"
 ]
