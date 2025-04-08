@@ -26,7 +26,7 @@ pub const DEFAULT_CONFIG_FILE_NAME: &str = "golem.yaml";
 pub enum AppBuildStep {
     GenRpc,
     Componentize,
-    LinkRpc,
+    Link,
     AddMetadata,
 }
 
@@ -170,7 +170,7 @@ impl<T: Default> Default for WithSource<T> {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum DependencyType {
-    /// Dynamic (stubless) wasm-rpc
+    /// Dynamic ("stubless") wasm-rpc
     DynamicWasmRpc,
     /// Static (composed with compiled stub) wasm-rpc
     StaticWasmRpc,
@@ -682,7 +682,7 @@ impl ComponentProperties {
         }
 
         if let Some(component_type) = overrides.component_type {
-            self.component_type = component_type.into();
+            self.component_type = component_type;
             any_overrides = true;
         }
 

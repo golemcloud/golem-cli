@@ -1,11 +1,11 @@
 use crate::fs;
 use crate::log::LogColorize;
+use crate::model::component::AppComponentType;
 use anyhow::{anyhow, Context};
 use golem_common::model::{ComponentFilePath, ComponentFilePermissions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::model::component::AppComponentType;
 
 #[derive(Clone, Debug)]
 pub struct ApplicationWithSource {
@@ -84,23 +84,6 @@ pub struct Component {
     pub profiles: HashMap<String, ComponentProperties>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_profile: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ComponentType {
-    Ephemeral,
-    #[default]
-    Durable,
-}
-
-impl From<ComponentType> for golem_common::model::ComponentType {
-    fn from(value: ComponentType) -> Self {
-        match value {
-            ComponentType::Ephemeral => Self::Ephemeral,
-            ComponentType::Durable => Self::Durable,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

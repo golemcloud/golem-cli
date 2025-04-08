@@ -593,16 +593,33 @@ impl ApplicationContext {
         Ok(())
     }
 
+    fn components_to_build(&self) -> BTreeSet<ComponentName> {
+        let mut components_to_build = BTreeSet::new();
+        let mut remaining: Vec<_> = self.selected_component_names.iter().cloned().collect();
+
+        while let Some(component_name) = remaining.pop() {
+            components_to_build.insert(component_name.clone());
+
+            for dep in self.application.component_dependencies(&component_name) {
+                if dep.dep_type == DependencyType::Wasm && !components_to_build.contains(&dep.name)
+                {
+                    components_to_build.insert(dep.name.clone());
+                    remaining.push(dep.name.clone());
+                }
+            }
+        }
+        components_to_build
+    }
+
     fn componentize(&mut self) -> anyhow::Result<()> {
         log_action("Building", "components");
         let _indent = LogIndent::new();
 
-        // TODO: recursively add all wasm dependencies to the set of components to build
-
-        for component_name in self.selected_component_names() {
+        let components_to_build = self.components_to_build();
+        for component_name in components_to_build {
             let component_properties = self
                 .application
-                .component_properties(component_name, self.profile());
+                .component_properties(&component_name, self.profile());
 
             if component_properties.build.is_empty() {
                 log_warn_action(
@@ -622,13 +639,13 @@ impl ApplicationContext {
             let _indent = LogIndent::new();
 
             let env_vars = self
-                .build_step_env_vars(component_name)
+                .build_step_env_vars(&component_name)
                 .context("Failed computing env vars for build step")?;
 
             for build_step in &component_properties.build {
                 execute_external_command(
                     self,
-                    self.application.component_source_dir(component_name),
+                    self.application.component_source_dir(&component_name),
                     build_step,
                     env_vars.clone(),
                 )?;
@@ -638,8 +655,8 @@ impl ApplicationContext {
         Ok(())
     }
 
-    async fn link_rpc(&mut self) -> anyhow::Result<()> {
-        log_action("Linking", "RPC");
+    async fn link(&mut self) -> anyhow::Result<()> {
+        log_action("Linking", "dependencies");
         let _indent = LogIndent::new();
 
         for component_name in self.selected_component_names() {
@@ -649,15 +666,26 @@ impl ApplicationContext {
                 .iter()
                 .filter(|dep| dep.dep_type == DependencyType::StaticWasmRpc)
                 .collect::<BTreeSet<_>>();
+            let library_dependencies = self
+                .application
+                .component_dependencies(component_name)
+                .iter()
+                .filter(|dep| dep.dep_type == DependencyType::Wasm)
+                .collect::<BTreeSet<_>>();
             let dynamic_dependencies = self
                 .application
                 .component_dependencies(component_name)
                 .iter()
                 .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc)
                 .collect::<BTreeSet<_>>();
-            let client_wasms = static_dependencies
+            let wasms_to_compose_with = static_dependencies
                 .iter()
                 .map(|dep| self.application.client_wasm(&dep.name))
+                .chain(
+                    library_dependencies
+                        .iter()
+                        .map(|dep| self.application.component_wasm(&dep.name, self.profile())),
+                )
                 .collect::<Vec<_>>();
             let component_wasm = self
                 .application
@@ -700,17 +728,31 @@ impl ApplicationContext {
                 );
             }
 
+            if !library_dependencies.is_empty() {
+                log_action(
+                    "Found",
+                    format!(
+                        "static WASM library dependencies ({}) for {}",
+                        library_dependencies
+                            .iter()
+                            .map(|s| s.name.as_str().log_color_highlight())
+                            .join(", "),
+                        component_name.as_str().log_color_highlight(),
+                    ),
+                );
+            }
+
             if is_up_to_date(
                 self.config.skip_up_to_date_checks || !task_result_marker.is_up_to_date(),
                 || {
-                    let mut inputs = client_wasms.clone();
+                    let mut inputs = wasms_to_compose_with.clone();
                     inputs.push(component_wasm.clone());
                     inputs
                 },
                 || [linked_wasm.clone()],
             ) {
                 log_skipping_up_to_date(format!(
-                    "linking RPC for {}",
+                    "linking dependencies for {}",
                     component_name.as_str().log_color_highlight(),
                 ));
                 continue;
@@ -718,11 +760,11 @@ impl ApplicationContext {
 
             task_result_marker.result(
                 async {
-                    if static_dependencies.is_empty() {
+                    if wasms_to_compose_with.is_empty() {
                         log_action(
                             "Copying",
                             format!(
-                                "{} without linking, no static WASM RPC dependencies were found",
+                                "{} without linking, no static dependencies were found",
                                 component_name.as_str().log_color_highlight(),
                             ),
                         );
@@ -731,10 +773,15 @@ impl ApplicationContext {
                         log_action(
                             "Linking",
                             format!(
-                                "static WASM RPC dependencies ({}) into {}",
+                                "static dependencies ({}) into {}",
                                 static_dependencies
                                     .iter()
                                     .map(|s| s.name.as_str().log_color_highlight())
+                                    .chain(
+                                        library_dependencies
+                                            .iter()
+                                            .map(|s| s.name.as_str().log_color_highlight()),
+                                    )
                                     .join(", "),
                                 component_name.as_str().log_color_highlight(),
                             ),
@@ -745,7 +792,7 @@ impl ApplicationContext {
                             self.application
                                 .component_wasm(component_name, self.profile())
                                 .as_path(),
-                            &client_wasms,
+                            &wasms_to_compose_with,
                             linked_wasm.as_path(),
                         )
                         .await
@@ -812,11 +859,8 @@ impl ApplicationContext {
         if self.config.should_run_step(AppBuildStep::Componentize) {
             self.componentize()?;
         }
-
-        // TODO: link wasm dependencies
-
-        if self.config.should_run_step(AppBuildStep::LinkRpc) {
-            self.link_rpc().await?;
+        if self.config.should_run_step(AppBuildStep::Link) {
+            self.link().await?;
         }
         if self.config.should_run_step(AppBuildStep::AddMetadata) {
             self.add_metadata().await?;
@@ -943,6 +987,7 @@ impl ApplicationContext {
         static LABEL_SELECTED: &str = "Selected";
         static LABEL_TEMPLATE: &str = "Template";
         static LABEL_PROFILES: &str = "Profiles";
+        static LABEL_COMPONENT_TYPE: &str = "Component Type";
         static LABEL_DEPENDENCIES: &str = "Dependencies";
 
         let label_padding = {
@@ -951,6 +996,7 @@ impl ApplicationContext {
                 &LABEL_SELECTED,
                 &LABEL_TEMPLATE,
                 &LABEL_PROFILES,
+                &LABEL_COMPONENT_TYPE,
                 &LABEL_DEPENDENCIES,
             ]
             .map(|label| label.len())
@@ -1021,9 +1067,18 @@ impl ApplicationContext {
                                 .join(", "),
                         );
                     }
-                    let dependencies = self
-                        .application
-                        .component_dependencies(component_name);
+
+                    print_field(
+                        LABEL_COMPONENT_TYPE,
+                        self.application
+                            .component_properties(component_name, None)
+                            .component_type
+                            .to_string()
+                            .bold()
+                            .to_string(),
+                    );
+
+                    let dependencies = self.application.component_dependencies(component_name);
                     if !dependencies.is_empty() {
                         logln(format!("    {}:", LABEL_DEPENDENCIES));
                         for dependency in dependencies {
@@ -1793,9 +1848,7 @@ fn add_client_deps(
     ctx: &ApplicationContext,
     component_name: &ComponentName,
 ) -> Result<bool, Error> {
-    let dependencies = ctx
-        .application
-        .component_dependencies(component_name);
+    let dependencies = ctx.application.component_dependencies(component_name);
     if dependencies.is_empty() {
         Ok(false)
     } else {
@@ -2213,7 +2266,7 @@ fn to_anyhow<T>(message: &str, result: ValidatedResult<T>) -> anyhow::Result<T> 
 }
 
 /// Similar std::env::vars() but silently drops invalid env vars instead of panicing.
-/// Additionally will ignore all env vars containing data incompatible with envsubst.
+/// Additionally, will ignore all env vars containing data incompatible with envsubst.
 fn valid_env_vars() -> HashMap<String, String> {
     let mut result = HashMap::new();
 

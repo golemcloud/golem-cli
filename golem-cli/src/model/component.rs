@@ -52,7 +52,10 @@ impl From<golem_client::model::Component> for Component {
             versioned_component_id: value.versioned_component_id,
             component_name: value.component_name.into(),
             component_size: value.component_size,
-            component_type: value.component_type.unwrap_or(ComponentType::Durable).into(),
+            component_type: value
+                .component_type
+                .unwrap_or(ComponentType::Durable)
+                .into(),
             metadata: value.metadata,
             project_id: None,
             created_at: value.created_at,
@@ -70,15 +73,21 @@ impl From<golem_cloud_client::model::Component> for Component {
             metadata: value.metadata,
             project_id: Some(ProjectId(value.project_id)),
             created_at: value.created_at,
-            component_type: value.component_type.unwrap_or(ComponentType::Durable).into(),
+            component_type: value
+                .component_type
+                .unwrap_or(ComponentType::Durable)
+                .into(),
             files: value.files,
         }
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum AppComponentType {
     /// Durable Golem component
+    #[default]
     Durable,
     /// Ephemeral Golem component
     Ephemeral,
@@ -112,12 +121,6 @@ impl Display for AppComponentType {
             AppComponentType::Ephemeral => write!(f, "Ephemeral"),
             AppComponentType::Library => write!(f, "Library"),
         }
-    }
-}
-
-impl Default for AppComponentType {
-    fn default() -> Self {
-        AppComponentType::Durable
     }
 }
 
