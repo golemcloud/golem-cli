@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::fs;
-use crate::model::app::{ComponentName, DependentComponent};
+use crate::model::app::{AppComponentName, DependentComponent};
 use crate::model::app_raw;
 use anyhow::{anyhow, Context};
 use itertools::Itertools;
@@ -45,7 +45,7 @@ impl TaskResultMarkerHashInput for ResolvedExternalCommandMarkerHash<'_> {
 }
 
 pub struct ComponentGeneratorMarkerHash<'a> {
-    pub component_name: &'a ComponentName,
+    pub component_name: &'a AppComponentName,
     pub generator_kind: &'a str,
 }
 
@@ -60,7 +60,7 @@ impl TaskResultMarkerHashInput for ComponentGeneratorMarkerHash<'_> {
 }
 
 pub struct LinkRpcMarkerHash<'a> {
-    pub component_name: &'a ComponentName,
+    pub component_name: &'a AppComponentName,
     pub dependencies: &'a BTreeSet<&'a DependentComponent>,
 }
 
@@ -83,7 +83,7 @@ impl TaskResultMarkerHashInput for LinkRpcMarkerHash<'_> {
 }
 
 pub struct AddMetadataMarkerHash<'a> {
-    pub component_name: &'a ComponentName,
+    pub component_name: &'a AppComponentName,
     pub root_package_name: PackageName,
 }
 

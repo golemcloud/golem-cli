@@ -15,7 +15,7 @@
 use crate::app::build::external_command::execute_external_command;
 use crate::app::context::ApplicationContext;
 use crate::log::{log_action, log_warn_action, LogColorize, LogIndent};
-use crate::model::app::ComponentName;
+use crate::model::app::AppComponentName;
 use crate::wasm_rpc_stubgen::wit_resolve::ExportedFunction;
 use anyhow::{anyhow, Context};
 use heck::ToLowerCamelCase;
@@ -65,7 +65,7 @@ pub fn componentize(ctx: &mut ApplicationContext) -> anyhow::Result<()> {
 
 fn build_step_env_vars(
     ctx: &ApplicationContext,
-    component_name: &ComponentName,
+    component_name: &AppComponentName,
 ) -> anyhow::Result<HashMap<String, String>> {
     let result = HashMap::from_iter(vec![(
         "JCO_ASYNC_EXPORT_ARGS".to_string(),
@@ -77,7 +77,7 @@ fn build_step_env_vars(
 
 fn jco_async_export_args(
     ctx: &ApplicationContext,
-    component_name: &ComponentName,
+    component_name: &AppComponentName,
 ) -> anyhow::Result<Vec<String>> {
     let resolved = ctx
         .wit

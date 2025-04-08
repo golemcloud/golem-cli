@@ -18,7 +18,7 @@ use crate::app::context::ApplicationContext;
 use crate::fs;
 use crate::fs::PathExtra;
 use crate::log::{log_action, log_skipping_up_to_date, LogColorize, LogIndent};
-use crate::model::app::{ComponentName, DependencyType, DependentComponent};
+use crate::model::app::{AppComponentName, DependencyType, DependentComponent};
 use crate::wasm_rpc_stubgen::cargo::regenerate_cargo_package_component;
 use crate::wasm_rpc_stubgen::commands;
 use crate::wasm_rpc_stubgen::wit_generate::{
@@ -69,7 +69,7 @@ pub async fn gen_rpc(ctx: &mut ApplicationContext) -> anyhow::Result<()> {
 
 fn create_generated_base_wit(
     ctx: &mut ApplicationContext,
-    component_name: &ComponentName,
+    component_name: &AppComponentName,
 ) -> Result<bool, Error> {
     let component_source_wit = ctx
         .application
@@ -186,7 +186,7 @@ fn create_generated_base_wit(
 
 fn create_generated_wit(
     ctx: &ApplicationContext,
-    component_name: &ComponentName,
+    component_name: &AppComponentName,
 ) -> Result<bool, Error> {
     let component_generated_base_wit = ctx.application.component_generated_base_wit(component_name);
     let component_generated_wit = ctx
@@ -234,7 +234,7 @@ fn create_generated_wit(
 fn update_cargo_toml(
     ctx: &mut ApplicationContext,
     mut skip_up_to_date_checks: bool,
-    component_name: &ComponentName,
+    component_name: &AppComponentName,
 ) -> anyhow::Result<()> {
     let component_source_wit = PathExtra::new(
         ctx.application
@@ -415,7 +415,7 @@ async fn build_client(
 
 fn add_client_deps(
     ctx: &ApplicationContext,
-    component_name: &ComponentName,
+    component_name: &AppComponentName,
 ) -> Result<bool, Error> {
     let dependencies = ctx
         .application

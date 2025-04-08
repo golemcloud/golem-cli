@@ -54,11 +54,11 @@ pub enum ApplicationSourceMode {
 pub enum ApplicationComponentSelectMode {
     CurrentDir,
     All,
-    Explicit(Vec<ComponentName>),
+    Explicit(Vec<AppComponentName>),
 }
 
 impl ApplicationComponentSelectMode {
-    pub fn all_or_explicit(component_names: Vec<ComponentName>) -> Self {
+    pub fn all_or_explicit(component_names: Vec<AppComponentName>) -> Self {
         if component_names.is_empty() {
             ApplicationComponentSelectMode::All
         } else {
@@ -66,7 +66,7 @@ impl ApplicationComponentSelectMode {
         }
     }
 
-    pub fn current_dir_or_explicit(component_names: Vec<ComponentName>) -> Self {
+    pub fn current_dir_or_explicit(component_names: Vec<AppComponentName>) -> Self {
         if component_names.is_empty() {
             ApplicationComponentSelectMode::CurrentDir
         } else {
@@ -85,7 +85,7 @@ pub struct DynamicHelpSections {
 #[derive(Debug)]
 pub struct ComponentStubInterfaces {
     pub stub_interface_name: String,
-    pub component_name: ComponentName,
+    pub component_name: AppComponentName,
     pub is_ephemeral: bool,
     pub exported_interfaces_per_stub_resource: BTreeMap<String, String>,
 }
@@ -100,27 +100,27 @@ pub enum AppBuildStep {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ComponentName(String);
+pub struct AppComponentName(String);
 
-impl ComponentName {
+impl AppComponentName {
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
-impl Display for ComponentName {
+impl Display for AppComponentName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
     }
 }
 
-impl From<String> for ComponentName {
+impl From<String> for AppComponentName {
     fn from(value: String) -> Self {
-        ComponentName(value)
+        AppComponentName(value)
     }
 }
 
-impl From<&str> for ComponentName {
+impl From<&str> for AppComponentName {
     fn from(value: &str) -> Self {
         Self(value.to_string())
     }
@@ -271,7 +271,7 @@ impl FromStr for DependencyType {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DependentComponent {
-    pub name: ComponentName,
+    pub name: AppComponentName,
     pub dep_type: DependencyType,
 }
 
@@ -291,8 +291,8 @@ impl Ord for DependentComponent {
 pub struct Application {
     temp_dir: Option<WithSource<String>>,
     wit_deps: WithSource<Vec<String>>,
-    components: BTreeMap<ComponentName, Component>,
-    dependencies: BTreeMap<ComponentName, BTreeSet<DependentComponent>>,
+    components: BTreeMap<AppComponentName, Component>,
+    dependencies: BTreeMap<AppComponentName, BTreeSet<DependentComponent>>,
     no_dependencies: BTreeSet<DependentComponent>,
     custom_commands: HashMap<String, WithSource<Vec<app_raw::ExternalCommand>>>,
     clean: Vec<WithSource<String>>,
@@ -303,7 +303,7 @@ impl Application {
         build_application(apps)
     }
 
-    pub fn component_names(&self) -> impl Iterator<Item = &ComponentName> {
+    pub fn component_names(&self) -> impl Iterator<Item = &AppComponentName> {
         self.components.keys()
     }
 
@@ -311,7 +311,7 @@ impl Application {
         !self.components.is_empty()
     }
 
-    pub fn contains_component(&self, component_name: &ComponentName) -> bool {
+    pub fn contains_component(&self, component_name: &AppComponentName) -> bool {
         self.components.contains_key(component_name)
     }
 
@@ -402,30 +402,33 @@ impl Application {
         self.temp_dir().join("task-results")
     }
 
-    fn component(&self, component_name: &ComponentName) -> &Component {
+    fn component(&self, component_name: &AppComponentName) -> &Component {
         self.components
             .get(component_name)
             .unwrap_or_else(|| panic!("Component not found: {}", component_name))
     }
 
-    pub fn component_source(&self, component_name: &ComponentName) -> &Path {
+    pub fn component_source(&self, component_name: &AppComponentName) -> &Path {
         &self.component(component_name).source
     }
 
-    pub fn component_source_dir(&self, component_name: &ComponentName) -> &Path {
+    pub fn component_source_dir(&self, component_name: &AppComponentName) -> &Path {
         self.component(component_name).source_dir()
     }
 
     pub fn component_wasm_rpc_dependencies(
         &self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
     ) -> &BTreeSet<DependentComponent> {
         self.dependencies
             .get(component_name)
             .unwrap_or(&self.no_dependencies)
     }
 
-    pub fn component_profiles(&self, component_name: &ComponentName) -> BTreeSet<BuildProfileName> {
+    pub fn component_profiles(
+        &self,
+        component_name: &AppComponentName,
+    ) -> BTreeSet<BuildProfileName> {
         match &self.component(component_name).properties {
             ResolvedComponentProperties::Properties { .. } => BTreeSet::new(),
             ResolvedComponentProperties::Profiles { profiles, .. } => {
@@ -436,7 +439,7 @@ impl Application {
 
     pub fn component_effective_property_source<'a>(
         &'a self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
         profile: Option<&'a BuildProfileName>,
     ) -> ComponentEffectivePropertySource<'a> {
         match &self.component(component_name).properties {
@@ -484,7 +487,7 @@ impl Application {
 
     pub fn component_properties(
         &self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
         profile: Option<&BuildProfileName>,
     ) -> &ComponentProperties {
         match &self.component(component_name).properties {
@@ -509,13 +512,13 @@ impl Application {
         }
     }
 
-    pub fn component_name_as_safe_path_elem(&self, component_name: &ComponentName) -> String {
+    pub fn component_name_as_safe_path_elem(&self, component_name: &AppComponentName) -> String {
         component_name.as_str().replace(":", "_")
     }
 
     pub fn component_source_wit(
         &self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
         profile: Option<&BuildProfileName>,
     ) -> PathBuf {
         let component = self.component(component_name);
@@ -526,7 +529,7 @@ impl Application {
         )
     }
 
-    pub fn component_generated_base_wit(&self, component_name: &ComponentName) -> PathBuf {
+    pub fn component_generated_base_wit(&self, component_name: &AppComponentName) -> PathBuf {
         self.temp_dir()
             .join("generated-base-wit")
             .join(self.component_name_as_safe_path_elem(component_name))
@@ -534,7 +537,7 @@ impl Application {
 
     pub fn component_generated_base_wit_exports_package_dir(
         &self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
         exports_package_name: &PackageName,
     ) -> PathBuf {
         self.component_generated_base_wit(component_name)
@@ -545,7 +548,7 @@ impl Application {
 
     pub fn component_generated_wit(
         &self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
         profile: Option<&BuildProfileName>,
     ) -> PathBuf {
         let component = self.component(component_name);
@@ -558,7 +561,7 @@ impl Application {
 
     pub fn component_wasm(
         &self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
         profile: Option<&BuildProfileName>,
     ) -> PathBuf {
         let component = self.component(component_name);
@@ -572,7 +575,7 @@ impl Application {
     /// The final linked component WASM
     pub fn component_final_linked_wasm(
         &self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
         profile: Option<&BuildProfileName>,
     ) -> PathBuf {
         self.component_source_dir(component_name).join(
@@ -590,7 +593,7 @@ impl Application {
     }
 
     /// Temporary target of the component composition (linking) step
-    pub fn component_linked_wasm(&self, component_name: &ComponentName) -> PathBuf {
+    pub fn component_linked_wasm(&self, component_name: &AppComponentName) -> PathBuf {
         self.component_source_dir(component_name).join(
             self.temp_dir()
                 .join("linked-wasm")
@@ -602,19 +605,19 @@ impl Application {
         self.temp_dir().join("client")
     }
 
-    pub fn client_temp_build_dir(&self, component_name: &ComponentName) -> PathBuf {
+    pub fn client_temp_build_dir(&self, component_name: &AppComponentName) -> PathBuf {
         self.client_build_dir()
             .join(self.component_name_as_safe_path_elem(component_name))
             .join("temp-build")
     }
 
-    pub fn client_wasm(&self, component_name: &ComponentName) -> PathBuf {
+    pub fn client_wasm(&self, component_name: &AppComponentName) -> PathBuf {
         self.client_build_dir()
             .join(self.component_name_as_safe_path_elem(component_name))
             .join("client.wasm")
     }
 
-    pub fn client_wit(&self, component_name: &ComponentName) -> PathBuf {
+    pub fn client_wit(&self, component_name: &AppComponentName) -> PathBuf {
         self.client_build_dir()
             .join(self.component_name_as_safe_path_elem(component_name))
             .join(naming::wit::WIT_DIR)
@@ -859,7 +862,7 @@ mod app_builder {
     use crate::fs::PathExtra;
     use crate::log::LogColorize;
     use crate::model::app::{
-        Application, BuildProfileName, Component, ComponentName, ComponentProperties,
+        AppComponentName, Application, BuildProfileName, Component, ComponentProperties,
         DependencyType, DependentComponent, ResolvedComponentProperties, TemplateName, WithSource,
     };
     use crate::model::app_raw;
@@ -887,8 +890,8 @@ mod app_builder {
         WitDeps,
         CustomCommand(String),
         Template(TemplateName),
-        WasmRpcDependency((ComponentName, DependentComponent)),
-        Component(ComponentName),
+        WasmRpcDependency((AppComponentName, DependentComponent)),
+        Component(AppComponentName),
     }
 
     impl UniqueSourceCheckedEntityKey {
@@ -946,11 +949,11 @@ mod app_builder {
         temp_dir: Option<WithSource<String>>,
         wit_deps: WithSource<Vec<String>>,
         templates: HashMap<TemplateName, app_raw::ComponentTemplate>,
-        dependencies: BTreeMap<ComponentName, BTreeSet<DependentComponent>>,
+        dependencies: BTreeMap<AppComponentName, BTreeSet<DependentComponent>>,
         custom_commands: HashMap<String, WithSource<Vec<app_raw::ExternalCommand>>>,
         clean: Vec<WithSource<String>>,
-        raw_components: HashMap<ComponentName, (PathBuf, app_raw::Component)>,
-        resolved_components: BTreeMap<ComponentName, Component>,
+        raw_components: HashMap<AppComponentName, (PathBuf, app_raw::Component)>,
+        resolved_components: BTreeMap<AppComponentName, Component>,
 
         entity_sources: HashMap<UniqueSourceCheckedEntityKey, Vec<PathBuf>>,
     }
@@ -1033,7 +1036,7 @@ mod app_builder {
                     }
 
                     for (component_name, component) in app.application.components {
-                        let component_name = ComponentName::from(component_name);
+                        let component_name = AppComponentName::from(component_name);
                         let unique_key =
                             UniqueSourceCheckedEntityKey::Component(component_name.clone());
                         if self.add_entity_source(unique_key, &app.source) {
@@ -1248,7 +1251,7 @@ mod app_builder {
             env
         }
 
-        fn template_context(component_name: &ComponentName) -> impl Serialize {
+        fn template_context(component_name: &AppComponentName) -> impl Serialize {
             minijinja::context! {
                 componentName => component_name.as_str(),
                 component_name => component_name.as_str()
@@ -1276,7 +1279,7 @@ mod app_builder {
             validation: &mut ValidationBuilder,
             template_env: &minijinja::Environment,
             source: PathBuf,
-            component_name: ComponentName,
+            component_name: AppComponentName,
             component: app_raw::Component,
         ) {
             validation.with_context(
@@ -1325,7 +1328,7 @@ mod app_builder {
             template_env: &minijinja::Environment,
             template_name: TemplateName,
             template: &mut app_raw::ComponentTemplate,
-            component_name: ComponentName,
+            component_name: AppComponentName,
             component: app_raw::Component,
         ) -> Option<ResolvedComponentProperties> {
             let (properties, _) = validation.with_context_returning(
@@ -1408,7 +1411,7 @@ mod app_builder {
             template_env: &minijinja::Environment,
             template_name: TemplateName,
             template: &app_raw::ComponentTemplate,
-            component_name: ComponentName,
+            component_name: AppComponentName,
             component_properties: app_raw::ComponentProperties,
         ) -> Option<ResolvedComponentProperties> {
             Self::convert_and_validate_templated_component_properties(
@@ -1435,7 +1438,7 @@ mod app_builder {
             template_env: &minijinja::Environment,
             template_name: TemplateName,
             template: &app_raw::ComponentTemplate,
-            component_name: ComponentName,
+            component_name: AppComponentName,
             mut profiles: HashMap<String, app_raw::ComponentProperties>,
             default_profile: Option<String>,
         ) -> Option<ResolvedComponentProperties> {
@@ -1602,7 +1605,7 @@ mod app_builder {
             template_env: &minijinja::Environment,
             template_name: &TemplateName,
             template_properties: &app_raw::ComponentProperties,
-            component_name: &ComponentName,
+            component_name: &AppComponentName,
             component_properties: Option<app_raw::ComponentProperties>,
         ) -> Option<(ComponentProperties, bool)> {
             ComponentProperties::from_raw_template(

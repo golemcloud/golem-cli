@@ -27,7 +27,7 @@ use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
 use crate::log::{log_action, logln, LogColorize, LogIndent};
 use crate::model::app::{
-    ApplicationComponentSelectMode, BuildProfileName, ComponentName as AppComponentName,
+    ApplicationComponentSelectMode, BuildProfileName, AppComponentName,
     DynamicHelpSections,
 };
 use crate::model::app::{DependencyType, InitialComponentFile};

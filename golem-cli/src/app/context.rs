@@ -20,7 +20,7 @@ use crate::fs::{compile_and_collect_globs, PathExtra};
 use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent};
 use crate::model::app::{
     includes_from_yaml_file, Application, ApplicationComponentSelectMode, ApplicationConfig,
-    ApplicationSourceMode, BuildProfileName, ComponentName, ComponentStubInterfaces,
+    ApplicationSourceMode, BuildProfileName, AppComponentName, ComponentStubInterfaces,
     DynamicHelpSections, DEFAULT_CONFIG_FILE_NAME,
 };
 use crate::model::app_raw;
@@ -42,10 +42,10 @@ pub struct ApplicationContext {
     pub application: Application,
     pub wit: ResolvedWitApplication,
     pub calling_working_dir: PathBuf,
-    component_stub_defs: HashMap<ComponentName, StubDefinition>,
+    component_stub_defs: HashMap<AppComponentName, StubDefinition>,
     common_wit_deps: OnceLock<anyhow::Result<WitDepsResolver>>,
-    component_generated_base_wit_deps: HashMap<ComponentName, WitDepsResolver>,
-    selected_component_names: BTreeSet<ComponentName>,
+    component_generated_base_wit_deps: HashMap<AppComponentName, WitDepsResolver>,
+    selected_component_names: BTreeSet<AppComponentName>,
 }
 
 impl ApplicationContext {
@@ -265,7 +265,7 @@ impl ApplicationContext {
 
     pub fn component_stub_def(
         &mut self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
         is_ephemeral: bool,
     ) -> anyhow::Result<&StubDefinition> {
         if !self.component_stub_defs.contains_key(component_name) {
@@ -292,7 +292,7 @@ impl ApplicationContext {
 
     pub fn component_stub_interfaces(
         &mut self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
     ) -> anyhow::Result<ComponentStubInterfaces> {
         let is_ephemeral = self
             .application
@@ -346,7 +346,7 @@ impl ApplicationContext {
 
     pub fn component_base_output_wit_deps(
         &mut self,
-        component_name: &ComponentName,
+        component_name: &AppComponentName,
     ) -> anyhow::Result<&WitDepsResolver> {
         // Not using the entry API, so we can skip copying the component name
         if !self
@@ -376,7 +376,7 @@ impl ApplicationContext {
 
         let current_dir = std::env::current_dir()?.canonicalize()?;
 
-        let selected_component_names: ValidatedResult<BTreeSet<ComponentName>> =
+        let selected_component_names: ValidatedResult<BTreeSet<AppComponentName>> =
             match component_select_mode {
                 ApplicationComponentSelectMode::CurrentDir => match &self.config.app_source_mode {
                     ApplicationSourceMode::Automatic => {
@@ -478,7 +478,7 @@ impl ApplicationContext {
         Ok(())
     }
 
-    pub fn selected_component_names(&self) -> &BTreeSet<ComponentName> {
+    pub fn selected_component_names(&self) -> &BTreeSet<AppComponentName> {
         &self.selected_component_names
     }
 
