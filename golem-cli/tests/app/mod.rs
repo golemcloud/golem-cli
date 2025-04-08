@@ -17,6 +17,7 @@ use crate::Tracing;
 use assert2::{assert, check};
 use colored::Colorize;
 use golem_cli::fs;
+use golem_cli::model::invoke_result_view::InvokeResultView;
 use golem_templates::model::GuestLanguage;
 use indoc::indoc;
 use itertools::Itertools;
@@ -27,7 +28,6 @@ use strum::IntoEnumIterator;
 use tempfile::TempDir;
 use test_r::test;
 use tracing::info;
-use golem_cli::model::invoke_result_view::InvokeResultView;
 
 mod cmd {
     pub static APP: &str = "app";
@@ -429,7 +429,10 @@ fn wasm_library_dependency_type() -> anyhow::Result<()> {
 
     fs::write_str(
         ctx.cwd_path_join(
-            Path::new("components-rust").join("app-main").join("wit").join("app-main.wit")
+            Path::new("components-rust")
+                .join("app-main")
+                .join("wit")
+                .join("app-main.wit"),
         ),
         indoc! {"
             package app:main;
@@ -449,7 +452,10 @@ fn wasm_library_dependency_type() -> anyhow::Result<()> {
 
     fs::write_str(
         ctx.cwd_path_join(
-            Path::new("components-rust").join("app-main").join("src").join("lib.rs")
+            Path::new("components-rust")
+                .join("app-main")
+                .join("src")
+                .join("lib.rs"),
         ),
         indoc! {"
                 #[allow(static_mut_refs)]
@@ -470,7 +476,7 @@ fn wasm_library_dependency_type() -> anyhow::Result<()> {
                 }
 
                 bindings::export!(Component with_types_in bindings);
-         "}
+         "},
     )?;
 
     ctx.start_server();
@@ -478,7 +484,14 @@ fn wasm_library_dependency_type() -> anyhow::Result<()> {
     let outputs = ctx.cli([cmd::APP, cmd::DEPLOY]);
     assert!(outputs.success());
 
-    let outputs = ctx.cli([cmd::WORKER, cmd::INVOKE, "app:main/test1", "run", "--format", "json"]);
+    let outputs = ctx.cli([
+        cmd::WORKER,
+        cmd::INVOKE,
+        "app:main/test1",
+        "run",
+        "--format",
+        "json",
+    ]);
     assert!(outputs.success());
 
     let result: InvokeResultView = serde_json::from_str(&outputs.stdout[0])?;

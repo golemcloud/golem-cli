@@ -423,9 +423,7 @@ fn add_client_deps(
     ctx: &ApplicationContext,
     component_name: &AppComponentName,
 ) -> Result<bool, Error> {
-    let dependencies = ctx
-        .application
-        .component_dependencies(component_name);
+    let dependencies = ctx.application.component_dependencies(component_name);
     if dependencies.is_empty() {
         Ok(false)
     } else {

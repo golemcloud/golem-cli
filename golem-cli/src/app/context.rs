@@ -590,9 +590,7 @@ impl ApplicationContext {
                             .to_string(),
                     );
 
-                    let dependencies = self
-                        .application
-                        .component_dependencies(component_name);
+                    let dependencies = self.application.component_dependencies(component_name);
                     if !dependencies.is_empty() {
                         logln(format!("    {}:", LABEL_DEPENDENCIES));
                         for dependency in dependencies {
