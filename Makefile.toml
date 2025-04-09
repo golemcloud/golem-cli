@@ -118,14 +118,14 @@ dependencies = ["install-golem-cli-release", "install-golem-release"]
 description = "Install golem-cli (debug)"
 script_runner = "@duckscript"
 script = '''
-exec --fail-on-error cargo install --release --path golem-cli --bin golem-cli --target-dir target --locked --offline
+exec --fail-on-error cargo install --path golem-cli --bin golem-cli --target-dir target --locked --offline
 '''
 
 [tasks.install-golem-release]
 description = "Install golem (debug)"
 script_runner = "@duckscript"
 script = '''
-exec --fail-on-error cargo install --release --path golem --bin golem --target-dir target --locked --offline
+exec --fail-on-error cargo install --path golem --bin golem --target-dir target --locked --offline
 '''
 
 ## ** TEST **
