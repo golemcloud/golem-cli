@@ -186,7 +186,7 @@ fn component_service_config(
                 .join("components.db")
                 .to_string_lossy()
                 .to_string(),
-            max_connections: 32,
+            max_connections: 4,
         }),
         blob_storage: blob_storage_config(args),
         compilation: golem_component_service_base::config::ComponentCompilationConfig::Enabled(
@@ -215,7 +215,7 @@ fn worker_executor_config(
                 .join("kv-store.db")
                 .to_string_lossy()
                 .to_string(),
-            max_connections: 32,
+            max_connections: 4,
         }),
         indexed_storage: IndexedStorageConfig::KVStoreSqlite(IndexedStorageKVStoreSqliteConfig {}),
         blob_storage: blob_storage_config(args),
@@ -262,7 +262,7 @@ fn worker_service_config(
                 .join("workers.db")
                 .to_string_lossy()
                 .to_string(),
-            max_connections: 32,
+            max_connections: 4,
         }),
         gateway_session_storage:
             golem_worker_service_base::app_config::GatewaySessionStorageConfig::Sqlite(
@@ -272,7 +272,7 @@ fn worker_service_config(
                         .join("gateway-sessions.db")
                         .to_string_lossy()
                         .to_string(),
-                    max_connections: 32,
+                    max_connections: 4,
                 },
             ),
         blob_storage: blob_storage_config(args),
