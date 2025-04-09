@@ -1,3 +1,4 @@
+import EmptyState from "@/components/empty-state";
 import ErrorBoundary from "@/components/errorBoundary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -283,19 +284,9 @@ const Components = () => {
   /**
    * Memoized empty state component to render when no components are found
    */
-  const EmptyState = useMemo(
+  const ComponentEmptyState = useMemo(
     () => (
-      <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-        <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-          <LayoutGrid className="h-8 w-8 text-gray-400" />
-        </div>
-        <h2 className="text-xl font-semibold mb-2 text-center">
-          No Project Components
-        </h2>
-        <p className="text-gray-500 mb-6 text-center">
-          Create a new component to get started.
-        </p>
-      </div>
+      <EmptyState icon={<LayoutGrid className="h-8 w-8 text-gray-400" />} title="No Project Components" description="Create a new component to get started." />
     ),
     [],
   );
@@ -337,7 +328,7 @@ const Components = () => {
 
         {/* Main Content: Grid of components or empty state */}
         {Object.keys(filteredComponents).length === 0 ? (
-          EmptyState
+          ComponentEmptyState
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 overflow-scroll max-h-[78vh] px-4">
             {Object.values(filteredComponents).map(data => (

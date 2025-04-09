@@ -303,7 +303,6 @@ export class Service {
   > => {
     // Assume getComponents returns a Promise<RawComponent[]>
     const components = await this.getComponents();
-
     const componentList = components.reduce<Record<string, ComponentList>>(
       (acc, component) => {
         const {
@@ -384,7 +383,7 @@ export class Service {
       const contentType = response.headers.get("Content-Type");
       let responseData: any;
 
-      if (contentType && contentType.includes("application/json")) {
+      if (contentType && contentType.startsWith("application/json")) {
         responseData = await response.json();
       } else {
         responseData = await response.text();

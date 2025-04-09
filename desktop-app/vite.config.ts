@@ -7,6 +7,27 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  configure(proxy, options) {
+    proxy.on('proxyReq', (proxyReq, req) => {
+      console.log('    req', req.method, req.url, req.headers)
+      // Stream and log the request body
+      let body = ''
+      req.on('data', (chunk) => {
+        body += chunk
+      })
+      req.on('end', () => {
+        if (body) {
+          try {
+            const parsedBody = JSON.parse(body)
+            console.log('    req body', parsedBody)
+          } catch (e) {
+            console.log('    req body (raw)', body)
+          }
+        }
+        console.log('    req ended')
+      })
+    })
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
