@@ -500,6 +500,7 @@ impl ApplicationContext {
         static LABEL_SELECTED: &str = "Selected";
         static LABEL_TEMPLATE: &str = "Template";
         static LABEL_PROFILES: &str = "Profiles";
+        static LABEL_COMPONENT_TYPE: &str = "Component Type";
         static LABEL_DEPENDENCIES: &str = "Dependencies";
 
         let label_padding = {
@@ -508,6 +509,7 @@ impl ApplicationContext {
                 &LABEL_SELECTED,
                 &LABEL_TEMPLATE,
                 &LABEL_PROFILES,
+                &LABEL_COMPONENT_TYPE,
                 &LABEL_DEPENDENCIES,
             ]
             .map(|label| label.len())
@@ -578,9 +580,18 @@ impl ApplicationContext {
                                 .join(", "),
                         );
                     }
-                    let dependencies = self
-                        .application
-                        .component_wasm_rpc_dependencies(component_name);
+
+                    print_field(
+                        LABEL_COMPONENT_TYPE,
+                        self.application
+                            .component_properties(component_name, None)
+                            .component_type
+                            .to_string()
+                            .bold()
+                            .to_string(),
+                    );
+
+                    let dependencies = self.application.component_dependencies(component_name);
                     if !dependencies.is_empty() {
                         logln(format!("    {}:", LABEL_DEPENDENCIES));
                         for dependency in dependencies {
