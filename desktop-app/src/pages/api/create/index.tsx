@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { PlusCircle, ArrowLeft, Loader2, Plus, Route, Trash, Trash2Icon, Layers } from "lucide-react";
-import { Button, ButtonWithMenu } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {PlusCircle, ArrowLeft, Loader2, Plus, Route, Trash2Icon, Layers} from "lucide-react";
+import {Button, ButtonWithMenu} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -11,19 +11,18 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import {useForm} from "react-hook-form";
+import {zodResolver} from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { API } from "@/service";
+import {API} from "@/service";
 import ErrorBoundary from "@/components/errorBoundary";
 import EmptyState from "@/components/empty-state";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from "@/components/ui/dialog";
 import CreateRoute from "../details/createRoute";
-import { HTTP_METHOD_COLOR } from "@/components/nav-route";
-import { Badge } from "@/components/ui/badge";
-import { RouteRequestData as RouteRequestDataType } from "@/types/api";
-import { RouteRequestData } from "../details/schema";
-import { flushSync } from "react-dom";
+import {HTTP_METHOD_COLOR} from "@/components/nav-route";
+import {Badge} from "@/components/ui/badge";
+import {RouteRequestData as RouteRequestDataType} from "@/types/api";
+import {RouteRequestData} from "../details/schema";
 
 const createApiSchema = z.object({
   apiName: z
@@ -96,11 +95,12 @@ const CreateAPI = () => {
         </p>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((v => onSubmit(v, routes.length > 0 ? true: false)))} className="space-y-6">
+          <form onSubmit={form.handleSubmit((v => onSubmit(v, routes.length > 0 ? true : false)))}
+                className="space-y-6">
             <FormField
               control={form.control}
               name="apiName"
-              render={({ field }) => (
+              render={({field}) => (
                 <FormItem>
                   <FormLabel>API Name</FormLabel>
                   <FormControl>
@@ -109,7 +109,7 @@ const CreateAPI = () => {
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage/>
                 </FormItem>
               )}
             />
@@ -117,7 +117,7 @@ const CreateAPI = () => {
             <FormField
               control={form.control}
               name="version"
-              render={({ field }) => (
+              render={({field}) => (
                 <FormItem>
                   <FormLabel>Version</FormLabel>
                   <FormControl>
@@ -129,7 +129,7 @@ const CreateAPI = () => {
                   <p className="text-sm text-muted-foreground">
                     Version prefix for your API
                   </p>
-                  <FormMessage />
+                  <FormMessage/>
                 </FormItem>
               )}
             />
@@ -148,7 +148,7 @@ const CreateAPI = () => {
                       variant="secondary"
                       className="flex items-center space-x-2"
                     >
-                        <Plus className="mr-2 h-5 w-5" />
+                      <Plus className="mr-2 h-5 w-5"/>
                       {"Add"}
                     </Button>
                   </DialogTrigger>
@@ -157,44 +157,45 @@ const CreateAPI = () => {
                       <DialogTitle className="text-2xl text-center my-4">Add Route</DialogTitle>
                     </DialogHeader>
                     <CreateRoute lazy onAddRoute={(value) => {
-                      const filteredRoutes = routes.filter((route) => route.path !== value.path && route.method !== value.method);
+                      const filteredRoutes = routes.filter((route) => route.path !== value.path || route.method !== value.method);
                       setRoutes([...filteredRoutes, value as any]);
                       setIsRouteManagerOpen(false);
-                    }} />
+                    }}/>
                   </DialogContent>
                 </Dialog>
               </div>
-              {routes.length === 0 ? 
-              <EmptyState icon={<Route className="h-8 w-8 text-gray-400" />} title="No routes defined for this API" description="Define a route before deployment (Optional)" small />:
-              <div className="space-y-4">
-                {routes.map((route) => (
-                  <div key={`${route.method}-${route.path}`}
-                  className="flex items-center justify-between rounded-lg border p-2 bg-muted/50 transition-colors">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="secondary"
-                        className={
-                          HTTP_METHOD_COLOR[
-                            route.method as keyof typeof HTTP_METHOD_COLOR
-                          ]
-                        }
-                      >
-                        {route.method}
-                      </Badge>
-                      <code className="text-sm font-semibold">
-                        {route.path}
-                      </code>
+              {routes.length === 0 ?
+                <EmptyState icon={<Route className="h-8 w-8 text-gray-400"/>} title="No routes defined for this API"
+                            description="Define a route before deployment (Optional)" small/> :
+                <div className="space-y-4">
+                  {routes.map((route) => (
+                    <div key={`${route.method}-${route.path}`}
+                         className="flex items-center justify-between rounded-lg border p-2 bg-muted/50 transition-colors">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="secondary"
+                            className={
+                              HTTP_METHOD_COLOR[
+                                route.method as keyof typeof HTTP_METHOD_COLOR
+                                ]
+                            }
+                          >
+                            {route.method}
+                          </Badge>
+                          <code className="text-sm font-semibold">
+                            {route.path}
+                          </code>
+                        </div>
+                      </div>
+                      <Trash2Icon className="h-4 w-4 cursor-pointer stroke-red-500" onClick={() => {
+                        const filteredRoutes = routes.filter((r) => r.path !== route.path || r.method !== route.method);
+                        setRoutes(filteredRoutes);
+                      }}/>
                     </div>
-                  </div>
-                  <Trash2Icon className="h-4 w-4 cursor-pointer stroke-red-500" onClick={() => {
-                    const filteredRoutes = routes.filter((r) => r.path !== route.path && r.method !== route.method);
-                    setRoutes(filteredRoutes);
-                  }}/>
-                  </div>
-                ))}
-              </div>
-            }
+                  ))}
+                </div>
+              }
             </div>
 
 
@@ -205,7 +206,7 @@ const CreateAPI = () => {
                 onClick={() => navigate(-1)}
                 disabled={isSubmitting}
               >
-                <ArrowLeft className="mr-2 h-5 w-5" />
+                <ArrowLeft className="mr-2 h-5 w-5"/>
                 Back
               </Button>
               {routes.length > 0 ?
@@ -214,30 +215,32 @@ const CreateAPI = () => {
                   disabled={isSubmitting}
                   className="flex items-center space-x-2"
                   secondaryMenu={
-                    <div className="flex justify-start gap-1 text-sm items-center cursor-pointer hover:bg-muted p-3 rounded" onClick={() => {
-                      form.handleSubmit((v) => onSubmit(v, false))();
-                    }}><PlusCircle className="mr-2 h-5 w-5" />Only create API</div>
+                    <div
+                      className="flex justify-start gap-1 text-sm items-center cursor-pointer hover:bg-muted p-3 rounded"
+                      onClick={() => {
+                        form.handleSubmit((v) => onSubmit(v, false))();
+                      }}><PlusCircle className="mr-2 h-5 w-5"/>Only create API</div>
                   }
                 >
                   {isSubmitting ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
                   ) : (
-                    <Layers className="mr-2 h-5 w-5" />
+                    <Layers className="mr-2 h-5 w-5"/>
                   )}
                   {isSubmitting ? "Creating..." : "Create & Deploy API"}
                 </ButtonWithMenu>
-              : <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex items-center space-x-2"
-            >
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <PlusCircle className="mr-2 h-5 w-5" />
-              )}
-              {isSubmitting ? "Creating..." : "Create API"}
-            </Button>}
+                : <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex items-center space-x-2"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
+                  ) : (
+                    <PlusCircle className="mr-2 h-5 w-5"/>
+                  )}
+                  {isSubmitting ? "Creating..." : "Create API"}
+                </Button>}
             </div>
           </form>
         </Form>

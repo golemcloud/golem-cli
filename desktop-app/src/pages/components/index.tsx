@@ -1,7 +1,7 @@
 import EmptyState from "@/components/empty-state";
 import ErrorBoundary from "@/components/errorBoundary";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,14 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { calculateExportFunctions, cn, formatRelativeTime } from "@/lib/utils";
-import { API } from "@/service";
-import { ComponentList } from "@/types/component";
-import { Worker } from "@/types/worker";
-import { LayoutGrid, PlusCircle } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {Input} from "@/components/ui/input";
+import {calculateExportFunctions, cn, formatRelativeTime} from "@/lib/utils";
+import {API} from "@/service";
+import {ComponentList} from "@/types/component";
+import {Worker} from "@/types/worker";
+import {LayoutGrid, PlusCircle} from "lucide-react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
+import {useNavigate} from "react-router-dom";
 
 /**
  * Worker status metrics used to categorize workers
@@ -78,10 +78,10 @@ const DEFAULT_WORKER_STATUS: ComponentWorkerStatus =
  */
 export const ComponentCard = React.memo(
   ({
-    data,
-    workerStatus,
-    onCardClick,
-  }: {
+     data,
+     workerStatus,
+     onCardClick,
+   }: {
     data: ComponentList;
     workerStatus?: ComponentWorkerStatus;
     onCardClick: (componentId: string) => void;
@@ -123,7 +123,7 @@ export const ComponentCard = React.memo(
           >
             {formatRelativeTime(
               data.versions?.[data.versions?.length - 1].createdAt ||
-                new Date(),
+              new Date(),
             )}
           </CardDescription>
         </CardHeader>
@@ -225,7 +225,7 @@ const Components = () => {
           });
 
           // Initialize status with all metrics set to 0
-          const status = { ...DEFAULT_WORKER_STATUS };
+          const status = {...DEFAULT_WORKER_STATUS};
 
           // Update counts for existing statuses
           worker.workers.forEach((w: Worker) => {
@@ -286,7 +286,8 @@ const Components = () => {
    */
   const ComponentEmptyState = useMemo(
     () => (
-      <EmptyState icon={<LayoutGrid className="h-8 w-8 text-gray-400" />} title="No Project Components" description="Create a new component to get started." />
+      <EmptyState icon={<LayoutGrid className="h-8 w-8 text-gray-400"/>} title="No Project Components"
+                  description="Create a new component to get started."/>
     ),
     [],
   );
@@ -320,7 +321,7 @@ const Components = () => {
             </div>
             {/* Create Component Button */}
             <Button onClick={() => navigate("/components/create")}>
-              <PlusCircle className="h-4 w-4 mr-2" />
+              <PlusCircle className="h-4 w-4 mr-2"/>
               Create Component
             </Button>
           </div>

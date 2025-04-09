@@ -1,11 +1,11 @@
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
+import {Slot} from "@radix-ui/react-slot";
+import {cva, type VariantProps} from "class-variance-authority";
 
-import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
-import { Popover, PopoverContent } from "./popover";
-import { PopoverTrigger } from "@radix-ui/react-popover";
+import {cn} from "@/lib/utils";
+import {ChevronDown} from "lucide-react";
+import {Popover, PopoverContent} from "./popover";
+import {PopoverTrigger} from "@radix-ui/react-popover";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
@@ -44,11 +44,11 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({className, variant, size, asChild = false, ...props}, ref) => {
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({variant, size, className}))}
         ref={ref}
         {...props}
       />
@@ -61,7 +61,7 @@ export interface ButtonWithMenuProps extends ButtonProps {
 }
 
 const ButtonWithMenu = React.forwardRef<HTMLButtonElement, ButtonWithMenuProps>(
-  ({ className, variant, size, secondaryMenu, ...props }, ref) => {
+  ({className, variant, size, secondaryMenu, ...props}, ref) => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const popoverRef = React.useRef<HTMLDivElement>(null);
 
@@ -71,6 +71,7 @@ const ButtonWithMenu = React.forwardRef<HTMLButtonElement, ButtonWithMenuProps>(
           setIsMenuOpen(false);
         }
       }
+
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
@@ -92,10 +93,10 @@ const ButtonWithMenu = React.forwardRef<HTMLButtonElement, ButtonWithMenuProps>(
               variant={variant}
               size={size}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-            ><ChevronDown /></Button>
+            ><ChevronDown/></Button>
           </PopoverTrigger>
           <PopoverContent align="end" onClick={() => setIsMenuOpen(false)} className="p-1" ref={popoverRef}>
-              {secondaryMenu}
+            {secondaryMenu}
           </PopoverContent>
         </Popover>
       </div>
@@ -106,4 +107,4 @@ const ButtonWithMenu = React.forwardRef<HTMLButtonElement, ButtonWithMenuProps>(
 Button.displayName = "Button";
 ButtonWithMenu.displayName = "ButtonWithMenu";
 
-export { Button, ButtonWithMenu, buttonVariants };
+export {Button, ButtonWithMenu, buttonVariants};
