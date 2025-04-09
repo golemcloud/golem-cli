@@ -3,6 +3,9 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
+import { Popover, PopoverContent } from "./popover";
+import { PopoverTrigger } from "@radix-ui/react-popover";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
@@ -52,6 +55,55 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     );
   },
 );
-Button.displayName = "Button";
 
-export { Button, buttonVariants };
+export interface ButtonWithMenuProps extends ButtonProps {
+  secondaryMenu?: React.ReactNode;
+}
+
+const ButtonWithMenu = React.forwardRef<HTMLButtonElement, ButtonWithMenuProps>(
+  ({ className, variant, size, secondaryMenu, ...props }, ref) => {
+    const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const popoverRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+      function handleClickOutside(event: MouseEvent) {
+        if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+          setIsMenuOpen(false);
+        }
+      }
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+      <div className="inline-flex gap-[1px]">
+        <Button
+          className={cn(className, 'rounded-r-none')}
+          variant={variant}
+          size={size}
+          ref={ref}
+          {...props}
+        />
+        <Popover open={isMenuOpen}>
+          <PopoverTrigger>
+            <Button
+              type="button"
+              className={cn(className, 'rounded-l-none px-2')}
+              variant={variant}
+              size={size}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            ><ChevronDown /></Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" onClick={() => setIsMenuOpen(false)} className="p-1" ref={popoverRef}>
+              {secondaryMenu}
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  },
+);
+
+Button.displayName = "Button";
+ButtonWithMenu.displayName = "ButtonWithMenu";
+
+export { Button, ButtonWithMenu, buttonVariants };

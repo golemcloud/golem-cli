@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PlusCircle, ArrowLeft, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PlusCircle, ArrowLeft, Loader2, Plus, Route, Trash, Trash2Icon, Layers } from "lucide-react";
+import { Button, ButtonWithMenu } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Form,
@@ -16,6 +16,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { API } from "@/service";
 import ErrorBoundary from "@/components/errorBoundary";
+import EmptyState from "@/components/empty-state";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import CreateRoute from "../details/createRoute";
+import { HTTP_METHOD_COLOR } from "@/components/nav-route";
+import { Badge } from "@/components/ui/badge";
+import { RouteRequestData as RouteRequestDataType } from "@/types/api";
+import { RouteRequestData } from "../details/schema";
+import { flushSync } from "react-dom";
 
 const createApiSchema = z.object({
   apiName: z
@@ -32,6 +40,7 @@ const createApiSchema = z.object({
       /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/,
       "Version must follow semantic versioning (e.g., 1.0.0)",
     ),
+  routes: z.array(RouteRequestData),
 });
 
 type CreateApiFormValues = z.infer<typeof createApiSchema>;
@@ -40,24 +49,33 @@ const CreateAPI = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [isRouteManagerOpen, setIsRouteManagerOpen] = useState(false);
+
+  const [routes, setRoutes] = useState<RouteRequestDataType[]>([]);
+
   const form = useForm<CreateApiFormValues>({
     resolver: zodResolver(createApiSchema),
     defaultValues: {
       apiName: "",
       version: "0.1.0",
+      routes,
     },
   });
 
-  const onSubmit = async (values: CreateApiFormValues) => {
+  const onSubmit = async (values: CreateApiFormValues, shouldCreateDeployment: boolean) => {
     try {
       setIsSubmitting(true);
       await API.createApi({
         id: values.apiName,
         version: values.version,
-        routes: [],
+        routes,
         draft: true,
       });
-      navigate(`/apis/${values.apiName}/version/${values.version}`);
+      if (shouldCreateDeployment) {
+        navigate("/deployments/create");
+      } else {
+        navigate(`/apis/${values.apiName}/version/${values.version}`);
+      }
     } catch (error) {
       console.error("Failed to create API:", error);
       form.setError("apiName", {
@@ -78,7 +96,7 @@ const CreateAPI = () => {
         </p>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit((v => onSubmit(v, routes.length > 0 ? true: false)))} className="space-y-6">
             <FormField
               control={form.control}
               name="apiName"
@@ -115,6 +133,70 @@ const CreateAPI = () => {
                 </FormItem>
               )}
             />
+            <div className="py-8">
+              <div className="flex justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold mb-2">Routes</h2>
+                  <p className="text-muted-foreground mb-8 text-sm">
+                    Configure endpoints for your API
+                  </p>
+                </div>
+                <Dialog open={isRouteManagerOpen} onOpenChange={setIsRouteManagerOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="flex items-center space-x-2"
+                    >
+                        <Plus className="mr-2 h-5 w-5" />
+                      {"Add"}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="min-h-[70vh] min-w-[1000px]">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl text-center my-4">Add Route</DialogTitle>
+                    </DialogHeader>
+                    <CreateRoute lazy onAddRoute={(value) => {
+                      const filteredRoutes = routes.filter((route) => route.path !== value.path && route.method !== value.method);
+                      setRoutes([...filteredRoutes, value as any]);
+                      setIsRouteManagerOpen(false);
+                    }} />
+                  </DialogContent>
+                </Dialog>
+              </div>
+              {routes.length === 0 ? 
+              <EmptyState icon={<Route className="h-8 w-8 text-gray-400" />} title="No routes defined for this API" description="Define a route before deployment (Optional)" small />:
+              <div className="space-y-4">
+                {routes.map((route) => (
+                  <div key={`${route.method}-${route.path}`}
+                  className="flex items-center justify-between rounded-lg border p-2 bg-muted/50 transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className={
+                          HTTP_METHOD_COLOR[
+                            route.method as keyof typeof HTTP_METHOD_COLOR
+                          ]
+                        }
+                      >
+                        {route.method}
+                      </Badge>
+                      <code className="text-sm font-semibold">
+                        {route.path}
+                      </code>
+                    </div>
+                  </div>
+                  <Trash2Icon className="h-4 w-4 cursor-pointer stroke-red-500" onClick={() => {
+                    const filteredRoutes = routes.filter((r) => r.path !== route.path && r.method !== route.method);
+                    setRoutes(filteredRoutes);
+                  }}/>
+                  </div>
+                ))}
+              </div>
+            }
+            </div>
+
 
             <div className="flex justify-between">
               <Button
@@ -126,18 +208,36 @@ const CreateAPI = () => {
                 <ArrowLeft className="mr-2 h-5 w-5" />
                 Back
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center space-x-2"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <PlusCircle className="mr-2 h-5 w-5" />
-                )}
-                {isSubmitting ? "Creating..." : "Create API"}
-              </Button>
+              {routes.length > 0 ?
+                <ButtonWithMenu
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex items-center space-x-2"
+                  secondaryMenu={
+                    <div className="flex justify-start gap-1 text-sm items-center cursor-pointer hover:bg-muted p-3 rounded" onClick={() => {
+                      form.handleSubmit((v) => onSubmit(v, false))();
+                    }}><PlusCircle className="mr-2 h-5 w-5" />Only create API</div>
+                  }
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <Layers className="mr-2 h-5 w-5" />
+                  )}
+                  {isSubmitting ? "Creating..." : "Create & Deploy API"}
+                </ButtonWithMenu>
+              : <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center space-x-2"
+            >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <PlusCircle className="mr-2 h-5 w-5" />
+              )}
+              {isSubmitting ? "Creating..." : "Create API"}
+            </Button>}
             </div>
           </form>
         </Form>

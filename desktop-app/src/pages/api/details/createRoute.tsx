@@ -28,58 +28,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "@/hooks/use-toast";
-import { parseTypeForTooltip } from "@/lib/utils.ts";
+import { cn, parseTypeForTooltip } from "@/lib/utils.ts";
 import { API } from "@/service";
-import type { GatewayBindingType, MethodPattern } from "@/types/api";
+import type { GatewayBindingType, MethodPattern, RouteRequestData as RouteRequestDataType } from "@/types/api";
 import { Api } from "@/types/api";
 import type { Component, ComponentList } from "@/types/component";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { RouteRequestData, BindingType } from "./schema";
 import * as z from "zod";
-
-const MethodPattern = z.enum([
-  "Get",
-  "Post",
-  "Put",
-  "Delete",
-  "Patch",
-  "Head",
-  "Options",
-  "Trace",
-  "Connect",
-]);
-
-const BindingType = z.enum(["default", "file-server", "cors-preflight"]);
-
-const GatewayBindingData = z.object({
-  bindingType: BindingType,
-  component: z
-    .object({
-      name: z.string(),
-      version: z.number(),
-    })
-    .optional(),
-  workerName: z.string().optional(),
-  idempotencyKey: z.string().optional(),
-  response: z.string().optional(),
-});
-
-const HttpCors = z.object({
-  allowOrigin: z.string(),
-  allowMethods: z.string(),
-  allowHeaders: z.string(),
-  exposeHeaders: z.string().optional(),
-  maxAge: z.number().optional(),
-  allowCredentials: z.boolean().optional(),
-});
-
-const RouteRequestData = z.object({
-  method: MethodPattern,
-  path: z.string(),
-  binding: GatewayBindingData,
-  cors: HttpCors.optional(),
-  security: z.string().optional(),
-});
 
 function filterMethod(type: string) {
   if (type === "default") {
@@ -103,7 +60,19 @@ const interpolations = [
   { label: "Request Headers", expression: "${request.header.<HEADER_NAME>}" },
 ];
 
-const CreateRoute = () => {
+interface CreateRouteProps {
+  /**
+   * Allows the component to be used to configure a route but not create it immediately.
+   * This is used on the create API page, in a dialog.
+  */
+  lazy?: boolean;
+  /**
+   * Callback function to be called when a route is added.
+   */
+  onAddRoute?: (route: RouteRequestDataType) => void;
+}
+
+const CreateRoute = ({ lazy = false, onAddRoute }: CreateRouteProps) => {
   const { apiName, version } = useParams();
   const navigate = useNavigate();
   const [componentList, setComponentList] = useState<{
@@ -169,16 +138,21 @@ const CreateRoute = () => {
   // Fetch API details
   useEffect(() => {
     const fetchData = async () => {
-      if (!apiName) return;
+      if (!apiName && !lazy) return;
       try {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
-          API.getApi(apiName),
+          !apiName ? Promise.resolve([]) :API.getApi(apiName),
           API.getComponentByIdAsKey(),
         ]);
         const selectedApi = apiResponse.find(api => api.version === version);
-        setActiveApiDetails(selectedApi!);
+
+        if (!lazy) {
+          setActiveApiDetails(selectedApi!);
+        }
+
         setComponentList(componentResponse);
+
         if (path && method) {
           setIsEdit(true);
           const route = selectedApi?.routes.find(
@@ -246,6 +220,11 @@ const CreateRoute = () => {
   }, [apiName, version, path, method, form]);
 
   const onSubmit = async (values: RouteFormValues) => {
+    if (lazy) {
+      onAddRoute?.(values);
+      form.reset();
+      return;
+    }
     if (!activeApiDetails) return;
 
     try {
@@ -352,7 +331,7 @@ const CreateRoute = () => {
 
   return (
     <ErrorBoundary>
-      <div className="overflow-y-auto h-[80vh]">
+      <div className={cn("overflow-y-auto", {'h-[80vh]': !lazy})}>
         <div className="max-w-4xl mx-auto p-8">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -362,7 +341,10 @@ const CreateRoute = () => {
           ) : (
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={(e) => {
+                  e.stopPropagation(); // when nested deeply, this will prevent any other parent forms from being submitted
+                  form.handleSubmit(onSubmit)(e);
+                }}
                 className="space-y-8"
               >
                 <div>
@@ -721,7 +703,7 @@ const CreateRoute = () => {
                         {isEdit ? "Editing..." : "Creating..."}
                       </>
                     ) : (
-                      <div>{isEdit ? "Edit Route" : "Create Route"}</div>
+                      <div>{isEdit ? "Edit Route" : lazy ? "Add Route": "Create Route"}</div>
                     )}
                   </Button>
                 </div>

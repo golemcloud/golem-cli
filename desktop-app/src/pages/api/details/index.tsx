@@ -1,3 +1,4 @@
+import EmptyState from "@/components/empty-state";
 import ErrorBoundary from "@/components/errorBoundary.tsx";
 import { HTTP_METHOD_COLOR } from "@/components/nav-route.tsx";
 import { Badge } from "@/components/ui/badge";
@@ -68,17 +69,7 @@ const APIDetails = () => {
             </CardHeader>
             <CardContent>
               {activeApiDetails?.routes?.length === 0 ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-                  <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                    <Route className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h2 className="text-xl font-semibold mb-2 text-center">
-                    No routes defined for this API version
-                  </h2>
-                  <p className="text-gray-500 mb-6 text-center">
-                    Create a new route, and it will be listed here.
-                  </p>
-                </div>
+                <EmptyState icon={<Route className="h-8 w-8 text-gray-400" />} title="No routes defined for this API version" description="Create a new route, and it will be listed here." />
               ) : (
                 <div className="space-y-4">
                   {activeApiDetails?.routes?.map(route => (
@@ -143,17 +134,7 @@ const APIDetails = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-                    <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                      <LayoutGrid className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h2 className="text-xl font-semibold mb-2 text-center">
-                      No Active Deployments
-                    </h2>
-                    <p className="text-gray-500 mb-6 text-center">
-                      Create a new Deployment, and it will be listed here.
-                    </p>
-                  </div>
+                  <EmptyState icon={<LayoutGrid className="h-8 w-8 text-gray-400" />} title="No Active Deployments" description="Create a new deployment, and it will be listed here." />
                 )}
               </div>
             </CardContent>
