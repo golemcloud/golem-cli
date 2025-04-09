@@ -869,7 +869,7 @@ pub mod profile {
                     format!("OSS profile {}", format_message_highlight(&self.name))
                 }
                 ProfileKind::Cloud => {
-                    format!("Cloud profile {}'", format_message_highlight(&self.name))
+                    format!("Cloud profile {}", format_message_highlight(&self.name))
                 }
             }
         }

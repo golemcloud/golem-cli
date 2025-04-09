@@ -248,11 +248,9 @@ impl AppCommandHandler {
                     ));
                     logln("");
 
-                    app_ctx.log_dynamic_help(&DynamicHelpSections {
-                        components: false,
-                        custom_commands: true,
-                        builtin_commands: builtin_app_subcommands(),
-                    })?;
+                    app_ctx.log_dynamic_help(&DynamicHelpSections::show_custom_commands(
+                        builtin_app_subcommands(),
+                    ))?;
 
                     logln(
                         "Available builtin commands:"

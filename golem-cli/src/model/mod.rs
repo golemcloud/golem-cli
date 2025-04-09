@@ -244,10 +244,10 @@ impl FromStr for ApiDefinitionIdWithVersion {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split('/').collect();
+        let parts: Vec<&str> = s.split('@').collect();
         if parts.len() != 2 {
             return Err(format!(
-                "Invalid api definition id with version: {s}. Expected format: <id>/<version>"
+                "Invalid api definition id with version: {s}. Expected format: <id>@<version>"
             ));
         }
 

@@ -494,6 +494,7 @@ impl ApplicationContext {
         clean_app(self)
     }
 
+    // TODO: wrap dynamic help errors with context
     pub fn log_dynamic_help(&self, config: &DynamicHelpSections) -> anyhow::Result<()> {
         static LABEL_SOURCE: &str = "Source";
         static LABEL_SELECTED: &str = "Selected";
@@ -526,7 +527,7 @@ impl ApplicationContext {
 
         let should_colorize = SHOULD_COLORIZE.should_colorize();
 
-        if config.components {
+        if config.components() {
             if self.application.has_any_component() {
                 logln(format!(
                     "{}",
@@ -593,11 +594,11 @@ impl ApplicationContext {
                 }
                 logln("\n")
             } else {
-                logln("No components found\n");
+                logln("No components found in the application.\n");
             }
         }
 
-        if config.custom_commands {
+        if config.custom_commands() {
             for (profile, commands) in self.application.all_custom_commands_for_all_profiles() {
                 if commands.is_empty() {
                     continue;
@@ -620,7 +621,7 @@ impl ApplicationContext {
                         "  {}",
                         format!(
                             "{}{}",
-                            if config.builtin_commands.contains(&command)
+                            if config.builtin_commands().contains(&command)
                                 || command.starts_with(':')
                             {
                                 ":"
@@ -635,6 +636,29 @@ impl ApplicationContext {
                 logln("")
             }
         }
+
+        // TODO: add dynamic help for api commands
+        if config.api_definitions() {
+            if !self.application.api_definitions().is_empty() {
+                logln(format!(
+                    "{}",
+                    "Application API definitions:".log_color_help_group()
+                ));
+                for (name, def) in self.application.api_definitions() {
+                    logln(format!(
+                        "  {}@{}{}",
+                        name.as_str().log_color_highlight(),
+                        def.version.log_color_highlight(),
+                        if def.draft { " (draft)" } else { "" }
+                    ));
+                }
+                logln("");
+            } else {
+                logln("No API definitions found in the application.\n");
+            }
+        }
+
+        // TODO: deployments
 
         // TODO: profiles?
 

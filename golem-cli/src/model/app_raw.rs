@@ -1,6 +1,7 @@
 use crate::fs;
 use crate::log::LogColorize;
 use anyhow::{anyhow, Context};
+use golem_client::model::{ApiDefinitionInfo, ApiSite, RouteRequestData};
 use golem_common::model::{ComponentFilePath, ComponentFilePermissions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -49,6 +50,8 @@ pub struct Application {
     pub custom_commands: HashMap<String, Vec<ExternalCommand>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub clean: Vec<String>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub api_definitions: HashMap<String, ApiDefinition>,
 }
 
 impl Application {
@@ -83,6 +86,28 @@ pub struct Component {
     pub profiles: HashMap<String, ComponentProperties>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_profile: Option<String>,
+}
+
+// TODO: temporarily reusing data types from the OSS HTTP request as the manifest format,
+//       will be replaced with cleaned-up manifest specific ones
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiDefinition {
+    pub version: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub security: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub routes: Vec<RouteRequestData>,
+    pub draft: bool,
+}
+
+// TODO: temporarily reusing data types from the OSS HTTP request as the manifest format,
+//       will be replaced with cleaned-up manifest specific ones
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiDeployment {
+    pub api_definitions: Vec<ApiDefinitionInfo>,
+    pub site: ApiSite,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

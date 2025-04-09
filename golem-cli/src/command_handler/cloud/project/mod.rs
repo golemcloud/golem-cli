@@ -193,8 +193,6 @@ impl CloudProjectCommandHandler {
             (ProfileKind::Oss, Some(_)) => {
                 log_error("Cannot use projects with OSS profile!");
                 logln("");
-                log_text_view(&ComponentNameHelp);
-                logln("");
                 bail!(HintError::ExpectedCloudProfile);
             }
             (ProfileKind::Oss, None) => Ok(None),

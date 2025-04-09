@@ -14,7 +14,6 @@
 
 use crate::app::context::ApplicationContext;
 use crate::cloud::AccountId;
-use crate::command::builtin_app_subcommands;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{
     BuildArgs, ComponentOptionalComponentNames, ComponentTemplatePositionalArg, ForceBuildArg,
@@ -150,11 +149,7 @@ impl ComponentCommandHandler {
             {
                 log_error(format!("Component {} already exists", component_name));
                 logln("");
-                app_ctx.log_dynamic_help(&DynamicHelpSections {
-                    components: true,
-                    custom_commands: false,
-                    builtin_commands: builtin_app_subcommands(),
-                })?;
+                app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?;
                 bail!(NonSuccessfulExit)
             }
         };
@@ -188,11 +183,7 @@ impl ComponentCommandHandler {
         let app_ctx = app_ctx.some_or_err()?;
 
         logln("");
-        app_ctx.log_dynamic_help(&DynamicHelpSections {
-            components: true,
-            custom_commands: false,
-            builtin_commands: builtin_app_subcommands(),
-        })?;
+        app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?;
 
         Ok(())
     }
@@ -1053,11 +1044,7 @@ impl ComponentCommandHandler {
                     let app_ctx = self.ctx.app_context_lock().await;
                     if let Some(app_ctx) = app_ctx.opt()? {
                         logln("");
-                        app_ctx.log_dynamic_help(&DynamicHelpSections {
-                            components: true,
-                            custom_commands: false,
-                            builtin_commands: builtin_app_subcommands(),
-                        })?
+                        app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?
                     }
 
                     bail!(NonSuccessfulExit)

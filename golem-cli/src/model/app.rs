@@ -2,11 +2,13 @@ use crate::fs;
 use crate::log::LogColorize;
 use crate::model::app::app_builder::build_application;
 use crate::model::app_raw;
+use crate::model::app_raw::{ApiDefinition, ApiDeployment};
 use crate::model::template::Template;
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wasm_rpc_stubgen::naming;
 use crate::wasm_rpc_stubgen::naming::wit::package_dep_dir_name_from_parser;
 use crate::wasm_rpc_stubgen::stub::RustDependencyOverride;
+use golem_client::model::ApiSite;
 use golem_common::model::{
     ComponentFilePathWithPermissions, ComponentFilePermissions, ComponentType,
 };
@@ -77,9 +79,63 @@ impl ApplicationComponentSelectMode {
 
 #[derive(Debug, Clone)]
 pub struct DynamicHelpSections {
-    pub components: bool,
-    pub custom_commands: bool,
-    pub builtin_commands: BTreeSet<String>,
+    components: bool,
+    custom_commands: bool,
+    builtin_commands: BTreeSet<String>,
+    api_definitions: bool,
+    api_deployments: bool,
+}
+
+impl DynamicHelpSections {
+    pub fn show_all(builtin_commands: BTreeSet<String>) -> Self {
+        Self {
+            components: true,
+            custom_commands: true,
+            builtin_commands,
+            api_definitions: true,
+            api_deployments: true,
+        }
+    }
+
+    pub fn show_components() -> Self {
+        Self {
+            components: true,
+            custom_commands: false,
+            builtin_commands: Default::default(),
+            api_definitions: false,
+            api_deployments: false,
+        }
+    }
+
+    pub fn show_custom_commands(builtin_commands: BTreeSet<String>) -> Self {
+        Self {
+            components: false,
+            custom_commands: true,
+            builtin_commands,
+            api_definitions: false,
+            api_deployments: false,
+        }
+    }
+
+    pub fn components(&self) -> bool {
+        self.components
+    }
+
+    pub fn custom_commands(&self) -> bool {
+        self.custom_commands
+    }
+
+    pub fn builtin_commands(&self) -> &BTreeSet<String> {
+        &self.builtin_commands
+    }
+
+    pub fn api_definitions(&self) -> bool {
+        self.api_definitions
+    }
+
+    pub fn api_deployments(&self) -> bool {
+        self.api_deployments
+    }
 }
 
 #[derive(Debug)]
@@ -121,6 +177,33 @@ impl From<String> for AppComponentName {
 }
 
 impl From<&str> for AppComponentName {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AppApiDefinitionName(String);
+
+impl AppApiDefinitionName {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for AppApiDefinitionName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl From<String> for AppApiDefinitionName {
+    fn from(value: String) -> Self {
+        AppApiDefinitionName(value)
+    }
+}
+
+impl From<&str> for AppApiDefinitionName {
     fn from(value: &str) -> Self {
         Self(value.to_string())
     }
@@ -296,6 +379,8 @@ pub struct Application {
     no_dependencies: BTreeSet<DependentComponent>,
     custom_commands: HashMap<String, WithSource<Vec<app_raw::ExternalCommand>>>,
     clean: Vec<WithSource<String>>,
+    api_definitions: BTreeMap<AppApiDefinitionName, ApiDefinition>,
+    api_deployments: BTreeMap<ApiSite, ApiDeployment>,
 }
 
 impl Application {
@@ -622,6 +707,14 @@ impl Application {
             .join(self.component_name_as_safe_path_elem(component_name))
             .join(naming::wit::WIT_DIR)
     }
+
+    pub fn api_definitions(&self) -> &BTreeMap<AppApiDefinitionName, ApiDefinition> {
+        &self.api_definitions
+    }
+
+    pub fn api_deployments(&self) -> &BTreeMap<ApiSite, ApiDeployment> {
+        &self.api_deployments
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -862,11 +955,14 @@ mod app_builder {
     use crate::fs::PathExtra;
     use crate::log::LogColorize;
     use crate::model::app::{
-        AppComponentName, Application, BuildProfileName, Component, ComponentProperties,
-        DependencyType, DependentComponent, ResolvedComponentProperties, TemplateName, WithSource,
+        AppApiDefinitionName, AppComponentName, Application, BuildProfileName, Component,
+        ComponentProperties, DependencyType, DependentComponent, ResolvedComponentProperties,
+        TemplateName, WithSource,
     };
     use crate::model::app_raw;
+    use crate::model::app_raw::{ApiDefinition, ApiDeployment};
     use crate::validation::{ValidatedResult, ValidationBuilder};
+    use golem_client::model::ApiSite;
     use heck::{
         ToKebabCase, ToLowerCamelCase, ToPascalCase, ToShoutyKebabCase, ToShoutySnakeCase,
         ToSnakeCase, ToTitleCase, ToTrainCase, ToUpperCamelCase,
@@ -892,6 +988,8 @@ mod app_builder {
         Template(TemplateName),
         WasmRpcDependency((AppComponentName, DependentComponent)),
         Component(AppComponentName),
+        ApiDefinition(AppApiDefinitionName),
+        // TODO: ApiDeployment(ApiSite),
     }
 
     impl UniqueSourceCheckedEntityKey {
@@ -905,6 +1003,7 @@ mod app_builder {
                 UniqueSourceCheckedEntityKey::Template(_) => "Template",
                 UniqueSourceCheckedEntityKey::WasmRpcDependency(_) => "WASM RPC dependency",
                 UniqueSourceCheckedEntityKey::Component(_) => "Component",
+                UniqueSourceCheckedEntityKey::ApiDefinition(_) => "ApiDefinition",
             }
         }
 
@@ -939,6 +1038,12 @@ mod app_builder {
                 UniqueSourceCheckedEntityKey::Component(component_name) => {
                     component_name.as_str().log_color_highlight().to_string()
                 }
+                UniqueSourceCheckedEntityKey::ApiDefinition(api_definition_name) => {
+                    api_definition_name
+                        .as_str()
+                        .log_color_highlight()
+                        .to_string()
+                }
             }
         }
     }
@@ -954,6 +1059,12 @@ mod app_builder {
         clean: Vec<WithSource<String>>,
         raw_components: HashMap<AppComponentName, (PathBuf, app_raw::Component)>,
         resolved_components: BTreeMap<AppComponentName, Component>,
+        // TODO: temporarily reusing data types from the OSS HTTP request as the manifest format,
+        //       will be replaced with cleaned-up manifest specific ones
+        api_definitions: BTreeMap<AppApiDefinitionName, ApiDefinition>,
+        // TODO: temporarily reusing data types from the OSS HTTP request as the manifest format,
+        //       will be replaced with cleaned-up manifest specific ones
+        api_deployments: BTreeMap<ApiSite, ApiDeployment>,
 
         entity_sources: HashMap<UniqueSourceCheckedEntityKey, Vec<PathBuf>>,
     }
@@ -968,6 +1079,8 @@ mod app_builder {
             builder.validate_unique_sources(&mut validation);
             builder.resolve_components(&mut validation);
 
+            // TODO: validate API defs
+
             validation.build(Application {
                 temp_dir: builder.temp_dir,
                 wit_deps: builder.wit_deps,
@@ -976,6 +1089,8 @@ mod app_builder {
                 no_dependencies: BTreeSet::new(),
                 custom_commands: builder.custom_commands,
                 clean: builder.clean,
+                api_definitions: builder.api_definitions,
+                api_deployments: builder.api_deployments,
             })
         }
 
@@ -1072,6 +1187,21 @@ mod app_builder {
                             .into_iter()
                             .map(|path| WithSource::new(app.source.to_path_buf(), path)),
                     );
+
+                    for (api_definition_name, api_definition) in app.application.api_definitions {
+                        let api_definition_name = AppApiDefinitionName::from(api_definition_name);
+                        if self.add_entity_source(
+                            UniqueSourceCheckedEntityKey::ApiDefinition(
+                                api_definition_name.clone(),
+                            ),
+                            &app.source,
+                        ) {
+                            self.api_definitions
+                                .insert(api_definition_name, api_definition);
+                        }
+                    }
+
+                    // TODO: add API deployments
                 },
             );
         }
