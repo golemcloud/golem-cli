@@ -16,18 +16,22 @@ use clap_verbosity_flag::Verbosity;
 use shadow_rs::shadow;
 use tracing_subscriber::FmtSubscriber;
 
+pub mod app;
 pub mod auth;
 pub mod cloud;
 pub mod command;
 pub mod command_handler;
-pub mod completion;
 pub mod config;
 pub mod connect_output;
 pub mod context;
 pub mod diagnose;
 pub mod error;
+pub mod fs;
 pub mod fuzzy;
+pub mod log;
 pub mod model;
+pub mod validation;
+pub mod wasm_rpc_stubgen;
 
 #[cfg(test)]
 test_r::enable!();

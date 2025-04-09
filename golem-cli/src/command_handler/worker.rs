@@ -23,7 +23,11 @@ use crate::context::{Context, GolemClients};
 use crate::error::service::{AnyhowMapServiceError, ServiceError};
 use crate::error::NonSuccessfulExit;
 use crate::fuzzy::{Error, FuzzySearch};
-use crate::model::component::{function_params_types, show_exported_functions, Component};
+use crate::log::{log_action, log_error_action, log_warn_action, logln, LogColorize, LogIndent};
+use crate::model::app::ApplicationComponentSelectMode;
+use crate::model::component::{
+    function_params_types, show_exported_functions, AppComponentType, Component,
+};
 use crate::model::deploy::{TryUpdateAllWorkersResult, WorkerUpdateAttempt};
 use crate::model::invoke_result_view::InvokeResultView;
 use crate::model::text::fmt::{
@@ -60,13 +64,9 @@ use golem_cloud_client::model::{
     WorkerCreationRequest as WorkerCreationRequestCloud,
 };
 use golem_common::model::public_oplog::OplogCursor;
-use golem_common::model::{ComponentType, WorkerEvent};
+use golem_common::model::WorkerEvent;
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
-use golem_wasm_rpc_stubgen::commands::app::ComponentSelectMode;
-use golem_wasm_rpc_stubgen::log::{
-    log_action, log_error_action, log_warn_action, logln, LogColorize, LogIndent,
-};
 use itertools::{EitherOrBoth, Itertools};
 use native_tls::TlsConnector;
 use std::collections::HashMap;
@@ -193,7 +193,7 @@ impl WorkerCommandHandler {
             )
             .await?;
 
-        if component.component_type == ComponentType::Ephemeral
+        if component.component_type == AppComponentType::Ephemeral
             && worker_name_match.worker_name.is_some()
         {
             log_error("Cannot use explicit name for ephemeral worker!");
@@ -394,7 +394,7 @@ impl WorkerCommandHandler {
                     } else {
                         Some(
                             clients
-                                .worker
+                                .worker_invoke
                                 .invoke_and_await_function(
                                     &component.versioned_component_id.component_id,
                                     &worker_name.0,
@@ -423,7 +423,7 @@ impl WorkerCommandHandler {
                     } else {
                         Some(
                             clients
-                                .worker
+                                .worker_invoke
                                 .invoke_and_await_function_without_name(
                                     &component.versioned_component_id.component_id,
                                     Some(&idempotency_key.0),
@@ -454,7 +454,7 @@ impl WorkerCommandHandler {
                     } else {
                         Some(
                             clients
-                                .worker
+                                .worker_invoke
                                 .invoke_and_await_function(
                                     &component.versioned_component_id.component_id,
                                     &worker_name.0,
@@ -483,7 +483,7 @@ impl WorkerCommandHandler {
                     } else {
                         Some(
                             clients
-                                .worker
+                                .worker_invoke
                                 .invoke_and_await_function_without_name(
                                     &component.versioned_component_id.component_id,
                                     Some(&idempotency_key.0),
@@ -1529,7 +1529,7 @@ impl WorkerCommandHandler {
 
                 self.ctx
                     .app_handler()
-                    .opt_select_components(vec![], &ComponentSelectMode::CurrentDir)
+                    .opt_select_components(vec![], &ApplicationComponentSelectMode::CurrentDir)
                     .await?;
 
                 let app_ctx = self.ctx.app_context_lock().await;
@@ -1653,7 +1653,7 @@ impl WorkerCommandHandler {
 
                 self.ctx
                     .app_handler()
-                    .opt_select_components(vec![], &ComponentSelectMode::All)
+                    .opt_select_components(vec![], &ApplicationComponentSelectMode::All)
                     .await?;
 
                 let app_ctx = self.ctx.app_context_lock().await;

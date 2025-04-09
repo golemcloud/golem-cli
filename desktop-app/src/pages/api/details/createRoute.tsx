@@ -153,7 +153,7 @@ const CreateRoute = ({ lazy = false, onAddRoute }: CreateRouteProps) => {
 
         setComponentList(componentResponse);
 
-        if (path && method) {
+        if (path != null && method) {
           setIsEdit(true);
           const route = selectedApi?.routes.find(
             route => route.path === path && route.method === method,
@@ -175,17 +175,17 @@ const CreateRoute = ({ lazy = false, onAddRoute }: CreateRouteProps) => {
               const componentId = getComponentIdByName(componentName, componentList);
               if (componentId) {
                 loadResponseSuggestions(
-                    componentId,
-                    String(versionId),
-                    componentResponse,
+                  componentId,
+                  String(versionId),
+                  componentResponse,
                 );
                 form.setValue(
-                    "binding.component.name",
-                    route.binding.component?.name || "",
+                  "binding.component.name",
+                  route.binding.component?.name || "",
                 );
                 form.setValue(
-                    "binding.component.version",
-                    route.binding.component?.version || 0,
+                  "binding.component.version",
+                  route.binding.component?.version || 0,
                 );
               }
             }
@@ -251,7 +251,7 @@ const CreateRoute = ({ lazy = false, onAddRoute }: CreateRouteProps) => {
         selectedApi,
       ).then(() => {
         navigate(
-          `/apis/${apiName}/version/${version}/routes?path=${values.path}&method=${values.method}&reload=${!reload}`,
+          `/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
         );
       });
     } catch (error) {
@@ -401,14 +401,14 @@ const CreateRoute = ({ lazy = false, onAddRoute }: CreateRouteProps) => {
                             onValueChange={name => {
                               form.setValue(
                                 "binding.component.name",
-                                  name,
+                                name,
                               );
                               const componentId = getComponentIdByName(name, componentList);
                               if (componentId) {
                                 loadResponseSuggestions(
-                                    componentId,
-                                    "0",
-                                    componentList,
+                                  componentId,
+                                  "0",
+                                  componentList,
                                 );
                               }
                             }}
@@ -461,12 +461,13 @@ const CreateRoute = ({ lazy = false, onAddRoute }: CreateRouteProps) => {
                             <SelectContent>
                               {form.watch("binding.component") &&
                                 componentList[
-                                  form.watch("binding.component.name")
+                                  getComponentIdByName(form.watch("binding.component.name"), componentList)!
                                 ]?.versionList?.map((v: number) => (
                                   <SelectItem value={String(v)} key={v}>
                                     v{v}
                                   </SelectItem>
-                                ))}
+                                ))
+                              }
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -476,75 +477,75 @@ const CreateRoute = ({ lazy = false, onAddRoute }: CreateRouteProps) => {
                   </div>
                   {filterMethod(form.watch("binding.bindingType")).length >
                     0 && (
-                    <div className="grid grid-cols-3 gap-4 mt-4">
-                      <FormField
-                        control={form.control}
-                        name="method"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel required>Method</FormLabel>
-                            <Select
-                              onValueChange={v =>
-                                form.setValue("method", v as MethodPattern)
-                              }
-                              value={
-                                field.value ||
-                                filterMethod(
-                                  form.watch("binding.bindingType"),
-                                )[0]
-                              }
-                              disabled={
-                                !(
-                                  form.watch("binding.bindingType") &&
+                      <div className="grid grid-cols-3 gap-4 mt-4">
+                        <FormField
+                          control={form.control}
+                          name="method"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel required>Method</FormLabel>
+                              <Select
+                                onValueChange={v =>
+                                  form.setValue("method", v as MethodPattern)
+                                }
+                                value={
+                                  field.value ||
                                   filterMethod(
                                     form.watch("binding.bindingType"),
-                                  ).length > 0
-                                )
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select Method">
-                                    {" "}
-                                    {field.value}{" "}
-                                  </SelectValue>
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {form.watch("binding.bindingType") &&
-                                  filterMethod(
-                                    form.watch("binding.bindingType"),
-                                  ).map((v: string) => (
-                                    <SelectItem value={v} key={v}>
-                                      {v}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                  )[0]
+                                }
+                                disabled={
+                                  !(
+                                    form.watch("binding.bindingType") &&
+                                    filterMethod(
+                                      form.watch("binding.bindingType"),
+                                    ).length > 0
+                                  )
+                                }
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select Method">
+                                      {" "}
+                                      {field.value}{" "}
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {form.watch("binding.bindingType") &&
+                                    filterMethod(
+                                      form.watch("binding.bindingType"),
+                                    ).map((v: string) => (
+                                      <SelectItem value={v} key={v}>
+                                        {v}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      <FormField
-                        control={form.control}
-                        name="path"
-                        render={({ field }) => (
-                          <FormItem className="col-span-2">
-                            <FormLabel required>Path</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="/api/v1/resource/<param>"
-                                {...field}
-                                onChange={e => handlePathChange(e)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
+                        <FormField
+                          control={form.control}
+                          name="path"
+                          render={({ field }) => (
+                            <FormItem className="col-span-2">
+                              <FormLabel required>Path</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="/api/v1/resource/<param>"
+                                  {...field}
+                                  onChange={e => handlePathChange(e)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
                 </div>
 
                 <div>
@@ -629,11 +630,10 @@ const CreateRoute = ({ lazy = false, onAddRoute }: CreateRouteProps) => {
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent
-                                className={`${
-                                  responseSuggestions.length === 0
-                                    ? "max-w-[450px]"
-                                    : "w-[450px]"
-                                }  p-4`}
+                                className={`${responseSuggestions.length === 0
+                                  ? "max-w-[450px]"
+                                  : "w-[450px]"
+                                  }  p-4`}
                                 align="start"
                                 sideOffset={5}
                               >

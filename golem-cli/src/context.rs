@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::app::context::ApplicationContext;
 use crate::auth::{Auth, CloudAuthentication};
 use crate::cloud::{AccountId, CloudAuthenticationConfig};
 use crate::command::GolemCliGlobalFlags;
@@ -19,8 +20,11 @@ use crate::config::{
     ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
 };
 use crate::error::HintError;
-use crate::model::app_ext::GolemComponentExtensions;
+use crate::log::{set_log_output, LogOutput, Output};
+use crate::model::app::{AppBuildStep, ApplicationSourceMode};
+use crate::model::app::{ApplicationConfig, BuildProfileName as AppBuildProfileName};
 use crate::model::{Format, HasFormatConfig};
+use crate::wasm_rpc_stubgen::stub::RustDependencyOverride;
 use anyhow::anyhow;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
@@ -49,13 +53,7 @@ use golem_cloud_client::api::{AccountClientLive as AccountClientCloud, LoginClie
 use golem_cloud_client::{Context as ContextCloud, Security};
 use golem_templates::model::{ComposableAppGroupName, GuestLanguage};
 use golem_templates::ComposableAppTemplate;
-use golem_wasm_rpc_stubgen::commands::app::{ApplicationContext, ApplicationSourceMode};
-use golem_wasm_rpc_stubgen::log::{set_log_output, LogOutput, Output};
-use golem_wasm_rpc_stubgen::model::app::AppBuildStep;
-use golem_wasm_rpc_stubgen::model::app::BuildProfileName as AppBuildProfileName;
-use golem_wasm_rpc_stubgen::stub::RustDependencyOverride;
 use std::collections::{BTreeMap, HashSet};
-use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
@@ -298,6 +296,7 @@ impl Clients {
         config_dir: &Path,
     ) -> anyhow::Result<Self> {
         let service_http_client = new_reqwest_client(&config.service_http_client_config)?;
+        let invoke_http_client = new_reqwest_client(&config.invoke_http_client_config)?;
         let file_download_http_client =
             new_reqwest_client(&config.file_download_http_client_config)?;
 
@@ -324,6 +323,12 @@ impl Clients {
 
                 let worker_context = || ContextCloud {
                     client: service_http_client.clone(),
+                    base_url: config.worker_url.clone(),
+                    security_token: security_token.clone(),
+                };
+
+                let worker_invoke_context = || ContextCloud {
+                    client: invoke_http_client.clone(),
                     base_url: config.worker_url.clone(),
                     security_token: security_token.clone(),
                 };
@@ -394,6 +399,9 @@ impl Clients {
                         worker: WorkerClientCloud {
                             context: worker_context(),
                         },
+                        worker_invoke: WorkerClientCloud {
+                            context: worker_invoke_context(),
+                        },
                     }),
                     file_download: file_download_http_client,
                 })
@@ -406,6 +414,11 @@ impl Clients {
 
                 let worker_context = || ContextOss {
                     client: service_http_client.clone(),
+                    base_url: config.worker_url.clone(),
+                };
+
+                let worker_invoke_context = || ContextOss {
+                    client: invoke_http_client.clone(),
                     base_url: config.worker_url.clone(),
                 };
 
@@ -429,6 +442,9 @@ impl Clients {
                         worker: WorkerClientOss {
                             context: worker_context(),
                         },
+                        worker_invoke: WorkerClientOss {
+                            context: worker_invoke_context(),
+                        },
                     }),
                     file_download: file_download_http_client,
                 })
@@ -449,6 +465,7 @@ pub struct GolemClientsOss {
     pub component: ComponentClientOss,
     pub plugin: PluginClientOss,
     pub worker: WorkerClientOss,
+    pub worker_invoke: WorkerClientOss,
 }
 
 pub struct GolemClientsCloud {
@@ -471,6 +488,7 @@ pub struct GolemClientsCloud {
     pub project_policy: ProjectPolicyClientCloud,
     pub token: TokenClientCloud,
     pub worker: WorkerClientCloud,
+    pub worker_invoke: WorkerClientCloud,
 }
 
 impl GolemClientsCloud {
@@ -499,8 +517,7 @@ pub struct ApplicationContextState {
     pub build_steps_filter: HashSet<AppBuildStep>,
     build_steps_filter_was_set: bool,
 
-    app_context:
-        Option<Result<Option<ApplicationContext<GolemComponentExtensions>>, Arc<anyhow::Error>>>,
+    app_context: Option<Result<Option<ApplicationContext>, Arc<anyhow::Error>>>,
 }
 
 impl ApplicationContextState {
@@ -513,7 +530,7 @@ impl ApplicationContextState {
             .silent_init
             .then(|| LogOutput::new(Output::TracingDebug));
 
-        let config = golem_wasm_rpc_stubgen::commands::app::Config {
+        let config = ApplicationConfig {
             app_source_mode: {
                 match &config.app_manifest_path {
                     Some(path) => ApplicationSourceMode::Explicit(path.clone()),
@@ -529,7 +546,6 @@ impl ApplicationContextState {
             skip_up_to_date_checks: self.skip_up_to_date_checks,
             profile: config.build_profile.as_ref().map(|p| p.to_string().into()),
             offline: config.wasm_rpc_client_build_offline,
-            extensions: PhantomData::<GolemComponentExtensions>,
             steps_filter: self.build_steps_filter.clone(),
             golem_rust_override: config.golem_rust_override.clone(),
         };
@@ -539,7 +555,7 @@ impl ApplicationContextState {
         self.app_context = Some(ApplicationContext::new(config).map_err(Arc::new))
     }
 
-    pub fn opt(&self) -> anyhow::Result<Option<&ApplicationContext<GolemComponentExtensions>>> {
+    pub fn opt(&self) -> anyhow::Result<Option<&ApplicationContext>> {
         match &self.app_context {
             Some(Ok(None)) => Ok(None),
             Some(Ok(Some(app_ctx))) => Ok(Some(app_ctx)),
@@ -548,9 +564,7 @@ impl ApplicationContextState {
         }
     }
 
-    pub fn opt_mut(
-        &mut self,
-    ) -> anyhow::Result<Option<&mut ApplicationContext<GolemComponentExtensions>>> {
+    pub fn opt_mut(&mut self) -> anyhow::Result<Option<&mut ApplicationContext>> {
         match &mut self.app_context {
             Some(Ok(None)) => Ok(None),
             Some(Ok(Some(app_ctx))) => Ok(Some(app_ctx)),
@@ -559,7 +573,7 @@ impl ApplicationContextState {
         }
     }
 
-    pub fn some_or_err(&self) -> anyhow::Result<&ApplicationContext<GolemComponentExtensions>> {
+    pub fn some_or_err(&self) -> anyhow::Result<&ApplicationContext> {
         match &self.app_context {
             Some(Ok(None)) => Err(anyhow!(HintError::NoApplicationManifestFound)),
             Some(Ok(Some(app_ctx))) => Ok(app_ctx),
@@ -568,9 +582,7 @@ impl ApplicationContextState {
         }
     }
 
-    pub fn some_or_err_mut(
-        &mut self,
-    ) -> anyhow::Result<&mut ApplicationContext<GolemComponentExtensions>> {
+    pub fn some_or_err_mut(&mut self) -> anyhow::Result<&mut ApplicationContext> {
         match &mut self.app_context {
             Some(Ok(None)) => Err(anyhow!(HintError::NoApplicationManifestFound)),
             Some(Ok(Some(app_ctx))) => Ok(app_ctx),

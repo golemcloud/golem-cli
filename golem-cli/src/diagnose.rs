@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::diagnose::VersionRequirement::{ExactByNameVersion, ExactVersion, MinimumVersion};
+use crate::log::logln;
 use anyhow::{anyhow, Context};
 use colored::Colorize;
 use golem_templates::model::GuestLanguage;
-use golem_wasm_rpc_stubgen::log::logln;
 use indoc::indoc;
 use regex::Regex;
 use std::cmp::max;
@@ -902,7 +902,11 @@ fn rust_package_version(dir: &Path, package_name: &str) -> Result<String, String
 
 fn npm_package_version(dir: &Path, package_name: &str) -> Result<String, String> {
     fn trim_scope_symbol(s: &str) -> &str {
-        s.starts_with("@").then(|| &s[1..]).unwrap_or(s)
+        if let Some(stripped) = s.strip_prefix("@") {
+            stripped
+        } else {
+            s
+        }
     }
 
     let package_name = trim_scope_symbol(package_name);

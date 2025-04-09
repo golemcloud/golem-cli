@@ -35,10 +35,12 @@ pub enum ContextInitHintError {
 impl Error for ContextInitHintError {}
 
 pub mod service {
+    use crate::log::LogColorize;
     use crate::model::text::fmt::format_stack;
     use bytes::Bytes;
-    use golem_client::model::{
-        GolemError, GolemErrorComponentDownloadFailed, GolemErrorComponentParseFailed,
+    use golem_client::model::GolemError;
+    use golem_common::model::error::{
+        GolemErrorComponentDownloadFailed, GolemErrorComponentParseFailed,
         GolemErrorFailedToResumeWorker, GolemErrorFileSystemError,
         GolemErrorGetLatestVersionOfComponentFailed, GolemErrorInitialComponentFileDownloadFailed,
         GolemErrorInterrupted, GolemErrorInvalidRequest, GolemErrorInvalidShardId,
@@ -48,7 +50,6 @@ pub mod service {
         GolemErrorWorkerNotFound,
     };
     use golem_common::model::{PromiseId, WorkerId};
-    use golem_wasm_rpc_stubgen::log::LogColorize;
     use itertools::Itertools;
     use reqwest::StatusCode;
     use std::error::Error;
@@ -1268,11 +1269,11 @@ pub mod service {
                 )
             }
             GolemError::FailedToResumeWorker(inner) => {
-                let GolemErrorFailedToResumeWorker { worker_id, reason } = *inner;
+                let GolemErrorFailedToResumeWorker { worker_id, reason } = inner;
                 format!(
                     "Failed to resume worker {}: {}",
                     display_worker_id(worker_id).log_color_highlight(),
-                    display_golem_error(reason).log_color_warn()
+                    display_golem_error(*reason).log_color_warn()
                 )
             }
             GolemError::ComponentDownloadFailed(GolemErrorComponentDownloadFailed {

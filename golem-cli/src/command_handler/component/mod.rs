@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::app::context::ApplicationContext;
 use crate::cloud::AccountId;
+use crate::command::builtin_app_subcommands;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{
     BuildArgs, ComponentOptionalComponentNames, ComponentTemplatePositionalArg, ForceBuildArg,
@@ -23,7 +25,11 @@ use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
-use crate::model::app_ext::{GolemComponentExtensions, InitialComponentFile};
+use crate::log::{log_action, logln, LogColorize, LogIndent};
+use crate::model::app::{
+    AppComponentName, ApplicationComponentSelectMode, BuildProfileName, DynamicHelpSections,
+};
+use crate::model::app::{DependencyType, InitialComponentFile};
 use crate::model::component::{Component, ComponentView};
 use crate::model::deploy::TryUpdateAllWorkersResult;
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
@@ -45,12 +51,6 @@ use golem_common::model::component_metadata::WasmRpcTarget;
 use golem_common::model::{ComponentId, ComponentType};
 use golem_templates::add_component_by_template;
 use golem_templates::model::{GuestLanguage, PackageName};
-use golem_wasm_rpc_stubgen::commands::app::{
-    ApplicationContext, ComponentSelectMode, DynamicHelpSections,
-};
-use golem_wasm_rpc_stubgen::log::{log_action, logln, LogColorize, LogIndent};
-use golem_wasm_rpc_stubgen::model::app::DependencyType;
-use golem_wasm_rpc_stubgen::model::app::{BuildProfileName, ComponentName as AppComponentName};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -153,6 +153,7 @@ impl ComponentCommandHandler {
                 app_ctx.log_dynamic_help(&DynamicHelpSections {
                     components: true,
                     custom_commands: false,
+                    builtin_commands: builtin_app_subcommands(),
                 })?;
                 bail!(NonSuccessfulExit)
             }
@@ -190,6 +191,7 @@ impl ComponentCommandHandler {
         app_ctx.log_dynamic_help(&DynamicHelpSections {
             components: true,
             custom_commands: false,
+            builtin_commands: builtin_app_subcommands(),
         })?;
 
         Ok(())
@@ -205,7 +207,7 @@ impl ComponentCommandHandler {
             .build(
                 component_name.component_name,
                 Some(build_args),
-                &ComponentSelectMode::CurrentDir,
+                &ApplicationComponentSelectMode::CurrentDir,
             )
             .await
     }
@@ -218,7 +220,7 @@ impl ComponentCommandHandler {
             .app_handler()
             .clean(
                 component_name.component_name,
-                &ComponentSelectMode::CurrentDir,
+                &ApplicationComponentSelectMode::CurrentDir,
             )
             .await
     }
@@ -237,7 +239,7 @@ impl ComponentCommandHandler {
                 .as_ref(),
             component_name.component_name,
             Some(force_build),
-            &ComponentSelectMode::CurrentDir,
+            &ApplicationComponentSelectMode::CurrentDir,
             update_or_redeploy,
         )
         .await
@@ -344,7 +346,7 @@ impl ComponentCommandHandler {
                 .app_handler()
                 .opt_select_components(
                     component_name.iter().cloned().collect(),
-                    &ComponentSelectMode::CurrentDir,
+                    &ApplicationComponentSelectMode::CurrentDir,
                 )
                 .await?;
         }
@@ -453,7 +455,7 @@ impl ComponentCommandHandler {
                 .app_handler()
                 .opt_select_components(
                     component_name.iter().cloned().collect(),
-                    &ComponentSelectMode::CurrentDir,
+                    &ApplicationComponentSelectMode::CurrentDir,
                 )
                 .await?;
         }
@@ -556,7 +558,7 @@ impl ComponentCommandHandler {
             .app_handler()
             .diagnose(
                 component_names.component_name,
-                &ComponentSelectMode::CurrentDir,
+                &ApplicationComponentSelectMode::CurrentDir,
             )
             .await
     }
@@ -566,7 +568,7 @@ impl ComponentCommandHandler {
         project: Option<&ProjectNameAndId>,
         component_names: Vec<ComponentName>,
         force_build: Option<ForceBuildArg>,
-        default_component_select_mode: &ComponentSelectMode,
+        default_component_select_mode: &ApplicationComponentSelectMode,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
         self.ctx
@@ -600,10 +602,19 @@ impl ComponentCommandHandler {
 
             let mut components = Vec::with_capacity(selected_component_names.len());
             for component_name in &selected_component_names {
-                components.push(
-                    self.deploy_component(build_profile.as_ref(), project, component_name)
-                        .await?,
-                );
+                let app_ctx = self.ctx.app_context_lock().await;
+                if app_ctx
+                    .some_or_err()?
+                    .application
+                    .component_properties(component_name, build_profile.as_ref())
+                    .is_deployable()
+                {
+                    drop(app_ctx);
+                    components.push(
+                        self.deploy_component(build_profile.as_ref(), project, component_name)
+                            .await?,
+                    );
+                }
             }
 
             components
@@ -980,7 +991,7 @@ impl ComponentCommandHandler {
             .app_handler()
             .opt_select_components_allow_not_found(
                 component_name.clone().into_iter().collect(),
-                &ComponentSelectMode::CurrentDir,
+                &ApplicationComponentSelectMode::CurrentDir,
             )
             .await?;
 
@@ -1054,6 +1065,7 @@ impl ComponentCommandHandler {
                         app_ctx.log_dynamic_help(&DynamicHelpSections {
                             components: true,
                             custom_commands: false,
+                            builtin_commands: builtin_app_subcommands(),
                         })?
                     }
 
@@ -1082,7 +1094,7 @@ impl ComponentCommandHandler {
                             project,
                             vec![component_name.clone()],
                             None,
-                            &ComponentSelectMode::CurrentDir,
+                            &ApplicationComponentSelectMode::CurrentDir,
                             WorkerUpdateOrRedeployArgs::default(),
                         )
                         .await?;
@@ -1205,19 +1217,21 @@ struct ComponentDeployProperties {
 }
 
 fn component_deploy_properties(
-    app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
+    app_ctx: &mut ApplicationContext,
     component_name: &AppComponentName,
     build_profile: Option<&BuildProfileName>,
 ) -> anyhow::Result<ComponentDeployProperties> {
     let linked_wasm_path = app_ctx
         .application
-        .component_linked_wasm(component_name, build_profile);
+        .component_final_linked_wasm(component_name, build_profile);
     let component_properties = &app_ctx
         .application
         .component_properties(component_name, build_profile);
-    let extensions = &component_properties.extensions;
-    let component_type = extensions.component_type;
-    let files = extensions.files.clone();
+    let component_type = component_properties
+        .component_type
+        .as_deployable_component_type()
+        .ok_or_else(|| anyhow!("Component {component_name} is not deployable"))?;
+    let files = component_properties.files.clone();
     let dynamic_linking = app_component_dynamic_linking(app_ctx, component_name)?;
 
     Ok(ComponentDeployProperties {
@@ -1229,14 +1243,14 @@ fn component_deploy_properties(
 }
 
 fn app_component_dynamic_linking(
-    app_ctx: &mut ApplicationContext<GolemComponentExtensions>,
+    app_ctx: &mut ApplicationContext,
     component_name: &AppComponentName,
 ) -> anyhow::Result<Option<DynamicLinkingOss>> {
     let mut mapping = Vec::new();
 
     let wasm_rpc_deps = app_ctx
         .application
-        .component_wasm_rpc_dependencies(component_name)
+        .component_dependencies(component_name)
         .iter()
         .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc)
         .cloned()
