@@ -659,8 +659,8 @@ impl ApplicationContext {
                     logln(format!(
                         "  {}@{}{}",
                         name.as_str().log_color_highlight(),
-                        def.version.log_color_highlight(),
-                        if def.draft { " (draft)" } else { "" }
+                        def.value.version.log_color_highlight(),
+                        if def.value.draft { " (draft)" } else { "" }
                     ));
                 }
                 logln("");
@@ -669,7 +669,31 @@ impl ApplicationContext {
             }
         }
 
-        // TODO: deployments
+        if config.api_deployments() {
+            if !self.application.api_deployments().is_empty() {
+                logln(format!(
+                    "{}",
+                    "Application API deployments:".log_color_help_group()
+                ));
+                for (_, dep) in self.application.api_deployments() {
+                    logln(format!(
+                        "  {}{}",
+                        match &dep.value.subdomain {
+                            Some(subdomain) => {
+                                format!("{}.", subdomain.log_color_highlight())
+                            }
+                            None => {
+                                "".to_string()
+                            }
+                        },
+                        dep.value.host.log_color_highlight(),
+                    ));
+                }
+                logln("");
+            } else {
+                logln("No API deployments found in the application.\n");
+            }
+        }
 
         // TODO: profiles?
 
