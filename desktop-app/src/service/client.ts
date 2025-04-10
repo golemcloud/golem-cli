@@ -3,9 +3,9 @@ import { toast } from "@/hooks/use-toast";
 import { fetchData, updateIP } from "@/lib/tauri&web.ts";
 import { ENDPOINT } from "@/service/endpoints.ts";
 import { parseErrorResponse } from "@/service/error-handler.ts";
-import { Api } from "@/types/api.ts";
-import { Component, ComponentList } from "@/types/component.ts";
-import { Plugin } from "@/types/plugin";
+import type { Api } from "@/types/api.ts";
+import type { Component, ComponentList } from "@/types/component.ts";
+import type { Plugin } from "@/types/plugin";
 
 export class Service {
   public baseUrl: string;
@@ -110,7 +110,7 @@ export class Service {
     );
   };
 
-  public addPluginToComponent = async (id: string, form: any) => {
+  public addPluginToComponent = async (id: string, form: Record<string, unknown>) => {
     return await this.callApi(
       ENDPOINT.addPluginToComponent(id),
       "POST",
@@ -157,7 +157,7 @@ export class Service {
     return r;
   };
 
-  public createWorker = async (componentID: string, params: any) => {
+  public createWorker = async (componentID: string, params: Record<string, unknown>) => {
     const r = await this.callApi(
       ENDPOINT.createWorker(componentID),
       "POST",
@@ -240,7 +240,7 @@ export class Service {
     componentId: string,
     workerName: string,
     functionName: string,
-    payload: any,
+    payload: Record<string, unknown>,
   ) => {
     const r = await this.callApi(
       ENDPOINT.invokeWorker(componentId, workerName, functionName),
@@ -253,7 +253,7 @@ export class Service {
   public invokeEphemeralAwait = async (
     componentId: string,
     functionName: string,
-    payload: any,
+    payload: Record<string, unknown>,
   ) => {
     const r = await this.callApi(
       ENDPOINT.invokeEphemeralWorker(componentId, functionName),
@@ -276,7 +276,7 @@ export class Service {
     return r;
   };
 
-  public createDeployment = async (payload: any) => {
+  public createDeployment = async (payload: Record<string, unknown>) => {
     const r = await this.callApi(
       ENDPOINT.createDeployment(),
       "POST",
@@ -341,18 +341,18 @@ export class Service {
     return componentList;
   };
 
-  public getPlugins = async (): Promise<Plugin[]> => {
-    return await this.callApi(ENDPOINT.getPlugins());
+  public getPlugins = async (): Promise<Plugin[] | null> => {
+    return (await this.callApi(ENDPOINT.getPlugins())) as Plugin[] | null;
   };
 
-  public getPluginByName = async (name: string): Promise<Plugin[]> => {
-    return await this.callApi(ENDPOINT.getPluginName(name));
+  public getPluginByName = async (name: string): Promise<Plugin[] | null> => {
+    return (await this.callApi(ENDPOINT.getPluginName(name))) as Plugin[] | null;
   };
 
   public downloadComponent = async (
     componentId: string,
     version: number,
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     return await this.downloadApi(
       ENDPOINT.downloadComponent(componentId, version),
     );
@@ -370,49 +370,42 @@ export class Service {
 
   private callApi = async (
     url: string,
-    method: string = "GET",
+    method = "GET",
     data: FormData | string | null = null,
     headers = { "Content-Type": "application/json" },
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     try {
       const response = await fetchData(`${this.baseUrl}${url}`, {
-        method: method,
+        method,
+        headers,
         body: data,
-        headers: headers,
       });
 
+      if (!response.ok) {
+        if (response.status === 504)  return null;
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       const contentType = response.headers.get("Content-Type");
-      let responseData: any;
 
-      if (contentType && contentType.includes("application/json")) {
-        responseData = await response.json();
-      } else {
-        responseData = await response.text();
+      if (contentType?.includes("application/json")) {
+        return response.json();
       }
-
-      if (response.ok) {
-        return responseData;
-      } else {
-        if (response.status === 504) {
-          return;
-        }
-
-        throw responseData;
-      }
-    } catch (response: any) {
-      const result = parseErrorResponse(response);
-      if (response?.status !== 504) {
-        throw result;
-      }
+      return response.text();
+    } catch (error) {
+      console.error("API call failed:", error);
+      const result = parseErrorResponse(error);
+      throw result;
     }
   };
 
   private downloadApi = async (
     url: string,
-    method: string = "GET",
+    method = "GET",
     data: FormData | string | null = null,
     headers = { "Content-Type": "application/json" },
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     const resp = await fetchData(`${this.baseUrl}${url}`, {
       method: method,
       body: data,

@@ -3,14 +3,34 @@ import TauriWebSocket from "@tauri-apps/plugin-websocket";
 import { invoke } from "@tauri-apps/api/core";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { writeFile } from "@tauri-apps/plugin-fs";
+import { getVersion } from "@tauri-apps/api/app";
 
-const isTauri = typeof window !== "undefined";
+async function checkIfTauri() {
+  try {
+    await getVersion();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function checkEnvironment() {
+  const isTauri = await checkIfTauri();
+  const isClientSide = typeof window !== "undefined";
+
+  return {
+    isTauri,
+    isClientSide,
+  };
+}
+
+const { isTauri, isClientSide } = await checkEnvironment();
 
 export async function saveFile(fileName: string, data: Uint8Array) {
   if (isTauri) {
     // Use Tauri to save the file in the Downloads directory
     await writeFile(fileName, data, { baseDir: BaseDirectory.Download });
-  } else {
+  } else if (isClientSide) {
     // Use Blob and createObjectURL for web downloads
     const blob = new Blob([data]);
     const link = document.createElement("a");
@@ -38,8 +58,8 @@ export async function fetchCurrentIP() {
     console.log("Current backend IP:", ip);
     return ip;
   } catch (error) {
-    return "http://localhost:9881"
     console.error("Failed to get current IP:", error);
+    return "http://localhost:9881";
   }
 }
 
@@ -47,11 +67,15 @@ export async function fetchData(
   url: string,
   options?: RequestInit,
 ): Promise<Response> {
-  if (isTauri) {
-    return tauriFetch(url, options); // Use Tauri HTTP plugin
-  } else {
-    return fetch(url, options); // Use standard browser fetch
+  if (isClientSide) {
+    return window.fetch(url, options);
   }
+
+  if (isTauri) {
+    return tauriFetch(url, options); 
+  }
+  
+  return fetch(url, options);
 }
 
 export class UniversalWebSocket {
@@ -64,9 +88,8 @@ export class UniversalWebSocket {
   static async connect(url: string): Promise<UniversalWebSocket> {
     if (isTauri) {
       return new UniversalWebSocket(await TauriWebSocket.connect(url));
-    } else {
-      return new UniversalWebSocket(new WebSocket(url));
     }
+    return new UniversalWebSocket(new WebSocket(url));
   }
 
   public send(data: never) {
