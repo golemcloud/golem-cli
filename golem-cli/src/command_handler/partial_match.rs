@@ -179,9 +179,9 @@ impl ErrorHandler {
                 if let Ok(Some(component)) = self
                     .ctx
                     .component_handler()
-                    .component_by_name(
+                    .component(
                         worker_name_match.project.as_ref(),
-                        &worker_name_match.component_name,
+                        (&worker_name_match.component_name).into(),
                         worker_name_match.worker_name.as_ref(),
                     )
                     .await

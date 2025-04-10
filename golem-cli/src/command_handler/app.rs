@@ -81,6 +81,9 @@ impl AppCommandHandler {
                     .await
             }
             AppSubcommand::Diagnose { component_name } => self.cmd_diagnose(component_name).await,
+            AppSubcommand::Repl { component_name } => {
+                self.cmd_repl(component_name.component_name).await
+            }
             AppSubcommand::CustomCommand(command) => self.cmd_custom_command(command).await,
         }
     }
@@ -320,6 +323,13 @@ impl AppCommandHandler {
         Ok(())
     }
 
+    async fn cmd_repl(&mut self, component_names: Vec<ComponentName>) -> anyhow::Result<()> {
+        self.ctx
+            .rib_repl_handler()
+            .run_repl(component_names, &ApplicationComponentSelectMode::All)
+            .await
+    }
+
     async fn cmd_diagnose(
         &mut self,
         component_names: AppOptionalComponentNames,
@@ -383,7 +393,7 @@ impl AppCommandHandler {
             match self
                 .ctx
                 .component_handler()
-                .component_by_name(project.as_ref(), component_name, None)
+                .component(project.as_ref(), component_name.into(), None)
                 .await?
             {
                 Some(component) => {
@@ -400,7 +410,7 @@ impl AppCommandHandler {
         Ok(components)
     }
 
-    async fn must_select_components(
+    pub async fn must_select_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ApplicationComponentSelectMode,

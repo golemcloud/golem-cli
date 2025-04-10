@@ -569,6 +569,7 @@ pub mod shared_args {
 
     #[derive(Debug, Args)]
     pub struct ComponentOptionalComponentNames {
+        // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Optional component names, if not specified components are selected based on the current directory
         /// Accepted formats:
         ///   - <COMPONENT>
@@ -580,7 +581,12 @@ pub mod shared_args {
 
     #[derive(Debug, Args)]
     pub struct AppOptionalComponentNames {
+        // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Optional component names, if not specified all components are selected.
+        /// Accepted formats:
+        ///   - <COMPONENT>
+        ///   - <PROJECT>/<COMPONENT>
+        ///   - <ACCOUNT>/<PROJECT>/<COMPONENT>
         pub component_name: Vec<ComponentName>,
     }
 
@@ -737,6 +743,11 @@ pub mod app {
         },
         /// Diagnose possible tooling problems
         Diagnose {
+            #[command(flatten)]
+            component_name: AppOptionalComponentNames,
+        },
+        /// Start Rib REPL
+        Repl {
             #[command(flatten)]
             component_name: AppOptionalComponentNames,
         },

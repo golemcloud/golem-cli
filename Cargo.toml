@@ -17,6 +17,7 @@ exclude = [
 golem-client = "=1.2.2-dev.6"
 golem-common = "=1.2.2-dev.6"
 golem-rib = "=1.2.2-dev.6"
+golem-rib-repl = "1.2.2-dev.6"
 golem-service-base = "=1.2.2-dev.6"
 golem-wasm-ast = { version = "=1.2.2-dev.6", default-features = false, features = ["analysis", "wave"] }
 golem-wasm-rpc = { version = "=1.2.2-dev.6", default-features = false, features = ["host"] }
