@@ -24,7 +24,7 @@ import {
   safeFormatJSON,
   validateJsonStructure,
 } from "@/lib/worker";
-import { ComponentExportFunction } from "@/types/component";
+import type { ComponentExportFunction } from "@/types/component";
 import { CircleSlash2, Info, Play, TimerReset } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
@@ -102,7 +102,7 @@ export const DynamicForm = ({
 
   const validateForm = (): Record<string, string> => {
     const validationErrors: Record<string, string> = {};
-    functionDetails.parameters.forEach(field => {
+    for (const field of functionDetails.parameters) {
       let value = formData[field.name];
       if (nonStringPrimitives.includes(field.typ.type) && value === undefined) {
         validationErrors[field.name] = `${field.name} is required`;
@@ -117,7 +117,7 @@ export const DynamicForm = ({
             value = JSON.parse(sanitizedValue);
           } catch (error) {
             validationErrors[field.name] = `${field.name} is not a valid JSON`;
-            return null;
+            return validationErrors;
           }
         } else if (
           ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
@@ -141,7 +141,7 @@ export const DynamicForm = ({
           validationErrors[field.name] = error;
         }
       }
-    });
+    }
     return validationErrors;
   };
 
@@ -151,7 +151,7 @@ export const DynamicForm = ({
       setErrors(validationErrors);
     } else {
       const result: unknown[] = [];
-      functionDetails.parameters.forEach(field => {
+      for (const field of functionDetails.parameters) {
         const value = formData[field.name] || "";
         if (
           !nonStringPrimitives.includes(field.typ.type) &&
@@ -183,7 +183,7 @@ export const DynamicForm = ({
             result.push(value);
           }
         }
-      });
+      }
       onInvoke(result);
     }
   };
@@ -315,6 +315,7 @@ export const DynamicForm = ({
                 <button
                   className="p-1 hover:bg-muted rounded-full transition-colors"
                   aria-label="Show interpolation info"
+                  type="button"
                 >
                   <Info className="w-4 h-4 text-muted-foreground" />
                 </button>
