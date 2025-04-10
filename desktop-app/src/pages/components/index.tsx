@@ -1,6 +1,7 @@
+import EmptyState from "@/components/empty-state";
 import ErrorBoundary from "@/components/errorBoundary";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,14 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { calculateExportFunctions, cn, formatRelativeTime } from "@/lib/utils";
-import { API } from "@/service";
-import { ComponentList } from "@/types/component";
-import { Worker } from "@/types/worker";
-import { LayoutGrid, PlusCircle } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {Input} from "@/components/ui/input";
+import {calculateExportFunctions, cn, formatRelativeTime} from "@/lib/utils";
+import {API} from "@/service";
+import {ComponentList} from "@/types/component";
+import {Worker} from "@/types/worker";
+import {LayoutGrid, PlusCircle} from "lucide-react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
+import {useNavigate} from "react-router-dom";
 
 /**
  * Worker status metrics used to categorize workers
@@ -77,10 +78,10 @@ const DEFAULT_WORKER_STATUS: ComponentWorkerStatus =
  */
 export const ComponentCard = React.memo(
   ({
-    data,
-    workerStatus,
-    onCardClick,
-  }: {
+     data,
+     workerStatus,
+     onCardClick,
+   }: {
     data: ComponentList;
     workerStatus?: ComponentWorkerStatus;
     onCardClick: (componentId: string) => void;
@@ -122,7 +123,7 @@ export const ComponentCard = React.memo(
           >
             {formatRelativeTime(
               data.versions?.[data.versions?.length - 1].createdAt ||
-                new Date(),
+              new Date(),
             )}
           </CardDescription>
         </CardHeader>
@@ -224,7 +225,7 @@ const Components = () => {
           });
 
           // Initialize status with all metrics set to 0
-          const status = { ...DEFAULT_WORKER_STATUS };
+          const status = {...DEFAULT_WORKER_STATUS};
 
           // Update counts for existing statuses
           worker.workers.forEach((w: Worker) => {
@@ -283,19 +284,10 @@ const Components = () => {
   /**
    * Memoized empty state component to render when no components are found
    */
-  const EmptyState = useMemo(
+  const ComponentEmptyState = useMemo(
     () => (
-      <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-        <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-          <LayoutGrid className="h-8 w-8 text-gray-400" />
-        </div>
-        <h2 className="text-xl font-semibold mb-2 text-center">
-          No Project Components
-        </h2>
-        <p className="text-gray-500 mb-6 text-center">
-          Create a new component to get started.
-        </p>
-      </div>
+      <EmptyState icon={<LayoutGrid className="h-8 w-8 text-gray-400"/>} title="No Project Components"
+                  description="Create a new component to get started."/>
     ),
     [],
   );
@@ -329,7 +321,7 @@ const Components = () => {
             </div>
             {/* Create Component Button */}
             <Button onClick={() => navigate("/components/create")}>
-              <PlusCircle className="h-4 w-4 mr-2" />
+              <PlusCircle className="h-4 w-4 mr-2"/>
               Create Component
             </Button>
           </div>
@@ -337,7 +329,7 @@ const Components = () => {
 
         {/* Main Content: Grid of components or empty state */}
         {Object.keys(filteredComponents).length === 0 ? (
-          EmptyState
+          ComponentEmptyState
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 overflow-scroll max-h-[78vh] px-4">
             {Object.values(filteredComponents).map(data => (
