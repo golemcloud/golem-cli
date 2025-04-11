@@ -52,6 +52,7 @@ pub mod service {
     use golem_common::model::{PromiseId, WorkerId};
     use itertools::Itertools;
     use reqwest::StatusCode;
+    use serde::Serializer;
     use std::error::Error;
     use std::fmt::{Display, Formatter};
 
@@ -107,7 +108,13 @@ pub mod service {
                         "{} - HTTP Client Error: {}",
                         service_name,
                         error.to_string().log_color_warn()
-                    )
+                    )?;
+
+                    if let Some(source) = error.source() {
+                        write!(f, ", caused by: {}", source.to_string().log_color_warn())?
+                    }
+
+                    Ok(())
                 }
                 ServiceErrorKind::ReqwestHeaderError(error) => {
                     write!(
@@ -115,7 +122,13 @@ pub mod service {
                         "{} - HTTP Header Error: {}",
                         service_name,
                         error.to_string().log_color_warn()
-                    )
+                    )?;
+
+                    if let Some(source) = error.source() {
+                        write!(f, ", caused by: {}", source.to_string().log_color_warn())?
+                    }
+
+                    Ok(())
                 }
                 ServiceErrorKind::SerdeError(error) => {
                     write!(
@@ -123,7 +136,13 @@ pub mod service {
                         "{} - Serialization Error: {}",
                         service_name,
                         error.to_string().log_color_warn()
-                    )
+                    )?;
+
+                    if let Some(source) = error.source() {
+                        write!(f, ", caused by: {}", source.to_string().log_color_warn())?
+                    }
+
+                    Ok(())
                 }
                 ServiceErrorKind::UnexpectedResponse {
                     status_code,
