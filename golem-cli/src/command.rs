@@ -383,6 +383,12 @@ impl GolemCliCommand {
                     }
                 },
             },
+            InvalidArgMatcher {
+                subcommands: vec!["profile", "switch"],
+                missing_positional_arg: "profile_name",
+                found_positional_args: vec![],
+                to_partial_match: |_| GolemCliCommandPartialMatch::ProfileSwitchMissingProfileName,
+            },
         ]
     }
 
@@ -479,6 +485,7 @@ pub enum GolemCliCommandPartialMatch {
     WorkerHelp,
     WorkerInvokeMissingFunctionName { worker_name: WorkerName },
     WorkerInvokeMissingWorkerName,
+    ProfileSwitchMissingProfileName,
 }
 
 #[derive(Debug, Subcommand)]

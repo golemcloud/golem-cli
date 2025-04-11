@@ -23,7 +23,6 @@ use crate::error::NonSuccessfulExit;
 use crate::log::{logln, LogColorize};
 use crate::model::project::ProjectView;
 use crate::model::text::fmt::{log_error, log_text_view};
-use crate::model::text::help::ComponentNameHelp;
 use crate::model::text::project::{
     ProjectCreatedView, ProjectGetView, ProjectGrantView, ProjectListView,
 };
@@ -192,8 +191,6 @@ impl CloudProjectCommandHandler {
         match (self.ctx.profile_kind(), project_name) {
             (ProfileKind::Oss, Some(_)) => {
                 log_error("Cannot use projects with OSS profile!");
-                logln("");
-                log_text_view(&ComponentNameHelp);
                 logln("");
                 bail!(HintError::ExpectedCloudProfile);
             }
