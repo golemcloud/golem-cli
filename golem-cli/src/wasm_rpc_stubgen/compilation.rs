@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use cargo_component::config::CargoArguments;
+use cargo_component::config::{CargoArguments, Config};
+use cargo_component::{load_component_metadata, load_metadata, run_cargo_command};
+use cargo_component_core::terminal::{Color, Terminal, Verbosity};
 use std::path::Path;
 
 pub async fn compile(root: &Path, offline: bool) -> anyhow::Result<()> {
@@ -26,7 +28,6 @@ pub async fn compile(root: &Path, offline: bool) -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    /* TODO:
     let config = Config::new(Terminal::new(Verbosity::Verbose, Color::Auto), None).await?;
     let client = config.client(None, offline).await?;
 
@@ -51,6 +52,5 @@ pub async fn compile(root: &Path, offline: bool) -> anyhow::Result<()> {
     .await?;
 
     std::env::set_current_dir(current_dir)?;
-    */
     Ok(())
 }

@@ -273,6 +273,15 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
             GolemCliSubcommand::Cloud { subcommand } => {
                 self.ctx.cloud_handler().handle_command(subcommand).await
             }
+            GolemCliSubcommand::Repl {
+                component_name,
+                version,
+            } => {
+                self.ctx
+                    .rib_repl_handler()
+                    .cmd_repl(component_name.component_name, version)
+                    .await
+            }
             GolemCliSubcommand::Completion { shell } => self.cmd_completion(shell),
         }
     }

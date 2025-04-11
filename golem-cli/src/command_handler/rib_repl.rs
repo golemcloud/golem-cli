@@ -14,23 +14,24 @@
 
 use crate::command_handler::Handlers;
 use crate::context::Context;
-use crate::log::LogColorize;
-use crate::model::app::ApplicationComponentSelectMode;
+use crate::error::NonSuccessfulExit;
+use crate::log::logln;
+use crate::model::text::component::ComponentReplStartedView;
+use crate::model::text::fmt::log_error;
 use crate::model::{ComponentName, ComponentNameMatchKind, IdempotencyKey, WorkerName};
-use anyhow::format_err;
+use anyhow::{anyhow, bail};
 use async_trait::async_trait;
-use golem_rib_repl::dependency_manager::{
-    ReplDependencies, RibComponentMetadata, RibDependencyManager,
+use golem_rib_repl::{
+    ReplDependencies, RibComponentMetadata, RibDependencyManager, RibRepl, RibReplConfig,
+    WorkerFunctionInvoke,
 };
-use golem_rib_repl::invoke::WorkerFunctionInvoke;
-use golem_rib_repl::rib_repl::RibRepl;
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::ValueAndType;
-use rib::{EvaluatedFnArgs, EvaluatedFqFn, EvaluatedWorkerName};
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct RibReplHandler {
     ctx: Arc<Context>,
 }
@@ -40,82 +41,83 @@ impl RibReplHandler {
         Self { ctx }
     }
 
-    pub async fn run_repl(
+    pub async fn cmd_repl(
         &self,
-        component_names: Vec<ComponentName>,
-        component_select_mode: &ApplicationComponentSelectMode,
+        component_name: Option<ComponentName>,
+        component_version: Option<u64>,
     ) -> anyhow::Result<()> {
-        self.ctx
-            .app_handler()
-            .must_select_components(component_names, component_select_mode)
+        let selected_components = self
+            .ctx
+            .component_handler()
+            .must_select_components_by_app_or_name(component_name.as_ref())
             .await?;
 
-        let mut repl = RibRepl::bootstrap(
-            None, // TODO
-            Arc::new(self.ctx.rib_repl_handler()),
-            Arc::new(self.ctx.rib_repl_handler()),
-            None, // TODO?
-            None,
-        )
-        .await
-        .map_err(|err| format_err!("{:?}", err))?; // TODO: use display once implemented
+        let component_name = {
+            if selected_components.component_names.len() == 1 {
+                selected_components.component_names[0].clone()
+            } else {
+                self.ctx
+                    .interactive_handler()
+                    .select_component(selected_components.component_names.clone())?
+            }
+        };
+
+        // NOTE: we pre-create the ReplDependencies, because trying to do it in RibDependencyManager::get_dependencies
+        //       results in thread safety errors on the path when cargo component could be called for client building
+        let component = self
+            .ctx
+            .component_handler()
+            .component_by_name_with_auto_deploy(
+                selected_components.project.as_ref(),
+                ComponentNameMatchKind::App,
+                &component_name,
+                component_version.map(|v| v.into()),
+            )
+            .await?;
+
+        self.ctx
+            .set_rib_repl_dependencies(ReplDependencies {
+                component_dependencies: vec![RibComponentMetadata {
+                    component_id: component.versioned_component_id.component_id.clone(),
+                    component_name: component.component_name.0.clone(),
+                    metadata: component.metadata.exports.clone(),
+                }],
+            })
+            .await;
+
+        let mut repl = RibRepl::bootstrap(RibReplConfig {
+            history_file: Some(self.ctx.rib_repl_history_file().await?),
+            dependency_manager: Arc::new(self.clone()),
+            worker_function_invoke: Arc::new(self.clone()),
+            printer: None,
+            component_source: None,
+            prompt: None,
+        })
+        .await?;
+
+        self.ctx
+            .log_handler()
+            .log_view(&ComponentReplStartedView(component.into()));
+
+        logln("");
 
         repl.run().await;
-
         Ok(())
     }
 }
 
 #[async_trait]
 impl RibDependencyManager for RibReplHandler {
-    async fn get_dependencies(&self) -> Result<ReplDependencies, String> {
-        let component_name = {
-            let app_ctx = self.ctx.app_context_lock().await;
-            let app_ctx = app_ctx.some_or_err().map_err(|err| err.to_string())?; // TODO: anyhow
-
-            let mut selected_component_names = app_ctx
-                .selected_component_names()
-                .iter()
-                .map(|cn| cn.as_str().into())
-                .collect::<Vec<ComponentName>>();
-
-            if selected_component_names.len() != 1 {
-                /* TODO: once we have anyhow
-                bail!("Only one component is supported")
-                */
-                return Err("Only one component is supported".to_string());
-            }
-
-            selected_component_names.pop().unwrap()
-        };
-
-        let component = self
-            .ctx
-            .component_handler()
-            .component_by_name_with_auto_deploy(
-                None, // TODO: project
-                ComponentNameMatchKind::App,
-                &component_name,
-                None,
-            )
-            .await
-            .map_err(|err| err.to_string())?; // TODO: anyhow
-
-        Ok(ReplDependencies {
-            component_dependencies: vec![RibComponentMetadata {
-                // TODO: name
-                component_id: component.versioned_component_id.component_id,
-                metadata: component.metadata.exports,
-            }],
-        })
+    async fn get_dependencies(&self) -> anyhow::Result<ReplDependencies> {
+        Ok(self.ctx.get_rib_repl_dependencies().await)
     }
 
     async fn add_component(
         &self,
-        source_path: &Path,
-        component_name: String,
-    ) -> Result<RibComponentMetadata, String> {
-        unreachable!("add_component is not available in CLI")
+        _source_path: &Path,
+        _component_name: String,
+    ) -> anyhow::Result<RibComponentMetadata> {
+        unreachable!("add_component should not be used in CLI")
     }
 }
 
@@ -123,34 +125,30 @@ impl RibDependencyManager for RibReplHandler {
 impl WorkerFunctionInvoke for RibReplHandler {
     async fn invoke(
         &self,
-        component_id: Uuid, // TODO: let's add component name too for debug purposes
-        worker_name: Option<EvaluatedWorkerName>,
-        function_name: EvaluatedFqFn,
-        args: EvaluatedFnArgs,
-    ) -> Result<ValueAndType, String> {
-        let worker_name: Option<WorkerName> = worker_name.as_ref().map(|wn| wn.0.as_str().into());
+        component_id: Uuid,
+        component_name: &str,
+        worker_name: Option<String>,
+        function_name: &str,
+        args: Vec<ValueAndType>,
+    ) -> anyhow::Result<ValueAndType> {
+        let worker_name = worker_name.map(WorkerName::from);
 
         let component = self
             .ctx
             .component_handler()
             .component(
-                None, // TODO
+                None,
                 component_id.into(),
-                worker_name.as_ref(),
+                worker_name.as_ref().map(|wn| wn.into()),
             )
-            .await
-            .map_err(|err| err.to_string())?; // TODO: fix once repl is using anyhow
+            .await?;
 
         let Some(component) = component else {
-            return Err("Component not found".to_string());
-            /* TODO:
-            log_error("Component not found"); // TODO: show component name once we have it
+            log_error(format!("Component {} not found", component_name));
             bail!(NonSuccessfulExit);
-            */
         };
 
         let arguments: Vec<OptionallyTypeAnnotatedValueJson> = args
-            .0
             .into_iter()
             .map(|vat| vat.try_into().unwrap())
             .collect();
@@ -161,16 +159,18 @@ impl WorkerFunctionInvoke for RibReplHandler {
             .invoke_worker(
                 &component,
                 worker_name.as_ref(),
-                &function_name.0,
+                function_name,
                 arguments,
                 IdempotencyKey::new(),
                 false,
                 None,
             )
-            .await
-            .map_err(|err| err.to_string())?
-            .unwrap(); // TODO: fix once repl is using anyhow;
+            .await?
+            .unwrap();
 
-        result.result.try_into()
+        result
+            .result
+            .try_into()
+            .map_err(|err| anyhow!("Failed to convert result: {}", err))
     }
 }

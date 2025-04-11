@@ -38,6 +38,7 @@ use uuid::Uuid;
 
 #[cfg(feature = "server-commands")]
 use crate::command::server::ServerSubcommand;
+use crate::command::shared_args::ComponentOptionalComponentName;
 
 /// Golem Command Line Interface
 #[derive(Debug, Parser)]
@@ -524,6 +525,13 @@ pub enum GolemCliSubcommand {
         #[clap(subcommand)]
         subcommand: CloudSubcommand,
     },
+    /// Start Rib REPL for a selected component
+    Repl {
+        #[command(flatten)]
+        component_name: ComponentOptionalComponentName,
+        /// Optional component version to use, defaults to latest component version
+        version: Option<u64>,
+    },
     /// Generate shell completion
     Completion {
         /// Selects shell
@@ -743,11 +751,6 @@ pub mod app {
         },
         /// Diagnose possible tooling problems
         Diagnose {
-            #[command(flatten)]
-            component_name: AppOptionalComponentNames,
-        },
-        /// Start Rib REPL
-        Repl {
             #[command(flatten)]
             component_name: AppOptionalComponentNames,
         },

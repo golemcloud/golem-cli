@@ -190,7 +190,7 @@ impl WorkerCommandHandler {
                 worker_name_match.project.as_ref(),
                 worker_name_match.component_name_match_kind,
                 &worker_name_match.component_name,
-                worker_name_match.worker_name.as_ref(),
+                worker_name_match.worker_name.as_ref().map(|wn| wn.into()),
             )
             .await?;
 
@@ -279,7 +279,7 @@ impl WorkerCommandHandler {
                 worker_name_match.project.as_ref(),
                 worker_name_match.component_name_match_kind,
                 &worker_name_match.component_name,
-                worker_name_match.worker_name.as_ref(),
+                worker_name_match.worker_name.as_ref().map(|wn| wn.into()),
             )
             .await?;
 
@@ -1465,7 +1465,7 @@ impl WorkerCommandHandler {
             .component(
                 worker_name_match.project.as_ref(),
                 (&worker_name_match.component_name).into(),
-                worker_name_match.worker_name.as_ref(),
+                worker_name_match.worker_name.as_ref().map(|wn| wn.into()),
             )
             .await?;
 

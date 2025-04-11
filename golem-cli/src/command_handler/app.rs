@@ -81,9 +81,6 @@ impl AppCommandHandler {
                     .await
             }
             AppSubcommand::Diagnose { component_name } => self.cmd_diagnose(component_name).await,
-            AppSubcommand::Repl { component_name } => {
-                self.cmd_repl(component_name.component_name).await
-            }
             AppSubcommand::CustomCommand(command) => self.cmd_custom_command(command).await,
         }
     }
@@ -321,13 +318,6 @@ impl AppCommandHandler {
             .await?;
 
         Ok(())
-    }
-
-    async fn cmd_repl(&mut self, component_names: Vec<ComponentName>) -> anyhow::Result<()> {
-        self.ctx
-            .rib_repl_handler()
-            .run_repl(component_names, &ApplicationComponentSelectMode::All)
-            .await
     }
 
     async fn cmd_diagnose(
