@@ -78,7 +78,7 @@ impl RibReplHandler {
         self.ctx
             .set_rib_repl_dependencies(ReplDependencies {
                 component_dependencies: vec![RibComponentMetadata {
-                    component_id: component.versioned_component_id.component_id.clone(),
+                    component_id: component.versioned_component_id.component_id,
                     component_name: component.component_name.0.clone(),
                     metadata: component.metadata.exports.clone(),
                 }],
