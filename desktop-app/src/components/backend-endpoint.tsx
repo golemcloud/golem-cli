@@ -70,11 +70,7 @@ export function BackendEndpointInput() {
       setError(null);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        // Provide more specific error messages
-        if (
-          !endpoint.startsWith("http://") &&
-          !endpoint.startsWith("https://")
-        ) {
+        if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
           setError("Endpoint must start with http:// or https://");
         } else {
           try {
@@ -90,9 +86,7 @@ export function BackendEndpointInput() {
                 );
               }
             } else if (!isValidDomain(url.hostname)) {
-              setError(
-                "Invalid domain format. Use http://domain.com or http://subdomain.domain.com",
-              );
+              setError("Invalid domain format. Use http://domain.com or http://subdomain.domain.com");
             } else {
               setError(null);
             }
@@ -128,14 +122,26 @@ export function BackendEndpointInput() {
             <Input
               id="endpoint"
               value={endpoint}
-              onChange={e => setEndpoint(e.target.value)}
+              onChange={e => {
+                setEndpoint(e.target.value);
+                try {
+                  endpointSchema.parse(e.target.value);
+                  setError(null);
+                } catch (err) {
+                  if (err instanceof z.ZodError) {
+                    setError(err.issues[0].message);
+                  } else {
+                    setError("Invalid endpoint");
+                  }
+                }
+              }}
               className="col-span-3"
             />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
         <DialogFooter>
-          <Button type="submit" onClick={handleSave}>
+          <Button type="submit" onClick={handleSave} disabled={endpoint === '' || !!error}>
             Save changes
           </Button>
         </DialogFooter>

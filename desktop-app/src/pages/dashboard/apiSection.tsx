@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { removeDuplicateApis } from "@/lib/utils";
 import { API } from "@/service";
 import { Api } from "@/types/api.ts";
-import { ArrowRight, Layers, PlusCircle, Server } from "lucide-react";
+import { ArrowRight, PlusCircle, Server, WebhookIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -50,7 +50,7 @@ export function APISection() {
           ) : (
             <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
               <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                <Layers className="h-8 w-8 text-gray-400" />
+                <WebhookIcon className="h-8 w-8 text-gray-400" />
               </div>
               <h2 className="text-xl font-semibold mb-2 text-center">
                 No APIs
