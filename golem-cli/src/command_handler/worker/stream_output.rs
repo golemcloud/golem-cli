@@ -14,29 +14,29 @@
 
 use crate::model::{Format, WorkerConnectOptions};
 use colored::Colorize;
-use golem_common::model::{LogLevel, Timestamp};
+use golem_common::model::{IdempotencyKey, LogLevel, Timestamp};
 use std::fmt::Write;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
-pub struct ConnectOutput {
-    state: Arc<Mutex<ConnectOutputState>>,
+pub struct WorkerStreamOutput {
+    state: Arc<Mutex<WorkerStreamOutputState>>,
     options: WorkerConnectOptions,
     format: Format,
 }
 
-struct ConnectOutputState {
+struct WorkerStreamOutputState {
     pub last_stdout_timestamp: Timestamp,
     pub stdout: String,
     pub last_stderr_timestamp: Timestamp,
     pub stderr: String,
 }
 
-impl ConnectOutput {
+impl WorkerStreamOutput {
     pub fn new(options: WorkerConnectOptions, format: Format) -> Self {
-        ConnectOutput {
-            state: Arc::new(Mutex::new(ConnectOutputState {
+        WorkerStreamOutput {
+            state: Arc::new(Mutex::new(WorkerStreamOutputState {
                 last_stdout_timestamp: Timestamp::now_utc(),
                 stdout: String::new(),
                 last_stderr_timestamp: Timestamp::now_utc(),
@@ -121,6 +121,37 @@ impl ConnectOutput {
                 self.colored(level, &format!("{prefix}[{context}] {message}"));
             }
         }
+    }
+
+    pub fn emit_stream_closed(&self, timestamp: Timestamp) {
+        let prefix = self.prefix(timestamp, "STREAM");
+        self.colored(LogLevel::Debug, &format!("{prefix}Stream closed"));
+    }
+
+    pub fn emit_invocation_start(
+        &self,
+        timestamp: Timestamp,
+        function_name: String,
+        idempotency_key: IdempotencyKey,
+    ) {
+        let prefix = self.prefix(timestamp, "INVOKE");
+        self.colored(
+            LogLevel::Trace,
+            &format!("{prefix}STARTED  {function_name} ({idempotency_key})"),
+        );
+    }
+
+    pub fn emit_invocation_finished(
+        &self,
+        timestamp: Timestamp,
+        function_name: String,
+        idempotency_key: IdempotencyKey,
+    ) {
+        let prefix = self.prefix(timestamp, "INVOKE");
+        self.colored(
+            LogLevel::Trace,
+            &format!("{prefix}FINISHED {function_name} ({idempotency_key})",),
+        );
     }
 
     pub async fn flush(&self) {
