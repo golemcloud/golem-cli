@@ -19,6 +19,7 @@ use crate::config::{
 use crate::context::Context;
 use crate::error::NonSuccessfulExit;
 use crate::log::{log_warn_action, LogColorize};
+use crate::model::app::DependencyType;
 use crate::model::text::fmt::log_warn;
 use crate::model::{ComponentName, Format};
 use anyhow::{anyhow, bail};
@@ -152,6 +153,32 @@ impl InteractiveHandler {
             .prompt()?;
 
         Ok((profile_name.into(), profile, set_as_active))
+    }
+
+    pub fn select_dependant_component_name(
+        &self,
+        component_names: Vec<ComponentName>,
+    ) -> anyhow::Result<ComponentName> {
+        Ok(Select::new("Select a component to add dependency to:", component_names).prompt()?)
+    }
+
+    pub fn select_dependency_component_name(
+        &self,
+        component_names: Vec<ComponentName>,
+    ) -> anyhow::Result<ComponentName> {
+        Ok(Select::new(
+            "Select a component to be used as dependency:",
+            component_names,
+        )
+        .prompt()?)
+    }
+
+    pub fn select_dependency_type(&self) -> anyhow::Result<DependencyType> {
+        Ok(Select::new(
+            "Select dependency type:",
+            DependencyType::interactively_selectable_types(),
+        )
+        .prompt()?)
     }
 
     fn confirm<M: AsRef<str>>(&self, default: bool, message: M) -> anyhow::Result<bool> {

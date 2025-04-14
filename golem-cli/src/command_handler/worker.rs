@@ -812,7 +812,7 @@ impl WorkerCommandHandler {
         let selected_components = self
             .ctx
             .component_handler()
-            .must_select_components_by_app_or_name(component_name.as_ref())
+            .must_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         if scan_cursor.is_some() && selected_components.component_names.len() != 1 {

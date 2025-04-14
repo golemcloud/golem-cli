@@ -429,7 +429,7 @@ impl AppCommandHandler {
 
     // TODO: forbid matching the same component multiple times
     // Returns false if there is no app
-    pub async fn opt_select_components_internal(
+    async fn opt_select_components_internal(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ApplicationComponentSelectMode,

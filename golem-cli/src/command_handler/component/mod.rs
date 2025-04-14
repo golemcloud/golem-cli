@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::app::context::ApplicationContext;
+use crate::app::yaml_edit::AppYamlEditor;
 use crate::cloud::AccountId;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{
@@ -24,6 +25,7 @@ use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
+use crate::fs::write_str;
 use crate::log::{log_action, logln, LogColorize, LogIndent};
 use crate::model::app::{
     AppComponentName, ApplicationComponentSelectMode, BuildProfileName, DynamicHelpSections,
@@ -91,6 +93,14 @@ impl ComponentCommandHandler {
                     .await
             }
             ComponentSubcommand::Clean { component_name } => self.cmd_clean(component_name).await,
+            ComponentSubcommand::AddDependency {
+                component_name,
+                target_component_name,
+                dependency_type,
+            } => {
+                self.cmd_add_dependency(component_name, target_component_name, dependency_type)
+                    .await
+            }
             ComponentSubcommand::List { component_name } => {
                 self.cmd_list(component_name.component_name).await
             }
@@ -255,7 +265,7 @@ impl ComponentCommandHandler {
 
     async fn cmd_list(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
         let selected_component_names = self
-            .opt_select_components_by_app_or_name(component_name.as_ref())
+            .opt_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let mut component_views = Vec::<ComponentView>::new();
@@ -357,7 +367,7 @@ impl ComponentCommandHandler {
         version: Option<u64>,
     ) -> anyhow::Result<()> {
         let selected_components = self
-            .must_select_components_by_app_or_name(component_name.as_ref())
+            .must_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         if version.is_some() && selected_components.component_names.len() > 1 {
@@ -552,6 +562,71 @@ impl ComponentCommandHandler {
                 &ApplicationComponentSelectMode::CurrentDir,
             )
             .await
+    }
+
+    async fn cmd_add_dependency(
+        &self,
+        component_name: Option<ComponentName>,
+        target_component_name: Option<ComponentName>,
+        dependency_type: Option<DependencyType>,
+    ) -> anyhow::Result<()> {
+        async fn component_names(ctx: &Context) -> anyhow::Result<Vec<ComponentName>> {
+            let app_ctx = ctx.app_context_lock().await;
+            let app_ctx = app_ctx.some_or_err()?;
+            Ok(app_ctx
+                .application
+                .component_names()
+                .map(|cn| ComponentName::from(cn.as_str()))
+                .collect())
+        }
+
+        let mut selection = self
+            .opt_select_components_by_app_dir_or_name(component_name.as_ref())
+            .await?;
+        let component_name: AppComponentName = {
+            if selection.component_names.len() == 1 {
+                selection.component_names.pop().unwrap().0.into()
+            } else {
+                self.ctx
+                    .interactive_handler()
+                    .select_dependant_component_name(component_names(&self.ctx).await?)?
+                    .0
+                    .into()
+            }
+        };
+
+        let target_component_name: AppComponentName = match target_component_name {
+            Some(target_component_name) => target_component_name.0.into(),
+            None => self
+                .ctx
+                .interactive_handler()
+                .select_dependency_component_name(component_names(&self.ctx).await?)?
+                .0
+                .into(),
+        };
+
+        let dependency_type = match dependency_type {
+            Some(dependency_type) => dependency_type,
+            None => self.ctx.interactive_handler().select_dependency_type()?,
+        };
+
+        let app_ctx = self.ctx.app_context_lock().await;
+        let app_ctx = app_ctx.some_or_err()?;
+
+        let mut editor = AppYamlEditor::new(&app_ctx.application);
+
+        editor.insert_or_update_dependency(
+            &component_name,
+            &target_component_name,
+            dependency_type,
+        )?;
+
+        for (path, document) in editor.accessed_documents() {
+            log_action("Updating", path.log_color_highlight().to_string());
+            write_str(path, document.to_string())?;
+        }
+
+        Ok(())
     }
 
     pub async fn deploy(
@@ -786,7 +861,7 @@ impl ComponentCommandHandler {
         component_name: Option<ComponentName>,
     ) -> anyhow::Result<Vec<Component>> {
         let selected_component_names = self
-            .opt_select_components_by_app_or_name(component_name.as_ref())
+            .opt_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let mut components = Vec::with_capacity(selected_component_names.component_names.len());
@@ -874,23 +949,23 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    pub async fn opt_select_components_by_app_or_name(
+    pub async fn opt_select_components_by_app_dir_or_name(
         &self,
         component_name: Option<&ComponentName>,
     ) -> anyhow::Result<SelectedComponents> {
-        self.select_components_by_app_or_name_internal(component_name, true)
+        self.select_components_by_app_dir_or_name_internal(component_name, true)
             .await
     }
 
-    pub async fn must_select_components_by_app_or_name(
+    pub async fn must_select_components_by_app_dir_or_name(
         &self,
         component_name: Option<&ComponentName>,
     ) -> anyhow::Result<SelectedComponents> {
-        self.select_components_by_app_or_name_internal(component_name, false)
+        self.select_components_by_app_dir_or_name_internal(component_name, false)
             .await
     }
 
-    async fn select_components_by_app_or_name_internal(
+    async fn select_components_by_app_dir_or_name_internal(
         &self,
         component_name: Option<&ComponentName>,
         allow_no_matches: bool,

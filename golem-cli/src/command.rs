@@ -759,7 +759,8 @@ pub mod component {
         BuildArgs, ComponentOptionalComponentName, ComponentOptionalComponentNames,
         ComponentTemplatePositionalArg, ForceBuildArg, WorkerUpdateOrRedeployArgs,
     };
-    use crate::model::WorkerUpdateMode;
+    use crate::model::app::DependencyType;
+    use crate::model::{ComponentName, WorkerUpdateMode};
     use clap::Subcommand;
     use golem_templates::model::PackageName;
 
@@ -797,6 +798,17 @@ pub mod component {
         Clean {
             #[command(flatten)]
             component_name: ComponentOptionalComponentNames,
+        },
+        AddDependency {
+            /// The name of the component to which the dependency should be added
+            #[arg(long)]
+            component_name: Option<ComponentName>,
+            /// The name of the component that will be used as a component
+            #[arg(long)]
+            target_component_name: Option<ComponentName>,
+            /// The type of the dependency, defaults to wasm-rpc
+            #[arg(long)]
+            dependency_type: Option<DependencyType>,
         },
         /// List deployed component versions' metadata
         List {

@@ -18,6 +18,8 @@ use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 use url::Url;
 use wit_parser::PackageName;
 
@@ -324,8 +326,9 @@ impl<T: Default> Default for WithSource<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default, EnumIter)]
 pub enum DependencyType {
+    #[default]
     /// Dynamic ("stubless") wasm-rpc
     DynamicWasmRpc,
     /// Static (composed with compiled stub) wasm-rpc
@@ -361,18 +364,39 @@ impl DependencyType {
             DependencyType::DynamicWasmRpc | DependencyType::StaticWasmRpc
         )
     }
+
+    pub fn interactively_selectable_types() -> Vec<Self> {
+        Self::iter()
+            .into_iter()
+            .filter(|dep_type| dep_type != &DependencyType::StaticWasmRpc)
+            .collect()
+    }
 }
 
 impl FromStr for DependencyType {
-    type Err = ();
+    type Err = String;
 
     fn from_str(str: &str) -> Result<Self, Self::Err> {
         match str {
             Self::WASM_RPC => Ok(Self::DynamicWasmRpc),
             Self::STATIC_WASM_RPC => Ok(Self::StaticWasmRpc),
             Self::WASM => Ok(Self::Wasm),
-            _ => Err(()),
+            _ => {
+                let all = DependencyType::iter()
+                    .map(|dt| format!("\"{dt}\""))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                Err(format!(
+                    "Unknown dependency type: {str}. Expected one of {all}"
+                ))
+            }
         }
+    }
+}
+
+impl Display for DependencyType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.as_str())
     }
 }
 
@@ -396,10 +420,12 @@ impl Ord for DependentComponent {
 
 #[derive(Clone, Debug)]
 pub struct Application {
+    all_sources: BTreeSet<PathBuf>,
     temp_dir: Option<WithSource<String>>,
     wit_deps: WithSource<Vec<String>>,
     components: BTreeMap<AppComponentName, Component>,
     dependencies: BTreeMap<AppComponentName, BTreeSet<DependentComponent>>,
+    dependency_sources: BTreeMap<AppComponentName, BTreeMap<AppComponentName, PathBuf>>,
     no_dependencies: BTreeSet<DependentComponent>,
     custom_commands: HashMap<String, WithSource<Vec<app_raw::ExternalCommand>>>,
     clean: Vec<WithSource<String>>,
@@ -410,6 +436,10 @@ pub struct Application {
 impl Application {
     pub fn from_raw_apps(apps: Vec<app_raw::ApplicationWithSource>) -> ValidatedResult<Self> {
         build_application(apps)
+    }
+
+    pub fn all_sources(&self) -> &BTreeSet<PathBuf> {
+        &self.all_sources
     }
 
     pub fn component_names(&self) -> impl Iterator<Item = &AppComponentName> {
@@ -532,6 +562,20 @@ impl Application {
         self.dependencies
             .get(component_name)
             .unwrap_or(&self.no_dependencies)
+    }
+
+    pub fn dependency_source(
+        &self,
+        component_name: &AppComponentName,
+        dependent_component_name: &AppComponentName,
+    ) -> Option<&Path> {
+        self.dependency_sources
+            .get(component_name)
+            .and_then(|sources| {
+                sources
+                    .get(dependent_component_name)
+                    .map(|source| source.as_path())
+            })
     }
 
     pub fn component_profiles(
@@ -1017,7 +1061,7 @@ mod app_builder {
         WitDeps,
         CustomCommand(String),
         Template(TemplateName),
-        WasmRpcDependency((AppComponentName, DependentComponent)),
+        Dependency((AppComponentName, DependentComponent)),
         Component(AppComponentName),
         HttpApiDefinition(HttpApiDefinitionName),
         HttpApiDeployment(HttpApiDeploymentSite),
@@ -1032,7 +1076,7 @@ mod app_builder {
                 UniqueSourceCheckedEntityKey::WitDeps => property,
                 UniqueSourceCheckedEntityKey::CustomCommand(_) => "Custom command",
                 UniqueSourceCheckedEntityKey::Template(_) => "Template",
-                UniqueSourceCheckedEntityKey::WasmRpcDependency(_) => "WASM RPC dependency",
+                UniqueSourceCheckedEntityKey::Dependency(_) => "Dependency",
                 UniqueSourceCheckedEntityKey::Component(_) => "Component",
                 UniqueSourceCheckedEntityKey::HttpApiDefinition(_) => "HTTP API Definition",
                 UniqueSourceCheckedEntityKey::HttpApiDeployment(_) => "HTTP API Deployment",
@@ -1056,10 +1100,7 @@ mod app_builder {
                 UniqueSourceCheckedEntityKey::Template(template_name) => {
                     template_name.as_str().log_color_highlight().to_string()
                 }
-                UniqueSourceCheckedEntityKey::WasmRpcDependency((
-                    component_name,
-                    dependent_component,
-                )) => {
+                UniqueSourceCheckedEntityKey::Dependency((component_name, dependent_component)) => {
                     format!(
                         "{} - {} - {}",
                         component_name.as_str().log_color_highlight(),
@@ -1108,6 +1149,7 @@ mod app_builder {
         api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
         api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
 
+        all_sources: BTreeSet<PathBuf>,
         entity_sources: HashMap<UniqueSourceCheckedEntityKey, Vec<PathBuf>>,
     }
 
@@ -1121,13 +1163,38 @@ mod app_builder {
             builder.validate_unique_sources(&mut validation);
             builder.resolve_components(&mut validation);
 
-            // TODO: validate API defs
+            // TODO: validate API defs and deployments
+
+            let dependency_sources = {
+                let mut dependency_sources =
+                    BTreeMap::<AppComponentName, BTreeMap<AppComponentName, PathBuf>>::new();
+
+                for (key, mut sources) in builder.entity_sources {
+                    if let UniqueSourceCheckedEntityKey::Dependency((
+                        component,
+                        dependent_component,
+                    )) = key
+                    {
+                        if !dependency_sources.contains_key(&component) {
+                            dependency_sources.insert(component.clone(), BTreeMap::new());
+                        }
+                        dependency_sources
+                            .get_mut(&component)
+                            .unwrap()
+                            .insert(dependent_component.name, sources.pop().unwrap());
+                    }
+                }
+
+                dependency_sources
+            };
 
             validation.build(Application {
+                all_sources: builder.all_sources,
                 temp_dir: builder.temp_dir,
                 wit_deps: builder.wit_deps,
                 components: builder.resolved_components,
                 dependencies: builder.dependencies,
+                dependency_sources,
                 no_dependencies: BTreeSet::new(),
                 custom_commands: builder.custom_commands,
                 clean: builder.clean,
@@ -1163,6 +1230,7 @@ mod app_builder {
                 |validation| {
                     let app_source = PathExtra::new(&app.source);
                     let app_source_dir = app_source.parent().unwrap();
+                    self.all_sources.insert(app_source.to_path_buf());
 
                     if let Some(dir) = app.application.temp_dir {
                         if self
@@ -1334,7 +1402,7 @@ mod app_builder {
                                     dep_type,
                                 };
 
-                                let unique_key = UniqueSourceCheckedEntityKey::WasmRpcDependency((
+                                let unique_key = UniqueSourceCheckedEntityKey::Dependency((
                                     component_name.clone().into(),
                                     dependent_component.clone(),
                                 ));
@@ -1387,7 +1455,7 @@ mod app_builder {
                     if invalid_source || invalid_target {
                         let source = self
                             .entity_sources
-                            .get(&UniqueSourceCheckedEntityKey::WasmRpcDependency((
+                            .get(&UniqueSourceCheckedEntityKey::Dependency((
                                 component.clone(),
                                 target.clone(),
                             )))

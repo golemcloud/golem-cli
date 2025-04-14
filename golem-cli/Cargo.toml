@@ -73,6 +73,7 @@ lenient_bool = { workspace = true }
 log = { workspace = true }
 minijinja = { workspace = true }
 native-tls = { workspace = true }
+nondestructive = { workspace = true }
 phf = { workspace = true }
 pretty_env_logger = { workspace = true }
 prettyplease = { workspace = true }

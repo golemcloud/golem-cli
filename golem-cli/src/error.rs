@@ -52,7 +52,6 @@ pub mod service {
     use golem_common::model::{PromiseId, WorkerId};
     use itertools::Itertools;
     use reqwest::StatusCode;
-    use serde::Serializer;
     use std::error::Error;
     use std::fmt::{Display, Formatter};
 

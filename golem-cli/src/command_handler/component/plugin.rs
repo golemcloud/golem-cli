@@ -98,7 +98,7 @@ impl ComponentPluginCommandHandler {
         let selected_components = self
             .ctx
             .component_handler()
-            .must_select_components_by_app_or_name(component_name.as_ref())
+            .must_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let mut installations = Vec::<PluginInstallation>::new();
@@ -178,7 +178,7 @@ impl ComponentPluginCommandHandler {
         let selected_components = self
             .ctx
             .component_handler()
-            .must_select_components_by_app_or_name(component_name.as_ref())
+            .must_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let mut installations = Vec::<PluginInstallation>::new();
@@ -235,7 +235,7 @@ impl ComponentPluginCommandHandler {
         let selected_components = self
             .ctx
             .component_handler()
-            .must_select_components_by_app_or_name(component_name.as_ref())
+            .must_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let mut any_error = false;
@@ -309,7 +309,7 @@ impl ComponentPluginCommandHandler {
         let selected_components = self
             .ctx
             .component_handler()
-            .must_select_components_by_app_or_name(component_name.as_ref())
+            .must_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let mut any_error = false;
