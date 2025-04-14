@@ -19,11 +19,14 @@ use anyhow::{anyhow, Context};
 use bytes::Bytes;
 use futures_util::future::Either;
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{future, pin_mut, SinkExt, StreamExt};
-use golem_common::model::{Timestamp, WorkerEvent};
+use futures_util::{future, pin_mut, SinkExt, StreamExt, TryStreamExt};
+use golem_common::model::{IdempotencyKey, Timestamp, WorkerEvent};
 use native_tls::TlsConnector;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 use tokio::{task, time};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::handshake::client::Request;
@@ -39,6 +42,9 @@ pub struct WorkerConnection {
     request: Request,
     connector: Option<Connector>,
     output: WorkerStreamOutput,
+    idempotency_key: Option<IdempotencyKey>,
+    last_seen_idempotency_key: Arc<Mutex<Option<IdempotencyKey>>>,
+    goal_reached: Arc<AtomicBool>,
 }
 
 impl WorkerConnection {
@@ -51,6 +57,7 @@ impl WorkerConnection {
         connect_options: WorkerConnectOptions,
         allow_insecure: bool,
         format: Format,
+        idempotency_key: Option<IdempotencyKey>,
     ) -> anyhow::Result<WorkerConnection> {
         let (request, connector) = Self::create_request(
             worker_service_url,
@@ -61,17 +68,24 @@ impl WorkerConnection {
         )?;
         let output = WorkerStreamOutput::new(connect_options, format);
 
+        let last_seen_idempotency_key = Arc::new(Mutex::new(None));
+        let goal_reached = Arc::new(AtomicBool::new(false));
+
         Ok(Self {
             request,
             connector,
             output,
+            idempotency_key,
+            last_seen_idempotency_key,
+            goal_reached,
         })
     }
 
     /// Creates a new worker connection and every time the connection is dropped tries to
-    /// reconnect
+    /// reconnect. If there was an idempotency_key goal and it has been reached, the loop
+    /// exits.
     pub async fn run_forever(self) {
-        loop {
+        while !self.goal_reached.load(Ordering::Acquire) {
             let _ = self.run().await;
             self.output.flush().await;
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -103,8 +117,11 @@ impl WorkerConnection {
         let pings = task::spawn(async move { Self::ping_loop(write).await });
 
         let output = self.output.clone();
+        let last_seen_idempotency_key = self.last_seen_idempotency_key.clone();
+        let idempotency_key = self.idempotency_key.clone();
+        let goal_reached = self.goal_reached.clone();
         let read_messages = task::spawn(async move {
-            Self::read_loop(read, output).await;
+            Self::read_loop(read, output, last_seen_idempotency_key, idempotency_key, goal_reached).await;
         });
 
         pin_mut!(pings, read_messages);
@@ -138,7 +155,7 @@ impl WorkerConnection {
             .push(&worker_name)
             .push("connect");
 
-        debug!(url = url.as_str(), "Worker connect");
+        debug!(url = url.as_str(), "Worker stream connect");
 
         let mut request = url
             .to_string()
@@ -189,20 +206,38 @@ impl WorkerConnection {
     async fn read_loop(
         read: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
         output: WorkerStreamOutput,
+        last_seen_idempotency_key: Arc<Mutex<Option<IdempotencyKey>>>,
+        idempotency_key_to_look_for: Option<IdempotencyKey>,
+        goal_reached: Arc<AtomicBool>,
     ) {
-        read.for_each(move |message_or_error| {
-            let output = output.clone();
-            async move {
-                match message_or_error {
-                    Err(error) => {
-                        error!("Failed to read next message: {}", error);
-                    }
-                    Ok(message) => {
-                        let worker_event = Self::parse_websocket_message(message);
-                        match worker_event {
-                            None => {}
-                            Some(msg) => match msg {
-                                WorkerEvent::StdOut { timestamp, bytes } => {
+        let _ = read
+            .try_for_each(move |message| {
+                let output = output.clone();
+                let idempotency_key_to_look_for = idempotency_key_to_look_for.clone();
+                let last_seen_idempotency_key = last_seen_idempotency_key.clone();
+                let goal_reached = goal_reached.clone();
+                async move {
+                    let mut last_seen_idempotency_key =
+                        last_seen_idempotency_key.lock().await;
+                    let matching = match &idempotency_key_to_look_for {
+                        Some(idempotency_key_to_look_for) => {
+                            if let Some(last_seen_idempotency_key) =
+                                &*last_seen_idempotency_key
+                            {
+                                idempotency_key_to_look_for == last_seen_idempotency_key
+                            } else {
+                                false
+                            }
+                        }
+                        None => true,
+                    };
+
+                    let worker_event = Self::parse_websocket_message(message);
+                    match worker_event {
+                        None => {}
+                        Some(msg) => match msg {
+                            WorkerEvent::StdOut { timestamp, bytes } => {
+                                if matching {
                                     output
                                         .emit_stdout(
                                             timestamp,
@@ -210,7 +245,9 @@ impl WorkerConnection {
                                         )
                                         .await;
                                 }
-                                WorkerEvent::StdErr { timestamp, bytes } => {
+                            }
+                            WorkerEvent::StdErr { timestamp, bytes } => {
+                                if matching {
                                     output
                                         .emit_stderr(
                                             timestamp,
@@ -218,46 +255,69 @@ impl WorkerConnection {
                                         )
                                         .await;
                                 }
-                                WorkerEvent::Log {
-                                    timestamp,
-                                    level,
-                                    context,
-                                    message,
-                                } => {
+                            }
+                            WorkerEvent::Log {
+                                timestamp,
+                                level,
+                                context,
+                                message,
+                            } => {
+                                if matching {
                                     output.emit_log(timestamp, level, context, message);
                                 }
-                                WorkerEvent::Close => {
-                                    output.emit_stream_closed(Timestamp::now_utc());
-                                }
-                                WorkerEvent::InvocationStart {
-                                    timestamp,
-                                    function,
-                                    idempotency_key,
-                                } => {
+                            }
+                            WorkerEvent::Close => {
+                                output.emit_stream_closed(Timestamp::now_utc());
+                            }
+                            WorkerEvent::InvocationStart {
+                                timestamp,
+                                function,
+                                idempotency_key,
+                            } => {
+                                if matching
+                                    || idempotency_key_to_look_for.as_ref()
+                                    == Some(&idempotency_key)
+                                {
+                                    *last_seen_idempotency_key =
+                                        Some(idempotency_key.clone());
                                     output.emit_invocation_start(
                                         timestamp,
                                         function,
                                         idempotency_key,
                                     );
                                 }
-                                WorkerEvent::InvocationFinished {
-                                    timestamp,
-                                    function,
-                                    idempotency_key,
-                                } => {
+                            }
+                            WorkerEvent::InvocationFinished {
+                                timestamp,
+                                function,
+                                idempotency_key,
+                            } => {
+                                if matching {
                                     output.emit_invocation_finished(
                                         timestamp,
                                         function,
-                                        idempotency_key,
+                                        idempotency_key.clone(),
                                     );
+
+                                    last_seen_idempotency_key.take();
+                                    if idempotency_key_to_look_for == Some(idempotency_key)
+                                    {
+                                        goal_reached.store(true, Ordering::Release);
+                                    }
                                 }
-                            },
+                            }
                         }
                     }
+
+                    if goal_reached.load(Ordering::Acquire) {
+                        // Early return from the stream as the goal of observing a given idempotency key has been reached
+                        Err(tungstenite::error::Error::ConnectionClosed)
+                    } else {
+                        Ok(())
+                    }
                 }
-            }
-        })
-        .await;
+            })
+            .await;
     }
 
     fn parse_websocket_message(message: Message) -> Option<WorkerEvent> {

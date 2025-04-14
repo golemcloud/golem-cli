@@ -70,6 +70,8 @@ use golem_wasm_rpc::parse_type_annotated_value;
 use itertools::{EitherOrBoth, Itertools};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::timeout;
 use uuid::Uuid;
 
 pub struct WorkerCommandHandler {
@@ -407,6 +409,7 @@ impl WorkerCommandHandler {
             stream_args.into(),
             self.ctx.allow_insecure(),
             self.ctx.format(),
+            None,
         )
         .await?;
 
@@ -920,7 +923,7 @@ impl WorkerCommandHandler {
         enqueue: bool,
         stream_args: Option<StreamArgs>,
     ) -> anyhow::Result<Option<InvokeResult>> {
-        let connect_handle = match &worker_name {
+        let mut connect_handle = match &worker_name {
             Some(worker_name) => match stream_args {
                 Some(stream_args) => {
                     let connection = WorkerConnection::new(
@@ -931,6 +934,13 @@ impl WorkerCommandHandler {
                         stream_args.into(),
                         self.ctx.allow_insecure(),
                         self.ctx.format(),
+                        if enqueue {
+                            None
+                        } else {
+                            Some(golem_common::model::IdempotencyKey::new(
+                                idempotency_key.0.clone(),
+                            ))
+                        },
                     )
                     .await?;
                     Some(tokio::task::spawn(
@@ -1066,7 +1076,19 @@ impl WorkerCommandHandler {
             .to_oss(),
         };
 
-        connect_handle.iter().for_each(|handle| handle.abort());
+        if enqueue && connect_handle.is_some() {
+            // When 'enqueue' is used together with 'stream' we switch to infinite worker streaming here
+            if let Some(handle) = connect_handle.take() {
+                let _ = handle.await;
+            }
+        } else {
+            // When a result is returned, we wait a few seconds to make sure we get all the log lines
+            // but the worker stream task will quit as soon as the invocation end marker is reached
+
+            if let Some(handle) = connect_handle.take() {
+                let _ = timeout(Duration::from_secs(3), handle).await;
+            }
+        }
 
         Ok(result)
     }
