@@ -121,7 +121,14 @@ impl WorkerConnection {
         let idempotency_key = self.idempotency_key.clone();
         let goal_reached = self.goal_reached.clone();
         let read_messages = task::spawn(async move {
-            Self::read_loop(read, output, last_seen_idempotency_key, idempotency_key, goal_reached).await;
+            Self::read_loop(
+                read,
+                output,
+                last_seen_idempotency_key,
+                idempotency_key,
+                goal_reached,
+            )
+            .await;
         });
 
         pin_mut!(pings, read_messages);
@@ -217,13 +224,10 @@ impl WorkerConnection {
                 let last_seen_idempotency_key = last_seen_idempotency_key.clone();
                 let goal_reached = goal_reached.clone();
                 async move {
-                    let mut last_seen_idempotency_key =
-                        last_seen_idempotency_key.lock().await;
+                    let mut last_seen_idempotency_key = last_seen_idempotency_key.lock().await;
                     let matching = match &idempotency_key_to_look_for {
                         Some(idempotency_key_to_look_for) => {
-                            if let Some(last_seen_idempotency_key) =
-                                &*last_seen_idempotency_key
-                            {
+                            if let Some(last_seen_idempotency_key) = &*last_seen_idempotency_key {
                                 idempotency_key_to_look_for == last_seen_idempotency_key
                             } else {
                                 false
@@ -263,11 +267,11 @@ impl WorkerConnection {
                                 message,
                             } => {
                                 if matching {
-                                    output.emit_log(timestamp, level, context, message);
+                                    output.emit_log(timestamp, level, context, message).await;
                                 }
                             }
                             WorkerEvent::Close => {
-                                output.emit_stream_closed(Timestamp::now_utc());
+                                output.emit_stream_closed(Timestamp::now_utc()).await;
                             }
                             WorkerEvent::InvocationStart {
                                 timestamp,
@@ -276,15 +280,12 @@ impl WorkerConnection {
                             } => {
                                 if matching
                                     || idempotency_key_to_look_for.as_ref()
-                                    == Some(&idempotency_key)
+                                        == Some(&idempotency_key)
                                 {
-                                    *last_seen_idempotency_key =
-                                        Some(idempotency_key.clone());
-                                    output.emit_invocation_start(
-                                        timestamp,
-                                        function,
-                                        idempotency_key,
-                                    );
+                                    *last_seen_idempotency_key = Some(idempotency_key.clone());
+                                    output
+                                        .emit_invocation_start(timestamp, function, idempotency_key)
+                                        .await;
                                 }
                             }
                             WorkerEvent::InvocationFinished {
@@ -293,20 +294,21 @@ impl WorkerConnection {
                                 idempotency_key,
                             } => {
                                 if matching {
-                                    output.emit_invocation_finished(
-                                        timestamp,
-                                        function,
-                                        idempotency_key.clone(),
-                                    );
+                                    output
+                                        .emit_invocation_finished(
+                                            timestamp,
+                                            function,
+                                            idempotency_key.clone(),
+                                        )
+                                        .await;
 
                                     last_seen_idempotency_key.take();
-                                    if idempotency_key_to_look_for == Some(idempotency_key)
-                                    {
+                                    if idempotency_key_to_look_for == Some(idempotency_key) {
                                         goal_reached.store(true, Ordering::Release);
                                     }
                                 }
                             }
-                        }
+                        },
                     }
 
                     if goal_reached.load(Ordering::Acquire) {

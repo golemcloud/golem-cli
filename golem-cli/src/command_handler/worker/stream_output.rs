@@ -15,7 +15,11 @@
 use crate::model::{Format, WorkerConnectOptions};
 use colored::Colorize;
 use golem_common::model::{IdempotencyKey, LogLevel, Timestamp};
+use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::fmt::Write;
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -31,6 +35,8 @@ struct WorkerStreamOutputState {
     pub stdout: String,
     pub last_stderr_timestamp: Timestamp,
     pub stderr: String,
+    pub last_timestamp: Timestamp,
+    pub last_timestamp_hashes: HashSet<u64>,
 }
 
 impl WorkerStreamOutput {
@@ -41,6 +47,8 @@ impl WorkerStreamOutput {
                 stdout: String::new(),
                 last_stderr_timestamp: Timestamp::now_utc(),
                 stderr: String::new(),
+                last_timestamp: Timestamp::from_str("2000-01-01T00:00:00Z").unwrap(),
+                last_timestamp_hashes: HashSet::new(),
             })),
             options,
             format,
@@ -51,23 +59,28 @@ impl WorkerStreamOutput {
         let mut state = self.state.lock().await;
         state.last_stdout_timestamp = timestamp;
 
-        let lines = message.lines().collect::<Vec<_>>();
-        for (idx, line) in lines.iter().enumerate() {
-            if idx == (lines.len() - 1) {
-                // last line, if message did not end with newline, just store it
-                if message.ends_with('\n') {
+        if !self
+            .check_already_seen(&mut state, timestamp, &message)
+            .await
+        {
+            let lines = message.lines().collect::<Vec<_>>();
+            for (idx, line) in lines.iter().enumerate() {
+                if idx == (lines.len() - 1) {
+                    // last line, if message did not end with newline, just store it
+                    if message.ends_with('\n') {
+                        self.print_stdout(timestamp, &format!("{}{}", state.stdout, line));
+                        state.stdout = String::new();
+                    } else {
+                        state.stdout = format!("{}{}", state.stdout, line);
+                    }
+                } else if idx == 0 {
+                    // first line, there are more
                     self.print_stdout(timestamp, &format!("{}{}", state.stdout, line));
                     state.stdout = String::new();
                 } else {
-                    state.stdout = format!("{}{}", state.stdout, line);
+                    // middle line
+                    self.print_stdout(timestamp, line);
                 }
-            } else if idx == 0 {
-                // first line, there are more
-                self.print_stdout(timestamp, &format!("{}{}", state.stdout, line));
-                state.stdout = String::new();
-            } else {
-                // middle line
-                self.print_stdout(timestamp, line);
             }
         }
     }
@@ -76,82 +89,123 @@ impl WorkerStreamOutput {
         let mut state = self.state.lock().await;
         state.last_stderr_timestamp = timestamp;
 
-        let lines = message.lines().collect::<Vec<_>>();
-        for (idx, line) in lines.iter().enumerate() {
-            if idx == (lines.len() - 1) {
-                // last line, if message did not end with newline, just store it
-                if message.ends_with('\n') {
+        if !self
+            .check_already_seen(&mut state, timestamp, &message)
+            .await
+        {
+            let lines = message.lines().collect::<Vec<_>>();
+            for (idx, line) in lines.iter().enumerate() {
+                if idx == (lines.len() - 1) {
+                    // last line, if message did not end with newline, just store it
+                    if message.ends_with('\n') {
+                        self.print_stderr(timestamp, &format!("{}{}", state.stderr, line));
+                        state.stderr = String::new();
+                    } else {
+                        state.stderr = format!("{}{}", state.stderr, line);
+                    }
+                } else if idx == 0 {
+                    // first line, there are more
                     self.print_stderr(timestamp, &format!("{}{}", state.stderr, line));
                     state.stderr = String::new();
                 } else {
-                    state.stderr = format!("{}{}", state.stderr, line);
+                    // middle line
+                    self.print_stderr(timestamp, line);
                 }
-            } else if idx == 0 {
-                // first line, there are more
-                self.print_stderr(timestamp, &format!("{}{}", state.stderr, line));
-                state.stderr = String::new();
-            } else {
-                // middle line
-                self.print_stderr(timestamp, line);
             }
         }
     }
 
-    pub fn emit_log(
+    pub async fn emit_log(
         &self,
         timestamp: Timestamp,
         level: LogLevel,
         context: String,
         message: String,
     ) {
-        let level_str = match level {
-            LogLevel::Trace => "TRACE",
-            LogLevel::Debug => "DEBUG",
-            LogLevel::Info => "INFO",
-            LogLevel::Warn => "WARN",
-            LogLevel::Error => "ERROR",
-            LogLevel::Critical => "CRITICAL",
-        };
+        let mut state = self.state.lock().await;
 
-        match self.format {
-            Format::Json => self.json(level_str, &context, &message),
-            Format::Yaml => self.yaml(level_str, &context, &message),
-            Format::Text => {
-                let prefix = self.prefix(timestamp, level_str);
-                self.colored(level, &format!("{prefix}[{context}] {message}"));
+        if !self
+            .check_already_seen(&mut state, timestamp, &message)
+            .await
+        {
+            let level_str = match level {
+                LogLevel::Trace => "TRACE",
+                LogLevel::Debug => "DEBUG",
+                LogLevel::Info => "INFO",
+                LogLevel::Warn => "WARN",
+                LogLevel::Error => "ERROR",
+                LogLevel::Critical => "CRITICAL",
+            };
+
+            match self.format {
+                Format::Json => self.json(level_str, &context, &message),
+                Format::Yaml => self.yaml(level_str, &context, &message),
+                Format::Text => {
+                    let prefix = self.prefix(timestamp, level_str);
+                    self.colored(level, &format!("{prefix}[{context}] {message}"));
+                }
             }
         }
     }
 
-    pub fn emit_stream_closed(&self, timestamp: Timestamp) {
-        let prefix = self.prefix(timestamp, "STREAM");
-        self.colored(LogLevel::Debug, &format!("{prefix}Stream closed"));
+    pub async fn emit_stream_closed(&self, timestamp: Timestamp) {
+        let mut state = self.state.lock().await;
+
+        if !self
+            .check_already_seen(&mut state, timestamp, "Stream closed")
+            .await
+        {
+            let prefix = self.prefix(timestamp, "STREAM");
+            self.colored(LogLevel::Debug, &format!("{prefix}Stream closed"));
+        }
     }
 
-    pub fn emit_invocation_start(
+    pub async fn emit_invocation_start(
         &self,
         timestamp: Timestamp,
         function_name: String,
         idempotency_key: IdempotencyKey,
     ) {
-        let prefix = self.prefix(timestamp, "INVOKE");
-        self.colored(
-            LogLevel::Trace,
-            &format!("{prefix}STARTED  {function_name} ({idempotency_key})"),
-        );
+        let mut state = self.state.lock().await;
+
+        if !self
+            .check_already_seen(
+                &mut state,
+                timestamp,
+                &format!("{function_name} {idempotency_key} started"),
+            )
+            .await
+        {
+            let prefix = self.prefix(timestamp, "INVOKE");
+            self.colored(
+                LogLevel::Trace,
+                &format!("{prefix}STARTED  {function_name} ({idempotency_key})"),
+            );
+        }
     }
 
-    pub fn emit_invocation_finished(
+    pub async fn emit_invocation_finished(
         &self,
         timestamp: Timestamp,
         function_name: String,
         idempotency_key: IdempotencyKey,
     ) {
-        let prefix = self.prefix(timestamp, "INVOKE");
-        self.colored(
-            LogLevel::Trace,
-            &format!("{prefix}FINISHED {function_name} ({idempotency_key})",),
-        );
+        let mut state = self.state.lock().await;
+
+        if !self
+            .check_already_seen(
+                &mut state,
+                timestamp,
+                &format!("{function_name} {idempotency_key} finished"),
+            )
+            .await
+        {
+            let prefix = self.prefix(timestamp, "INVOKE");
+            self.colored(
+                LogLevel::Trace,
+                &format!("{prefix}FINISHED {function_name} ({idempotency_key})",),
+            );
+        }
     }
 
     pub async fn flush(&self) {
@@ -163,6 +217,41 @@ impl WorkerStreamOutput {
         if !state.stderr.is_empty() {
             self.print_stderr(state.last_stdout_timestamp, &state.stderr);
             state.stderr = String::new();
+        }
+    }
+
+    async fn check_already_seen(
+        &self,
+        state: &mut WorkerStreamOutputState,
+        timestamp: Timestamp,
+        message: &str,
+    ) -> bool {
+        let mut hasher = DefaultHasher::new();
+        message.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        match state.last_timestamp.cmp(&timestamp) {
+            Ordering::Less => {
+                // definitely new
+                state.last_timestamp = timestamp;
+                state.last_timestamp_hashes.clear();
+                state.last_timestamp_hashes.insert(hash);
+                false
+            }
+            Ordering::Equal => {
+                if state.last_timestamp_hashes.contains(&hash) {
+                    // old
+                    true
+                } else {
+                    // new
+                    state.last_timestamp_hashes.insert(hash);
+                    false
+                }
+            }
+            Ordering::Greater => {
+                // definitely old
+                true
+            }
         }
     }
 
