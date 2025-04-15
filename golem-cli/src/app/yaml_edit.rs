@@ -15,7 +15,6 @@
 use crate::fs::read_to_string;
 use crate::model::app::{AppComponentName, Application, DependencyType};
 use anyhow::{anyhow, Context};
-use golem_wasm_ast::analysis::analysed_type::str;
 use nondestructive::yaml::{Document, Id, MappingMut, Separator, SequenceMut, Value, ValueMut};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -97,7 +96,7 @@ impl<'a> AppYamlEditor<'a> {
             }
         }
 
-        let insert = match dep_type_id {
+        match dep_type_id {
             Some(dep_type_id) => {
                 document
                     .value_mut(dep_type_id)
@@ -169,6 +168,7 @@ impl<'a> AppYamlEditor<'a> {
 
 trait ValueExtensions<'a> {
     fn as_str_with_comments_workaround(&self) -> Option<&str>;
+    #[allow(dead_code)]
     fn as_i64_with_comments_workaround(&self) -> Option<i64>;
 }
 
@@ -245,7 +245,7 @@ mod tests {
     use nondestructive::yaml::Document;
 
     mod nondestructive_yaml_bugs {
-        use crate::app::yaml_edit::tests::{new_doc, to_serde_yaml_value};
+        use crate::app::yaml_edit::tests::new_doc;
         use crate::app::yaml_edit::{ValueExtensions, ValueMutExtensions};
         use assert2::{assert, let_assert};
         use indoc::indoc;
@@ -256,7 +256,7 @@ mod tests {
         //       meaning we have to rework our workaround (search for workaround methods in this file)
         #[test]
         fn line_comments_are_part_of_values() {
-            let mut doc = new_doc(indoc! {"
+            let doc = new_doc(indoc! {"
                 map: # this works fine
                   key_for_string_with_comment: value # comment for string
                   key_for_string_without_comment: other values should not be affected by the workaround
@@ -300,6 +300,7 @@ mod tests {
                     string_field_without_comment.as_str_with_comments_workaround()
                         == Some("other values should not be affected by the workaround")
                 );
+                assert!(number_with_comment_field.as_i64_with_comments_workaround() == Some(3));
             }
 
             {
@@ -334,6 +335,7 @@ mod tests {
                     string_field_without_comment.as_str_with_comments_workaround()
                         == Some("other values should not be affected by the workaround")
                 );
+                assert!(number_with_comment_field.as_i64_with_comments_workaround() == Some(3));
             }
         }
 
@@ -364,7 +366,7 @@ mod tests {
 
                 // Insert an empty map as first elem
                 {
-                    let x = seq.push(Separator::Auto).make_mapping();
+                    let _ = seq.push(Separator::Auto).make_mapping();
                 }
 
                 let mut map = seq.push(Separator::Auto).make_mapping();

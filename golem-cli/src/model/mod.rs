@@ -24,6 +24,7 @@ pub mod text;
 pub mod to_cloud;
 pub mod to_oss;
 pub mod wave;
+pub mod worker;
 
 use crate::cloud::{AccountId, ProjectId};
 use crate::command::shared_args::StreamArgs;
@@ -157,6 +158,23 @@ impl From<String> for WorkerName {
 impl Display for WorkerName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+pub enum ComponentVersionSelection<'a> {
+    ByWorkerName(&'a WorkerName),
+    ByExplicitVersion(u64),
+}
+
+impl<'a> From<&'a WorkerName> for ComponentVersionSelection<'a> {
+    fn from(value: &'a WorkerName) -> Self {
+        Self::ByWorkerName(value)
+    }
+}
+
+impl From<u64> for ComponentVersionSelection<'_> {
+    fn from(value: u64) -> Self {
+        Self::ByExplicitVersion(value)
     }
 }
 

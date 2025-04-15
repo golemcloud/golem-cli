@@ -155,6 +155,18 @@ impl InteractiveHandler {
         Ok((profile_name.into(), profile, set_as_active))
     }
 
+    // TODO: select_component_for_repl, should use app_ctx and filtering
+    pub fn select_component(
+        &self,
+        component_names: Vec<ComponentName>,
+    ) -> anyhow::Result<ComponentName> {
+        Ok(Select::new(
+            "Select a component to be used in Rib REPL:",
+            component_names,
+        )
+        .prompt()?)
+    }
+
     pub fn select_dependant_component_name(
         &self,
         component_names: Vec<ComponentName>,

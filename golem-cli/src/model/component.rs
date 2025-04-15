@@ -35,6 +35,33 @@ use std::fmt::Display;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum ComponentSelection<'a> {
+    Name(&'a ComponentName),
+    Id(Uuid),
+}
+
+impl Display for ComponentSelection<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ComponentSelection::Name(name) => write!(f, "{}", name),
+            ComponentSelection::Id(id) => write!(f, "{}", id),
+        }
+    }
+}
+
+impl<'a> From<&'a ComponentName> for ComponentSelection<'a> {
+    fn from(name: &'a ComponentName) -> Self {
+        ComponentSelection::Name(name)
+    }
+}
+
+impl From<Uuid> for ComponentSelection<'_> {
+    fn from(uuid: Uuid) -> Self {
+        ComponentSelection::Id(uuid)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Component {
     pub versioned_component_id: VersionedComponentId,
     pub component_name: ComponentName,
@@ -182,7 +209,7 @@ impl From<&Component> for ComponentView {
             component_size: value.component_size,
             created_at: value.created_at,
             project_id: value.project_id,
-            exports: show_exported_functions(&value.metadata.exports),
+            exports: show_exported_functions(&value.metadata.exports, true),
             dynamic_linking: value
                 .metadata
                 .dynamic_linking
@@ -272,36 +299,44 @@ pub fn render_type(typ: &AnalysedType) -> String {
     }
 }
 
-pub fn show_exported_functions(exports: &[AnalysedExport]) -> Vec<String> {
+pub fn show_exported_functions(exports: &[AnalysedExport], with_parameters: bool) -> Vec<String> {
     exports
         .iter()
         .flat_map(|exp| match exp {
             AnalysedExport::Instance(AnalysedInstance { name, functions }) => {
                 let fs: Vec<String> = functions
                     .iter()
-                    .map(|f| render_exported_function(Some(name), f))
+                    .map(|f| render_exported_function(Some(name), f, with_parameters))
                     .collect();
                 fs
             }
             AnalysedExport::Function(f) => {
-                vec![render_exported_function(None, f)]
+                vec![render_exported_function(None, f, with_parameters)]
             }
         })
         .collect()
 }
 
-pub fn render_exported_function(prefix: Option<&str>, f: &AnalysedFunction) -> String {
+pub fn render_exported_function(
+    prefix: Option<&str>,
+    f: &AnalysedFunction,
+    with_parameters: bool,
+) -> String {
     // TODO: now that the formatter is implemented, and wave still not supports handles
     //       is there a point in using the customized wave formatter?
     //       Or maybe it should handled in the customized DisplayNamedFunc?
-    if function_wave_compatible(f) {
-        DisplayNamedFunc {
-            name: format_function_name(prefix, &f.name),
-            func: f.clone(),
+    if with_parameters {
+        if function_wave_compatible(f) {
+            DisplayNamedFunc {
+                name: format_function_name(prefix, &f.name),
+                func: f.clone(),
+            }
+            .to_string()
+        } else {
+            render_non_wave_compatible_exported_function(prefix, f)
         }
-        .to_string()
     } else {
-        render_non_wave_compatible_exported_function(prefix, f)
+        format_function_name(prefix, &f.name)
     }
 }
 
@@ -428,7 +463,7 @@ mod tests {
                 typ: handle(AnalysedResourceId(1), AnalysedResourceMode::Borrowed),
             }],
         };
-        let repr = render_exported_function(None, &f);
+        let repr = render_exported_function(None, &f, true);
 
         assert_eq!(repr, "n() -> &handle<1>")
     }
@@ -441,7 +476,7 @@ mod tests {
             results: vec![],
         };
 
-        let repr = render_exported_function(None, &f);
+        let repr = render_exported_function(None, &f, true);
 
         assert_eq!(repr, "abc()")
     }
@@ -457,7 +492,7 @@ mod tests {
             results: vec![],
         };
 
-        let repr = render_exported_function(None, &f);
+        let repr = render_exported_function(None, &f, true);
 
         assert_eq!(repr, "abc(n: handle<1>)")
     }
@@ -473,7 +508,7 @@ mod tests {
             }],
         };
 
-        let repr = render_exported_function(None, &f);
+        let repr = render_exported_function(None, &f, true);
 
         assert_eq!(repr, "abc() -> bool")
     }
@@ -489,7 +524,7 @@ mod tests {
             }],
         };
 
-        let repr = render_exported_function(None, &f);
+        let repr = render_exported_function(None, &f, true);
 
         assert_eq!(repr, "abc() -> handle<1>")
     }
@@ -520,7 +555,7 @@ mod tests {
             ],
         };
 
-        let repr = render_exported_function(None, &f);
+        let repr = render_exported_function(None, &f, true);
 
         assert_eq!(repr, "abc(n1: bool, n2: bool) -> (bool, bool)")
     }
@@ -551,7 +586,7 @@ mod tests {
             ],
         };
 
-        let repr = render_exported_function(None, &f);
+        let repr = render_exported_function(None, &f, true);
 
         assert_eq!(repr, "abc(n1: bool, n2: handle<1>) -> (bool, bool)")
     }
@@ -568,7 +603,7 @@ mod tests {
                 typ: typ.clone(),
             }],
         };
-        let wave_res = render_exported_function(None, &wave_f);
+        let wave_res = render_exported_function(None, &wave_f, true);
         assert_eq!(wave_res, expected_wave);
 
         let custom_f = AnalysedFunction {
@@ -582,7 +617,7 @@ mod tests {
                 ]),
             }],
         };
-        let custom_res = render_exported_function(None, &custom_f);
+        let custom_res = render_exported_function(None, &custom_f, true);
         assert_eq!(custom_res, expected_custom);
     }
 

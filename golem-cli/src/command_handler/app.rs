@@ -381,7 +381,7 @@ impl AppCommandHandler {
             match self
                 .ctx
                 .component_handler()
-                .component_by_name(project.as_ref(), component_name, None)
+                .component(project.as_ref(), component_name.into(), None)
                 .await?
             {
                 Some(component) => {
@@ -398,7 +398,7 @@ impl AppCommandHandler {
         Ok(components)
     }
 
-    async fn must_select_components(
+    pub async fn must_select_components(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ApplicationComponentSelectMode,
@@ -466,6 +466,7 @@ impl AppCommandHandler {
                                 Error::Ambiguous {
                                     pattern,
                                     highlighted_options,
+                                    ..
                                 } => {
                                     format!(
                                         "  - {}, did you mean one of {}?",
