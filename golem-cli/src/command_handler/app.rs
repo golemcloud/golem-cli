@@ -259,15 +259,7 @@ impl AppCommandHandler {
                     );
                     let app_subcommands = builtin_app_subcommands();
                     for subcommand in &app_subcommands {
-                        logln(format!(
-                            "  {}{}",
-                            if app_subcommands.contains(subcommand) || subcommand.starts_with(':') {
-                                ":"
-                            } else {
-                                ""
-                            },
-                            subcommand.bold()
-                        ));
+                        logln(format!("  {}", subcommand.bold()));
                     }
                     logln("");
 
