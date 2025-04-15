@@ -26,7 +26,7 @@ use crate::{command_name, version};
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use chrono::{DateTime, Utc};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
-use clap::{self, CommandFactory, Subcommand};
+use clap::{self, Command, CommandFactory, Subcommand};
 use clap::{Args, Parser};
 use clap_verbosity_flag::{ErrorLevel, LogLevel};
 use golem_client::model::ScanCursor;
@@ -39,6 +39,7 @@ use uuid::Uuid;
 #[cfg(feature = "server-commands")]
 use crate::command::server::ServerSubcommand;
 use crate::command::shared_args::ComponentOptionalComponentName;
+use crate::error::ShowClapHelpTarget;
 
 /// Golem Command Line Interface
 #[derive(Debug, Parser)]
@@ -1750,6 +1751,25 @@ pub fn builtin_app_subcommands() -> BTreeSet<String> {
         .collect()
 }
 
+fn help_target_to_subcommand_names(target: ShowClapHelpTarget) -> Vec<&'static str> {
+    match target {
+        ShowClapHelpTarget::ComponentAddDependency => {
+            vec!["component", "add-dependency"]
+        }
+    }
+}
+
+pub fn help_target_to_command(target: ShowClapHelpTarget) -> Command {
+    let command = GolemCliCommand::command();
+    let mut command = &command;
+
+    for subcommand in help_target_to_subcommand_names(target) {
+        command = command.find_subcommand(subcommand).unwrap();
+    }
+
+    command.clone()
+}
+
 fn parse_key_val(key_and_val: &str) -> anyhow::Result<(String, String)> {
     let pos = key_and_val.find('=').ok_or_else(|| {
         anyhow!(
@@ -1788,12 +1808,16 @@ fn parse_instant(
 
 #[cfg(test)]
 mod test {
-    use crate::command::{builtin_app_subcommands, GolemCliCommand};
+    use crate::command::{
+        builtin_app_subcommands, help_target_to_subcommand_names, GolemCliCommand,
+    };
+    use crate::error::ShowClapHelpTarget;
     use assert2::assert;
     use clap::builder::StyledStr;
     use clap::{Command, CommandFactory};
     use itertools::Itertools;
     use std::collections::{BTreeMap, BTreeSet};
+    use strum::IntoEnumIterator;
     use test_r::test;
 
     #[test]
@@ -2008,5 +2032,25 @@ mod test {
     #[test]
     fn builtin_app_subcommands_no_panic() {
         println!("{:?}", builtin_app_subcommands())
+    }
+
+    #[test]
+    fn help_targets_to_subcommands_uses_valid_subcommands() {
+        for target in ShowClapHelpTarget::iter() {
+            let command = GolemCliCommand::command();
+            let mut command = &command;
+            let subcommands = help_target_to_subcommand_names(target);
+            for subcommand in &subcommands {
+                match command.find_subcommand(subcommand) {
+                    Some(subcommand) => command = subcommand,
+                    None => {
+                        panic!(
+                            "Invalid help target: {}, {:?}, {}",
+                            target, subcommands, subcommand
+                        );
+                    }
+                }
+            }
+        }
     }
 }

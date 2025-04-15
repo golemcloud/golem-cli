@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::{builtin_app_subcommands, GolemCliCommandPartialMatch, GolemCliGlobalFlags};
+use crate::command::{
+    builtin_app_subcommands, help_target_to_command, GolemCliCommandPartialMatch,
+    GolemCliGlobalFlags,
+};
 use crate::command_handler::Handlers;
 use crate::config::Config;
 use crate::context::Context;
@@ -236,6 +239,10 @@ impl ErrorHandler {
                 logln(" - use 'profile switch cloud' ");
                 logln(" - set the GOLEM_PROFILE environment variable to 'cloud'");
                 logln("");
+                Ok(())
+            }
+            HintError::ShowClapHelp(help_target) => {
+                help_target_to_command(*help_target).print_long_help()?;
                 Ok(())
             }
         }

@@ -36,14 +36,13 @@ impl<'a> AppYamlEditor<'a> {
         self.documents.iter()
     }
 
-    /// Returns the path where the dependency was inserted or updated, and returns true if it was
-    /// inserted and false on update
+    /// Returns true if the dependency was inserted and false on update
     pub fn insert_or_update_dependency(
         &mut self,
         component_name: &AppComponentName,
         target_component_name: &AppComponentName,
         dependency_type: DependencyType,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         let path = self.target_document_path_for_dependency(component_name, target_component_name);
 
         let document = self.document_mut(&path)?;
@@ -96,7 +95,7 @@ impl<'a> AppYamlEditor<'a> {
             }
         }
 
-        match dep_type_id {
+        let insert = match dep_type_id {
             Some(dep_type_id) => {
                 document
                     .value_mut(dep_type_id)
@@ -122,7 +121,7 @@ impl<'a> AppYamlEditor<'a> {
             }
         };
 
-        Ok(())
+        Ok(insert)
     }
 
     fn document_mut(&mut self, path: &Path) -> anyhow::Result<&mut Document> {
@@ -153,7 +152,6 @@ impl<'a> AppYamlEditor<'a> {
             .map(|path| path.to_path_buf())
     }
 
-    /// Returns the target path for the dependency, and true if it requires insert
     fn target_document_path_for_dependency(
         &self,
         component_name: &AppComponentName,

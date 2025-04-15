@@ -24,9 +24,9 @@ use crate::command_handler::component::ifs::IfsArchiveBuilder;
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
-use crate::error::NonSuccessfulExit;
+use crate::error::{HintError, NonSuccessfulExit, ShowClapHelpTarget};
 use crate::fs::write_str;
-use crate::log::{log_action, logln, LogColorize, LogIndent};
+use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent};
 use crate::model::app::{
     AppComponentName, ApplicationComponentSelectMode, BuildProfileName, DynamicHelpSections,
 };
@@ -570,44 +570,21 @@ impl ComponentCommandHandler {
         target_component_name: Option<ComponentName>,
         dependency_type: Option<DependencyType>,
     ) -> anyhow::Result<()> {
-        async fn component_names(ctx: &Context) -> anyhow::Result<Vec<ComponentName>> {
-            let app_ctx = ctx.app_context_lock().await;
-            let app_ctx = app_ctx.some_or_err()?;
-            Ok(app_ctx
-                .application
-                .component_names()
-                .map(|cn| ComponentName::from(cn.as_str()))
-                .collect())
-        }
+        self.ctx.silence_app_context_init().await;
 
-        let mut selection = self
-            .opt_select_components_by_app_dir_or_name(component_name.as_ref())
-            .await?;
-        let component_name: AppComponentName = {
-            if selection.component_names.len() == 1 {
-                selection.component_names.pop().unwrap().0.into()
-            } else {
-                self.ctx
-                    .interactive_handler()
-                    .select_dependant_component_name(component_names(&self.ctx).await?)?
-                    .0
-                    .into()
-            }
-        };
-
-        let target_component_name: AppComponentName = match target_component_name {
-            Some(target_component_name) => target_component_name.0.into(),
-            None => self
-                .ctx
-                .interactive_handler()
-                .select_dependency_component_name(component_names(&self.ctx).await?)?
-                .0
-                .into(),
-        };
-
-        let dependency_type = match dependency_type {
-            Some(dependency_type) => dependency_type,
-            None => self.ctx.interactive_handler().select_dependency_type()?,
+        let Some((component_name, target_component_name, dependency_type)) = self
+            .ctx
+            .interactive_handler()
+            .create_component_dependency(
+                component_name.map(|cn| cn.0.into()),
+                target_component_name.map(|cn| cn.0.into()),
+                dependency_type,
+            )
+            .await?
+        else {
+            log_error("All of COMPONENT_NAME, TARGET_COMPONENT_NAME and DEPENDENCY_TYPE are required in non-interactive mode");
+            logln("");
+            bail!(HintError::ShowClapHelp(ShowClapHelpTarget::ComponentAddDependency));
         };
 
         let app_ctx = self.ctx.app_context_lock().await;
@@ -615,15 +592,21 @@ impl ComponentCommandHandler {
 
         let mut editor = AppYamlEditor::new(&app_ctx.application);
 
-        editor.insert_or_update_dependency(
+        let inserted = editor.insert_or_update_dependency(
             &component_name,
             &target_component_name,
             dependency_type,
         )?;
 
         for (path, document) in editor.accessed_documents() {
-            log_action("Updating", path.log_color_highlight().to_string());
+            log_warn_action("Updating", path.log_color_highlight().to_string());
             write_str(path, document.to_string())?;
+        }
+
+        if inserted {
+            log_action("Added", "component dependency");
+        } else {
+            log_action("Updated", "component dependency");
         }
 
         Ok(())
