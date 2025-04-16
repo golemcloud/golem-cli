@@ -139,7 +139,14 @@ impl WorkerCommandHandler {
                 worker_name,
                 mode,
                 target_version,
-            } => self.cmd_update(worker_name, mode, target_version).await,
+            } => {
+                self.cmd_update(
+                    worker_name,
+                    mode.unwrap_or(WorkerUpdateMode::Automatic),
+                    target_version,
+                )
+                .await
+            }
             WorkerSubcommand::Resume { worker_name } => self.cmd_resume(worker_name).await,
             WorkerSubcommand::SimulateCrash { worker_name } => {
                 self.cmd_simulate_crash(worker_name).await
