@@ -996,7 +996,7 @@ pub mod worker {
             /// Update mode - auto or manual
             mode: WorkerUpdateMode,
             /// The new version of the updated worker
-            target_version: u64,
+            target_version: Option<u64>,
         },
         /// Interrupts a running worker
         Interrupt {
