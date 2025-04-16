@@ -950,7 +950,7 @@ pub mod worker {
     use chrono::{DateTime, Utc};
     use cli_table::{format::Justify, Table};
     use colored::Colorize;
-    use golem_client::model::PublicOplogEntry;
+    use golem_client::model::{PublicOplogEntry, UpdateRecord};
     use golem_common::model::public_oplog::{
         PluginInstallationDescription, PublicAttributeValue, PublicUpdateDescription,
         PublicWorkerInvocation, StringAttributeValue,
@@ -960,6 +960,7 @@ pub mod worker {
     use indoc::{formatdoc, indoc};
     use itertools::Itertools;
     use serde::{Deserialize, Serialize};
+    use std::fmt::Write;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct WorkerCreateView {
@@ -1025,6 +1026,52 @@ pub mod worker {
         fn fields(&self) -> Vec<(String, String)> {
             let mut fields = FieldsBuilder::new();
 
+            let mut update_history = String::new();
+            for update in &self.0.updates {
+                match update {
+                    UpdateRecord::PendingUpdate(update) => {
+                        let _ = writeln!(
+                            update_history,
+                            "{}",
+                            format!(
+                                "{}: Pending update to {}",
+                                update.timestamp, update.target_version
+                            )
+                            .bright_black()
+                        );
+                    }
+                    UpdateRecord::SuccessfulUpdate(update) => {
+                        let _ = writeln!(
+                            update_history,
+                            "{}",
+                            format!(
+                                "{}: Successful update to {}",
+                                update.timestamp, update.target_version
+                            )
+                            .green()
+                            .bold()
+                        );
+                    }
+                    UpdateRecord::FailedUpdate(update) => {
+                        let _ = writeln!(
+                            update_history,
+                            "{}",
+                            format!(
+                                "{}: Failed update to {}{}",
+                                update.timestamp,
+                                update.target_version,
+                                update
+                                    .details
+                                    .as_ref()
+                                    .map(|details| format!(": {details}"))
+                                    .unwrap_or_default()
+                            )
+                            .yellow()
+                        );
+                    }
+                }
+            }
+
             fields
                 .fmt_field("Component name", &self.0.component_name, format_id)
                 .fmt_field("Component version", &self.0.component_version, format_id)
@@ -1057,9 +1104,7 @@ pub mod worker {
                     self.0.pending_invocation_count > 0,
                     |n| n.to_string(),
                 )
-                .fmt_field_option("Last error", &self.0.last_error, |err| {
-                    format_stack(err.as_ref())
-                });
+                .fmt_field_option("Last error", &self.0.last_error, |err| format_stack(err));
 
             fields.build()
         }
