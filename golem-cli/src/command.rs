@@ -1710,32 +1710,64 @@ pub mod cloud {
 }
 
 pub mod server {
-    use clap::Subcommand;
+    use clap::{Args, Subcommand};
     use std::path::PathBuf;
+
+    #[derive(Debug, Args)]
+    pub struct RunArgs {
+        /// Address to serve the main API on, defaults to 0.0.0.0
+        #[clap(long)]
+        pub router_addr: Option<String>,
+
+        /// Port to serve the main API on, defaults to 9881
+        #[clap(long)]
+        pub router_port: Option<u16>,
+
+        /// Port to serve custom requests on, defaults to 9006
+        #[clap(long)]
+        pub custom_request_port: Option<u16>,
+
+        /// Directory to store data in. Defaults to $XDG_STATE_HOME/golem
+        #[clap(long)]
+        pub data_dir: Option<PathBuf>,
+
+        /// Clean the data directory before starting
+        #[clap(long)]
+        pub clean: bool,
+    }
+
+    impl RunArgs {
+        pub fn router_addr(&self) -> &str {
+            self.router_addr.as_deref().unwrap_or("0.0.0.0")
+        }
+
+        pub fn router_port(&self) -> u16 {
+            self.router_port.unwrap_or(9881)
+        }
+
+        pub fn custom_request_port(&self) -> u16 {
+            self.custom_request_port.unwrap_or(9006)
+        }
+    }
+
+    impl Default for RunArgs {
+        fn default() -> Self {
+            Self {
+                router_addr: None,
+                router_port: None,
+                custom_request_port: None,
+                data_dir: None,
+                clean: false,
+            }
+        }
+    }
 
     #[derive(Debug, Subcommand)]
     pub enum ServerSubcommand {
         /// Run golem server for local development
         Run {
-            /// Address to serve the main API on
-            #[clap(long, default_value = "0.0.0.0")]
-            router_addr: String,
-
-            /// Port to serve the main API on
-            #[clap(long, default_value_t = 9881)]
-            router_port: u16,
-
-            /// Port to serve custom requests on
-            #[clap(long, default_value_t = 9006)]
-            custom_request_port: u16,
-
-            /// Directory to store data in. Defaults to $XDG_STATE_HOME/golem
-            #[clap(long)]
-            data_dir: Option<PathBuf>,
-
-            /// Clean the data directory before starting
-            #[clap(long, default_value = "false")]
-            clean: bool,
+            #[clap(flatten)]
+            args: RunArgs,
         },
         /// Clean the local server data directory
         Clean,

@@ -60,7 +60,9 @@ pub struct LaunchArgs {
     pub data_dir: PathBuf,
 }
 
-pub async fn launch_golem_services(args: &LaunchArgs) -> anyhow::Result<()> {
+pub async fn launch_golem_services(
+    args: &LaunchArgs,
+) -> anyhow::Result<JoinSet<anyhow::Result<()>>> {
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install crypto provider");
@@ -95,11 +97,7 @@ pub async fn launch_golem_services(args: &LaunchArgs) -> anyhow::Result<()> {
         &mut join_set,
     )?;
 
-    while let Some(res) = join_set.join_next().await {
-        res??;
-    }
-
-    Ok(())
+    Ok(join_set)
 }
 
 async fn start_components(
