@@ -20,10 +20,9 @@ use crate::config::{
     ClientConfig, HttpClientConfig, NamedProfile, Profile, ProfileKind, ProfileName,
 };
 use crate::error::HintError;
-use crate::log::{log_action, log_warn_action, set_log_output, LogOutput, Output};
+use crate::log::{set_log_output, LogOutput, Output};
 use crate::model::app::{AppBuildStep, ApplicationSourceMode};
 use crate::model::app::{ApplicationConfig, BuildProfileName as AppBuildProfileName};
-use crate::model::text::fmt::log_warn;
 use crate::model::{Format, HasFormatConfig};
 use crate::wasm_rpc_stubgen::stub::RustDependencyOverride;
 use anyhow::anyhow;
@@ -32,7 +31,6 @@ use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
 use golem_client::api::ApiSecurityClientLive as ApiSecurityClientOss;
 use golem_client::api::ComponentClientLive as ComponentClientOss;
-use golem_client::api::HealthCheckClient as HealthCheckClientOpsOss;
 use golem_client::api::HealthCheckClientLive as HealthCheckClientOss;
 use golem_client::api::PluginClientLive as PluginClientOss;
 use golem_client::api::WorkerClientLive as WorkerClientOss;
@@ -79,6 +77,7 @@ pub struct Context {
     auth_token_override: Option<Uuid>,
     client_config: ClientConfig,
     yes: bool,
+    #[allow(unused)]
     start_local_server: Box<dyn Fn() -> BoxFuture<'static, anyhow::Result<()>> + Send + Sync>,
 
     // Lazy initialized
@@ -215,7 +214,12 @@ impl Context {
             return Ok(());
         };
 
-        if clients.component_healthcheck.healthcheck().await.is_ok() {
+        // NOTE: explicitly calling the trait method to avoid unused imports when compiling with
+        //       default features
+        if golem_client::api::HealthCheckClient::healthcheck(&clients.component_healthcheck)
+            .await
+            .is_ok()
+        {
             return Ok(());
         }
 

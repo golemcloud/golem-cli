@@ -47,6 +47,17 @@ impl InteractiveHandler {
         Self { ctx }
     }
 
+    // NOTE: this one is static because local server hook has limited access
+    //       to state
+    pub fn confirm_auto_start_local_server(yes: bool) -> anyhow::Result<bool> {
+        confirm(
+            yes,
+            true,
+            "Do you want to use the local server for the current session?".to_string(),
+            Some("Tip: you can also use the 'golem server run' command in another terminal to keep the local server running for local development!"),
+        )
+    }
+
     pub fn confirm_auto_deploy_component(
         &self,
         component_name: &ComponentName,
@@ -57,6 +68,7 @@ impl InteractiveHandler {
                 "Component {} was not found between deployed components, do you want to deploy it, then continue?",
                 component_name.0.log_color_highlight()
             ),
+            None,
         )
     }
 
@@ -68,6 +80,7 @@ impl InteractiveHandler {
                 "delete".log_color_warn(),
                 number_of_workers.to_string().log_color_highlight()
             ),
+            None,
         )
     }
 
@@ -79,6 +92,7 @@ impl InteractiveHandler {
                 account.name.log_color_highlight(),
                 account.email.log_color_highlight()
             ),
+            None,
         )
     }
 
@@ -89,6 +103,7 @@ impl InteractiveHandler {
                 "Do you want to create a new profile interactively?\n",
                 "If not, please specify the profile name as a command argument."
             ),
+            None,
         )? {
             bail!(NonSuccessfulExit);
         }
@@ -388,32 +403,13 @@ impl InteractiveHandler {
         )))
     }
 
-    fn confirm<M: AsRef<str>>(&self, default: bool, message: M) -> anyhow::Result<bool> {
-        const YES_FLAG_HINT: &str = "To automatically confirm such questions use the '--yes' flag.";
-
-        if self.ctx.yes() {
-            log_warn_action(
-                "Auto confirming",
-                format!("question: \"{}\"", message.as_ref().cyan()),
-            );
-            return Ok(true);
-        }
-
-        match Confirm::new(message.as_ref())
-            .with_help_message(YES_FLAG_HINT)
-            .with_default(default)
-            .prompt()
-        {
-            Ok(result) => Ok(result),
-            Err(error) => {
-                if is_interactive_not_available_inquire_error(&error) {
-                    log_warn("The current input device is not an interactive one,\ndefaulting to \"false\"");
-                    Ok(false)
-                } else {
-                    Err(error.into())
-                }
-            }
-        }
+    fn confirm<M: AsRef<str>>(
+        &self,
+        default: bool,
+        message: M,
+        extra_hint: Option<&str>,
+    ) -> anyhow::Result<bool> {
+        confirm(self.ctx.yes(), default, message, extra_hint)
     }
 }
 
@@ -480,5 +476,45 @@ fn is_interactive_not_available_inquire_error(err: &InquireError) -> bool {
         InquireError::OperationCanceled => false,
         InquireError::OperationInterrupted => false,
         InquireError::Custom(_) => false,
+    }
+}
+
+fn confirm<M: AsRef<str>>(
+    yes: bool,
+    default: bool,
+    message: M,
+    extra_hint: Option<&str>,
+) -> anyhow::Result<bool> {
+    const YES_FLAG_HINT: &str = "To automatically confirm such questions use the '--yes' flag.";
+
+    if yes {
+        log_warn_action(
+            "Auto confirming",
+            format!("question: \"{}\"", message.as_ref().cyan()),
+        );
+        return Ok(true);
+    }
+
+    let hint = match extra_hint {
+        Some(extra_hint) => format!("{} {}", YES_FLAG_HINT, extra_hint),
+        None => YES_FLAG_HINT.to_string(),
+    };
+
+    match Confirm::new(message.as_ref())
+        .with_help_message(&hint)
+        .with_default(default)
+        .prompt()
+    {
+        Ok(result) => Ok(result),
+        Err(error) => {
+            if is_interactive_not_available_inquire_error(&error) {
+                log_warn(
+                    "The current input device is not an interactive one,\ndefaulting to \"false\"",
+                );
+                Ok(false)
+            } else {
+                Err(error.into())
+            }
+        }
     }
 }

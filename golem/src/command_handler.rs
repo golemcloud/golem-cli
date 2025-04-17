@@ -70,7 +70,6 @@ impl CommandHandlerHooks for ServerCommandHandler {
 
         tokio::spawn(async move {
             while let Some(res) = join_set.join_next().await {
-                // TODO: maybe just log errors?
                 res.unwrap().unwrap();
             }
         });

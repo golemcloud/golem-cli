@@ -47,7 +47,7 @@ use crate::command_handler::worker::WorkerCommandHandler;
 use crate::config::{Config, ProfileName};
 use crate::context::Context;
 use crate::error::{ContextInitHintError, HintError, NonSuccessfulExit};
-use crate::log::{log_action, log_warn_action, logln, set_log_output, Output};
+use crate::log::{logln, set_log_output, Output};
 use crate::model::text::fmt::log_error;
 use crate::{command_name, init_tracing};
 use anyhow::anyhow;
@@ -129,15 +129,19 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
     fn start_local_server_hook(
         yes: bool,
     ) -> Box<dyn Fn() -> BoxFuture<'static, anyhow::Result<()>> + Send + Sync> {
-        Box::new(|| {
-            async {
-                // TODO: confirm
+        Box::new(move || {
+            async move {
+                if !InteractiveHandler::confirm_auto_start_local_server(yes)? {
+                    return Ok(());
+                }
 
-                log_warn_action("Starting", "local server".to_string());
+                // NOTE: using full path, so we can avoid unused imports for default features
+                crate::log::log_warn_action("Starting", "local server".to_string());
 
                 Hooks::run_server().await?;
 
-                log_action("Started", "local server".to_string());
+                // NOTE: using full path, so we can avoid unused imports for default features
+                crate::log::log_action("Started", "local server".to_string());
 
                 Ok(())
             }
