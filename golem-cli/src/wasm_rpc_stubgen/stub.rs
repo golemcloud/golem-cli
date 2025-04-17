@@ -223,13 +223,15 @@ impl StubDefinition {
 
             let mut stubs = Vec::new();
             for (name, interface) in interfaces {
-                let (stubbed_interface, stubbed_resources)  = self.interface_to_stubs(name, interface);
+                let (stubbed_interface, stubbed_resources) =
+                    self.interface_to_stubs(name, interface);
                 stubs.push(StubbedEntity::Interface(stubbed_interface));
                 for stubbed_resource in stubbed_resources {
                     stubs.push(StubbedEntity::Resource(stubbed_resource))
                 }
-            };
-            if let Some((stubbed_world, stubbed_resources)) = self.world_to_stubs(types, functions) {
+            }
+            if let Some((stubbed_world, stubbed_resources)) = self.world_to_stubs(types, functions)
+            {
                 stubs.push(StubbedEntity::World(stubbed_world));
                 for stubbed_resource in stubbed_resources {
                     stubs.push(StubbedEntity::Resource(stubbed_resource))
@@ -447,7 +449,7 @@ impl StubDefinition {
     fn world_to_stubs(
         &self,
         types: Vec<(String, TypeId)>,
-        functions: Vec<&Function>
+        functions: Vec<&Function>,
     ) -> Option<(StubbedWorld, Vec<StubbedResource>)> {
         if functions.is_empty() {
             return None;
@@ -461,11 +463,12 @@ impl StubDefinition {
                 .filter(|function| function.kind == FunctionKind::Freestanding),
         );
 
-        let (stubbed_resources, used_types) = self.extract_resource_stubs_from_types(types.into_iter());
+        let (stubbed_resources, used_types) =
+            self.extract_resource_stubs_from_types(types.into_iter());
         let stubbed_world = StubbedWorld {
             name: name.to_string(),
             functions,
-            used_types
+            used_types,
         };
         Some((stubbed_world, stubbed_resources))
     }
@@ -473,7 +476,7 @@ impl StubDefinition {
     fn interface_to_stubs(
         &self,
         name: String,
-        interface: &Interface
+        interface: &Interface,
     ) -> (StubbedInterface, Vec<StubbedResource>) {
         let package = interface
             .package
@@ -494,14 +497,14 @@ impl StubDefinition {
             interface
                 .types
                 .iter()
-                .map(|(name, typ)| (name.clone(), *typ))
+                .map(|(name, typ)| (name.clone(), *typ)),
         );
 
         let stubbed_interface = StubbedInterface {
             name,
             functions,
             used_types,
-            interface_name: owner_interface
+            interface_name: owner_interface,
         };
 
         (stubbed_interface, stubbed_resources)
@@ -532,7 +535,7 @@ impl StubDefinition {
                     resource_interfaces.push(self.resource_to_stub(
                         owner_interface,
                         type_name,
-                        type_id
+                        type_id,
                     ))
                 } else {
                     used_types.push(type_id);
@@ -547,7 +550,7 @@ impl StubDefinition {
         &self,
         owner_interface: &Interface,
         type_name: String,
-        type_id: TypeId
+        type_id: TypeId,
     ) -> StubbedResource {
         let package = owner_interface
             .package
@@ -659,7 +662,7 @@ struct WorldItemsByType<'a> {
 pub struct StubbedWorld {
     pub name: String,
     pub functions: Vec<FunctionStub>,
-    pub used_types: Vec<TypeId>
+    pub used_types: Vec<TypeId>,
 }
 
 pub struct StubbedInterface {
@@ -667,7 +670,7 @@ pub struct StubbedInterface {
     pub functions: Vec<FunctionStub>,
     // name of the interface in case its not an inline interface
     pub interface_name: Option<String>,
-    pub used_types: Vec<TypeId>
+    pub used_types: Vec<TypeId>,
 }
 
 pub struct StubbedResource {
@@ -675,10 +678,10 @@ pub struct StubbedResource {
     pub constructor_params: Option<Vec<FunctionParamStub>>,
     pub functions: Vec<FunctionStub>,
     pub static_functions: Vec<FunctionStub>,
-    pub owner_interface: Option<String>
+    pub owner_interface: Option<String>,
 }
 
-pub enum StubbedEntity{
+pub enum StubbedEntity {
     World(StubbedWorld),
     Interface(StubbedInterface),
     Resource(StubbedResource),
@@ -689,7 +692,7 @@ impl StubbedEntity {
         match self {
             Self::World(inner) => &inner.name,
             Self::Interface(inner) => &inner.name,
-            Self::Resource(inner) => &inner.name
+            Self::Resource(inner) => &inner.name,
         }
     }
 
@@ -697,7 +700,7 @@ impl StubbedEntity {
         match self {
             Self::World(inner) => inner.used_types.clone(),
             Self::Interface(inner) => inner.used_types.clone(),
-            Self::Resource(_) => vec![]
+            Self::Resource(_) => vec![],
         }
     }
 
@@ -705,7 +708,7 @@ impl StubbedEntity {
         match self {
             Self::World(_) => vec![],
             Self::Interface(_) => vec![],
-            Self::Resource(inner) => inner.constructor_params.clone().unwrap_or_default()
+            Self::Resource(inner) => inner.constructor_params.clone().unwrap_or_default(),
         }
     }
 
@@ -713,15 +716,15 @@ impl StubbedEntity {
         match self {
             Self::World(inner) => inner.functions.iter(),
             Self::Interface(inner) => inner.functions.iter(),
-            Self::Resource(inner) => inner.functions.iter()
+            Self::Resource(inner) => inner.functions.iter(),
         }
     }
 
     pub fn static_functions(&self) -> Box<dyn Iterator<Item = &FunctionStub> + '_> {
         match self {
             Self::World(_) => Box::new(std::iter::empty()),
-            Self::Interface(_) =>  Box::new(std::iter::empty()),
-            Self::Resource(inner) => Box::new(inner.static_functions.iter())
+            Self::Interface(_) => Box::new(std::iter::empty()),
+            Self::Resource(inner) => Box::new(inner.static_functions.iter()),
         }
     }
 
@@ -729,7 +732,13 @@ impl StubbedEntity {
         match self {
             Self::World(inner) => Box::new(inner.functions.iter().map(|f| (f, false))),
             Self::Interface(inner) => Box::new(inner.functions.iter().map(|f| (f, false))),
-            Self::Resource(inner) => Box::new(inner.static_functions.iter().map(|f| (f, true)).chain(inner.functions.iter().map(|f| (f, false))))
+            Self::Resource(inner) => Box::new(
+                inner
+                    .static_functions
+                    .iter()
+                    .map(|f| (f, true))
+                    .chain(inner.functions.iter().map(|f| (f, false))),
+            ),
         }
     }
 
@@ -737,7 +746,7 @@ impl StubbedEntity {
         match self {
             Self::World(_) => false,
             Self::Interface(_) => false,
-            Self::Resource(_) => true
+            Self::Resource(_) => true,
         }
     }
 
@@ -745,15 +754,21 @@ impl StubbedEntity {
         match self {
             Self::World(_) => None,
             Self::Interface(inner) => inner.interface_name.as_deref(),
-            Self::Resource(inner) => inner.owner_interface.as_deref()
+            Self::Resource(inner) => inner.owner_interface.as_deref(),
         }
     }
 
     pub fn interface_name(&self) -> Option<&str> {
         match self {
             Self::World(_) => None,
-            Self::Interface(inner) => inner.interface_name.as_deref().or_else(|| Some(self.name())),
-            Self::Resource(inner) => inner.owner_interface.as_deref().or_else(|| Some(self.name()))
+            Self::Interface(inner) => inner
+                .interface_name
+                .as_deref()
+                .or_else(|| Some(self.name())),
+            Self::Resource(inner) => inner
+                .owner_interface
+                .as_deref()
+                .or_else(|| Some(self.name())),
         }
     }
 }

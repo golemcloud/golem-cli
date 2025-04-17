@@ -384,12 +384,15 @@ async fn resource() {
 
     assert_eq!(exported_interface.name, "test:main-client/api-client");
 
-    for fun in &exported_interface.functions {
-        println!("Function: {}", fun.name);
-    }
-
     assert_has_rpc_resource_constructor(exported_interface, "iface1");
-    // TODO: asserts for "normal" resource
+    assert_has_resource(
+        exported_interface,
+        "resource1",
+        &[AnalysedFunctionParameter {
+            name: "name".to_string(),
+            typ: str(),
+        }],
+    );
 }
 
 #[test]
@@ -435,16 +438,28 @@ async fn circular_resources() {
 
     assert_eq!(exported_interface.name, "test:main-client/api-client");
 
-    for fun in &exported_interface.functions {
-        println!("Function: {}", fun.name);
-    }
-
     assert_has_rpc_resource_constructor(exported_interface, "iface");
+    assert_has_resource(
+        exported_interface,
+        "resource1",
+        &[AnalysedFunctionParameter {
+            name: "name".to_string(),
+            typ: str(),
+        }],
+    );
+    assert_has_resource(
+        exported_interface,
+        "resource2",
+        &[AnalysedFunctionParameter {
+            name: "name".to_string(),
+            typ: str(),
+        }],
+    );
 }
 
-
 #[test]
-async fn inline_resource() {
+#[ignore] // wit parser currently fails on inline types and resources with `Type not part of an interface`
+async fn inline_resources() {
     let source = test_data_path().join("wit/inline-resources");
     let source_wit_root = tempdir().unwrap();
 
@@ -485,10 +500,15 @@ async fn inline_resource() {
     };
 
     assert_eq!(exported_interface.name, "test:main-client/api-client");
-
-    assert_has_rpc_resource_constructor(exported_interface, "resource1");
+    assert_has_resource(
+        exported_interface,
+        "resource1",
+        &[AnalysedFunctionParameter {
+            name: "name".to_string(),
+            typ: str(),
+        }],
+    );
 }
-
 
 fn assert_has_rpc_resource_constructor(exported_interface: &AnalysedInstance, name: &str) {
     let fun = exported_interface
@@ -542,6 +562,73 @@ fn assert_has_rpc_resource_constructor(exported_interface: &AnalysedInstance, na
                 field("worker-name", str()),
             ])
         }]
+    );
+}
+
+fn assert_has_resource(
+    exported_interface: &AnalysedInstance,
+    name: &str,
+    constructor_parameters: &[AnalysedFunctionParameter],
+) {
+    let fun = exported_interface
+        .functions
+        .iter()
+        .find(|f| f.name == format!("[constructor]{name}"))
+        .unwrap_or_else(|| panic!("missing constructor for {name}"));
+
+    assert_eq!(fun.results.len(), 1);
+    assert!(matches!(
+        fun.results[0].typ,
+        AnalysedType::Handle(TypeHandle {
+            mode: AnalysedResourceMode::Owned,
+            ..
+        })
+    ));
+    assert_eq!(
+        fun.parameters,
+        [
+            vec![AnalysedFunctionParameter {
+                name: "worker-name".to_string(),
+                typ: str()
+            }],
+            constructor_parameters.to_vec()
+        ]
+        .concat()
+    );
+
+    let custom_fun = exported_interface
+        .functions
+        .iter()
+        .find(|f| f.name == format!("[static]{name}.custom"))
+        .unwrap_or_else(|| panic!("missing custom constructor for {name}"));
+
+    assert_eq!(custom_fun.results.len(), 1);
+    assert!(matches!(
+        custom_fun.results[0].typ,
+        AnalysedType::Handle(TypeHandle {
+            mode: AnalysedResourceMode::Owned,
+            ..
+        })
+    ));
+    assert_eq!(
+        custom_fun.parameters,
+        [
+            vec![AnalysedFunctionParameter {
+                name: "worker-id".to_string(),
+                typ: record(vec![
+                    field(
+                        "component-id",
+                        record(vec![field(
+                            "uuid",
+                            record(vec![field("high-bits", u64()), field("low-bits", u64()),])
+                        ),])
+                    ),
+                    field("worker-name", str()),
+                ])
+            }],
+            constructor_parameters.to_vec()
+        ]
+        .concat()
     );
 }
 

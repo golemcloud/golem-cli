@@ -26,7 +26,7 @@ use crate::model::app::{
 use crate::model::app_raw;
 use crate::validation::{ValidatedResult, ValidationBuilder};
 use crate::wasm_rpc_stubgen::naming;
-use crate::wasm_rpc_stubgen::stub::{StubConfig, StubDefinition, StubbedEntity};
+use crate::wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
 use crate::wasm_rpc_stubgen::wit_resolve::{ResolvedWitApplication, WitDepsResolver};
 use anyhow::{anyhow, bail, Context};
 use colored::control::SHOULD_COLORIZE;
@@ -306,14 +306,11 @@ impl ApplicationContext {
             stub_interface_name: client_package_name
                 .interface_id(&stub_def.client_interface_name()),
             exported_interfaces_per_stub_resource: BTreeMap::from_iter(
-                stub_def
-                    .stubbed_entities()
-                    .iter()
-                    .filter_map(|interface| {
-                        interface
-                            .owner_interface()
-                            .map(|owner| (interface.name().to_string(), owner.to_string()))
-                    }),
+                stub_def.stubbed_entities().iter().filter_map(|interface| {
+                    interface
+                        .owner_interface()
+                        .map(|owner| (interface.name().to_string(), owner.to_string()))
+                }),
             ),
         };
         Ok(result)

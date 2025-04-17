@@ -16,9 +16,7 @@ use crate::fs;
 use crate::fs::PathExtra;
 use crate::log::{log_action, LogColorize};
 use crate::wasm_rpc_stubgen::naming;
-use crate::wasm_rpc_stubgen::stub::{
-    FunctionResultStub, FunctionStub, StubDefinition,
-};
+use crate::wasm_rpc_stubgen::stub::{FunctionResultStub, FunctionStub, StubDefinition};
 use crate::wasm_rpc_stubgen::{GOLEM_RPC_WIT_VERSION, WASI_WIT_VERSION};
 use anyhow::anyhow;
 use heck::{ToShoutySnakeCase, ToUpperCamelCase};
@@ -44,7 +42,7 @@ pub fn generate_stub_source(def: &StubDefinition) -> anyhow::Result<()> {
     let mut resource_type_aliases = Vec::new();
 
     for entity in def.stubbed_entities() {
-        let interface_ident = to_rust_ident(&entity.name()).to_upper_camel_case();
+        let interface_ident = to_rust_ident(entity.name()).to_upper_camel_case();
         let interface_name = Ident::new(&interface_ident, Span::call_site());
 
         let additional_fields = if entity.is_resource() {
@@ -119,7 +117,7 @@ pub fn generate_stub_source(def: &StubDefinition) -> anyhow::Result<()> {
 
     let mut interface_impls = Vec::new();
     for entity in def.stubbed_entities() {
-        let interface_ident = to_rust_ident(&entity.name()).to_upper_camel_case();
+        let interface_ident = to_rust_ident(entity.name()).to_upper_camel_case();
         let interface_name = Ident::new(&interface_ident, Span::call_site());
         let guest_interface_name =
             Ident::new(&format!("Guest{}", interface_ident), Span::call_site());
@@ -725,19 +723,14 @@ fn get_result_type_source(
     Ok(result_type)
 }
 
-fn get_remote_function_name(
-    entity: &StubbedEntity,
-    function_name: &str,
-) -> String {
+fn get_remote_function_name(entity: &StubbedEntity, function_name: &str) -> String {
     match entity {
         StubbedEntity::World(_) => function_name.to_string(),
         StubbedEntity::Interface(inner) => format!("{}.{{{}}}", inner.name, function_name),
-        StubbedEntity::Resource(inner) => {
-            match &inner.owner_interface {
-                Some(owner) => format!("{}.{{{}.{}}}", owner, inner.name, function_name),
-                None => format!("{}.{}", inner.name, function_name)
-            }
-        }
+        StubbedEntity::Resource(inner) => match &inner.owner_interface {
+            Some(owner) => format!("{}.{{{}.{}}}", owner, inner.name, function_name),
+            None => format!("{}.{}", inner.name, function_name),
+        },
     }
 }
 
