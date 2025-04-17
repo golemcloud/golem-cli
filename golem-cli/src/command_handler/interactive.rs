@@ -22,10 +22,11 @@ use crate::log::{log_action, log_warn_action, logln, LogColorize};
 use crate::model::app::{AppComponentName, DependencyType};
 use crate::model::component::AppComponentType;
 use crate::model::text::fmt::{log_error, log_warn};
-use crate::model::{ComponentName, Format};
+use crate::model::{ComponentName, Format, WorkerName};
 use anyhow::bail;
 use colored::Colorize;
 use golem_cloud_client::model::Account;
+use golem_common::model::ComponentVersion;
 use inquire::error::InquireResult;
 use inquire::validator::{ErrorMessage, Validation};
 use inquire::{Confirm, CustomType, InquireError, Select, Text};
@@ -53,7 +54,7 @@ impl InteractiveHandler {
         confirm(
             yes,
             true,
-            "Do you want to use the local server for the current session?".to_string(),
+            "Do you want to use the local server for the current session?",
             Some("Tip: you can also use the 'golem server run' command in another terminal to keep the local server running for local development!"),
         )
     }
@@ -81,6 +82,23 @@ impl InteractiveHandler {
                 number_of_workers.to_string().log_color_highlight()
             ),
             None,
+        )
+    }
+
+    pub fn confirm_update_to_latest(
+        &self,
+        component_name: &ComponentName,
+        worker_name: &WorkerName,
+        target_version: ComponentVersion,
+    ) -> anyhow::Result<bool> {
+        self.confirm(
+            true,
+            format!("Worker {}/{} will be updated to the latest component version: {}. Do you want to continue?",
+                component_name.0.log_color_highlight(),
+                worker_name.0.log_color_highlight(),
+                target_version.to_string().log_color_highlight()
+            ),
+            None
         )
     }
 
@@ -199,7 +217,7 @@ impl InteractiveHandler {
                 let app_ctx = app_ctx.some_or_err()?;
                 Ok(app_ctx
                     .application
-                    .component_properties(&component_name, self.ctx.build_profile())
+                    .component_properties(component_name, self.ctx.build_profile())
                     .component_type)
             };
 
@@ -368,7 +386,7 @@ impl InteractiveHandler {
                                 dependency_type,
                                 app_ctx
                                     .application
-                                    .component_properties(&component_name, self.ctx.build_profile())
+                                    .component_properties(component_name, self.ctx.build_profile())
                                     .component_type,
                             )
                         })

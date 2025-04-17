@@ -136,12 +136,12 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                 }
 
                 // NOTE: using full path, so we can avoid unused imports for default features
-                crate::log::log_warn_action("Starting", "local server".to_string());
+                crate::log::log_warn_action("Starting", "local server");
 
                 Hooks::run_server().await?;
 
                 // NOTE: using full path, so we can avoid unused imports for default features
-                crate::log::log_action("Started", "local server".to_string());
+                crate::log::log_action("Started", "local server");
 
                 Ok(())
             }

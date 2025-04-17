@@ -675,7 +675,7 @@ impl ApplicationContext {
                     "{}",
                     "Application API deployments:".log_color_help_group()
                 ));
-                for (_, dep) in self.application.api_deployments() {
+                for dep in self.application.api_deployments().values() {
                     logln(format!(
                         "  {}{}",
                         match &dep.value.subdomain {

@@ -1013,10 +1013,10 @@ pub mod worker {
         Update {
             #[command(flatten)]
             worker_name: WorkerNameArg,
-            /// Update mode - auto or manual
-            mode: WorkerUpdateMode,
-            /// The new version of the updated worker
-            target_version: u64,
+            /// Update mode - auto or manual (default is auto)
+            mode: Option<WorkerUpdateMode>,
+            /// The new version of the updated worker (default is the latest version)
+            target_version: Option<u64>,
         },
         /// Interrupts a running worker
         Interrupt {
@@ -1714,7 +1714,8 @@ pub mod server {
     use std::path::PathBuf;
 
     #[derive(Debug, Args)]
-    pub struct RunArgs {
+    #[derive(Default)]
+pub struct RunArgs {
         /// Address to serve the main API on, defaults to 0.0.0.0
         #[clap(long)]
         pub router_addr: Option<String>,
@@ -1750,17 +1751,7 @@ pub mod server {
         }
     }
 
-    impl Default for RunArgs {
-        fn default() -> Self {
-            Self {
-                router_addr: None,
-                router_port: None,
-                custom_request_port: None,
-                data_dir: None,
-                clean: false,
-            }
-        }
-    }
+    
 
     #[derive(Debug, Subcommand)]
     pub enum ServerSubcommand {

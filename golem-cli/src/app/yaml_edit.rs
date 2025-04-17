@@ -175,9 +175,9 @@ impl<'a> ValueExtensions<'a> for Value<'a> {
     //       see nondestructive_yaml_bugs tests for more info
     fn as_str_with_comments_workaround(&self) -> Option<&str> {
         self.as_str()
-            .and_then(|str_value| match str_value.find('#') {
-                Some(idx) => Some(str_value[..idx].trim()),
-                None => Some(str_value),
+            .map(|str_value| match str_value.find('#') {
+                Some(idx) => str_value[..idx].trim(),
+                None => str_value,
             })
     }
 
@@ -351,7 +351,7 @@ mod tests {
                 map.insert_str("third-key", "third-value");
 
                 let doc_str = doc.to_string();
-                println!("---\n{}", doc.to_string());
+                println!("---\n{}", doc);
                 let_assert!(Err(error) = serde_yaml::from_str::<serde_yaml::Value>(&doc_str));
                 println!("error: {:#}", error);
             }
@@ -378,7 +378,7 @@ mod tests {
                 }
 
                 let doc_str = doc.to_string();
-                println!("---\n{}", doc.to_string());
+                println!("---\n{}", doc);
                 let serde_value = serde_yaml::from_str::<serde_yaml::Value>(&doc_str).unwrap();
                 let seq = serde_value
                     .as_mapping()
@@ -491,8 +491,7 @@ mod tests {
                 .as_sequence()
                 .unwrap()
                 .iter()
-                .find(|value| value.as_str() == Some("test_elem"))
-                .is_some());
+                .any(|value| value.as_str() == Some("test_elem")));
         }
 
         #[test]
@@ -510,8 +509,7 @@ mod tests {
                 .as_sequence()
                 .unwrap()
                 .iter()
-                .find(|value| value.as_str() == Some("test_elem"))
-                .is_some());
+                .any(|value| value.as_str() == Some("test_elem")));
         }
 
         #[test]
@@ -533,8 +531,7 @@ mod tests {
                 .as_sequence()
                 .unwrap()
                 .iter()
-                .find(|value| value.as_str() == Some("test_elem"))
-                .is_some());
+                .any(|value| value.as_str() == Some("test_elem")));
         }
 
         #[test]
@@ -550,12 +547,10 @@ mod tests {
             let serde_value = serde_value.as_sequence().unwrap();
             assert!(serde_value
                 .iter()
-                .find(|value| value.as_str() == Some("test_elem"))
-                .is_some());
+                .any(|value| value.as_str() == Some("test_elem")));
             assert!(serde_value
                 .iter()
-                .find(|value| value.as_str() == Some("another_elem"))
-                .is_some());
+                .any(|value| value.as_str() == Some("another_elem")));
         }
 
         #[test]
@@ -574,7 +569,7 @@ mod tests {
 
     fn to_serde_yaml_value(doc: &Document) -> serde_yaml::Value {
         let doc_str = doc.to_string();
-        println!("---\n{}\n", doc.to_string());
+        println!("---\n{}\n", doc);
         serde_yaml::from_str::<serde_yaml::Value>(&doc_str).unwrap()
     }
 }

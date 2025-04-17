@@ -367,7 +367,6 @@ impl DependencyType {
 
     pub fn interactively_selectable_types() -> Vec<Self> {
         Self::iter()
-            .into_iter()
             .filter(|dep_type| dep_type != &DependencyType::StaticWasmRpc)
             .collect()
     }
@@ -396,7 +395,7 @@ impl FromStr for DependencyType {
 
 impl Display for DependencyType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.as_str())
+        f.write_str(self.as_str())
     }
 }
 
