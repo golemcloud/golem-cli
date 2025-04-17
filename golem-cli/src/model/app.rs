@@ -2,6 +2,7 @@ use crate::fs;
 use crate::log::LogColorize;
 use crate::model::app::app_builder::build_application;
 use crate::model::app_raw;
+use crate::model::app_raw::{HttpApiDefinition, HttpApiDeployment};
 use crate::model::component::AppComponentType;
 use crate::model::template::Template;
 use crate::validation::{ValidatedResult, ValidationBuilder};
@@ -9,7 +10,7 @@ use crate::wasm_rpc_stubgen::naming;
 use crate::wasm_rpc_stubgen::naming::wit::package_dep_dir_name_from_parser;
 use crate::wasm_rpc_stubgen::stub::RustDependencyOverride;
 use golem_common::model::{ComponentFilePathWithPermissions, ComponentFilePermissions};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Formatter;
@@ -17,6 +18,8 @@ use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 use url::Url;
 use wit_parser::PackageName;
 
@@ -76,9 +79,63 @@ impl ApplicationComponentSelectMode {
 
 #[derive(Debug, Clone)]
 pub struct DynamicHelpSections {
-    pub components: bool,
-    pub custom_commands: bool,
-    pub builtin_commands: BTreeSet<String>,
+    components: bool,
+    custom_commands: bool,
+    builtin_commands: BTreeSet<String>,
+    api_definitions: bool,
+    api_deployments: bool,
+}
+
+impl DynamicHelpSections {
+    pub fn show_all(builtin_commands: BTreeSet<String>) -> Self {
+        Self {
+            components: true,
+            custom_commands: true,
+            builtin_commands,
+            api_definitions: true,
+            api_deployments: true,
+        }
+    }
+
+    pub fn show_components() -> Self {
+        Self {
+            components: true,
+            custom_commands: false,
+            builtin_commands: Default::default(),
+            api_definitions: false,
+            api_deployments: false,
+        }
+    }
+
+    pub fn show_custom_commands(builtin_commands: BTreeSet<String>) -> Self {
+        Self {
+            components: false,
+            custom_commands: true,
+            builtin_commands,
+            api_definitions: false,
+            api_deployments: false,
+        }
+    }
+
+    pub fn components(&self) -> bool {
+        self.components
+    }
+
+    pub fn custom_commands(&self) -> bool {
+        self.custom_commands
+    }
+
+    pub fn builtin_commands(&self) -> &BTreeSet<String> {
+        &self.builtin_commands
+    }
+
+    pub fn api_definitions(&self) -> bool {
+        self.api_definitions
+    }
+
+    pub fn api_deployments(&self) -> bool {
+        self.api_deployments
+    }
 }
 
 #[derive(Debug)]
@@ -123,6 +180,39 @@ impl From<&str> for AppComponentName {
     fn from(value: &str) -> Self {
         Self(value.to_string())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct HttpApiDefinitionName(String);
+
+impl HttpApiDefinitionName {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for HttpApiDefinitionName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl From<String> for HttpApiDefinitionName {
+    fn from(value: String) -> Self {
+        HttpApiDefinitionName(value)
+    }
+}
+
+impl From<&str> for HttpApiDefinitionName {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct HttpApiDeploymentSite {
+    host: String,
+    subdomain: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -236,8 +326,9 @@ impl<T: Default> Default for WithSource<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default, EnumIter)]
 pub enum DependencyType {
+    #[default]
     /// Dynamic ("stubless") wasm-rpc
     DynamicWasmRpc,
     /// Static (composed with compiled stub) wasm-rpc
@@ -273,18 +364,38 @@ impl DependencyType {
             DependencyType::DynamicWasmRpc | DependencyType::StaticWasmRpc
         )
     }
+
+    pub fn interactively_selectable_types() -> Vec<Self> {
+        Self::iter()
+            .filter(|dep_type| dep_type != &DependencyType::StaticWasmRpc)
+            .collect()
+    }
 }
 
 impl FromStr for DependencyType {
-    type Err = ();
+    type Err = String;
 
     fn from_str(str: &str) -> Result<Self, Self::Err> {
         match str {
             Self::WASM_RPC => Ok(Self::DynamicWasmRpc),
             Self::STATIC_WASM_RPC => Ok(Self::StaticWasmRpc),
             Self::WASM => Ok(Self::Wasm),
-            _ => Err(()),
+            _ => {
+                let all = DependencyType::iter()
+                    .map(|dt| format!("\"{dt}\""))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                Err(format!(
+                    "Unknown dependency type: {str}. Expected one of {all}"
+                ))
+            }
         }
+    }
+}
+
+impl Display for DependencyType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -308,18 +419,26 @@ impl Ord for DependentComponent {
 
 #[derive(Clone, Debug)]
 pub struct Application {
+    all_sources: BTreeSet<PathBuf>,
     temp_dir: Option<WithSource<String>>,
     wit_deps: WithSource<Vec<String>>,
     components: BTreeMap<AppComponentName, Component>,
     dependencies: BTreeMap<AppComponentName, BTreeSet<DependentComponent>>,
+    dependency_sources: BTreeMap<AppComponentName, BTreeMap<AppComponentName, PathBuf>>,
     no_dependencies: BTreeSet<DependentComponent>,
     custom_commands: HashMap<String, WithSource<Vec<app_raw::ExternalCommand>>>,
     clean: Vec<WithSource<String>>,
+    api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
+    api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
 }
 
 impl Application {
     pub fn from_raw_apps(apps: Vec<app_raw::ApplicationWithSource>) -> ValidatedResult<Self> {
         build_application(apps)
+    }
+
+    pub fn all_sources(&self) -> &BTreeSet<PathBuf> {
+        &self.all_sources
     }
 
     pub fn component_names(&self) -> impl Iterator<Item = &AppComponentName> {
@@ -446,6 +565,20 @@ impl Application {
         self.dependencies
             .get(component_name)
             .unwrap_or(&self.no_dependencies)
+    }
+
+    pub fn dependency_source(
+        &self,
+        component_name: &AppComponentName,
+        dependent_component_name: &AppComponentName,
+    ) -> Option<&Path> {
+        self.dependency_sources
+            .get(component_name)
+            .and_then(|sources| {
+                sources
+                    .get(dependent_component_name)
+                    .map(|source| source.as_path())
+            })
     }
 
     pub fn component_profiles(
@@ -644,6 +777,18 @@ impl Application {
         self.client_build_dir()
             .join(self.component_name_as_safe_path_elem(component_name))
             .join(naming::wit::WIT_DIR)
+    }
+
+    pub fn api_definitions(
+        &self,
+    ) -> &BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>> {
+        &self.api_definitions
+    }
+
+    pub fn api_deployments(
+        &self,
+    ) -> &BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>> {
+        &self.api_deployments
     }
 }
 
@@ -890,9 +1035,11 @@ mod app_builder {
     use crate::log::LogColorize;
     use crate::model::app::{
         AppComponentName, Application, BuildProfileName, Component, ComponentProperties,
-        DependencyType, DependentComponent, ResolvedComponentProperties, TemplateName, WithSource,
+        DependencyType, DependentComponent, HttpApiDefinitionName, HttpApiDeploymentSite,
+        ResolvedComponentProperties, TemplateName, WithSource,
     };
     use crate::model::app_raw;
+    use crate::model::app_raw::{HttpApiDefinition, HttpApiDeployment};
     use crate::validation::{ValidatedResult, ValidationBuilder};
     use heck::{
         ToKebabCase, ToLowerCamelCase, ToPascalCase, ToShoutyKebabCase, ToShoutySnakeCase,
@@ -917,8 +1064,10 @@ mod app_builder {
         WitDeps,
         CustomCommand(String),
         Template(TemplateName),
-        WasmRpcDependency((AppComponentName, DependentComponent)),
+        Dependency((AppComponentName, DependentComponent)),
         Component(AppComponentName),
+        HttpApiDefinition(HttpApiDefinitionName),
+        HttpApiDeployment(HttpApiDeploymentSite),
     }
 
     impl UniqueSourceCheckedEntityKey {
@@ -930,8 +1079,10 @@ mod app_builder {
                 UniqueSourceCheckedEntityKey::WitDeps => property,
                 UniqueSourceCheckedEntityKey::CustomCommand(_) => "Custom command",
                 UniqueSourceCheckedEntityKey::Template(_) => "Template",
-                UniqueSourceCheckedEntityKey::WasmRpcDependency(_) => "WASM RPC dependency",
+                UniqueSourceCheckedEntityKey::Dependency(_) => "Dependency",
                 UniqueSourceCheckedEntityKey::Component(_) => "Component",
+                UniqueSourceCheckedEntityKey::HttpApiDefinition(_) => "HTTP API Definition",
+                UniqueSourceCheckedEntityKey::HttpApiDeployment(_) => "HTTP API Deployment",
             }
         }
 
@@ -952,10 +1103,7 @@ mod app_builder {
                 UniqueSourceCheckedEntityKey::Template(template_name) => {
                     template_name.as_str().log_color_highlight().to_string()
                 }
-                UniqueSourceCheckedEntityKey::WasmRpcDependency((
-                    component_name,
-                    dependent_component,
-                )) => {
+                UniqueSourceCheckedEntityKey::Dependency((component_name, dependent_component)) => {
                     format!(
                         "{} - {} - {}",
                         component_name.as_str().log_color_highlight(),
@@ -965,6 +1113,26 @@ mod app_builder {
                 }
                 UniqueSourceCheckedEntityKey::Component(component_name) => {
                     component_name.as_str().log_color_highlight().to_string()
+                }
+                UniqueSourceCheckedEntityKey::HttpApiDefinition(api_definition_name) => {
+                    api_definition_name
+                        .as_str()
+                        .log_color_highlight()
+                        .to_string()
+                }
+                UniqueSourceCheckedEntityKey::HttpApiDeployment(api_deployment_site) => {
+                    format!(
+                        "{}{}",
+                        match api_deployment_site.subdomain {
+                            Some(subdomain) => {
+                                format!("{}.", subdomain.as_str().log_color_highlight())
+                            }
+                            None => {
+                                "".to_string()
+                            }
+                        },
+                        api_deployment_site.host.as_str().log_color_highlight()
+                    )
                 }
             }
         }
@@ -981,7 +1149,10 @@ mod app_builder {
         clean: Vec<WithSource<String>>,
         raw_components: HashMap<AppComponentName, (PathBuf, app_raw::Component)>,
         resolved_components: BTreeMap<AppComponentName, Component>,
+        api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
+        api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
 
+        all_sources: BTreeSet<PathBuf>,
         entity_sources: HashMap<UniqueSourceCheckedEntityKey, Vec<PathBuf>>,
     }
 
@@ -995,14 +1166,43 @@ mod app_builder {
             builder.validate_unique_sources(&mut validation);
             builder.resolve_components(&mut validation);
 
+            // TODO: validate API defs and deployments
+
+            let dependency_sources = {
+                let mut dependency_sources =
+                    BTreeMap::<AppComponentName, BTreeMap<AppComponentName, PathBuf>>::new();
+
+                for (key, mut sources) in builder.entity_sources {
+                    if let UniqueSourceCheckedEntityKey::Dependency((
+                        component,
+                        dependent_component,
+                    )) = key
+                    {
+                        if !dependency_sources.contains_key(&component) {
+                            dependency_sources.insert(component.clone(), BTreeMap::new());
+                        }
+                        dependency_sources
+                            .get_mut(&component)
+                            .unwrap()
+                            .insert(dependent_component.name, sources.pop().unwrap());
+                    }
+                }
+
+                dependency_sources
+            };
+
             validation.build(Application {
+                all_sources: builder.all_sources,
                 temp_dir: builder.temp_dir,
                 wit_deps: builder.wit_deps,
                 components: builder.resolved_components,
                 dependencies: builder.dependencies,
+                dependency_sources,
                 no_dependencies: BTreeSet::new(),
                 custom_commands: builder.custom_commands,
                 clean: builder.clean,
+                api_definitions: builder.api_definitions,
+                api_deployments: builder.api_deployments,
             })
         }
 
@@ -1033,6 +1233,7 @@ mod app_builder {
                 |validation| {
                     let app_source = PathExtra::new(&app.source);
                     let app_source_dir = app_source.parent().unwrap();
+                    self.all_sources.insert(app_source.to_path_buf());
 
                     if let Some(dir) = app.application.temp_dir {
                         if self
@@ -1099,6 +1300,41 @@ mod app_builder {
                             .into_iter()
                             .map(|path| WithSource::new(app.source.to_path_buf(), path)),
                     );
+
+                    if let Some(http_api) = app.application.http_api {
+                        for (api_definition_name, api_definition) in http_api.definitions {
+                            let api_definition_name = HttpApiDefinitionName::from(api_definition_name);
+                            if self.add_entity_source(
+                                UniqueSourceCheckedEntityKey::HttpApiDefinition(
+                                    api_definition_name.clone(),
+                                ),
+                                &app.source,
+                            ) {
+                                self.api_definitions.insert(
+                                    api_definition_name,
+                                    WithSource::new(app_source_dir.to_path_buf(), api_definition),
+                                );
+                            }
+                        }
+
+                        for api_deployment in http_api.deployments {
+                            let api_deployment_site = HttpApiDeploymentSite {
+                                host: api_deployment.host.clone(),
+                                subdomain: api_deployment.subdomain.clone(),
+                            };
+                            if self.add_entity_source(
+                                UniqueSourceCheckedEntityKey::HttpApiDeployment(
+                                    api_deployment_site.clone(),
+                                ),
+                                &app.source,
+                            ) {
+                                self.api_deployments.insert(
+                                    api_deployment_site,
+                                    WithSource::new(app.source.to_path_buf(), api_deployment.clone()),
+                                );
+                            }
+                        }
+                    }
                 },
             );
         }
@@ -1171,7 +1407,7 @@ mod app_builder {
                                     dep_type,
                                 };
 
-                                let unique_key = UniqueSourceCheckedEntityKey::WasmRpcDependency((
+                                let unique_key = UniqueSourceCheckedEntityKey::Dependency((
                                     component_name.clone().into(),
                                     dependent_component.clone(),
                                 ));
@@ -1224,7 +1460,7 @@ mod app_builder {
                     if invalid_source || invalid_target {
                         let source = self
                             .entity_sources
-                            .get(&UniqueSourceCheckedEntityKey::WasmRpcDependency((
+                            .get(&UniqueSourceCheckedEntityKey::Dependency((
                                 component.clone(),
                                 target.clone(),
                             )))

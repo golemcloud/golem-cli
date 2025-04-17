@@ -23,7 +23,6 @@ use crate::error::NonSuccessfulExit;
 use crate::log::{logln, LogColorize};
 use crate::model::project::ProjectView;
 use crate::model::text::fmt::{log_error, log_text_view};
-use crate::model::text::help::ComponentNameHelp;
 use crate::model::text::project::{
     ProjectCreatedView, ProjectGetView, ProjectGrantView, ProjectListView,
 };
@@ -193,8 +192,6 @@ impl CloudProjectCommandHandler {
             (ProfileKind::Oss, Some(_)) => {
                 log_error("Cannot use projects with OSS profile!");
                 logln("");
-                log_text_view(&ComponentNameHelp);
-                logln("");
                 bail!(HintError::ExpectedCloudProfile);
             }
             (ProfileKind::Oss, None) => Ok(None),
@@ -228,7 +225,7 @@ impl CloudProjectCommandHandler {
         project: Option<ProjectNameAndId>,
     ) -> anyhow::Result<ProjectNameAndId> {
         match project {
-            Some(project_name) => Ok(project_name),
+            Some(project) => Ok(project),
             None => self
                 .ctx
                 .golem_clients_cloud()

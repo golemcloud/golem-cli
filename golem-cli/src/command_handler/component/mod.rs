@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::app::context::ApplicationContext;
+use crate::app::yaml_edit::AppYamlEditor;
 use crate::cloud::AccountId;
-use crate::command::builtin_app_subcommands;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{
     BuildArgs, ComponentOptionalComponentNames, ComponentTemplatePositionalArg, ForceBuildArg,
@@ -24,8 +24,9 @@ use crate::command_handler::component::ifs::IfsArchiveBuilder;
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
-use crate::error::NonSuccessfulExit;
-use crate::log::{log_action, logln, LogColorize, LogIndent};
+use crate::error::{HintError, NonSuccessfulExit, ShowClapHelpTarget};
+use crate::fs::write_str;
+use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent};
 use crate::model::app::{
     AppComponentName, ApplicationComponentSelectMode, BuildProfileName, DynamicHelpSections,
 };
@@ -92,6 +93,14 @@ impl ComponentCommandHandler {
                     .await
             }
             ComponentSubcommand::Clean { component_name } => self.cmd_clean(component_name).await,
+            ComponentSubcommand::AddDependency {
+                component_name,
+                target_component_name,
+                dependency_type,
+            } => {
+                self.cmd_add_dependency(component_name, target_component_name, dependency_type)
+                    .await
+            }
             ComponentSubcommand::List { component_name } => {
                 self.cmd_list(component_name.component_name).await
             }
@@ -150,11 +159,7 @@ impl ComponentCommandHandler {
             {
                 log_error(format!("Component {} already exists", component_name));
                 logln("");
-                app_ctx.log_dynamic_help(&DynamicHelpSections {
-                    components: true,
-                    custom_commands: false,
-                    builtin_commands: builtin_app_subcommands(),
-                })?;
+                app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?;
                 bail!(NonSuccessfulExit)
             }
         };
@@ -188,11 +193,7 @@ impl ComponentCommandHandler {
         let app_ctx = app_ctx.some_or_err()?;
 
         logln("");
-        app_ctx.log_dynamic_help(&DynamicHelpSections {
-            components: true,
-            custom_commands: false,
-            builtin_commands: builtin_app_subcommands(),
-        })?;
+        app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?;
 
         Ok(())
     }
@@ -264,7 +265,7 @@ impl ComponentCommandHandler {
 
     async fn cmd_list(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
         let selected_component_names = self
-            .opt_select_components_by_app_or_name(component_name.as_ref())
+            .opt_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let mut component_views = Vec::<ComponentView>::new();
@@ -366,7 +367,7 @@ impl ComponentCommandHandler {
         version: Option<u64>,
     ) -> anyhow::Result<()> {
         let selected_components = self
-            .must_select_components_by_app_or_name(component_name.as_ref())
+            .must_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         if version.is_some() && selected_components.component_names.len() > 1 {
@@ -563,6 +564,56 @@ impl ComponentCommandHandler {
             .await
     }
 
+    async fn cmd_add_dependency(
+        &self,
+        component_name: Option<ComponentName>,
+        target_component_name: Option<ComponentName>,
+        dependency_type: Option<DependencyType>,
+    ) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+
+        let Some((component_name, target_component_name, dependency_type)) = self
+            .ctx
+            .interactive_handler()
+            .create_component_dependency(
+                component_name.map(|cn| cn.0.into()),
+                target_component_name.map(|cn| cn.0.into()),
+                dependency_type,
+            )
+            .await?
+        else {
+            log_error("All of COMPONENT_NAME, TARGET_COMPONENT_NAME and DEPENDENCY_TYPE are required in non-interactive mode");
+            logln("");
+            bail!(HintError::ShowClapHelp(
+                ShowClapHelpTarget::ComponentAddDependency
+            ));
+        };
+
+        let app_ctx = self.ctx.app_context_lock().await;
+        let app_ctx = app_ctx.some_or_err()?;
+
+        let mut editor = AppYamlEditor::new(&app_ctx.application);
+
+        let inserted = editor.insert_or_update_dependency(
+            &component_name,
+            &target_component_name,
+            dependency_type,
+        )?;
+
+        for (path, document) in editor.accessed_documents() {
+            log_warn_action("Updating", path.log_color_highlight().to_string());
+            write_str(path, document.to_string())?;
+        }
+
+        if inserted {
+            log_action("Added", "component dependency");
+        } else {
+            log_action("Updated", "component dependency");
+        }
+
+        Ok(())
+    }
+
     pub async fn deploy(
         &mut self,
         project: Option<&ProjectNameAndId>,
@@ -693,7 +744,6 @@ impl ComponentCommandHandler {
                         component_name.as_str().log_color_highlight()
                     ),
                 );
-                let _indent = LogIndent::new();
                 let component = match self.ctx.golem_clients().await? {
                     GolemClients::Oss(clients) => {
                         let component = clients
@@ -742,7 +792,6 @@ impl ComponentCommandHandler {
                         component_name.as_str().log_color_highlight()
                     ),
                 );
-                let _indent = self.ctx.log_handler().nested_text_view_indent();
                 let component = match self.ctx.golem_clients().await? {
                     GolemClients::Oss(clients) => {
                         let component = clients
@@ -795,7 +844,7 @@ impl ComponentCommandHandler {
         component_name: Option<ComponentName>,
     ) -> anyhow::Result<Vec<Component>> {
         let selected_component_names = self
-            .opt_select_components_by_app_or_name(component_name.as_ref())
+            .opt_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let mut components = Vec::with_capacity(selected_component_names.component_names.len());
@@ -883,23 +932,23 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    pub async fn opt_select_components_by_app_or_name(
+    pub async fn opt_select_components_by_app_dir_or_name(
         &self,
         component_name: Option<&ComponentName>,
     ) -> anyhow::Result<SelectedComponents> {
-        self.select_components_by_app_or_name_internal(component_name, true)
+        self.select_components_by_app_dir_or_name_internal(component_name, true)
             .await
     }
 
-    pub async fn must_select_components_by_app_or_name(
+    pub async fn must_select_components_by_app_dir_or_name(
         &self,
         component_name: Option<&ComponentName>,
     ) -> anyhow::Result<SelectedComponents> {
-        self.select_components_by_app_or_name_internal(component_name, false)
+        self.select_components_by_app_dir_or_name_internal(component_name, false)
             .await
     }
 
-    async fn select_components_by_app_or_name_internal(
+    async fn select_components_by_app_dir_or_name_internal(
         &self,
         component_name: Option<&ComponentName>,
         allow_no_matches: bool,
@@ -1062,11 +1111,7 @@ impl ComponentCommandHandler {
                     let app_ctx = self.ctx.app_context_lock().await;
                     if let Some(app_ctx) = app_ctx.opt()? {
                         logln("");
-                        app_ctx.log_dynamic_help(&DynamicHelpSections {
-                            components: true,
-                            custom_commands: false,
-                            builtin_commands: builtin_app_subcommands(),
-                        })?
+                        app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?
                     }
 
                     bail!(NonSuccessfulExit)

@@ -26,6 +26,7 @@ use chrono::{DateTime, Utc};
 use cli_table::{format::Justify, Table};
 use colored::Colorize;
 use golem_client::model::{PublicOplogEntry, UpdateRecord};
+use golem_common::model::oplog::PersistenceLevel;
 use golem_common::model::public_oplog::{
     PluginInstallationDescription, PublicAttributeValue, PublicUpdateDescription,
     PublicWorkerInvocation, StringAttributeValue,
@@ -68,10 +69,6 @@ impl MessageWithFields for WorkerCreateView {
             .fmt_field_option("Worker name", &self.worker_name, format_main_id);
 
         fields.build()
-    }
-
-    fn nest_ident_fields() -> bool {
-        true
     }
 }
 
@@ -182,10 +179,6 @@ impl MessageWithFields for WorkerGetView {
             .fmt_field_option("Last error", &self.0.last_error, |err| format_stack(err));
 
         fields.build()
-    }
-
-    fn nest_ident_fields() -> bool {
-        true
     }
 }
 
@@ -774,6 +767,21 @@ impl TextView for PublicOplogEntry {
                         PublicAttributeValue::String(StringAttributeValue { value }) =>
                             format_id(value),
                     }
+                ));
+            }
+            PublicOplogEntry::ChangePersistenceLevel(params) => {
+                logln(format_message_highlight("CHANGE PERSISTENCE LEVEL"));
+                logln(format!(
+                    "{pad}at:                {}",
+                    format_id(&params.timestamp)
+                ));
+                logln(format!(
+                    "{pad}to:           {}",
+                    format_id(match params.persistence_level {
+                        PersistenceLevel::PersistNothing => "persist nothing",
+                        PersistenceLevel::PersistRemoteSideEffects => "persist side effects",
+                        PersistenceLevel::Smart => "smart",
+                    })
                 ));
             }
         }

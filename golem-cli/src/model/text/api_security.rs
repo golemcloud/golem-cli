@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::model::api::ApiSecurityScheme;
 use crate::model::text::fmt::*;
-use crate::model::ApiSecurityScheme;
 use cli_table::Table;
 use golem_client::model::SecuritySchemeData;
 use indoc::printdoc;

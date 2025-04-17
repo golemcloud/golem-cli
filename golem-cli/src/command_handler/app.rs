@@ -210,19 +210,7 @@ impl AppCommandHandler {
         force_build: ForceBuildArg,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
-        self.ctx
-            .component_handler()
-            .deploy(
-                self.ctx
-                    .cloud_project_handler()
-                    .opt_select_project(None, None)
-                    .await?
-                    .as_ref(),
-                component_name.component_name,
-                Some(force_build),
-                &ApplicationComponentSelectMode::All,
-                update_or_redeploy,
-            )
+        self.deploy(component_name, force_build, update_or_redeploy)
             .await
     }
 
@@ -248,11 +236,9 @@ impl AppCommandHandler {
                     ));
                     logln("");
 
-                    app_ctx.log_dynamic_help(&DynamicHelpSections {
-                        components: false,
-                        custom_commands: true,
-                        builtin_commands: builtin_app_subcommands(),
-                    })?;
+                    app_ctx.log_dynamic_help(&DynamicHelpSections::show_custom_commands(
+                        builtin_app_subcommands(),
+                    ))?;
 
                     logln(
                         "Available builtin commands:"
@@ -261,15 +247,7 @@ impl AppCommandHandler {
                     );
                     let app_subcommands = builtin_app_subcommands();
                     for subcommand in &app_subcommands {
-                        logln(format!(
-                            "  {}{}",
-                            if app_subcommands.contains(subcommand) || subcommand.starts_with(':') {
-                                ":"
-                            } else {
-                                ""
-                            },
-                            subcommand.bold()
-                        ));
+                        logln(format!("  {}", subcommand.bold()));
                     }
                     logln("");
 
@@ -329,6 +307,33 @@ impl AppCommandHandler {
             &ApplicationComponentSelectMode::All,
         )
         .await
+    }
+
+    async fn deploy(
+        &mut self,
+        component_name: AppOptionalComponentNames,
+        force_build: ForceBuildArg,
+        update_or_redeploy: WorkerUpdateOrRedeployArgs,
+    ) -> anyhow::Result<()> {
+        // TODO: project name
+        self.ctx
+            .component_handler()
+            .deploy(
+                self.ctx
+                    .cloud_project_handler()
+                    .opt_select_project(None, None)
+                    .await?
+                    .as_ref(),
+                component_name.component_name,
+                Some(force_build),
+                &ApplicationComponentSelectMode::All,
+                update_or_redeploy,
+            )
+            .await?;
+
+        self.ctx.api_handler().deploy().await?;
+
+        Ok(())
     }
 
     pub async fn build(
@@ -431,7 +436,7 @@ impl AppCommandHandler {
 
     // TODO: forbid matching the same component multiple times
     // Returns false if there is no app
-    pub async fn opt_select_components_internal(
+    async fn opt_select_components_internal(
         &mut self,
         component_names: Vec<ComponentName>,
         default: &ApplicationComponentSelectMode,

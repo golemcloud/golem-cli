@@ -49,7 +49,7 @@ impl RibReplHandler {
         let selected_components = self
             .ctx
             .component_handler()
-            .must_select_components_by_app_or_name(component_name.as_ref())
+            .must_select_components_by_app_dir_or_name(component_name.as_ref())
             .await?;
 
         let component_name = {
@@ -94,6 +94,8 @@ impl RibReplHandler {
             prompt: None,
         })
         .await?;
+
+        logln("");
 
         self.ctx
             .log_handler()

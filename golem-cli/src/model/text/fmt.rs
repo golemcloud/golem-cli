@@ -15,28 +15,33 @@
 use crate::fuzzy::Match;
 use crate::log::{log_warn_action, logln, LogColorize, LogIndent};
 use crate::model::{Format, WorkerNameMatch};
+use anyhow::Context;
 use cli_table::{Row, Title, WithTitle};
 use colored::control::SHOULD_COLORIZE;
 use colored::Colorize;
 use golem_client::model::{InitialComponentFile, WorkerStatus};
 use itertools::Itertools;
 use regex::Regex;
+use serde::Serialize;
+use similar::TextDiff;
 use std::collections::BTreeMap;
 
 pub trait TextView {
     fn log(&self);
 }
 
+pub enum MessageWithFieldsIndentMode {
+    None,
+    IdentFields,
+    NestedIdentAll,
+}
+
 pub trait MessageWithFields {
     fn message(&self) -> String;
     fn fields(&self) -> Vec<(String, String)>;
 
-    fn indent_fields() -> bool {
-        false
-    }
-
-    fn nest_ident_fields() -> bool {
-        false
+    fn indent_mode() -> MessageWithFieldsIndentMode {
+        MessageWithFieldsIndentMode::NestedIdentAll
     }
 
     fn format_field_name(name: String) -> String {
@@ -46,17 +51,25 @@ pub trait MessageWithFields {
 
 impl<T: MessageWithFields> TextView for T {
     fn log(&self) {
+        let _ident = match Self::indent_mode() {
+            MessageWithFieldsIndentMode::None => None,
+            MessageWithFieldsIndentMode::IdentFields => None,
+            MessageWithFieldsIndentMode::NestedIdentAll => {
+                Some(NestedTextViewIndent::new(Format::Text))
+            }
+        };
+
         logln(self.message());
-        if !Self::nest_ident_fields() {
-            logln("");
-        }
+        logln("");
 
         let fields = self.fields();
         let padding = fields.iter().map(|(name, _)| name.len()).max().unwrap_or(0) + 1;
 
-        let _indent = Self::indent_fields().then(LogIndent::new);
-        let _nest_indent =
-            Self::nest_ident_fields().then(|| NestedTextViewIndent::new(Format::Text));
+        let _indent = match Self::indent_mode() {
+            MessageWithFieldsIndentMode::None => None,
+            MessageWithFieldsIndentMode::IdentFields => Some(LogIndent::new()),
+            MessageWithFieldsIndentMode::NestedIdentAll => None,
+        };
 
         for (name, value) in self.fields() {
             let lines: Vec<_> = value.split("\n").collect();
@@ -347,6 +360,36 @@ pub fn log_fuzzy_match(m: &Match) {
     );
 }
 
+pub fn log_entity_yaml_diff<T: Serialize>(server: &T, manifest: &T) -> anyhow::Result<()> {
+    let server_yaml = serde_yaml::to_string(server).context("failed to serialize server entity")?;
+    let manifest_yaml =
+        serde_yaml::to_string(manifest).context("failed to serialize manifest entity")?;
+
+    log_unified_diff(
+        &TextDiff::from_lines(&server_yaml, &manifest_yaml)
+            .unified_diff()
+            .context_radius(5)
+            .header("sever", "manifest")
+            .to_string(),
+    );
+
+    Ok(())
+}
+
+pub fn log_unified_diff(diff: &str) {
+    for line in diff.lines() {
+        if line.starts_with('+') && !line.starts_with("+++") {
+            logln(line.green().bold().to_string());
+        } else if line.starts_with('-') && !line.starts_with("---") {
+            logln(line.red().bold().to_string());
+        } else if line.starts_with("@@") {
+            logln(line.bold().to_string());
+        } else {
+            logln(line);
+        }
+    }
+}
+
 pub struct NestedTextViewIndent {
     format: Format,
     log_indent: Option<LogIndent>,
@@ -354,6 +397,7 @@ pub struct NestedTextViewIndent {
 
 impl NestedTextViewIndent {
     pub fn new(format: Format) -> Self {
+        // TODO: do we still need this format checking?
         match format {
             Format::Json | Format::Yaml => Self {
                 format,
