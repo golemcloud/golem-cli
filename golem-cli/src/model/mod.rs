@@ -41,8 +41,7 @@ use clap::{Arg, Error};
 use clap_verbosity_flag::Verbosity;
 use colored::control::SHOULD_COLORIZE;
 use golem_client::model::{
-    ApiDefinitionInfo, ApiSite, PluginDefinitionDefaultPluginOwnerDefaultPluginScope,
-    PluginTypeSpecificDefinition, Provider,
+    PluginDefinitionDefaultPluginOwnerDefaultPluginScope, PluginTypeSpecificDefinition,
 };
 use golem_cloud_client::model::PluginDefinitionCloudPluginOwnerCloudPluginScope;
 use golem_common::model::trim_date::TrimDateTime;

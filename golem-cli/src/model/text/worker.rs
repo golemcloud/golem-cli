@@ -69,10 +69,6 @@ impl MessageWithFields for WorkerCreateView {
 
         fields.build()
     }
-
-    fn nest_ident_fields() -> bool {
-        true
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -182,10 +178,6 @@ impl MessageWithFields for WorkerGetView {
             .fmt_field_option("Last error", &self.0.last_error, |err| format_stack(err));
 
         fields.build()
-    }
-
-    fn nest_ident_fields() -> bool {
-        true
     }
 }
 

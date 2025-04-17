@@ -95,6 +95,8 @@ impl RibReplHandler {
         })
         .await?;
 
+        logln("");
+
         self.ctx
             .log_handler()
             .log_view(&ComponentReplStartedView(component.into()));

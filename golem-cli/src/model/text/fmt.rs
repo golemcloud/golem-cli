@@ -27,16 +27,18 @@ pub trait TextView {
     fn log(&self);
 }
 
+pub enum MessageWithFieldsIndentMode {
+    None,
+    IdentFields,
+    NestedIdentAll,
+}
+
 pub trait MessageWithFields {
     fn message(&self) -> String;
     fn fields(&self) -> Vec<(String, String)>;
 
-    fn indent_fields() -> bool {
-        false
-    }
-
-    fn nest_ident_fields() -> bool {
-        false
+    fn indent_mode() -> MessageWithFieldsIndentMode {
+        MessageWithFieldsIndentMode::NestedIdentAll
     }
 
     fn format_field_name(name: String) -> String {
@@ -46,17 +48,25 @@ pub trait MessageWithFields {
 
 impl<T: MessageWithFields> TextView for T {
     fn log(&self) {
+        let _ident = match Self::indent_mode() {
+            MessageWithFieldsIndentMode::None => None,
+            MessageWithFieldsIndentMode::IdentFields => None,
+            MessageWithFieldsIndentMode::NestedIdentAll => {
+                Some(NestedTextViewIndent::new(Format::Text))
+            }
+        };
+
         logln(self.message());
-        if !Self::nest_ident_fields() {
-            logln("");
-        }
+        logln("");
 
         let fields = self.fields();
         let padding = fields.iter().map(|(name, _)| name.len()).max().unwrap_or(0) + 1;
 
-        let _indent = Self::indent_fields().then(LogIndent::new);
-        let _nest_indent =
-            Self::nest_ident_fields().then(|| NestedTextViewIndent::new(Format::Text));
+        let _indent = match Self::indent_mode() {
+            MessageWithFieldsIndentMode::None => None,
+            MessageWithFieldsIndentMode::IdentFields => Some(LogIndent::new()),
+            MessageWithFieldsIndentMode::NestedIdentAll => None,
+        };
 
         for (name, value) in self.fields() {
             let lines: Vec<_> = value.split("\n").collect();

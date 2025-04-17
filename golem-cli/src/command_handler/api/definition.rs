@@ -361,8 +361,6 @@ impl ApiDefinitionCommandHandler {
             ),
         );
 
-        let _indent = LogIndent::new();
-
         // TODO: project
         let server_api_definition = self
             .api_definition(

@@ -584,7 +584,9 @@ impl ComponentCommandHandler {
         else {
             log_error("All of COMPONENT_NAME, TARGET_COMPONENT_NAME and DEPENDENCY_TYPE are required in non-interactive mode");
             logln("");
-            bail!(HintError::ShowClapHelp(ShowClapHelpTarget::ComponentAddDependency));
+            bail!(HintError::ShowClapHelp(
+                ShowClapHelpTarget::ComponentAddDependency
+            ));
         };
 
         let app_ctx = self.ctx.app_context_lock().await;
@@ -742,7 +744,6 @@ impl ComponentCommandHandler {
                         component_name.as_str().log_color_highlight()
                     ),
                 );
-                let _indent = LogIndent::new();
                 let component = match self.ctx.golem_clients().await? {
                     GolemClients::Oss(clients) => {
                         let component = clients
@@ -791,7 +792,6 @@ impl ComponentCommandHandler {
                         component_name.as_str().log_color_highlight()
                     ),
                 );
-                let _indent = self.ctx.log_handler().nested_text_view_indent();
                 let component = match self.ctx.golem_clients().await? {
                     GolemClients::Oss(clients) => {
                         let component = clients
