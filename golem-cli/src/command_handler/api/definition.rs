@@ -37,6 +37,7 @@ use golem_client::model::{
 use golem_cloud_client::api::ApiDefinitionClient as ApiDefinitionClientCloud;
 use golem_cloud_client::model::HttpApiDefinitionRequest as HttpApiDefinitionRequestCloud;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::sync::Arc;
 
 pub struct ApiDefinitionCommandHandler {
@@ -352,6 +353,9 @@ impl ApiDefinitionCommandHandler {
     ) -> anyhow::Result<()> {
         let manifest_api_definition =
             (api_definition_name, &api_definition.value).as_http_api_definition_request();
+        let manifest_api_definition_yaml = manifest_api_definition
+            .clone()
+            .to_yaml_value_without_nulls()?;
 
         // TODO: project
         let server_api_definition = self
@@ -362,10 +366,14 @@ impl ApiDefinitionCommandHandler {
             )
             .await?
             .map(|ad| ad.as_http_api_definition_request());
+        let server_api_definition_yaml = server_api_definition
+            .clone()
+            .map(|ad| ad.to_yaml_value_without_nulls())
+            .transpose()?;
 
-        match server_api_definition {
-            Some(server_api_definition) => {
-                if server_api_definition != manifest_api_definition {
+        match server_api_definition_yaml {
+            Some(server_api_definition_yaml) => {
+                if server_api_definition_yaml != manifest_api_definition_yaml {
                     log_warn_action(
                         "Found",
                         format!(
@@ -376,10 +384,14 @@ impl ApiDefinitionCommandHandler {
 
                     {
                         let _indent = self.ctx.log_handler().nested_text_view_indent();
-                        log_entity_yaml_diff(&server_api_definition, &manifest_api_definition)?;
+                        log_entity_yaml_diff(
+                            &server_api_definition_yaml,
+                            &manifest_api_definition_yaml,
+                        )?;
                     }
 
-                    if server_api_definition.draft {
+                    // TODO: no unwrap
+                    if server_api_definition.unwrap().draft {
                         todo!("update draft")
                     } else {
                         todo!("create new version?")
@@ -579,5 +591,39 @@ fn to_method_pattern(method: &str) -> MethodPattern {
         "trace" => MethodPattern::Trace,
         "head" => MethodPattern::Head,
         _ => unreachable!(), // TODO
+    }
+}
+
+trait ToYamlValueWithoutNulls {
+    fn to_yaml_value_without_nulls(self) -> serde_yaml::Result<serde_yaml::Value>;
+}
+
+impl<T: Serialize> ToYamlValueWithoutNulls for T {
+    fn to_yaml_value_without_nulls(self) -> serde_yaml::Result<serde_yaml::Value> {
+        Ok(yaml_value_without_nulls(serde_yaml::to_value(self)?))
+    }
+}
+
+fn yaml_value_without_nulls(value: serde_yaml::Value) -> serde_yaml::Value {
+    match value {
+        serde_yaml::Value::Mapping(mapping) => serde_yaml::Value::Mapping(
+            mapping
+                .into_iter()
+                .filter_map(|(key, value)| {
+                    if value == serde_yaml::Value::Null {
+                        None
+                    } else {
+                        Some((key, yaml_value_without_nulls(value)))
+                    }
+                })
+                .collect(),
+        ),
+        serde_yaml::Value::Sequence(sequence) => serde_yaml::Value::Sequence(
+            sequence
+                .into_iter()
+                .map(|value| yaml_value_without_nulls(value))
+                .collect(),
+        ),
+        _ => value,
     }
 }
