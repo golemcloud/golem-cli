@@ -225,7 +225,7 @@ impl CloudProjectCommandHandler {
         project: Option<ProjectNameAndId>,
     ) -> anyhow::Result<ProjectNameAndId> {
         match project {
-            Some(project_name) => Ok(project_name),
+            Some(project) => Ok(project),
             None => self
                 .ctx
                 .golem_clients_cloud()
