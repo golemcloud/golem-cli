@@ -392,6 +392,104 @@ async fn resource() {
     // TODO: asserts for "normal" resource
 }
 
+#[test]
+async fn circular_resources() {
+    let source = test_data_path().join("wit/circular-resources");
+    let source_wit_root = tempdir().unwrap();
+
+    fs_extra::dir::copy(
+        source,
+        source_wit_root.path(),
+        &CopyOptions::new().content_only(true),
+    )
+    .unwrap();
+
+    let target_root = tempdir().unwrap();
+    let canonical_target_root = target_root.path().canonicalize().unwrap();
+
+    let def = StubDefinition::new(StubConfig {
+        source_wit_root: source_wit_root.path().to_path_buf(),
+        client_root: canonical_target_root,
+        selected_world: None,
+        stub_crate_version: "1.0.0".to_string(),
+        golem_rust_override: golem_rust_override(),
+        extract_source_exports_package: true,
+        seal_cargo_workspace: false,
+        component_name: AppComponentName::from("test:main"),
+        is_ephemeral: false,
+    })
+    .unwrap();
+
+    let wasm_path = generate_and_build_client(&def, false).await.unwrap();
+
+    let stub_bytes = std::fs::read(wasm_path).unwrap();
+    let stub_component = Component::<IgnoreAllButMetadata>::from_bytes(&stub_bytes).unwrap();
+
+    let state = AnalysisContext::new(stub_component);
+    let stub_exports = state.get_top_level_exports().unwrap();
+
+    assert_eq!(stub_exports.len(), 1);
+    let AnalysedExport::Instance(exported_interface) = &stub_exports[0] else {
+        panic!("unexpected export type")
+    };
+
+    assert_eq!(exported_interface.name, "test:main-client/api-client");
+
+    for fun in &exported_interface.functions {
+        println!("Function: {}", fun.name);
+    }
+
+    assert_has_rpc_resource_constructor(exported_interface, "iface");
+}
+
+
+#[test]
+async fn inline_resource() {
+    let source = test_data_path().join("wit/inline-resources");
+    let source_wit_root = tempdir().unwrap();
+
+    fs_extra::dir::copy(
+        source,
+        source_wit_root.path(),
+        &CopyOptions::new().content_only(true),
+    )
+    .unwrap();
+
+    let target_root = tempdir().unwrap();
+    let canonical_target_root = target_root.path().canonicalize().unwrap();
+
+    let def = StubDefinition::new(StubConfig {
+        source_wit_root: source_wit_root.path().to_path_buf(),
+        client_root: canonical_target_root,
+        selected_world: None,
+        stub_crate_version: "1.0.0".to_string(),
+        golem_rust_override: golem_rust_override(),
+        extract_source_exports_package: true,
+        seal_cargo_workspace: false,
+        component_name: AppComponentName::from("test:main"),
+        is_ephemeral: false,
+    })
+    .unwrap();
+
+    let wasm_path = generate_and_build_client(&def, false).await.unwrap();
+
+    let stub_bytes = std::fs::read(wasm_path).unwrap();
+    let stub_component = Component::<IgnoreAllButMetadata>::from_bytes(&stub_bytes).unwrap();
+
+    let state = AnalysisContext::new(stub_component);
+    let stub_exports = state.get_top_level_exports().unwrap();
+
+    assert_eq!(stub_exports.len(), 1);
+    let AnalysedExport::Instance(exported_interface) = &stub_exports[0] else {
+        panic!("unexpected export type")
+    };
+
+    assert_eq!(exported_interface.name, "test:main-client/api-client");
+
+    assert_has_rpc_resource_constructor(exported_interface, "resource1");
+}
+
+
 fn assert_has_rpc_resource_constructor(exported_interface: &AnalysedInstance, name: &str) {
     let fun = exported_interface
         .functions
