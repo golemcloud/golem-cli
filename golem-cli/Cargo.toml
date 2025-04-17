@@ -88,6 +88,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 shadow-rs = { workspace = true }
 shlex = { workspace = true }
+similar = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 syn = { workspace = true }
