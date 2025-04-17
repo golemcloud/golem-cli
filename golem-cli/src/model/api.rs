@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::model::to_oss::ToOss;
+use chrono::{DateTime, Utc};
 use golem_client::model::{ApiDefinitionInfo, ApiSite, Provider};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::model::app::HttpApiDefinitionName;
-use crate::model::app_raw::HttpApiDefinition;
-use crate::model::to_oss::ToOss;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum IdentityProviderType {

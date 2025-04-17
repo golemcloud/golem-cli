@@ -22,7 +22,6 @@ use colored::Colorize;
 use golem_client::model::{InitialComponentFile, WorkerStatus};
 use itertools::Itertools;
 use regex::Regex;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
 use similar::TextDiff;
 use std::collections::BTreeMap;

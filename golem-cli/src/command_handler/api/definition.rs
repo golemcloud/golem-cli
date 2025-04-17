@@ -501,14 +501,7 @@ impl AsHttpApiDefinitionRequest for HttpApiDefinitionResponseData {
                         idempotency_key: route.binding.idempotency_key.clone(),
                         response: route.binding.response.clone(),
                         invocation_context: None, // TODO: should this be in the response?
-                        allow_origin: None,       // TODO: check that this is not needed anymore
-                        allow_methods: None,      // TODO: check that this is not needed anymore
-                        allow_headers: None,      // TODO: check that this is not needed anymore
-                        expose_headers: None,     // TODO: check that this is not needed anymore
-                        max_age: None,            // TODO: check that this is not needed anymore
-                        allow_credentials: None,  // TODO: check that this is not needed anymore
                     },
-                    cors: None, // TODO: handle cors
                     security: route.security.clone(),
                 })
                 .collect(),
@@ -564,14 +557,7 @@ impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition)
                             .map(|rib| rib.trim_end_matches('\n').to_string()) // TODO: trim all rib script
                             .clone(),
                         invocation_context: None, // TODO: should this be in the response?
-                        allow_origin: None,       // TODO: check that this is not needed anymore
-                        allow_methods: None,      // TODO: check that this is not needed anymore
-                        allow_headers: None,      // TODO: check that this is not needed anymore
-                        expose_headers: None,     // TODO: check that this is not needed anymore
-                        max_age: None,            // TODO: check that this is not needed anymore
-                        allow_credentials: None,  // TODO: check that this is not needed anymore
                     },
-                    cors: None, // TODO:
                     security: route.security.clone(),
                 })
                 .collect(),
