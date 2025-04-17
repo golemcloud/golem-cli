@@ -50,10 +50,8 @@ pub struct Application {
     pub custom_commands: HashMap<String, Vec<ExternalCommand>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub clean: Vec<String>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub api_definitions: HashMap<String, HttpApiDefinition>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub api_deployments: Vec<HttpApiDeployment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub http_api: Option<HttpApi>,
 }
 
 impl Application {
@@ -93,8 +91,10 @@ pub struct Component {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HttpApi {
-    definitions: HashMap<String, HttpApiDefinition>,
-    deployments: Vec<HttpApiDeployment>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub definitions: HashMap<String, HttpApiDefinition>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub deployments: Vec<HttpApiDeployment>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -137,7 +137,7 @@ pub struct HttpApiCors {
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-enum HttpApiDefinitionBindingType {
+pub enum HttpApiDefinitionBindingType {
     #[default]
     Default,
     FileServer,
@@ -148,18 +148,18 @@ enum HttpApiDefinitionBindingType {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HttpApiDefinitionBinding {
     #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
-    type_: Option<HttpApiDefinitionBindingType>,
-    component_name: String,
+    pub type_: Option<HttpApiDefinitionBindingType>,
+    pub component_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    component_version: Option<u64>,
+    pub component_version: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    worker_name: Option<String>,
+    pub worker_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    idempotency_key: Option<String>,
+    pub idempotency_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    response: Option<String>,
+    pub response: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    invocation_context: Option<String>,
+    pub invocation_context: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

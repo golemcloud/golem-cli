@@ -59,4 +59,8 @@ impl ApiCommandHandler {
             }
         }
     }
+
+    pub async fn deploy(&mut self) -> anyhow::Result<()> {
+        self.ctx.api_definition_handler().deploy().await
+    }
 }

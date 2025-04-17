@@ -17,7 +17,7 @@ use crate::command::shared_args::ProjectNameOptionalArg;
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
-use crate::model::{ApiSecurityScheme, IdentityProviderType};
+use crate::model::api::{ApiSecurityScheme, IdentityProviderType};
 use golem_client::api::ApiSecurityClient as ApiSecurityClientOss;
 use golem_client::model::{Provider as ProviderOss, SecuritySchemeData as SecuritySchemeDataOss};
 use golem_cloud_client::api::ApiSecurityClient as ApiSecurityClientCloud;

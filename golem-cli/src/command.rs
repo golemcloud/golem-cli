@@ -1100,7 +1100,8 @@ pub mod api {
 
     pub mod definition {
         use crate::command::shared_args::ProjectNameOptionalArg;
-        use crate::model::{ApiDefinitionId, ApiDefinitionVersion, PathBufOrStdin};
+        use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion};
+        use crate::model::PathBufOrStdin;
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
@@ -1166,7 +1167,7 @@ pub mod api {
 
     pub mod deployment {
         use crate::command::shared_args::ProjectNameOptionalArg;
-        use crate::model::{ApiDefinitionId, ApiDefinitionIdWithVersion};
+        use crate::model::api::{ApiDefinitionId, ApiDefinitionIdWithVersion};
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
@@ -1209,7 +1210,7 @@ pub mod api {
 
     pub mod security_scheme {
         use crate::command::shared_args::ProjectNameOptionalArg;
-        use crate::model::IdentityProviderType;
+        use crate::model::api::IdentityProviderType;
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
@@ -1713,9 +1714,8 @@ pub mod server {
     use clap::{Args, Subcommand};
     use std::path::PathBuf;
 
-    #[derive(Debug, Args)]
-    #[derive(Default)]
-pub struct RunArgs {
+    #[derive(Debug, Args, Default)]
+    pub struct RunArgs {
         /// Address to serve the main API on, defaults to 0.0.0.0
         #[clap(long)]
         pub router_addr: Option<String>,
@@ -1750,8 +1750,6 @@ pub struct RunArgs {
             self.custom_request_port.unwrap_or(9006)
         }
     }
-
-    
 
     #[derive(Debug, Subcommand)]
     pub enum ServerSubcommand {

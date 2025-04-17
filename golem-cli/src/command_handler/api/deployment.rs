@@ -19,8 +19,8 @@ use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
 use crate::log::{log_warn_action, LogColorize};
+use crate::model::api::{ApiDefinitionId, ApiDefinitionIdWithVersion, ApiDeployment};
 use crate::model::text::fmt::log_error;
-use crate::model::{ApiDefinitionId, ApiDefinitionIdWithVersion, ApiDeployment};
 use anyhow::bail;
 use golem_client::api::ApiDeploymentClient as ApiDeploymentClientOss;
 use golem_client::model::{

@@ -1301,36 +1301,38 @@ mod app_builder {
                             .map(|path| WithSource::new(app.source.to_path_buf(), path)),
                     );
 
-                    for (api_definition_name, api_definition) in app.application.api_definitions {
-                        let api_definition_name = HttpApiDefinitionName::from(api_definition_name);
-                        if self.add_entity_source(
-                            UniqueSourceCheckedEntityKey::HttpApiDefinition(
-                                api_definition_name.clone(),
-                            ),
-                            &app.source,
-                        ) {
-                            self.api_definitions.insert(
-                                api_definition_name,
-                                WithSource::new(app_source_dir.to_path_buf(), api_definition),
-                            );
+                    if let Some(http_api) = app.application.http_api {
+                        for (api_definition_name, api_definition) in http_api.definitions {
+                            let api_definition_name = HttpApiDefinitionName::from(api_definition_name);
+                            if self.add_entity_source(
+                                UniqueSourceCheckedEntityKey::HttpApiDefinition(
+                                    api_definition_name.clone(),
+                                ),
+                                &app.source,
+                            ) {
+                                self.api_definitions.insert(
+                                    api_definition_name,
+                                    WithSource::new(app_source_dir.to_path_buf(), api_definition),
+                                );
+                            }
                         }
-                    }
 
-                    for api_deployment in app.application.api_deployments {
-                        let api_deployment_site = HttpApiDeploymentSite {
-                            host: api_deployment.host.clone(),
-                            subdomain: api_deployment.subdomain.clone(),
-                        };
-                        if self.add_entity_source(
-                            UniqueSourceCheckedEntityKey::HttpApiDeployment(
-                                api_deployment_site.clone(),
-                            ),
-                            &app.source,
-                        ) {
-                            self.api_deployments.insert(
-                                api_deployment_site,
-                                WithSource::new(app.source.to_path_buf(), api_deployment.clone()),
-                            );
+                        for api_deployment in http_api.deployments {
+                            let api_deployment_site = HttpApiDeploymentSite {
+                                host: api_deployment.host.clone(),
+                                subdomain: api_deployment.subdomain.clone(),
+                            };
+                            if self.add_entity_source(
+                                UniqueSourceCheckedEntityKey::HttpApiDeployment(
+                                    api_deployment_site.clone(),
+                                ),
+                                &app.source,
+                            ) {
+                                self.api_deployments.insert(
+                                    api_deployment_site,
+                                    WithSource::new(app.source.to_path_buf(), api_deployment.clone()),
+                                );
+                            }
                         }
                     }
                 },

@@ -210,19 +210,7 @@ impl AppCommandHandler {
         force_build: ForceBuildArg,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
-        self.ctx
-            .component_handler()
-            .deploy(
-                self.ctx
-                    .cloud_project_handler()
-                    .opt_select_project(None, None)
-                    .await?
-                    .as_ref(),
-                component_name.component_name,
-                Some(force_build),
-                &ApplicationComponentSelectMode::All,
-                update_or_redeploy,
-            )
+        self.deploy(component_name, force_build, update_or_redeploy)
             .await
     }
 
@@ -319,6 +307,33 @@ impl AppCommandHandler {
             &ApplicationComponentSelectMode::All,
         )
         .await
+    }
+
+    async fn deploy(
+        &mut self,
+        component_name: AppOptionalComponentNames,
+        force_build: ForceBuildArg,
+        update_or_redeploy: WorkerUpdateOrRedeployArgs,
+    ) -> anyhow::Result<()> {
+        // TODO: project name
+        self.ctx
+            .component_handler()
+            .deploy(
+                self.ctx
+                    .cloud_project_handler()
+                    .opt_select_project(None, None)
+                    .await?
+                    .as_ref(),
+                component_name.component_name,
+                Some(force_build),
+                &ApplicationComponentSelectMode::All,
+                update_or_redeploy,
+            )
+            .await?;
+
+        self.ctx.api_handler().deploy().await?;
+
+        Ok(())
     }
 
     pub async fn build(

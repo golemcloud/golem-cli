@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::model::text::fmt::*;
-use crate::model::ApiDeployment;
 use cli_table::Table;
 use golem_client::model::ApiDefinitionInfo;
 
+use crate::model::api::ApiDeployment;
 use indoc::printdoc;
 
 pub fn format_site(api_deployment: &ApiDeployment) -> String {

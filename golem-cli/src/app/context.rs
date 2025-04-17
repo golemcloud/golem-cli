@@ -609,45 +609,6 @@ impl ApplicationContext {
             }
         }
 
-        if config.custom_commands() {
-            for (profile, commands) in self.application.all_custom_commands_for_all_profiles() {
-                if commands.is_empty() {
-                    continue;
-                }
-
-                match profile {
-                    None => logln(format!(
-                        "{}",
-                        "Application custom commands:".log_color_help_group()
-                    )),
-                    Some(profile) => logln(format!(
-                        "{}{}{}",
-                        "Custom commands for ".log_color_help_group(),
-                        profile.as_str().log_color_help_group(),
-                        " profile:".log_color_help_group(),
-                    )),
-                }
-                for command in commands {
-                    logln(format!(
-                        "  {}",
-                        format!(
-                            "{}{}",
-                            if config.builtin_commands().contains(&command)
-                                || command.starts_with(':')
-                            {
-                                ":"
-                            } else {
-                                ""
-                            },
-                            command
-                        )
-                        .bold()
-                    ))
-                }
-                logln("")
-            }
-        }
-
         // TODO: add dynamic help for api commands
         if config.api_definitions() {
             if !self.application.api_definitions().is_empty() {
@@ -692,6 +653,45 @@ impl ApplicationContext {
                 logln("");
             } else {
                 logln("No API deployments found in the application.\n");
+            }
+        }
+
+        if config.custom_commands() {
+            for (profile, commands) in self.application.all_custom_commands_for_all_profiles() {
+                if commands.is_empty() {
+                    continue;
+                }
+
+                match profile {
+                    None => logln(format!(
+                        "{}",
+                        "Application custom commands:".log_color_help_group()
+                    )),
+                    Some(profile) => logln(format!(
+                        "{}{}{}",
+                        "Custom commands for ".log_color_help_group(),
+                        profile.as_str().log_color_help_group(),
+                        " profile:".log_color_help_group(),
+                    )),
+                }
+                for command in commands {
+                    logln(format!(
+                        "  {}",
+                        format!(
+                            "{}{}",
+                            if config.builtin_commands().contains(&command)
+                                || command.starts_with(':')
+                            {
+                                ":"
+                            } else {
+                                ""
+                            },
+                            command
+                        )
+                        .bold()
+                    ))
+                }
+                logln("")
             }
         }
 
