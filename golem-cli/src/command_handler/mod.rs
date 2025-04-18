@@ -85,6 +85,9 @@ pub trait CommandHandlerHooks {
 
     #[cfg(feature = "server-commands")]
     fn override_verbosity(verbosity: Verbosity) -> Verbosity;
+
+    #[cfg(feature = "server-commands")]
+    fn override_pretty_mode() -> bool;
 }
 
 // CommandHandler is responsible for matching commands and producing CLI output using Context,
