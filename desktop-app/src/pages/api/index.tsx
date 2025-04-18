@@ -5,6 +5,7 @@ import {
   Lock as LockIcon,
   Plus,
   Search,
+  WebhookIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Api } from "@/types/api";
@@ -70,7 +71,7 @@ export const APIs = () => {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-muted rounded-lg">
-            <Layers className="h-12 w-12 text-muted-foreground mb-4" />
+            <WebhookIcon className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No APIs</h3>
             <p className="text-muted-foreground mb-4">
               Create your first API to get started

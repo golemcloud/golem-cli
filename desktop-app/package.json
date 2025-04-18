@@ -39,18 +39,18 @@
     "card": "^2.5.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cmdk": "^1.0.0",
+    "cmdk": "^1.0.4",
     "command": "^0.0.5",
-    "date-fns": "^4.1.0",
+    "date-fns": "^3.6.0",
     "js-yaml": "^4.1.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.469.0",
-    "react": "^18.3.1",
+    "react": "^18.0.0",
     "react-code-blocks": "^0.1.6",
     "react-day-picker": "^8.10.1",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^18.0.0",
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.54.2",
     "react-json-view": "^1.21.3",
@@ -62,12 +62,18 @@
     "uuid": "^11.0.3",
     "zod": "^3.24.1"
   },
+  "overrides": {
+    "react-json-view": {
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
     "@tauri-apps/cli": "^2",
     "@types/node": "^22.10.2",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.18",
     "eslint": "^9.9.1",
