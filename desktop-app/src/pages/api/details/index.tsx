@@ -1,18 +1,18 @@
-import { Api, RouteRequestData } from "@/types/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Globe, LayoutGrid, Plus, Route } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-
-import { API } from "@/service";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Deployment } from "@/types/deployments.ts";
+import EmptyState from "@/components/empty-state";
 import ErrorBoundary from "@/components/errorBoundary.tsx";
-import { HTTP_METHOD_COLOR } from "@/components/nav-route.tsx";
+import {HTTP_METHOD_COLOR} from "@/components/nav-route.tsx";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {API} from "@/service";
+import {Api, RouteRequestData} from "@/types/api";
+import {Globe, LayoutGrid, Plus, Route} from "lucide-react";
+import {useEffect, useState} from "react";
+import {useNavigate, useParams, useSearchParams} from "react-router-dom";
+import {Deployment} from "@/types/deployments.ts";
 
 const APIDetails = () => {
-  const { apiName, version } = useParams();
+  const {apiName, version} = useParams();
   const [queryParams] = useSearchParams();
   const reload = queryParams.get("reload");
   const navigate = useNavigate();
@@ -62,24 +62,16 @@ const APIDetails = () => {
                   }
                   className="flex items-center gap-2"
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-5 w-5"/>
                   <span>Add</span>
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               {activeApiDetails?.routes?.length === 0 ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-                  <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                    <Route className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h2 className="text-xl font-semibold mb-2 text-center">
-                    No routes defined for this API version
-                  </h2>
-                  <p className="text-gray-500 mb-6 text-center">
-                    Create a new route, and it will be listed here.
-                  </p>
-                </div>
+                <EmptyState icon={<Route className="h-8 w-8 text-gray-400"/>}
+                            title="No routes defined for this API version"
+                            description="Create a new route, and it will be listed here."/>
               ) : (
                 <div className="space-y-4">
                   {activeApiDetails?.routes?.map(route => (
@@ -94,8 +86,8 @@ const APIDetails = () => {
                             variant="secondary"
                             className={
                               HTTP_METHOD_COLOR[
-                              route.method as keyof typeof HTTP_METHOD_COLOR
-                              ]
+                                route.method as keyof typeof HTTP_METHOD_COLOR
+                                ]
                             }
                           >
                             {route.method}
@@ -135,7 +127,7 @@ const APIDetails = () => {
                     >
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4" />
+                          <Globe className="h-4 w-4"/>
                           <span className="font-medium">
                             {deployment.site.host}
                           </span>
@@ -144,17 +136,8 @@ const APIDetails = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-                    <div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                      <LayoutGrid className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h2 className="text-xl font-semibold mb-2 text-center">
-                      No Active Deployments
-                    </h2>
-                    <p className="text-gray-500 mb-6 text-center">
-                      Create a new Deployment, and it will be listed here.
-                    </p>
-                  </div>
+                  <EmptyState icon={<LayoutGrid className="h-8 w-8 text-gray-400"/>} title="No Active Deployments"
+                              description="Create a new deployment, and it will be listed here."/>
                 )}
               </div>
             </CardContent>
