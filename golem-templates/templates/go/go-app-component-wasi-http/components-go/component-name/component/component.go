@@ -1,7 +1,7 @@
 package main
 
 import (
-	incominghandler "app/components-go/test-gohttp/binding/wasi/http/incoming-handler"
+	incominghandler "app/components-go/component-name/binding/wasi/http/incoming-handler"
 
 	"github.com/golemcloud/golem-go/binding/wasi/http/types"
 	"go.bytecodealliance.org/cm"
