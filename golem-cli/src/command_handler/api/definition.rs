@@ -407,8 +407,7 @@ impl ApiDefinitionCommandHandler {
                         )?;
                     }
 
-                    // TODO: no unwrap
-                    if server_api_definition.unwrap().draft {
+                    if server_api_definition.map(|ad| ad.draft) == Some(true) {
                         log_action(
                             "Updating",
                             format!(
