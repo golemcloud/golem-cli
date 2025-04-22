@@ -567,7 +567,7 @@ impl ApiDefinitionCommandHandler {
                 .update_definition_json(
                     &manifest_api_definition.id,
                     &manifest_api_definition.version,
-                    &manifest_api_definition,
+                    manifest_api_definition,
                 )
                 .await
                 .map_service_error(),
@@ -600,7 +600,7 @@ impl ApiDefinitionCommandHandler {
         match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => clients
                 .api_definition
-                .create_definition_json(&api_definition)
+                .create_definition_json(api_definition)
                 .await
                 .map_service_error(),
             GolemClients::Cloud(clients) => {
