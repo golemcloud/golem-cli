@@ -967,7 +967,12 @@ impl ComponentCommandHandler {
                             Some(empty_checked_component(segments[1])?.into()),
                         ),
                         3 => {
-                            let account_id: AccountId = empty_checked_account(segments[0])?.into();
+                            let account_email = empty_checked_account(segments[0])?;
+                            let account_id = self
+                                .ctx
+                                .cloud_account_handler()
+                                .select_account_id_by_email_or_error(account_email)
+                                .await?;
                             (
                                 Some(account_id.clone()),
                                 Some(
