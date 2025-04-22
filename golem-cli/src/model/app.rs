@@ -428,8 +428,8 @@ pub struct Application {
     no_dependencies: BTreeSet<DependentComponent>,
     custom_commands: HashMap<String, WithSource<Vec<app_raw::ExternalCommand>>>,
     clean: Vec<WithSource<String>>,
-    api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
-    api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
+    http_api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
+    http_api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
 }
 
 impl Application {
@@ -779,16 +779,24 @@ impl Application {
             .join(naming::wit::WIT_DIR)
     }
 
-    pub fn api_definitions(
+    pub fn http_api_definitions(
         &self,
     ) -> &BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>> {
-        &self.api_definitions
+        &self.http_api_definitions
+    }
+
+    pub fn http_api_definition_source(&self, name: &HttpApiDefinitionName) -> PathBuf {
+        self.http_api_definitions
+            .get(name)
+            .unwrap_or_else(|| panic!("HTTP API definition not found: {}", name.as_str()))
+            .source
+            .clone()
     }
 
     pub fn api_deployments(
         &self,
     ) -> &BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>> {
-        &self.api_deployments
+        &self.http_api_deployments
     }
 }
 
@@ -1201,8 +1209,8 @@ mod app_builder {
                 no_dependencies: BTreeSet::new(),
                 custom_commands: builder.custom_commands,
                 clean: builder.clean,
-                api_definitions: builder.api_definitions,
-                api_deployments: builder.api_deployments,
+                http_api_definitions: builder.api_definitions,
+                http_api_deployments: builder.api_deployments,
             })
         }
 
@@ -1313,7 +1321,7 @@ mod app_builder {
                             ) {
                                 self.api_definitions.insert(
                                     api_definition_name,
-                                    WithSource::new(app_source_dir.to_path_buf(), api_definition),
+                                    WithSource::new(app.source.to_path_buf(), api_definition),
                                 );
                             }
                         }

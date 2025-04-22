@@ -25,8 +25,7 @@ use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::{HintError, NonSuccessfulExit, ShowClapHelpTarget};
-use crate::fs::write_str;
-use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent};
+use crate::log::{log_action, logln, LogColorize, LogIndent};
 use crate::model::app::{
     AppComponentName, ApplicationComponentSelectMode, BuildProfileName, DynamicHelpSections,
 };
@@ -600,10 +599,7 @@ impl ComponentCommandHandler {
             dependency_type,
         )?;
 
-        for (path, document) in editor.accessed_documents() {
-            log_warn_action("Updating", path.log_color_highlight().to_string());
-            write_str(path, document.to_string())?;
-        }
+        editor.update_documents()?;
 
         if inserted {
             log_action("Added", "component dependency");

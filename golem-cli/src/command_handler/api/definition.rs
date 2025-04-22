@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::app::yaml_edit::AppYamlEditor;
 use crate::command::api::definition::ApiDefinitionSubcommand;
 use crate::command::shared_args::ProjectNameOptionalArg;
 use crate::command_handler::Handlers;
@@ -25,7 +26,7 @@ use crate::model::app_raw::{HttpApiDefinition, HttpApiDefinitionBindingType};
 use crate::model::text::api_definition::{
     ApiDefinitionGetView, ApiDefinitionNewView, ApiDefinitionUpdateView,
 };
-use crate::model::text::fmt::{log_entity_yaml_diff, log_error};
+use crate::model::text::fmt::{log_entity_yaml_diff, log_error, log_warn};
 use crate::model::{PathBufOrStdin, ProjectNameAndId};
 use anyhow::{bail, Context as AnyhowContext};
 use golem_client::api::ApiDefinitionClient as ApiDefinitionClientOss;
@@ -326,7 +327,7 @@ impl ApiDefinitionCommandHandler {
             let app_ctx = app_ctx.some_or_err()?;
 
             // TODO: selection based on components
-            app_ctx.application.api_definitions().clone()
+            app_ctx.application.http_api_definitions().clone()
         };
 
         if !api_definitions.is_empty() {
@@ -348,12 +349,6 @@ impl ApiDefinitionCommandHandler {
         api_definition_name: &HttpApiDefinitionName,
         api_definition: &WithSource<HttpApiDefinition>,
     ) -> anyhow::Result<()> {
-        let manifest_api_definition =
-            (api_definition_name, &api_definition.value).as_http_api_definition_request();
-        let manifest_api_definition_yaml = manifest_api_definition
-            .clone()
-            .to_yaml_value_without_nulls()?;
-
         let server_api_definition = self
             .api_definition(
                 project,
@@ -362,6 +357,28 @@ impl ApiDefinitionCommandHandler {
             )
             .await?
             .map(|ad| ad.as_http_api_definition_request());
+
+        let manifest_api_definition = {
+            let mut manifest_api_definition =
+                (api_definition_name, &api_definition.value).as_http_api_definition_request();
+
+            // NOTE: if the only diff if being non-draft on serverside, we hide that
+            if let Some(server_api_definition) = &server_api_definition {
+                if manifest_api_definition.version == server_api_definition.version
+                    && !server_api_definition.draft
+                    && manifest_api_definition.draft
+                {
+                    manifest_api_definition.draft = false;
+                }
+            }
+
+            manifest_api_definition
+        };
+
+        let manifest_api_definition_yaml = manifest_api_definition
+            .clone()
+            .to_yaml_value_without_nulls()?;
+
         let server_api_definition_yaml = server_api_definition
             .clone()
             .map(|ad| ad.to_yaml_value_without_nulls())
@@ -373,8 +390,12 @@ impl ApiDefinitionCommandHandler {
                     log_warn_action(
                         "Found",
                         format!(
-                            "changes in HTTP API definition {}",
-                            api_definition_name.as_str().log_color_highlight()
+                            "changes in HTTP API definition {}@{}",
+                            api_definition_name.as_str().log_color_highlight(),
+                            manifest_api_definition
+                                .version
+                                .as_str()
+                                .log_color_highlight()
                         ),
                     );
 
@@ -388,9 +409,89 @@ impl ApiDefinitionCommandHandler {
 
                     // TODO: no unwrap
                     if server_api_definition.unwrap().draft {
-                        todo!("update draft")
+                        log_action(
+                            "Updating",
+                            format!(
+                                "HTTP API definition {}",
+                                api_definition_name.as_str().log_color_highlight()
+                            ),
+                        );
+
+                        let result = self
+                            .update_api_definition(project, &manifest_api_definition)
+                            .await?;
+
+                        self.ctx
+                            .log_handler()
+                            .log_view(&ApiDefinitionUpdateView(result));
+
+                        Ok(())
                     } else {
-                        todo!("create new version?")
+                        log_warn(
+                            "The current version of the HTTP API is already deployed as non-draft.",
+                        );
+
+                        match self
+                            .ctx
+                            .interactive_handler()
+                            .select_new_api_definition_version(&manifest_api_definition)?
+                        {
+                            Some(new_version) => {
+                                let new_draft = true;
+                                let old_version = manifest_api_definition.version.clone();
+
+                                let manifest_api_definition = {
+                                    let mut manifest_api_definition = manifest_api_definition;
+                                    manifest_api_definition.version = new_version;
+                                    manifest_api_definition.draft = new_draft;
+                                    manifest_api_definition
+                                };
+
+                                {
+                                    let app_ctx = self.ctx.app_context_lock().await;
+                                    let app_ctx = app_ctx.some_or_err()?;
+
+                                    let mut editor = AppYamlEditor::new(&app_ctx.application);
+                                    editor.update_api_definition_version(
+                                        api_definition_name,
+                                        &manifest_api_definition.version,
+                                        new_draft,
+                                    )?;
+                                    editor.update_documents()?;
+                                }
+
+                                log_action(
+                                    "Creating",
+                                    format!(
+                                        "new HTTP API definition version for {}, with version updated from {} to {}",
+                                        api_definition_name.as_str().log_color_highlight(),
+                                        old_version.log_color_highlight(),
+                                        manifest_api_definition
+                                            .version
+                                            .as_str()
+                                            .log_color_highlight()
+                                    ),
+                                );
+
+                                let result = self
+                                    .new_api_definition(project, &manifest_api_definition)
+                                    .await?;
+
+                                self.ctx
+                                    .log_handler()
+                                    .log_view(&ApiDefinitionNewView(result));
+
+                                Ok(())
+                            }
+                            None => {
+                                log_error(format!(
+                                    "Please specify a new version for {} in {}",
+                                    api_definition_name.as_str().log_color_highlight(),
+                                    api_definition.source.log_color_highlight()
+                                ));
+                                bail!(NonSuccessfulExit)
+                            }
+                        }
                     }
                 } else {
                     log_skipping_up_to_date(format!(
@@ -404,36 +505,18 @@ impl ApiDefinitionCommandHandler {
                 log_action(
                     "Creating",
                     format!(
-                        "new HTTP API definition {}",
-                        api_definition_name.as_str().log_color_highlight()
+                        "new HTTP API definition version {}@{}",
+                        api_definition_name.as_str().log_color_highlight(),
+                        manifest_api_definition
+                            .version
+                            .as_str()
+                            .log_color_highlight()
                     ),
                 );
 
-                let result = match self.ctx.golem_clients().await? {
-                    GolemClients::Oss(clients) => clients
-                        .api_definition
-                        .create_definition_json(&manifest_api_definition)
-                        .await
-                        .map_service_error()?,
-                    GolemClients::Cloud(clients) => {
-                        clients
-                            .api_definition
-                            .create_definition_json(
-                                &self
-                                    .ctx
-                                    .cloud_project_handler()
-                                    .selected_project_id_or_default(project)
-                                    .await?
-                                    .0,
-                                // TODO: would be nice to share the model between oss and cloud instead of "re-encoding"
-                                &parse_api_definition(&serde_yaml::to_string(
-                                    &manifest_api_definition,
-                                )?)?,
-                            )
-                            .await
-                            .map_service_error()?
-                    }
-                };
+                let result = self
+                    .new_api_definition(project, &manifest_api_definition)
+                    .await?;
 
                 self.ctx
                     .log_handler()
@@ -470,6 +553,72 @@ impl ApiDefinitionCommandHandler {
                 )
                 .await
                 .map_service_error_not_found_as_opt(),
+        }
+    }
+
+    async fn update_api_definition(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        manifest_api_definition: &HttpApiDefinitionRequest,
+    ) -> anyhow::Result<HttpApiDefinitionResponseData> {
+        match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => clients
+                .api_definition
+                .update_definition_json(
+                    &manifest_api_definition.id,
+                    &manifest_api_definition.version,
+                    &manifest_api_definition,
+                )
+                .await
+                .map_service_error(),
+            GolemClients::Cloud(clients) => {
+                clients
+                    .api_definition
+                    .update_definition_json(
+                        &self
+                            .ctx
+                            .cloud_project_handler()
+                            .selected_project_id_or_default(project)
+                            .await?
+                            .0,
+                        &manifest_api_definition.id,
+                        &manifest_api_definition.version,
+                        // TODO: would be nice to share the model between oss and cloud instead of "re-encoding"
+                        &parse_api_definition(&serde_yaml::to_string(&manifest_api_definition)?)?,
+                    )
+                    .await
+                    .map_service_error()
+            }
+        }
+    }
+
+    async fn new_api_definition(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        api_definition: &HttpApiDefinitionRequest,
+    ) -> anyhow::Result<HttpApiDefinitionResponseData> {
+        match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => clients
+                .api_definition
+                .create_definition_json(&api_definition)
+                .await
+                .map_service_error(),
+            GolemClients::Cloud(clients) => {
+                clients
+                    .api_definition
+                    .create_definition_json(
+                        &self
+                            .ctx
+                            .cloud_project_handler()
+                            .selected_project_id_or_default(project)
+                            .await?
+                            .0,
+                        // TODO: would be nice to share the model between oss and cloud instead of "re-encoding"
+                        &parse_api_definition(&serde_yaml::to_string(&api_definition)?)?,
+                    )
+                    .await
+                    .map_service_error()
+            }
         }
     }
 }
@@ -533,7 +682,7 @@ impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition)
                 .iter()
                 .map(|route| RouteRequestData {
                     method: to_method_pattern(&route.method),
-                    path: route.path.clone(),
+                    path: route.path.trim_end_matches('/').to_string(),
                     binding: GatewayBindingData {
                         binding_type: Some(
                             route

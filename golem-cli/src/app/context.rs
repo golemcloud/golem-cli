@@ -611,12 +611,12 @@ impl ApplicationContext {
 
         // TODO: add dynamic help for api commands
         if config.api_definitions() {
-            if !self.application.api_definitions().is_empty() {
+            if !self.application.http_api_definitions().is_empty() {
                 logln(format!(
                     "{}",
                     "Application API definitions:".log_color_help_group()
                 ));
-                for (name, def) in self.application.api_definitions() {
+                for (name, def) in self.application.http_api_definitions() {
                     logln(format!(
                         "  {}@{}{}",
                         name.as_str().log_color_highlight(),

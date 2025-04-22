@@ -25,6 +25,7 @@ use crate::model::text::fmt::{log_error, log_warn};
 use crate::model::{ComponentName, Format, WorkerName};
 use anyhow::bail;
 use colored::Colorize;
+use golem_client::model::HttpApiDefinitionRequest;
 use golem_cloud_client::model::Account;
 use golem_common::model::ComponentVersion;
 use inquire::error::InquireResult;
@@ -94,11 +95,11 @@ impl InteractiveHandler {
         self.confirm(
             true,
             format!("Worker {}/{} will be updated to the latest component version: {}. Do you want to continue?",
-                component_name.0.log_color_highlight(),
-                worker_name.0.log_color_highlight(),
-                target_version.to_string().log_color_highlight()
+                    component_name.0.log_color_highlight(),
+                    worker_name.0.log_color_highlight(),
+                    target_version.to_string().log_color_highlight()
             ),
-            None
+            None,
         )
     }
 
@@ -419,6 +420,38 @@ impl InteractiveHandler {
             target_component_name,
             dependency_type,
         )))
+    }
+
+    pub fn select_new_api_definition_version(
+        &self,
+        api_definition: &HttpApiDefinitionRequest,
+    ) -> anyhow::Result<Option<String>> {
+        Text::new("Please specify a new API definition version:")
+            .with_initial_value(&api_definition.version)
+            .with_validator({
+                let current_version = api_definition.version.clone();
+                move |value: &str| {
+                    if value == current_version {
+                        return Ok(Validation::Invalid(ErrorMessage::Custom(
+                            "Please select a new version!".to_string(),
+                        )));
+                    }
+                    if value.contains(char::is_whitespace) {
+                        return Ok(Validation::Invalid(ErrorMessage::Custom(
+                            "Please specify a version without whitespaces!".to_string(),
+                        )));
+                    }
+                    if value.is_empty() {
+                        return Ok(Validation::Invalid(ErrorMessage::Custom(
+                            "Please specify a non-empty version!".to_string(),
+                        )));
+                    }
+
+                    Ok(Validation::Valid)
+                }
+            })
+            .prompt()
+            .none_if_not_interactive_logged()
     }
 
     fn confirm<M: AsRef<str>>(

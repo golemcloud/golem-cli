@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::fs::read_to_string;
-use crate::model::app::{AppComponentName, Application, DependencyType};
+use crate::fs::{read_to_string, write_str};
+use crate::log::{log_warn_action, LogColorize};
+use crate::model::app::{AppComponentName, Application, DependencyType, HttpApiDefinitionName};
 use anyhow::{anyhow, Context};
 use nondestructive::yaml::{Document, Id, MappingMut, Separator, SequenceMut, Value, ValueMut};
 use std::collections::HashMap;
@@ -124,6 +125,54 @@ impl<'a> AppYamlEditor<'a> {
         Ok(insert)
     }
 
+    pub fn update_api_definition_version(
+        &mut self,
+        api_definition_name: &HttpApiDefinitionName,
+        version: &str,
+        draft: bool,
+    ) -> anyhow::Result<()> {
+        let path = self.document_path_for_api_definition(api_definition_name);
+
+        let document = self.document_mut(&path)?;
+        let root_value = document.as_mut();
+
+        let mut api_definition = root_value
+            .into_mapping_key_insert_missing("httpApi")?
+            .into_mapping_key_insert_missing("definitions")?
+            .into_mapping_key_insert_missing(api_definition_name.as_str())?
+            .into_mapping_mut()
+            .ok_or_else(|| {
+                anyhow!(
+                    "expected mapping for HTTP API definition {} in {}",
+                    api_definition_name.as_str(),
+                    path.display()
+                )
+            })?;
+
+        api_definition
+            .get_mut("version")
+            .ok_or_else(|| {
+                anyhow!(
+                    "missing version field for HTTP API definition {} in {}",
+                    api_definition_name.as_str(),
+                    path.display()
+                )
+            })?
+            .set_string(version);
+        api_definition
+            .get_mut("draft")
+            .ok_or_else(|| {
+                anyhow!(
+                    "missing version field for HTTP API definition {} in {}",
+                    api_definition_name.as_str(),
+                    path.display()
+                )
+            })?
+            .set_bool(draft);
+
+        Ok(())
+    }
+
     fn document_mut(&mut self, path: &Path) -> anyhow::Result<&mut Document> {
         if !self.documents.contains_key(path) {
             self.documents.insert(
@@ -140,6 +189,14 @@ impl<'a> AppYamlEditor<'a> {
         self.application
             .component_source(component_name)
             .to_path_buf()
+    }
+
+    fn document_path_for_api_definition(
+        &self,
+        api_definition_name: &HttpApiDefinitionName,
+    ) -> PathBuf {
+        self.application
+            .http_api_definition_source(api_definition_name)
     }
 
     fn existing_document_path_for_dependency(
@@ -161,6 +218,14 @@ impl<'a> AppYamlEditor<'a> {
             Some(doc) => doc,
             None => self.document_path_for_component(component_name),
         }
+    }
+
+    pub fn update_documents(self) -> anyhow::Result<()> {
+        for (path, document) in self.accessed_documents() {
+            log_warn_action("Updating", path.log_color_highlight().to_string());
+            write_str(path, document.to_string())?;
+        }
+        Ok(())
     }
 }
 
