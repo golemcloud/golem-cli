@@ -235,7 +235,7 @@ impl CloudProjectCommandHandler {
                 .get_default_project()
                 .await
                 .map_service_error()
-                .map(|project| ProjectId(project.project_id.into())),
+                .map(|project| ProjectId(project.project_id)),
         }
     }
 

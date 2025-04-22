@@ -91,6 +91,9 @@ pub trait CommandHandlerHooks: Sync + Send {
 
     #[cfg(feature = "server-commands")]
     fn override_verbosity(verbosity: Verbosity) -> Verbosity;
+
+    #[cfg(feature = "server-commands")]
+    fn override_pretty_mode() -> bool;
 }
 
 // CommandHandler is responsible for matching commands and producing CLI output using Context,
@@ -189,7 +192,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                 };
                 #[cfg(not(feature = "server-commands"))]
                 let verbosity = command.global_flags.verbosity();
-                init_tracing(verbosity);
+                init_tracing(verbosity, false);
 
                 match Self::new_with_init_hint_error_handler(&command.global_flags, hooks) {
                     Ok(mut handler) => {
@@ -227,6 +230,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                         .global_flags
                         .verbosity
                         .as_clap_verbosity_flag(),
+                    false,
                 );
 
                 debug!(partial_match = ?partial_match, "Partial match");
@@ -252,7 +256,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                 error,
                 fallback_command,
             } => {
-                init_tracing(fallback_command.global_flags.verbosity());
+                init_tracing(fallback_command.global_flags.verbosity(), false);
                 debug_log_parse_error(&error, &fallback_command);
                 error.print().unwrap();
 

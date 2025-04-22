@@ -1303,7 +1303,8 @@ mod app_builder {
 
                     if let Some(http_api) = app.application.http_api {
                         for (api_definition_name, api_definition) in http_api.definitions {
-                            let api_definition_name = HttpApiDefinitionName::from(api_definition_name);
+                            let api_definition_name =
+                                HttpApiDefinitionName::from(api_definition_name);
                             if self.add_entity_source(
                                 UniqueSourceCheckedEntityKey::HttpApiDefinition(
                                     api_definition_name.clone(),
@@ -1330,7 +1331,10 @@ mod app_builder {
                             ) {
                                 self.api_deployments.insert(
                                     api_deployment_site,
-                                    WithSource::new(app.source.to_path_buf(), api_deployment.clone()),
+                                    WithSource::new(
+                                        app.source.to_path_buf(),
+                                        api_deployment.clone(),
+                                    ),
                                 );
                             }
                         }

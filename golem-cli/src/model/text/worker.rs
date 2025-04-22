@@ -26,7 +26,6 @@ use chrono::{DateTime, Utc};
 use cli_table::{format::Justify, Table};
 use colored::Colorize;
 use golem_client::model::{PublicOplogEntry, UpdateRecord};
-use golem_common::model::oplog::PersistenceLevel;
 use golem_common::model::public_oplog::{
     PluginInstallationDescription, PublicAttributeValue, PublicUpdateDescription,
     PublicWorkerInvocation, StringAttributeValue,
@@ -776,12 +775,8 @@ impl TextView for PublicOplogEntry {
                     format_id(&params.timestamp)
                 ));
                 logln(format!(
-                    "{pad}to:           {}",
-                    format_id(match params.persistence_level {
-                        PersistenceLevel::PersistNothing => "persist nothing",
-                        PersistenceLevel::PersistRemoteSideEffects => "persist side effects",
-                        PersistenceLevel::Smart => "smart",
-                    })
+                    "{pad}level:             {}",
+                    format_id(&format!("{:?}", &params.persistence_level))
                 ));
             }
         }

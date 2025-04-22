@@ -174,11 +174,10 @@ impl<'a> ValueExtensions<'a> for Value<'a> {
     // NOTE: ONLY USE THIS IF THE VALUE CANNOT CONTAIN YAML COMMENTS OR WHITESPACE AS VALID VALUE (e.g. it is validated against it),
     //       see nondestructive_yaml_bugs tests for more info
     fn as_str_with_comments_workaround(&self) -> Option<&str> {
-        self.as_str()
-            .map(|str_value| match str_value.find('#') {
-                Some(idx) => str_value[..idx].trim(),
-                None => str_value,
-            })
+        self.as_str().map(|str_value| match str_value.find('#') {
+            Some(idx) => str_value[..idx].trim(),
+            None => str_value,
+        })
     }
 
     fn as_i64_with_comments_workaround(&self) -> Option<i64> {

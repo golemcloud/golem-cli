@@ -616,10 +616,7 @@ fn yaml_value_without_nulls(value: serde_yaml::Value) -> serde_yaml::Value {
                 .collect(),
         ),
         serde_yaml::Value::Sequence(sequence) => serde_yaml::Value::Sequence(
-            sequence
-                .into_iter()
-                .map(|value| yaml_value_without_nulls(value))
-                .collect(),
+            sequence.into_iter().map(yaml_value_without_nulls).collect(),
         ),
         _ => value,
     }
