@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cloud::AccountId;
+use crate::cloud::{AccountId, ProjectId};
 use crate::command::cloud::project::{ProjectActionsOrPolicyId, ProjectSubcommand};
 use crate::command_handler::Handlers;
 use crate::config::ProfileKind;
@@ -220,12 +220,13 @@ impl CloudProjectCommandHandler {
         }
     }
 
-    pub async fn selected_project_or_default(
+    pub async fn selected_project_id_or_default(
         &self,
-        project: Option<ProjectNameAndId>,
-    ) -> anyhow::Result<ProjectNameAndId> {
+        project: Option<&ProjectNameAndId>,
+    ) -> anyhow::Result<ProjectId> {
+        // TODO: cache default project
         match project {
-            Some(project) => Ok(project),
+            Some(project) => Ok(project.project_id),
             None => self
                 .ctx
                 .golem_clients_cloud()
@@ -234,10 +235,7 @@ impl CloudProjectCommandHandler {
                 .get_default_project()
                 .await
                 .map_service_error()
-                .map(|project| ProjectNameAndId {
-                    project_name: project.project_data.name.into(),
-                    project_id: project.project_id.into(),
-                }),
+                .map(|project| ProjectId(project.project_id.into())),
         }
     }
 

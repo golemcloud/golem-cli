@@ -572,7 +572,7 @@ pub struct SelectedComponents {
     pub component_names: Vec<ComponentName>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TokenId(pub Uuid);
 
 impl FromStr for TokenId {
@@ -583,7 +583,7 @@ impl FromStr for TokenId {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ProjectPolicyId(pub Uuid);
 
 impl FromStr for ProjectPolicyId {

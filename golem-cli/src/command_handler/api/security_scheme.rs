@@ -102,35 +102,32 @@ impl ApiSecuritySchemeCommandHandler {
                 .await
                 .map_service_error()?
                 .into(),
-            GolemClients::Cloud(clients) => {
-                let project = self
-                    .ctx
-                    .cloud_project_handler()
-                    .selected_project_or_default(project)
-                    .await?;
-
-                clients
-                    .api_security
-                    .create(
-                        &project.project_id.0,
-                        &SecuritySchemeDataCloud {
-                            provider_type: match provider_type {
-                                IdentityProviderType::Google => ProviderCloud::Google,
-                                IdentityProviderType::Facebook => ProviderCloud::Facebook,
-                                IdentityProviderType::Gitlab => ProviderCloud::Gitlab,
-                                IdentityProviderType::Microsoft => ProviderCloud::Microsoft,
-                            },
-                            scheme_identifier,
-                            client_id,
-                            client_secret,
-                            redirect_url,
-                            scopes,
+            GolemClients::Cloud(clients) => clients
+                .api_security
+                .create(
+                    &self
+                        .ctx
+                        .cloud_project_handler()
+                        .selected_project_id_or_default(project.as_ref())
+                        .await?
+                        .0,
+                    &SecuritySchemeDataCloud {
+                        provider_type: match provider_type {
+                            IdentityProviderType::Google => ProviderCloud::Google,
+                            IdentityProviderType::Facebook => ProviderCloud::Facebook,
+                            IdentityProviderType::Gitlab => ProviderCloud::Gitlab,
+                            IdentityProviderType::Microsoft => ProviderCloud::Microsoft,
                         },
-                    )
-                    .await
-                    .map_service_error()?
-                    .into()
-            }
+                        scheme_identifier,
+                        client_id,
+                        client_secret,
+                        redirect_url,
+                        scopes,
+                    },
+                )
+                .await
+                .map_service_error()?
+                .into(),
         };
 
         self.ctx.log_handler().log_view(&result);
@@ -156,20 +153,20 @@ impl ApiSecuritySchemeCommandHandler {
                 .await
                 .map_service_error()?
                 .into(),
-            GolemClients::Cloud(clients) => {
-                let project = self
-                    .ctx
-                    .cloud_project_handler()
-                    .selected_project_or_default(project)
-                    .await?;
-
-                clients
-                    .api_security
-                    .get(&project.project_id.0, &security_scheme_id)
-                    .await
-                    .map_service_error()?
-                    .into()
-            }
+            GolemClients::Cloud(clients) => clients
+                .api_security
+                .get(
+                    &self
+                        .ctx
+                        .cloud_project_handler()
+                        .selected_project_id_or_default(project.as_ref())
+                        .await?
+                        .0,
+                    &security_scheme_id,
+                )
+                .await
+                .map_service_error()?
+                .into(),
         };
 
         self.ctx.log_handler().log_view(&result);

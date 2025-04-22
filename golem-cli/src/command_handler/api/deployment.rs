@@ -97,12 +97,6 @@ impl ApiDeploymentCommandHandler {
                     .into()
             }
             GolemClients::Cloud(clients) => {
-                let project = self
-                    .ctx
-                    .cloud_project_handler()
-                    .selected_project_or_default(project)
-                    .await?;
-
                 let host = host.ok_or(anyhow::anyhow!(
                     "Host is required to work with cloud API deployments"
                 ))?;
@@ -110,7 +104,12 @@ impl ApiDeploymentCommandHandler {
                 clients
                     .api_deployment
                     .deploy(&ApiDeploymentRequestCloud {
-                        project_id: project.project_id.0,
+                        project_id: self
+                            .ctx
+                            .cloud_project_handler()
+                            .selected_project_id_or_default(project.as_ref())
+                            .await?
+                            .0,
                         api_definitions: api_defs
                             .iter()
                             .map(|d| ApiDefinitionInfoCloud {
@@ -175,16 +174,18 @@ impl ApiDeploymentCommandHandler {
                 .map(ApiDeployment::from)
                 .collect::<Vec<_>>(),
             GolemClients::Cloud(clients) => {
-                let project = self
-                    .ctx
-                    .cloud_project_handler()
-                    .selected_project_or_default(project)
-                    .await?;
-
                 match id {
                     Some(id) => clients
                         .api_deployment
-                        .list_deployments(&project.project_id.0, id)
+                        .list_deployments(
+                            &self
+                                .ctx
+                                .cloud_project_handler()
+                                .selected_project_id_or_default(project.as_ref())
+                                .await?
+                                .0,
+                            id,
+                        )
                         .await
                         .map_service_error()?
                         .into_iter()

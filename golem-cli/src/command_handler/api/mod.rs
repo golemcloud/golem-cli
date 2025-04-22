@@ -15,6 +15,7 @@
 use crate::command::api::ApiSubcommand;
 use crate::command_handler::Handlers;
 use crate::context::Context;
+use crate::model::ProjectNameAndId;
 use std::sync::Arc;
 
 pub mod cloud;
@@ -60,7 +61,7 @@ impl ApiCommandHandler {
         }
     }
 
-    pub async fn deploy(&mut self) -> anyhow::Result<()> {
-        self.ctx.api_definition_handler().deploy().await
+    pub async fn deploy(&mut self, project: Option<&ProjectNameAndId>) -> anyhow::Result<()> {
+        self.ctx.api_definition_handler().deploy(project).await
     }
 }

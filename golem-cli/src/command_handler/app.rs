@@ -315,15 +315,16 @@ impl AppCommandHandler {
         force_build: ForceBuildArg,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
-        // TODO: project name
+        let project = self
+            .ctx
+            .cloud_project_handler()
+            .opt_select_project(None, None) // TODO: project, account id
+            .await?;
+
         self.ctx
             .component_handler()
             .deploy(
-                self.ctx
-                    .cloud_project_handler()
-                    .opt_select_project(None, None)
-                    .await?
-                    .as_ref(),
+                project.as_ref(),
                 component_name.component_name,
                 Some(force_build),
                 &ApplicationComponentSelectMode::All,
@@ -331,7 +332,7 @@ impl AppCommandHandler {
             )
             .await?;
 
-        self.ctx.api_handler().deploy().await?;
+        self.ctx.api_handler().deploy(project.as_ref()).await?;
 
         Ok(())
     }
