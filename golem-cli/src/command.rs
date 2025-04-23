@@ -814,6 +814,7 @@ pub mod component {
             #[command(flatten)]
             component_name: ComponentOptionalComponentNames,
         },
+        /// Add or update a component dependency
         AddDependency {
             /// The name of the component to which the dependency should be added
             #[arg(long)]
