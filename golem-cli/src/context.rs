@@ -174,6 +174,10 @@ impl Context {
         self.profile_kind
     }
 
+    pub fn profile_name(&self) -> &ProfileName {
+        &self.profile_name
+    }
+
     pub fn build_profile(&self) -> Option<&AppBuildProfileName> {
         self.app_context_config.build_profile.as_ref()
     }
@@ -329,6 +333,12 @@ impl Context {
             steps_filter,
         )
         .await;
+    }
+
+    pub async fn task_result_marker_dir(&self) -> anyhow::Result<PathBuf> {
+        let app_ctx = self.app_context_lock().await;
+        let app_ctx = app_ctx.some_or_err()?;
+        Ok(app_ctx.application.task_result_marker_dir())
     }
 
     pub async fn set_rib_repl_dependencies(&self, dependencies: ReplDependencies) {

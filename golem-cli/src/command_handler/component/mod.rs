@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::app::build::task_result_marker::{GetServerComponentHash, TaskResultMarker};
 use crate::app::context::ApplicationContext;
 use crate::app::yaml_edit::AppYamlEditor;
 use crate::cloud::AccountId;
@@ -47,11 +48,9 @@ use crate::model::{
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
+use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
 use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
-use golem_client::model::{
-    DynamicLinkedInstance as DynamicLinkedInstanceOss, DynamicLinkedInstance,
-};
 use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
 use golem_cloud_client::model::ComponentQuery;
 use golem_common::model::component_metadata::WasmRpcTarget;
@@ -63,6 +62,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
+use tracing::debug;
 
 pub mod ifs;
 pub mod plugin;
@@ -706,11 +706,13 @@ impl ComponentCommandHandler {
             .as_ref()
             .map(|c| c.versioned_component_id.component_id);
 
+        let manifest_deployable_component = self
+            .manifest_deployable_component(component_name, &deploy_properties)
+            .await?;
+
         if let Some(server_component) = server_component {
-            let server_deployable_component =
-                self.server_deployable_component(&server_component).await?;
-            let manifest_deployable_component = self
-                .manifest_deployable_component(component_name, &deploy_properties)
+            let server_deployable_component = self
+                .server_deployable_component(project, &server_component)
                 .await?;
 
             if server_deployable_component == manifest_deployable_component {
@@ -874,9 +876,24 @@ impl ComponentCommandHandler {
                 self.ctx
                     .log_handler()
                     .log_view(&ComponentCreateView(ComponentView::from(component.clone())));
+
                 component
             }
         };
+
+        // We save the recently deployed hashes, so we don't have to download them
+        TaskResultMarker::new(
+            &self.ctx.task_result_marker_dir().await?,
+            GetServerComponentHash {
+                profile_name: self.ctx.profile_name(),
+                project_name: project.map(|p| &p.project_name),
+                component_name: &manifest_deployable_component.component_name,
+                component_version: component.versioned_component_id.version,
+                component_hash: Some(&manifest_deployable_component.component_hash),
+            },
+        )?
+        .success()?;
+
         Ok(component)
     }
 
@@ -1158,10 +1175,6 @@ impl ComponentCommandHandler {
                     bail!(NonSuccessfulExit)
                 }
 
-                // TODO: we will need hashes to reliably detect if "update" deploy is needed
-                //       and for now we should not blindly keep updating, so for now
-                //       only missing ones are handled
-
                 if self
                     .ctx
                     .interactive_handler()
@@ -1343,7 +1356,7 @@ impl ComponentCommandHandler {
                         (
                             name.clone(),
                             match instance {
-                                DynamicLinkedInstance::WasmRpc(links) => links
+                                DynamicLinkedInstanceOss::WasmRpc(links) => links
                                     .targets
                                     .iter()
                                     .map(|(resource, target)| {
@@ -1361,53 +1374,19 @@ impl ComponentCommandHandler {
     // NOTE: all of this is naive for now (as in performance, streaming, parallelism)
     async fn server_deployable_component(
         &self,
+        project: Option<&ProjectNameAndId>,
         component: &Component,
     ) -> anyhow::Result<DeployableComponent> {
-        // TODO: cache component hash (including the profile, version),
-        //       and also cache it during deploy, so no download is needed
-
-        let component_hash = {
-            log_warn_action(
-                "Downloading",
-                format!(
-                    "server component {}@{} for diffing",
-                    component.component_name.0.log_color_highlight(),
-                    component
-                        .versioned_component_id
-                        .version
-                        .to_string()
-                        .log_color_highlight()
-                ),
-            );
-            let component_bytes = match self.ctx.golem_clients().await? {
-                GolemClients::Oss(clients) => {
-                    clients
-                        .component
-                        .download_component(
-                            &component.versioned_component_id.component_id,
-                            Some(component.versioned_component_id.version),
-                        )
-                        .await?
-                }
-                GolemClients::Cloud(clients) => {
-                    clients
-                        .component
-                        .download_component(
-                            &component.versioned_component_id.component_id,
-                            Some(component.versioned_component_id.version),
-                        )
-                        .await?
-                }
-            };
-
-            let mut component_hasher = blake3::Hasher::new();
-            component_hasher.update(&component_bytes);
-            component_hasher.finalize().to_hex().to_string()
-        };
-
         Ok(DeployableComponent {
             component_name: component.component_name.clone(),
-            component_hash,
+            component_hash: self
+                .server_component_hash(
+                    project,
+                    &component.component_name,
+                    ComponentId(component.versioned_component_id.component_id),
+                    component.versioned_component_id.version,
+                )
+                .await?,
             component_type: component.component_type,
             files: Default::default(), // TODO:
             dynamic_linking: component
@@ -1428,8 +1407,73 @@ impl ComponentCommandHandler {
                         },
                     )
                 })
-                .collect(), // TODO:
+                .collect(),
         })
+    }
+
+    async fn server_component_hash(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        component_name: &ComponentName,
+        component_id: ComponentId,
+        component_version: u64,
+    ) -> anyhow::Result<String> {
+        let task_result_marker_dir = self.ctx.task_result_marker_dir().await?;
+
+        let hasher = |component_hash| GetServerComponentHash {
+            profile_name: self.ctx.profile_name(),
+            project_name: project.map(|p| &p.project_name),
+            component_name,
+            component_version,
+            component_hash,
+        };
+
+        let hash = TaskResultMarker::get_hash(&task_result_marker_dir, hasher(None))?;
+
+        match hash {
+            Some(hash) => {
+                debug!(
+                    component_name = component_name.0,
+                    component_id = ?component_id.0,
+                    component_version,
+                    hash,
+                    "Found cached hash for server component"
+                );
+                Ok(hash)
+            }
+            None => {
+                log_warn_action(
+                    "Downloading",
+                    format!(
+                        "server component {}@{} for diffing",
+                        component_name.0.log_color_highlight(),
+                        component_version.to_string().log_color_highlight()
+                    ),
+                );
+                let component_bytes = match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => {
+                        clients
+                            .component
+                            .download_component(&component_id.0, Some(component_version))
+                            .await?
+                    }
+                    GolemClients::Cloud(clients) => {
+                        clients
+                            .component
+                            .download_component(&component_id.0, Some(component_version))
+                            .await?
+                    }
+                };
+
+                let mut component_hasher = blake3::Hasher::new();
+                component_hasher.update(&component_bytes);
+                let hash = component_hasher.finalize().to_hex().to_string();
+
+                TaskResultMarker::new(&task_result_marker_dir, hasher(Some(&hash)))?.success()?;
+
+                Ok(hash)
+            }
+        }
     }
 }
 

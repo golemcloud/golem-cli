@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use crate::app::build::task_result_marker::TaskResultMarkerHashSourceKind::{Hash, HashFromString};
+use crate::config::ProfileName;
 use crate::fs;
 use crate::log::log_warn_action;
 use crate::model::app::{AppComponentName, DependentComponent};
-use crate::model::{app_raw, ProjectName};
-use anyhow::{anyhow, Context};
+use crate::model::{app_raw, ComponentName, ProjectName};
+use anyhow::{anyhow, bail, Context};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -27,7 +28,7 @@ use wit_parser::PackageName;
 pub enum TaskResultMarkerHashSourceKind {
     // The string will be hashed
     HashFromString(String),
-    // The string will be used as the hash
+    // The string will be used as the hash, expected to be in hex format
     Hash(String),
 }
 
@@ -50,7 +51,7 @@ pub trait TaskResultMarkerHashSource {
     /// The source will be used for calculating the hash value for the task result marker.
     /// It should contain all the properties of the task which should trigger re-runs.
     /// Note that currently we usually do not include file sources in these, as for those
-    /// we use modtime based checks together with task markers.
+    /// we use mod-time based checks together with task markers.
     fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind>;
 }
 
@@ -154,26 +155,24 @@ impl TaskResultMarkerHashSource for AddMetadataMarkerHash<'_> {
     }
 
     fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind> {
-        Ok(HashFromString(format!(
-            "{}#{}",
-            self.component_name, self.root_package_name
-        )))
+        Ok(HashFromString(self.root_package_name.to_string()))
     }
 }
 
-pub struct GetServerComponentHashHash<'a> {
+pub struct GetServerComponentHash<'a> {
     // NOTE: This can break if somebody reuses a profile name,
     //       but can be workaround even then with a clean deploy
-    pub profile_name: &'a str,
+    pub profile_name: &'a ProfileName,
     pub project_name: Option<&'a ProjectName>,
-    pub component_name: &'a AppComponentName,
+    pub component_name: &'a ComponentName,
     pub component_version: u64,
-    pub component_hash: &'a str,
+    // NOTE: use None for querying
+    pub component_hash: Option<&'a str>,
 }
 
-impl TaskResultMarkerHashSource for GetServerComponentHashHash<'_> {
+impl TaskResultMarkerHashSource for GetServerComponentHash<'_> {
     fn kind() -> &'static str {
-        "GetServerComponentHashHash"
+        "GetServerComponentHash"
     }
 
     fn id(&self) -> anyhow::Result<Option<String>> {
@@ -184,7 +183,10 @@ impl TaskResultMarkerHashSource for GetServerComponentHashHash<'_> {
     }
 
     fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind> {
-        Ok(Hash(self.component_hash.to_string()))
+        match self.component_hash {
+            Some(hash) => Ok(Hash(hash.to_string())),
+            None => bail!("Missing precalculated hash for {}", self.component_name),
+        }
     }
 }
 
@@ -193,36 +195,78 @@ pub struct TaskResultMarker {
     id: String,
     hash_input: String,
     marker_file_path: PathBuf,
-    hex_hash: String,
+    hash_hex: String,
     previous_result: Option<TaskResult>,
 }
 
 impl TaskResultMarker {
     pub fn new<T: TaskResultMarkerHashSource>(dir: &Path, task: T) -> anyhow::Result<Self> {
-        let (hash_input, hex_hash) = match task.source()? {
+        let (hash_input, hash_hex) = match task.source()? {
             HashFromString(hash_input) => {
                 let mut hasher = blake3::Hasher::new();
-                hasher.update(T::kind().as_bytes());
                 hasher.update(hash_input.as_bytes());
                 (hash_input, hasher.finalize().to_hex().to_string())
             }
             Hash(hash) => (hash.clone(), hash),
         };
 
-        let (id, id_hex_hash) = {
+        let (id_hash_hex, id) = {
             match task.id()? {
-                Some(id) => {
-                    let mut hasher = blake3::Hasher::new();
-                    hasher.update(T::kind().as_bytes());
-                    hasher.update(id.as_bytes());
-                    (id, hasher.finalize().to_hex().to_string())
-                }
-                None => (hash_input.clone(), hex_hash.clone()),
+                Some(id) => (Self::id_hash_hex::<T>(&id), id),
+                None => (hash_hex.clone(), hash_input.clone()),
             }
         };
 
-        let marker_file_path = dir.join(&id_hex_hash);
+        let (marker_file_path, marker_file_exists, previous_result) =
+            Self::load_previous_result(dir, &id_hash_hex)?;
+
+        let task_result_marker = Self {
+            kind: T::kind(),
+            id,
+            hash_input,
+            marker_file_path,
+            hash_hex,
+            previous_result,
+        };
+
+        if marker_file_exists && !task_result_marker.is_up_to_date() {
+            fs::remove(&task_result_marker.marker_file_path)?;
+        }
+
+        Ok(task_result_marker)
+    }
+
+    pub fn get_hash<T: TaskResultMarkerHashSource>(
+        dir: &Path,
+        task: T,
+    ) -> anyhow::Result<Option<String>> {
+        let id_hash_hex = {
+            match task.id()? {
+                Some(id) => Self::id_hash_hex::<T>(&id),
+                None => bail!("missing id for get_hash, task kind: {}", T::kind()),
+            }
+        };
+
+        let (_marker_file_path, _marker_file_exists, previous_result) =
+            Self::load_previous_result(dir, &id_hash_hex)?;
+
+        Ok(previous_result.map(|previous_result| previous_result.hash_hex))
+    }
+
+    fn id_hash_hex<T: TaskResultMarkerHashSource>(id: &str) -> String {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(T::kind().as_bytes());
+        hasher.update(id.as_bytes());
+        hasher.finalize().to_hex().to_string()
+    }
+
+    fn load_previous_result(
+        dir: &Path,
+        id_hash_hex: &str,
+    ) -> anyhow::Result<(PathBuf, bool, Option<TaskResult>)> {
+        let marker_file_path = dir.join(&id_hash_hex);
         let marker_file_exists = marker_file_path.exists();
+
         let previous_result = {
             if marker_file_exists {
                 match serde_json::from_str::<TaskResult>(&fs::read_to_string(&marker_file_path)?) {
@@ -244,33 +288,16 @@ impl TaskResultMarker {
             }
         };
 
-        let task_result_marker = Self {
-            kind: T::kind(),
-            id,
-            hash_input,
-            marker_file_path,
-            hex_hash,
-            previous_result,
-        };
-
-        if marker_file_exists && !task_result_marker.is_up_to_date() {
-            fs::remove(&task_result_marker.marker_file_path)?;
-        }
-
-        Ok(task_result_marker)
+        Ok((marker_file_path, marker_file_exists, previous_result))
     }
 
     pub fn is_up_to_date(&self) -> bool {
         match &self.previous_result {
             Some(previous_result) => {
-                previous_result.hash_hex == self.hex_hash && previous_result.success
+                previous_result.hash_hex == self.hash_hex && previous_result.success
             }
             None => false,
         }
-    }
-
-    pub fn get_hash_if_up_to_date(&self) -> Option<&str> {
-        self.is_up_to_date().then(|| self.hex_hash.as_str())
     }
 
     pub fn success(self) -> anyhow::Result<()> {
@@ -289,7 +316,7 @@ impl TaskResultMarker {
                 kind: Some(self.kind.to_string()),
                 id: Some(self.id),
                 hash_input: Some(self.hash_input),
-                hash_hex: self.hex_hash,
+                hash_hex: self.hash_hex,
                 success,
             })?,
         )
