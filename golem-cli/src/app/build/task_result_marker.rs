@@ -231,7 +231,7 @@ impl TaskResultMarker {
         fs::write_str(
             &self.marker_file_path,
             &serde_json::to_string_pretty(&TaskResult {
-                // TODO: setting kind, id and hash_input could be driven by a debug flag, env or  build
+                // TODO: setting kind, id and hash_input could be driven by a debug flag, env or build
                 kind: Some(self.kind.to_string()),
                 id: Some(self.id),
                 hash_input: Some(self.hash_input),

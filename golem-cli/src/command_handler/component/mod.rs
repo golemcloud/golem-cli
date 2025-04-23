@@ -25,15 +25,20 @@ use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::{HintError, NonSuccessfulExit, ShowClapHelpTarget};
-use crate::log::{log_action, logln, LogColorize, LogIndent};
+use crate::log::{
+    log_action, log_skipping_up_to_date, log_warn_action, logln, LogColorize, LogIndent,
+};
 use crate::model::app::{
     AppComponentName, ApplicationComponentSelectMode, BuildProfileName, DynamicHelpSections,
 };
 use crate::model::app::{DependencyType, InitialComponentFile};
 use crate::model::component::{Component, ComponentSelection, ComponentView};
 use crate::model::deploy::TryUpdateAllWorkersResult;
+use crate::model::deploy_diff::DeployableComponent;
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
-use crate::model::text::fmt::{log_error, log_text_view, log_warn};
+use crate::model::text::fmt::{
+    log_deployable_entity_yaml_diff, log_error, log_text_view, log_warn,
+};
 use crate::model::text::help::ComponentNameHelp;
 use crate::model::to_cloud::ToCloud;
 use crate::model::{
@@ -42,9 +47,11 @@ use crate::model::{
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
-use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
 use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
+use golem_client::model::{
+    DynamicLinkedInstance as DynamicLinkedInstanceOss, DynamicLinkedInstance,
+};
 use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
 use golem_cloud_client::model::ComponentQuery;
 use golem_common::model::component_metadata::WasmRpcTarget;
@@ -52,7 +59,7 @@ use golem_common::model::{ComponentId, ComponentType};
 use golem_templates::add_component_by_template;
 use golem_templates::model::{GuestLanguage, PackageName};
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
@@ -683,14 +690,66 @@ impl ComponentCommandHandler {
         project: Option<&ProjectNameAndId>,
         component_name: &AppComponentName,
     ) -> anyhow::Result<Component> {
-        let component_id = self
-            .component_id_by_name(project, &component_name.as_str().into())
+        let server_component = self
+            .component(
+                project,
+                (&ComponentName::from(component_name.as_str())).into(),
+                None,
+            )
             .await?;
         let deploy_properties = {
             let mut app_ctx = self.ctx.app_context_lock_mut().await;
             let app_ctx = app_ctx.some_or_err_mut()?;
             component_deploy_properties(app_ctx, component_name, build_profile)?
         };
+        let component_id = server_component
+            .as_ref()
+            .map(|c| c.versioned_component_id.component_id);
+
+        if let Some(server_component) = server_component {
+            let server_deployable_component =
+                self.server_deployable_component(&server_component).await?;
+            let manifest_deployable_component = self
+                .manifest_deployable_component(component_name, &deploy_properties)
+                .await?;
+
+            if server_deployable_component == manifest_deployable_component {
+                log_skipping_up_to_date(format!(
+                    "deploying component {}",
+                    component_name.as_str().log_color_highlight()
+                ));
+                return Ok(server_component);
+            } else {
+                log_warn_action(
+                    "Found",
+                    format!(
+                        "changes for component {}",
+                        component_name.as_str().log_color_highlight()
+                    ),
+                );
+
+                {
+                    let _indent = self.ctx.log_handler().nested_text_view_indent();
+                    log_deployable_entity_yaml_diff(
+                        &server_deployable_component,
+                        &manifest_deployable_component,
+                    )?;
+                }
+            }
+        }
+
+        let linked_wasm = File::open(&deploy_properties.linked_wasm_path)
+            .await
+            .with_context(|| {
+                anyhow!(
+                    "Failed to open component linked WASM at {}",
+                    deploy_properties
+                        .linked_wasm_path
+                        .display()
+                        .to_string()
+                        .log_color_error_highlight()
+                )
+            })?;
 
         let ifs_files = {
             if !deploy_properties.files.is_empty() {
@@ -717,22 +776,8 @@ impl ComponentCommandHandler {
             }
         };
 
-        let linked_wasm = File::open(&deploy_properties.linked_wasm_path)
-            .await
-            .with_context(|| {
-                anyhow!(
-                    "Failed to open component linked WASM at {}",
-                    deploy_properties
-                        .linked_wasm_path
-                        .display()
-                        .to_string()
-                        .log_color_error_highlight()
-                )
-            })?;
-
-        let component = match &component_id {
+        let component = match component_id {
             Some(component_id) => {
-                // TODO: use hashes for checking if component files has to be updated?
                 log_action(
                     "Updating",
                     format!(
@@ -745,7 +790,7 @@ impl ComponentCommandHandler {
                         let component = clients
                             .component
                             .update_component(
-                                &component_id.0,
+                                &component_id,
                                 Some(&deploy_properties.component_type),
                                 linked_wasm,
                                 ifs_properties,
@@ -760,7 +805,7 @@ impl ComponentCommandHandler {
                         let component = clients
                             .component
                             .update_component(
-                                &component_id.0,
+                                &component_id,
                                 Some(&deploy_properties.component_type),
                                 linked_wasm,
                                 ifs_properties,
@@ -1268,6 +1313,123 @@ impl ComponentCommandHandler {
             .component(project, component_name.into(), None)
             .await?
             .map(|c| ComponentId(c.versioned_component_id.component_id)))
+    }
+
+    // NOTE: all of this is naive for now (as in performance, streaming, parallelism)
+    async fn manifest_deployable_component(
+        &self,
+        component_name: &AppComponentName,
+        properties: &ComponentDeployProperties,
+    ) -> anyhow::Result<DeployableComponent> {
+        let component_hash = {
+            let file = std::fs::File::open(&properties.linked_wasm_path)?;
+            let mut component_hasher = blake3::Hasher::new();
+            component_hasher
+                .update_reader(&file)
+                .context("Failed to hash component")?;
+            component_hasher.finalize().to_hex().to_string()
+        };
+
+        Ok(DeployableComponent {
+            component_name: component_name.as_str().into(),
+            component_hash,
+            component_type: properties.component_type,
+            files: Default::default(), // TODO:
+            dynamic_linking: properties
+                .dynamic_linking
+                .iter()
+                .flat_map(|dl| {
+                    dl.dynamic_linking.iter().map(|(name, instance)| {
+                        (
+                            name.clone(),
+                            match instance {
+                                DynamicLinkedInstance::WasmRpc(links) => links
+                                    .targets
+                                    .iter()
+                                    .map(|(resource, target)| {
+                                        (resource.clone(), target.interface_name.clone())
+                                    })
+                                    .collect::<BTreeMap<_, _>>(),
+                            },
+                        )
+                    })
+                })
+                .collect(),
+        })
+    }
+
+    // NOTE: all of this is naive for now (as in performance, streaming, parallelism)
+    async fn server_deployable_component(
+        &self,
+        component: &Component,
+    ) -> anyhow::Result<DeployableComponent> {
+        // TODO: cache component hash (including the profile, version),
+        //       and also cache it during deploy, so no download is needed
+
+        let component_hash = {
+            log_warn_action(
+                "Downloading",
+                format!(
+                    "server component {}@{} for diffing",
+                    component.component_name.0.log_color_highlight(),
+                    component
+                        .versioned_component_id
+                        .version
+                        .to_string()
+                        .log_color_highlight()
+                ),
+            );
+            let component_bytes = match self.ctx.golem_clients().await? {
+                GolemClients::Oss(clients) => {
+                    clients
+                        .component
+                        .download_component(
+                            &component.versioned_component_id.component_id,
+                            Some(component.versioned_component_id.version),
+                        )
+                        .await?
+                }
+                GolemClients::Cloud(clients) => {
+                    clients
+                        .component
+                        .download_component(
+                            &component.versioned_component_id.component_id,
+                            Some(component.versioned_component_id.version),
+                        )
+                        .await?
+                }
+            };
+
+            let mut component_hasher = blake3::Hasher::new();
+            component_hasher.update(&component_bytes);
+            component_hasher.finalize().to_hex().to_string()
+        };
+
+        Ok(DeployableComponent {
+            component_name: component.component_name.clone(),
+            component_hash,
+            component_type: component.component_type,
+            files: Default::default(), // TODO:
+            dynamic_linking: component
+                .metadata
+                .dynamic_linking
+                .iter()
+                .map(|(name, link)| {
+                    (
+                        name.clone(),
+                        match link {
+                            golem_common::model::component_metadata::DynamicLinkedInstance::WasmRpc(links) => links
+                                .targets
+                                .iter()
+                                .map(|(resource, target)| {
+                                    (resource.clone(), target.interface_name.clone())
+                                })
+                                .collect::<BTreeMap<String, String>>(),
+                        },
+                    )
+                })
+                .collect(), // TODO:
+        })
     }
 }
 

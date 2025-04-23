@@ -28,9 +28,7 @@ use crate::error::NonSuccessfulExit;
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::log::{log_action, log_error_action, log_warn_action, logln, LogColorize, LogIndent};
 use crate::model::app::ApplicationComponentSelectMode;
-use crate::model::component::{
-    function_params_types, show_exported_functions, AppComponentType, Component,
-};
+use crate::model::component::{function_params_types, show_exported_functions, Component};
 use crate::model::deploy::{TryUpdateAllWorkersResult, WorkerUpdateAttempt};
 use crate::model::invoke_result_view::InvokeResultView;
 use crate::model::text::fmt::{
@@ -51,7 +49,7 @@ use anyhow::{anyhow, bail};
 use colored::Colorize;
 use golem_client::api::{ComponentClient as ComponentClientOss, WorkerClient as WorkerClientOss};
 use golem_client::model::{
-    InvokeParameters as InvokeParametersOss, InvokeResult, PublicOplogEntry,
+    ComponentType, InvokeParameters as InvokeParametersOss, InvokeResult, PublicOplogEntry,
     RevertLastInvocations as RevertLastInvocationsOss, RevertToOplogIndex as RevertToOplogIndexOss,
     RevertWorkerTarget as RevertWorkerTargetOss, ScanCursor,
     UpdateWorkerRequest as UpdateWorkerRequestOss,
@@ -195,7 +193,7 @@ impl WorkerCommandHandler {
             )
             .await?;
 
-        if component.component_type == AppComponentType::Ephemeral
+        if component.component_type == ComponentType::Ephemeral
             && worker_name_match.worker_name.is_some()
         {
             log_error("Cannot use explicit name for ephemeral worker!");

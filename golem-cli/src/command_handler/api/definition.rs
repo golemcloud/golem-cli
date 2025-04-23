@@ -22,23 +22,22 @@ use crate::error::NonSuccessfulExit;
 use crate::log::{log_action, log_skipping_up_to_date, log_warn_action, LogColorize, LogIndent};
 use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion};
 use crate::model::app::{HttpApiDefinitionName, WithSource};
-use crate::model::app_raw::{HttpApiDefinition, HttpApiDefinitionBindingType};
+use crate::model::app_raw::HttpApiDefinition;
+use crate::model::deploy_diff::{AsHttpApiDefinitionRequest, ToYamlValueWithoutNulls};
 use crate::model::text::api_definition::{
     ApiDefinitionGetView, ApiDefinitionNewView, ApiDefinitionUpdateView,
 };
-use crate::model::text::fmt::{log_entity_yaml_diff, log_error, log_warn};
+use crate::model::text::fmt::{log_deployable_entity_yaml_diff, log_error, log_warn};
 use crate::model::{PathBufOrStdin, ProjectNameAndId};
 use anyhow::{bail, Context as AnyhowContext};
 use golem_client::api::ApiDefinitionClient as ApiDefinitionClientOss;
 use golem_client::model::{
-    GatewayBindingComponent, GatewayBindingData, GatewayBindingType,
     HttpApiDefinitionRequest as HttpApiDefinitionRequestOss, HttpApiDefinitionRequest,
-    HttpApiDefinitionResponseData, MethodPattern, RouteRequestData,
+    HttpApiDefinitionResponseData,
 };
 use golem_cloud_client::api::ApiDefinitionClient as ApiDefinitionClientCloud;
 use golem_cloud_client::model::HttpApiDefinitionRequest as HttpApiDefinitionRequestCloud;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 use std::sync::Arc;
 
 pub struct ApiDefinitionCommandHandler {
@@ -401,7 +400,7 @@ impl ApiDefinitionCommandHandler {
 
                     {
                         let _indent = self.ctx.log_handler().nested_text_view_indent();
-                        log_entity_yaml_diff(
+                        log_deployable_entity_yaml_diff(
                             &server_api_definition_yaml,
                             &manifest_api_definition_yaml,
                         )?;
@@ -628,144 +627,4 @@ fn parse_api_definition<T: DeserializeOwned>(input: &str) -> anyhow::Result<T> {
 
 fn read_and_parse_api_definition<T: DeserializeOwned>(source: PathBufOrStdin) -> anyhow::Result<T> {
     parse_api_definition(&source.read_to_string()?)
-}
-
-trait AsHttpApiDefinitionRequest {
-    fn as_http_api_definition_request(&self) -> HttpApiDefinitionRequest;
-}
-
-impl AsHttpApiDefinitionRequest for HttpApiDefinitionResponseData {
-    fn as_http_api_definition_request(&self) -> HttpApiDefinitionRequest {
-        HttpApiDefinitionRequest {
-            id: self.id.clone(),
-            version: self.version.clone(),
-            security: None, // TODO: check that this is not needed anymore
-            routes: self
-                .routes
-                .iter()
-                .map(|route| RouteRequestData {
-                    method: route.method.clone(),
-                    path: route.path.clone(),
-                    binding: GatewayBindingData {
-                        binding_type: route.binding.binding_type.clone(),
-                        component: route.binding.component.as_ref().map(|component| {
-                            GatewayBindingComponent {
-                                name: component.name.clone(),
-                                version: None, // TODO: None for now, how to handle diff on this?
-                            }
-                        }),
-                        worker_name: route.binding.worker_name.clone(),
-                        idempotency_key: route.binding.idempotency_key.clone(),
-                        response: route.binding.response.clone(),
-                        invocation_context: None, // TODO: should this be in the response?
-                    },
-                    security: route.security.clone(),
-                })
-                .collect(),
-            draft: self.draft,
-        }
-    }
-}
-
-// TODO: wrapper for the tuple (especially once CORS representation is finalised)
-impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition) {
-    fn as_http_api_definition_request(&self) -> HttpApiDefinitionRequest {
-        let (name, api_definition) = self;
-
-        HttpApiDefinitionRequest {
-            id: name.to_string(),
-            version: api_definition.version.clone(),
-            security: None, // TODO: check that this is not needed anymore
-            routes: api_definition
-                .routes
-                .iter()
-                .map(|route| RouteRequestData {
-                    method: to_method_pattern(&route.method),
-                    path: route.path.trim_end_matches('/').to_string(),
-                    binding: GatewayBindingData {
-                        binding_type: Some(
-                            route
-                                .binding
-                                .type_
-                                .as_ref()
-                                .map(|binding_type| match binding_type {
-                                    HttpApiDefinitionBindingType::Default => {
-                                        GatewayBindingType::Default
-                                    }
-                                    HttpApiDefinitionBindingType::FileServer => {
-                                        GatewayBindingType::FileServer
-                                    }
-                                    HttpApiDefinitionBindingType::HttpHandler => {
-                                        GatewayBindingType::HttpHandler
-                                    }
-                                })
-                                .unwrap_or_else(|| GatewayBindingType::Default),
-                        ),
-                        component: Some(GatewayBindingComponent {
-                            name: route.binding.component_name.clone(),
-                            version: None, // TODO: how we should handle versions
-                        }),
-                        worker_name: route.binding.worker_name.clone(),
-                        idempotency_key: route.binding.idempotency_key.clone(),
-                        response: route
-                            .binding
-                            .response
-                            .as_ref()
-                            .map(|rib| rib.trim_end_matches('\n').to_string()) // TODO: trim all rib script
-                            .clone(),
-                        invocation_context: None, // TODO: should this be in the response?
-                    },
-                    security: route.security.clone(),
-                })
-                .collect(),
-            draft: api_definition.draft,
-        }
-    }
-}
-
-// TODO: add validation for this in the manifest
-fn to_method_pattern(method: &str) -> MethodPattern {
-    match method.to_lowercase().as_str() {
-        "get" => MethodPattern::Get,
-        "connect" => MethodPattern::Connect,
-        "post" => MethodPattern::Post,
-        "delete" => MethodPattern::Delete,
-        "put" => MethodPattern::Put,
-        "patch" => MethodPattern::Patch,
-        "options" => MethodPattern::Options,
-        "trace" => MethodPattern::Trace,
-        "head" => MethodPattern::Head,
-        _ => unreachable!(), // TODO
-    }
-}
-
-trait ToYamlValueWithoutNulls {
-    fn to_yaml_value_without_nulls(self) -> serde_yaml::Result<serde_yaml::Value>;
-}
-
-impl<T: Serialize> ToYamlValueWithoutNulls for T {
-    fn to_yaml_value_without_nulls(self) -> serde_yaml::Result<serde_yaml::Value> {
-        Ok(yaml_value_without_nulls(serde_yaml::to_value(self)?))
-    }
-}
-
-fn yaml_value_without_nulls(value: serde_yaml::Value) -> serde_yaml::Value {
-    match value {
-        serde_yaml::Value::Mapping(mapping) => serde_yaml::Value::Mapping(
-            mapping
-                .into_iter()
-                .filter_map(|(key, value)| {
-                    if value == serde_yaml::Value::Null {
-                        None
-                    } else {
-                        Some((key, yaml_value_without_nulls(value)))
-                    }
-                })
-                .collect(),
-        ),
-        serde_yaml::Value::Sequence(sequence) => serde_yaml::Value::Sequence(
-            sequence.into_iter().map(yaml_value_without_nulls).collect(),
-        ),
-        _ => value,
-    }
 }

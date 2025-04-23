@@ -152,6 +152,7 @@ pub struct HttpApiDefinitionBinding {
     pub component_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub component_version: Option<u64>,
+    // TODO: let's drop this if we consider this deprecated
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worker_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

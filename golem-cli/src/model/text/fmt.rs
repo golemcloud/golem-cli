@@ -360,7 +360,7 @@ pub fn log_fuzzy_match(m: &Match) {
     );
 }
 
-pub fn log_entity_yaml_diff<T: Serialize>(server: &T, manifest: &T) -> anyhow::Result<()> {
+pub fn log_deployable_entity_yaml_diff<T: Serialize>(server: &T, manifest: &T) -> anyhow::Result<()> {
     let server_yaml = serde_yaml::to_string(server).context("failed to serialize server entity")?;
     let manifest_yaml =
         serde_yaml::to_string(manifest).context("failed to serialize manifest entity")?;

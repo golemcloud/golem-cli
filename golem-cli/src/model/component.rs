@@ -66,7 +66,7 @@ pub struct Component {
     pub versioned_component_id: VersionedComponentId,
     pub component_name: ComponentName,
     pub component_size: u64,
-    pub component_type: AppComponentType,
+    pub component_type: ComponentType,
     pub metadata: ComponentMetadata,
     pub project_id: Option<ProjectId>,
     pub created_at: Option<DateTime<Utc>>,
@@ -172,7 +172,7 @@ impl ComponentUpsertResult {
 pub struct ComponentView {
     pub component_name: ComponentName,
     pub component_id: Uuid,
-    pub component_type: AppComponentType,
+    pub component_type: ComponentType,
     pub component_version: u64,
     pub component_size: u64,
     pub created_at: Option<DateTime<Utc>>,

@@ -17,6 +17,7 @@ pub mod app;
 pub mod app_raw;
 pub mod component;
 pub mod deploy;
+pub mod deploy_diff;
 pub mod invoke_result_view;
 pub mod plugin_manifest;
 pub mod project;
