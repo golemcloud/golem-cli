@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::app::build::task_result_marker::TaskResultMarkerHashSourceKind::{Hash, HashFromString};
 use crate::fs;
 use crate::log::log_warn_action;
 use crate::model::app::{AppComponentName, DependentComponent};
-use crate::model::app_raw;
+use crate::model::{app_raw, ProjectName};
 use anyhow::{anyhow, Context};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -23,17 +24,34 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use wit_parser::PackageName;
 
-pub trait TaskResultMarkerHashInput {
+pub enum TaskResultMarkerHashSourceKind {
+    // The string will be hashed
+    HashFromString(String),
+    // The string will be used as the hash
+    Hash(String),
+}
+
+pub trait TaskResultMarkerHashSource {
     fn kind() -> &'static str;
 
-    fn hash_input(&self) -> anyhow::Result<String>;
-
-    /// If returns None, then all_hash_input will be used as id.
-    /// The difference between id and hash_input is that id should not include
-    /// "task property". E.g.: the hash_input for component dependencies should contain
-    /// the dependency names and type, while the id should not. We use this to prevent
-    /// detecting false UP-TO-DATE-ness e.g. one keep changing the dependency type.
+    /// The hashed value of id will be used as the task result marker filename.
+    ///
+    /// If id() returns None, then the source will be used as id.
+    ///
+    /// Specifying the id is optional, as some tasks are their own identity, like external commands.
+    /// In those cases we can skip calculating values and hashes twice.
+    ///
+    /// The main difference between id and hash is that it should not include
+    /// generic "task properties", only ids for the task. E.g.: the hash_input for rpc linking
+    /// should contain all the main and dependency component names and types, while the id should
+    /// only contain the main component name which the dependencies are linked into.
     fn id(&self) -> anyhow::Result<Option<String>>;
+
+    /// The source will be used for calculating the hash value for the task result marker.
+    /// It should contain all the properties of the task which should trigger re-runs.
+    /// Note that currently we usually do not include file sources in these, as for those
+    /// we use modtime based checks together with task markers.
+    fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,17 +77,17 @@ pub struct ResolvedExternalCommandMarkerHash<'a> {
     pub command: &'a app_raw::ExternalCommand,
 }
 
-impl TaskResultMarkerHashInput for ResolvedExternalCommandMarkerHash<'_> {
+impl TaskResultMarkerHashSource for ResolvedExternalCommandMarkerHash<'_> {
     fn kind() -> &'static str {
         "ResolvedExternalCommandMarkerHash"
     }
 
-    fn hash_input(&self) -> anyhow::Result<String> {
-        Ok(serde_yaml::to_string(self)?)
-    }
-
     fn id(&self) -> anyhow::Result<Option<String>> {
         Ok(None)
+    }
+
+    fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind> {
+        Ok(HashFromString(serde_json::to_string(self)?))
     }
 }
 
@@ -78,17 +96,20 @@ pub struct ComponentGeneratorMarkerHash<'a> {
     pub generator_kind: &'a str,
 }
 
-impl TaskResultMarkerHashInput for ComponentGeneratorMarkerHash<'_> {
+impl TaskResultMarkerHashSource for ComponentGeneratorMarkerHash<'_> {
     fn kind() -> &'static str {
         "ComponentGeneratorMarkerHash"
     }
 
-    fn hash_input(&self) -> anyhow::Result<String> {
-        Ok(format!("{}-{}", self.component_name, self.generator_kind))
-    }
-
     fn id(&self) -> anyhow::Result<Option<String>> {
         Ok(None)
+    }
+
+    fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind> {
+        Ok(HashFromString(format!(
+            "{}-{}",
+            self.component_name, self.generator_kind
+        )))
     }
 }
 
@@ -97,24 +118,24 @@ pub struct LinkRpcMarkerHash<'a> {
     pub dependencies: &'a BTreeSet<&'a DependentComponent>,
 }
 
-impl TaskResultMarkerHashInput for LinkRpcMarkerHash<'_> {
+impl TaskResultMarkerHashSource for LinkRpcMarkerHash<'_> {
     fn kind() -> &'static str {
         "RpcLinkMarkerHash"
     }
 
-    fn hash_input(&self) -> anyhow::Result<String> {
-        Ok(format!(
+    fn id(&self) -> anyhow::Result<Option<String>> {
+        Ok(Some(self.component_name.to_string()))
+    }
+
+    fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind> {
+        Ok(HashFromString(format!(
             "{}#{}",
             self.component_name,
             self.dependencies
                 .iter()
                 .map(|s| format!("{}#{}", s.name.as_str(), s.dep_type.as_str()))
                 .join(",")
-        ))
-    }
-
-    fn id(&self) -> anyhow::Result<Option<String>> {
-        Ok(Some(self.component_name.to_string()))
+        )))
     }
 }
 
@@ -123,20 +144,47 @@ pub struct AddMetadataMarkerHash<'a> {
     pub root_package_name: PackageName,
 }
 
-impl TaskResultMarkerHashInput for AddMetadataMarkerHash<'_> {
+impl TaskResultMarkerHashSource for AddMetadataMarkerHash<'_> {
     fn kind() -> &'static str {
         "AddMetadataMarkerHash"
     }
 
-    fn hash_input(&self) -> anyhow::Result<String> {
-        Ok(format!(
+    fn id(&self) -> anyhow::Result<Option<String>> {
+        Ok(Some(self.component_name.to_string()))
+    }
+
+    fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind> {
+        Ok(HashFromString(format!(
             "{}#{}",
             self.component_name, self.root_package_name
-        ))
+        )))
+    }
+}
+
+pub struct GetServerComponentHashHash<'a> {
+    // NOTE: This can break if somebody reuses a profile name,
+    //       but can be workaround even then with a clean deploy
+    pub profile_name: &'a str,
+    pub project_name: Option<&'a ProjectName>,
+    pub component_name: &'a AppComponentName,
+    pub component_version: u64,
+    pub component_hash: &'a str,
+}
+
+impl TaskResultMarkerHashSource for GetServerComponentHashHash<'_> {
+    fn kind() -> &'static str {
+        "GetServerComponentHashHash"
     }
 
     fn id(&self) -> anyhow::Result<Option<String>> {
-        Ok(Some(self.component_name.to_string()))
+        Ok(Some(format!(
+            "{}#{:?}#{}#{}",
+            self.profile_name, self.project_name, self.component_name, self.component_version
+        )))
+    }
+
+    fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind> {
+        Ok(Hash(self.component_hash.to_string()))
     }
 }
 
@@ -150,13 +198,15 @@ pub struct TaskResultMarker {
 }
 
 impl TaskResultMarker {
-    pub fn new<T: TaskResultMarkerHashInput>(dir: &Path, task: T) -> anyhow::Result<Self> {
-        let hash_input = task.hash_input()?;
-        let hex_hash = {
-            let mut hasher = blake3::Hasher::new();
-            hasher.update(T::kind().as_bytes());
-            hasher.update(hash_input.as_bytes());
-            hasher.finalize().to_hex().to_string()
+    pub fn new<T: TaskResultMarkerHashSource>(dir: &Path, task: T) -> anyhow::Result<Self> {
+        let (hash_input, hex_hash) = match task.source()? {
+            HashFromString(hash_input) => {
+                let mut hasher = blake3::Hasher::new();
+                hasher.update(T::kind().as_bytes());
+                hasher.update(hash_input.as_bytes());
+                (hash_input, hasher.finalize().to_hex().to_string())
+            }
+            Hash(hash) => (hash.clone(), hash),
         };
 
         let (id, id_hex_hash) = {
@@ -217,6 +267,10 @@ impl TaskResultMarker {
             }
             None => false,
         }
+    }
+
+    pub fn get_hash_if_up_to_date(&self) -> Option<&str> {
+        self.is_up_to_date().then(|| self.hex_hash.as_str())
     }
 
     pub fn success(self) -> anyhow::Result<()> {
