@@ -429,7 +429,7 @@ impl PluginCommandHandler {
                 let project = self
                     .ctx
                     .cloud_project_handler()
-                    .select_project(account_details.as_ref().map(|ad| &ad.account_id), project)
+                    .select_project(account_details.as_ref(), project)
                     .await?;
                 Some(project)
             }

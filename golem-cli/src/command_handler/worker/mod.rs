@@ -1749,10 +1749,7 @@ impl WorkerCommandHandler {
                 let project = self
                     .ctx
                     .cloud_project_handler()
-                    .opt_select_project(
-                        account.as_ref().map(|ad| &ad.account_id),
-                        project_name.as_ref(),
-                    )
+                    .opt_select_project(account.as_ref(), project_name.as_ref())
                     .await?;
 
                 self.ctx

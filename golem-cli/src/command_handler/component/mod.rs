@@ -978,7 +978,7 @@ impl ComponentCommandHandler {
                                     self.ctx
                                         .cloud_project_handler()
                                         .select_project(
-                                            Some(&account.account_id),
+                                            Some(&account),
                                             &empty_checked_project(segments[1])?.into(),
                                         )
                                         .await?,
