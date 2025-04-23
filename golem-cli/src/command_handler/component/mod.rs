@@ -36,7 +36,8 @@ use crate::model::text::fmt::{log_error, log_text_view, log_warn};
 use crate::model::text::help::ComponentNameHelp;
 use crate::model::to_cloud::ToCloud;
 use crate::model::{
-    AccountDetails, ComponentName, ComponentNameMatchKind, ComponentVersionSelection, ProjectNameAndId, SelectedComponents, WorkerUpdateMode
+    AccountDetails, ComponentName, ComponentNameMatchKind, ComponentVersionSelection,
+    ProjectNameAndId, SelectedComponents, WorkerUpdateMode,
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
@@ -966,7 +967,11 @@ impl ComponentCommandHandler {
                         ),
                         3 => {
                             let account_email = empty_checked_account(segments[0])?;
-                            let account = self.ctx.cloud_account_handler().select_account_by_email_or_error(account_email).await?;
+                            let account = self
+                                .ctx
+                                .cloud_account_handler()
+                                .select_account_by_email_or_error(account_email)
+                                .await?;
                             (
                                 Some(account.clone()),
                                 Some(

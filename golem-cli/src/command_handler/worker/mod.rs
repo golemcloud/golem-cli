@@ -1736,7 +1736,12 @@ impl WorkerCommandHandler {
                 }
 
                 let account = if let Some(account_email) = account_email {
-                    Some(self.ctx.cloud_account_handler().select_account_by_email_or_error(&account_email).await?)
+                    Some(
+                        self.ctx
+                            .cloud_account_handler()
+                            .select_account_by_email_or_error(&account_email)
+                            .await?,
+                    )
                 } else {
                     None
                 };
@@ -1744,7 +1749,10 @@ impl WorkerCommandHandler {
                 let project = self
                     .ctx
                     .cloud_project_handler()
-                    .opt_select_project(account.as_ref().map(|ad| &ad.account_id), project_name.as_ref())
+                    .opt_select_project(
+                        account.as_ref().map(|ad| &ad.account_id),
+                        project_name.as_ref(),
+                    )
                     .await?;
 
                 self.ctx

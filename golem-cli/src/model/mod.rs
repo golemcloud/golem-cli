@@ -752,14 +752,14 @@ pub enum ComponentNameMatchKind {
 #[derive(Debug, Clone)]
 pub struct AccountDetails {
     pub account_id: AccountId,
-    pub email: String
+    pub email: String,
 }
 
 impl From<golem_cloud_client::model::Account> for AccountDetails {
     fn from(value: golem_cloud_client::model::Account) -> Self {
         Self {
             account_id: value.id.into(),
-            email: value.email
+            email: value.email,
         }
     }
 }
