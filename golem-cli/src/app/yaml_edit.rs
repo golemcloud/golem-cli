@@ -251,7 +251,7 @@ impl<'a> ValueExtensions<'a> for Value<'a> {
             return as_i64;
         }
 
-        if let Some(as_str) = self.as_str() {
+        if let Some(as_str) = self.as_str_with_comments_workaround() {
             return as_str.parse::<i64>().ok();
         }
 
