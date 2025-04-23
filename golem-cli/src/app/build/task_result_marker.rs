@@ -13,19 +13,44 @@
 // limitations under the License.
 
 use crate::fs;
+use crate::log::log_warn_action;
 use crate::model::app::{AppComponentName, DependentComponent};
 use crate::model::app_raw;
 use anyhow::{anyhow, Context};
 use itertools::Itertools;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use wit_parser::PackageName;
 
 pub trait TaskResultMarkerHashInput {
-    fn task_kind() -> &'static str;
+    fn kind() -> &'static str;
 
-    fn hash_input(&self) -> anyhow::Result<Vec<u8>>;
+    fn hash_input(&self) -> anyhow::Result<String>;
+
+    /// If returns None, then all_hash_input will be used as id.
+    /// The difference between id and hash_input is that id should not include
+    /// "task property". E.g.: the hash_input for component dependencies should contain
+    /// the dependency names and type, while the id should not. We use this to prevent
+    /// detecting false UP-TO-DATE-ness e.g. one keep changing the dependency type.
+    fn id(&self) -> anyhow::Result<Option<String>>;
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskResult {
+    // NOTE: kind is optional, only used for debugging
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    // NOTE: id is optional, only used for debugging
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    // NOTE: hash_input is optional, only used for debugging
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hash_input: Option<String>,
+
+    pub hash_hex: String,
+    pub success: bool,
 }
 
 #[derive(Serialize)]
@@ -35,12 +60,16 @@ pub struct ResolvedExternalCommandMarkerHash<'a> {
 }
 
 impl TaskResultMarkerHashInput for ResolvedExternalCommandMarkerHash<'_> {
-    fn task_kind() -> &'static str {
+    fn kind() -> &'static str {
         "ResolvedExternalCommandMarkerHash"
     }
 
-    fn hash_input(&self) -> anyhow::Result<Vec<u8>> {
-        Ok(serde_yaml::to_string(self)?.into_bytes())
+    fn hash_input(&self) -> anyhow::Result<String> {
+        Ok(serde_yaml::to_string(self)?)
+    }
+
+    fn id(&self) -> anyhow::Result<Option<String>> {
+        Ok(None)
     }
 }
 
@@ -50,12 +79,16 @@ pub struct ComponentGeneratorMarkerHash<'a> {
 }
 
 impl TaskResultMarkerHashInput for ComponentGeneratorMarkerHash<'_> {
-    fn task_kind() -> &'static str {
+    fn kind() -> &'static str {
         "ComponentGeneratorMarkerHash"
     }
 
-    fn hash_input(&self) -> anyhow::Result<Vec<u8>> {
-        Ok(format!("{}-{}", self.component_name, self.generator_kind).into_bytes())
+    fn hash_input(&self) -> anyhow::Result<String> {
+        Ok(format!("{}-{}", self.component_name, self.generator_kind))
+    }
+
+    fn id(&self) -> anyhow::Result<Option<String>> {
+        Ok(None)
     }
 }
 
@@ -65,11 +98,11 @@ pub struct LinkRpcMarkerHash<'a> {
 }
 
 impl TaskResultMarkerHashInput for LinkRpcMarkerHash<'_> {
-    fn task_kind() -> &'static str {
+    fn kind() -> &'static str {
         "RpcLinkMarkerHash"
     }
 
-    fn hash_input(&self) -> anyhow::Result<Vec<u8>> {
+    fn hash_input(&self) -> anyhow::Result<String> {
         Ok(format!(
             "{}#{}",
             self.component_name,
@@ -77,8 +110,11 @@ impl TaskResultMarkerHashInput for LinkRpcMarkerHash<'_> {
                 .iter()
                 .map(|s| format!("{}#{}", s.name.as_str(), s.dep_type.as_str()))
                 .join(",")
-        )
-        .into_bytes())
+        ))
+    }
+
+    fn id(&self) -> anyhow::Result<Option<String>> {
+        Ok(Some(self.component_name.to_string()))
     }
 }
 
@@ -88,81 +124,124 @@ pub struct AddMetadataMarkerHash<'a> {
 }
 
 impl TaskResultMarkerHashInput for AddMetadataMarkerHash<'_> {
-    fn task_kind() -> &'static str {
+    fn kind() -> &'static str {
         "AddMetadataMarkerHash"
     }
 
-    fn hash_input(&self) -> anyhow::Result<Vec<u8>> {
-        Ok(format!("{}#{}", self.component_name, self.root_package_name).into_bytes())
+    fn hash_input(&self) -> anyhow::Result<String> {
+        Ok(format!(
+            "{}#{}",
+            self.component_name, self.root_package_name
+        ))
+    }
+
+    fn id(&self) -> anyhow::Result<Option<String>> {
+        Ok(Some(self.component_name.to_string()))
     }
 }
 
 pub struct TaskResultMarker {
-    success_marker_file_path: PathBuf,
-    failure_marker_file_path: PathBuf,
-    success_before: bool,
-    failure_before: bool,
+    kind: &'static str,
+    id: String,
+    hash_input: String,
+    marker_file_path: PathBuf,
+    hex_hash: String,
+    previous_result: Option<TaskResult>,
 }
-
-static TASK_RESULT_MARKER_SUCCESS_SUFFIX: &str = "-success";
-static TASK_RESULT_MARKER_FAILURE_SUFFIX: &str = "-failure";
 
 impl TaskResultMarker {
     pub fn new<T: TaskResultMarkerHashInput>(dir: &Path, task: T) -> anyhow::Result<Self> {
-        let mut hasher = blake3::Hasher::new();
-        hasher.update(T::task_kind().as_bytes());
-        hasher.update(&task.hash_input()?);
-        let hex_hash = hasher.finalize().to_hex().to_string();
-
-        let success_marker_file_path = dir.join(format!(
-            "{}{}",
-            &hex_hash, TASK_RESULT_MARKER_SUCCESS_SUFFIX
-        ));
-        let failure_marker_file_path = dir.join(format!(
-            "{}{}",
-            &hex_hash, TASK_RESULT_MARKER_FAILURE_SUFFIX
-        ));
-
-        let success_marker_exists = success_marker_file_path.exists();
-        let failure_marker_exists = failure_marker_file_path.exists();
-
-        let (success_before, failure_before) = match (success_marker_exists, failure_marker_exists)
-        {
-            (true, false) => (true, false),
-            (false, false) => (false, false),
-            (_, true) => (false, true),
+        let hash_input = task.hash_input()?;
+        let hex_hash = {
+            let mut hasher = blake3::Hasher::new();
+            hasher.update(T::kind().as_bytes());
+            hasher.update(hash_input.as_bytes());
+            hasher.finalize().to_hex().to_string()
         };
 
-        if failure_marker_exists || !success_marker_exists {
-            if success_marker_exists {
-                fs::remove(&success_marker_file_path)?
+        let (id, id_hex_hash) = {
+            match task.id()? {
+                Some(id) => {
+                    let mut hasher = blake3::Hasher::new();
+                    hasher.update(T::kind().as_bytes());
+                    hasher.update(id.as_bytes());
+                    (id, hasher.finalize().to_hex().to_string())
+                }
+                None => (hash_input.clone(), hex_hash.clone()),
             }
-            if failure_marker_exists {
-                fs::remove(&failure_marker_file_path)?
+        };
+
+        let marker_file_path = dir.join(&id_hex_hash);
+        let marker_file_exists = marker_file_path.exists();
+        let previous_result = {
+            if marker_file_exists {
+                match serde_json::from_str::<TaskResult>(&fs::read_to_string(&marker_file_path)?) {
+                    Ok(result) => Some(result),
+                    Err(err) => {
+                        log_warn_action(
+                            "Ignoring",
+                            format!(
+                                "invalid task marker {}: {}",
+                                marker_file_path.display(),
+                                err
+                            ),
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
             }
+        };
+
+        let task_result_marker = Self {
+            kind: T::kind(),
+            id,
+            hash_input,
+            marker_file_path,
+            hex_hash,
+            previous_result,
+        };
+
+        if marker_file_exists && !task_result_marker.is_up_to_date() {
+            fs::remove(&task_result_marker.marker_file_path)?;
         }
 
-        Ok(Self {
-            success_marker_file_path,
-            failure_marker_file_path,
-            success_before,
-            failure_before,
-        })
+        Ok(task_result_marker)
     }
 
     pub fn is_up_to_date(&self) -> bool {
-        !self.failure_before && self.success_before
+        match &self.previous_result {
+            Some(previous_result) => {
+                previous_result.hash_hex == self.hex_hash && previous_result.success
+            }
+            None => false,
+        }
     }
 
-    pub fn success(&self) -> anyhow::Result<()> {
-        fs::write_str(&self.success_marker_file_path, "")
+    pub fn success(self) -> anyhow::Result<()> {
+        self.save_marker_file(true)
     }
 
-    pub fn failure(&self) -> anyhow::Result<()> {
-        fs::write_str(&self.failure_marker_file_path, "")
+    pub fn failure(self) -> anyhow::Result<()> {
+        self.save_marker_file(false)
     }
 
-    pub fn result<T>(&self, result: anyhow::Result<T>) -> anyhow::Result<T> {
+    fn save_marker_file(self, success: bool) -> anyhow::Result<()> {
+        fs::write_str(
+            &self.marker_file_path,
+            &serde_json::to_string(&TaskResult {
+                // TODO: setting kind, id and hash_input could be driven by a debug flag, env or  build
+                kind: Some(self.kind.to_string()),
+                id: Some(self.id),
+                hash_input: Some(self.hash_input),
+                hash_hex: self.hex_hash,
+                success,
+            })?,
+        )
+    }
+
+    pub fn result<T>(self, result: anyhow::Result<T>) -> anyhow::Result<T> {
         match result {
             Ok(result) => {
                 self.success()?;
