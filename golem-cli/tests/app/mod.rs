@@ -777,6 +777,7 @@ impl Output {
         contains_ordered(&self.stderr, patterns)
     }
 
+    #[allow(dead_code)]
     #[must_use]
     fn stdout_count_lines_containing<S: AsRef<str>>(&self, text: S) -> usize {
         self.stdout
