@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::app::context::ApplicationContext;
-use crate::cloud::AccountId;
 use crate::command::builtin_app_subcommands;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{
@@ -37,8 +36,7 @@ use crate::model::text::fmt::{log_error, log_text_view, log_warn};
 use crate::model::text::help::ComponentNameHelp;
 use crate::model::to_cloud::ToCloud;
 use crate::model::{
-    ComponentName, ComponentNameMatchKind, ComponentVersionSelection, ProjectNameAndId,
-    SelectedComponents, WorkerUpdateMode,
+    AccountDetails, ComponentName, ComponentNameMatchKind, ComponentVersionSelection, ProjectNameAndId, SelectedComponents, WorkerUpdateMode
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
@@ -939,8 +937,8 @@ impl ComponentCommandHandler {
 
         self.ctx.silence_app_context_init().await;
 
-        let (account_id, project, component_name): (
-            Option<AccountId>,
+        let (account, project, component_name): (
+            Option<AccountDetails>,
             Option<ProjectNameAndId>,
             Option<ComponentName>,
         ) = {
@@ -968,18 +966,14 @@ impl ComponentCommandHandler {
                         ),
                         3 => {
                             let account_email = empty_checked_account(segments[0])?;
-                            let account_id = self
-                                .ctx
-                                .cloud_account_handler()
-                                .select_account_id_by_email_or_error(account_email)
-                                .await?;
+                            let account = self.ctx.cloud_account_handler().select_account_by_email_or_error(account_email).await?;
                             (
-                                Some(account_id.clone()),
+                                Some(account.clone()),
                                 Some(
                                     self.ctx
                                         .cloud_project_handler()
                                         .select_project(
-                                            Some(&account_id),
+                                            Some(&account.account_id),
                                             &empty_checked_project(segments[1])?.into(),
                                         )
                                         .await?,
@@ -1042,7 +1036,7 @@ impl ComponentCommandHandler {
         }
 
         Ok(SelectedComponents {
-            account_id,
+            account,
             project,
             component_names: selected_component_names,
         })
