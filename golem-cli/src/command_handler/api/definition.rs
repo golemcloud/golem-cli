@@ -572,7 +572,8 @@ impl ApiDefinitionCommandHandler {
                 <meta charset="UTF-8">
                 <title>Swagger UI</title>
                 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
-                <script src="https://cdn.jsdelivr.net/npm/swagger-ui_dist@5/swagger-ui-bundle.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
             </head>
             <body>
                 <div id="swagger-ui"></div>
@@ -584,8 +585,9 @@ impl ApiDefinitionCommandHandler {
                             deepLinking: true,
                             presets: [
                                 SwaggerUIBundle.presets.apis,
-                                SwaggerUIBundle.SwaggerUIStandalonePreset
+                                SwaggerUIStandalonePreset
                             ],
+                            layout: "StandaloneLayout"
                         });
                     };
                 </script>
