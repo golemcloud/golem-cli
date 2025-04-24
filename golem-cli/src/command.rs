@@ -1080,7 +1080,7 @@ pub mod api {
 
     pub mod definition {
         use crate::command::shared_args::ProjectNameOptionalArg;
-        use crate::model::{ApiDefinitionId, ApiDefinitionVersion, PathBufOrStdin};
+        use crate::model::{ApiDefinitionId, ApiDefinitionVersion, OpenApiDefinitionOutputFormat, PathBufOrStdin};
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]

@@ -32,7 +32,6 @@ use golem_cloud_client::model::HttpApiDefinitionRequest as HttpApiDefinitionRequ
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use webbrowser;
-use std::net::TcpListener;
 use warp;
 
 pub struct ApiDefinitionCommandHandler {
