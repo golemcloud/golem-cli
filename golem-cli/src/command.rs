@@ -1080,7 +1080,7 @@ pub mod api {
 
     pub mod definition {
         use crate::command::shared_args::ProjectNameOptionalArg;
-        use crate::model::{ApiDefinitionId, ApiDefinitionVersion, PathBufOrStdin};
+        use crate::model::{ApiDefinitionId, ApiDefinitionVersion, OpenApiDefinitionOutputFormat, PathBufOrStdin};
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
@@ -1140,6 +1140,37 @@ pub mod api {
                 /// Version of the api definition
                 #[arg(long)]
                 version: ApiDefinitionVersion,
+            },
+            /// Exports an api definition in OpenAPI format
+            Export {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
+                /// Api definition id
+                #[arg(short, long)]
+                id: ApiDefinitionId,
+                /// Version of the api definition
+                #[arg(short = 'V', long)]
+                version: ApiDefinitionVersion,
+                /// Output format (json or yaml)
+                #[arg(long = "def-format", default_value = "yaml", name = "def-format")]
+                format: OpenApiDefinitionOutputFormat,
+                /// Custom output file name (without extension)
+                #[arg(short, long)]
+                output_name: Option<String>,
+            },
+            /// Opens Swagger UI for an API definition
+            Swagger {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
+                /// Api definition id
+                #[arg(short, long)]
+                id: ApiDefinitionId,
+                /// Version of the api definition
+                #[arg(short = 'V', long)]
+                version: ApiDefinitionVersion,
+                /// Host to open Swagger UI on
+                #[arg(short = 'H', long)]
+                host: String,
             },
         }
     }

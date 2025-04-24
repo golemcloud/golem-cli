@@ -111,6 +111,8 @@ wax = { workspace = true }
 wit-bindgen-rust = { workspace = true }
 wit-encoder = { workspace = true }
 wit-parser = { workspace = true }
+webbrowser = { workspace = true }
+warp = { workspace = true }
 
 [dev-dependencies]
 

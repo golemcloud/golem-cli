@@ -79,13 +79,10 @@ impl From<golem_client::model::Component> for Component {
             versioned_component_id: value.versioned_component_id,
             component_name: value.component_name.into(),
             component_size: value.component_size,
-            component_type: value
-                .component_type
-                .unwrap_or(ComponentType::Durable)
-                .into(),
+            component_type: value.component_type.into(),
             metadata: value.metadata,
             project_id: None,
-            created_at: value.created_at,
+            created_at: Some(value.created_at),
             files: value.files,
         }
     }
