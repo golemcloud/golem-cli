@@ -231,6 +231,13 @@
           "items": {
             "$ref": "#/definitions/initialComponentFile"
           }
+        },
+        "plugins": {
+          "type": "array",
+          "description": "Installed plugins for the component",
+          "items": {
+            "$ref": "#/definitions/pluginInstallation"
+          }
         }
       },
       "additionalProperties": false

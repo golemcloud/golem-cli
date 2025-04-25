@@ -776,6 +776,18 @@ impl ComponentProperties {
             }
         }
 
+        if !overrides.plugins.is_empty() {
+            any_overrides = true;
+            match PluginInstallation::from_raw_vec(validation, source, overrides.plugins) {
+                Some(plugins) => {
+                    self.plugins.extend(plugins);
+                }
+                None => {
+                    any_errors = true;
+                }
+            }
+        }
+
         Ok((!any_errors).then_some((self, any_overrides)))
     }
 
