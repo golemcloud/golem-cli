@@ -40,6 +40,7 @@ async-trait = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true }
 clap-verbosity-flag = { workspace = true }
+darling = { workspace = true }
 dirs = { workspace = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
