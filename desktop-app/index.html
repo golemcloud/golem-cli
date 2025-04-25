@@ -10,11 +10,6 @@
         --splashscreen-bg: white;
         --splashscreen-filter: none;
 
-        @media (prefers-color-scheme: dark) { 
-          --splashscreen-bg: black;
-          --splashscreen-filter: invert(100%);
-        }
-
         display: flex;
         justify-content: center;
         align-items: center;
@@ -26,6 +21,13 @@
       #splashscreen img {
         display: block;
         filter: var(--splashscreen-filter);
+      }
+
+      @media (prefers-color-scheme: dark) { 
+        #splashscreen {
+          --splashscreen-bg: black;
+          --splashscreen-filter: invert(100%);
+        }
       }
     </style>
   </head>
