@@ -152,7 +152,8 @@ impl<Hooks: CommandHandlerHooks> CommandHandler<Hooks> {
                     command.global_flags.verbosity()
                 };
                 #[cfg(feature = "server-commands")]
-                let pretty_mode = if matches!(command.subcommand, GolemCliSubcommand::Server { .. }) {
+                let pretty_mode = if matches!(command.subcommand, GolemCliSubcommand::Server { .. })
+                {
                     Hooks::override_pretty_mode()
                 } else {
                     false

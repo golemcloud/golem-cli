@@ -30,8 +30,9 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use wit_encoder::{
-    Ident, Interface, InterfaceItem, Package, PackageItem, Params, ResourceFunc, ResourceFuncKind,
-    StandaloneFunc, Type, TypeDef, TypeDefKind, Use, World, WorldItem,
+    packages_from_parsed, Ident, Interface, InterfaceItem, Package, PackageItem, Params,
+    ResourceFunc, ResourceFuncKind, StandaloneFunc, Type, TypeDef, TypeDefKind, Use, World,
+    WorldItem,
 };
 use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
@@ -429,11 +430,31 @@ pub struct AddClientAsDepConfig {
     pub update_cargo_toml: UpdateCargoToml,
 }
 
-fn can_skip(source_resolve: &Resolve, target_resolve: &Resolve, package_name: &wit_parser::PackageName) -> bool {
-    // TODO: this is not enough, need to see if they are actually the same
-    target_resolve
-        .package_names
-        .contains_key(package_name)
+fn can_skip(
+    source_resolve: &Resolve,
+    target_resolve: &Resolve,
+    package_name: &wit_parser::PackageName,
+) -> bool {
+    if target_resolve.package_names.contains_key(package_name) {
+        let source_packages = packages_from_parsed(source_resolve);
+        let target_packages = packages_from_parsed(target_resolve);
+
+        let source_package = source_packages
+            .iter()
+            .find(|pkg| pkg.name().to_string() == package_name.to_string())
+            .unwrap();
+        let target_package = target_packages
+            .iter()
+            .find(|pkg| pkg.name().to_string() == package_name.to_string())
+            .unwrap();
+
+        let wit_source = source_package.to_string();
+        let wit_target = target_package.to_string();
+
+        wit_source == wit_target
+    } else {
+        false
+    }
 }
 
 pub fn add_client_as_dependency_to_wit_dir(config: AddClientAsDepConfig) -> anyhow::Result<()> {
@@ -479,33 +500,34 @@ pub fn add_client_as_dependency_to_wit_dir(config: AddClientAsDepConfig) -> anyh
                         .join(PathExtra::new(&source).file_name_to_string()?),
                 });
             }
-        } else {
-            if !can_skip(&client_resolved_wit_root.resolve, &dest_resolved_wit_root.resolve, package_name)
-            {
-                package_names_to_package_path.insert(
-                    package_name.clone(),
-                    naming::wit::package_wit_dep_dir_from_package_dir_name(
-                        &PathExtra::new(&package_sources.dir).file_name_to_string()?,
-                    ),
-                );
+        } else if !can_skip(
+            &client_resolved_wit_root.resolve,
+            &dest_resolved_wit_root.resolve,
+            package_name,
+        ) {
+            package_names_to_package_path.insert(
+                package_name.clone(),
+                naming::wit::package_wit_dep_dir_from_package_dir_name(
+                    &PathExtra::new(&package_sources.dir).file_name_to_string()?,
+                ),
+            );
 
-                for source in &package_sources.files {
-                    actions.add(OverwriteSafeAction::CopyFile {
-                        source: source.clone(),
-                        target: config
-                            .dest_wit_root
-                            .join(PathExtra::new(&source).strip_prefix(&config.client_wit_root)?),
-                    });
-                }
-            } else {
-                log_warn_action(
-                    "Skipping",
-                    format!(
-                        "package dependency {}, already exists in destination",
-                        package_name.to_string().log_color_highlight()
-                    ),
-                );
+            for source in &package_sources.files {
+                actions.add(OverwriteSafeAction::CopyFile {
+                    source: source.clone(),
+                    target: config
+                        .dest_wit_root
+                        .join(PathExtra::new(&source).strip_prefix(&config.client_wit_root)?),
+                });
             }
+        } else {
+            log_warn_action(
+                "Skipping",
+                format!(
+                    "package dependency {}, already exists in destination",
+                    package_name.to_string().log_color_highlight()
+                ),
+            );
         }
     }
 
