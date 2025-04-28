@@ -33,7 +33,7 @@ use wit_encoder::{
     Ident, Interface, InterfaceItem, Package, PackageItem, Params, ResourceFunc, ResourceFuncKind,
     StandaloneFunc, Type, TypeDef, TypeDefKind, Use, World, WorldItem,
 };
-use wit_parser::{PackageId, UnresolvedPackageGroup};
+use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
 pub fn generate_client_wit_to_target(def: &StubDefinition) -> anyhow::Result<()> {
     log_action(
@@ -429,6 +429,13 @@ pub struct AddClientAsDepConfig {
     pub update_cargo_toml: UpdateCargoToml,
 }
 
+fn can_skip(source_resolve: &Resolve, target_resolve: &Resolve, package_name: &wit_parser::PackageName) -> bool {
+    // TODO: this is not enough, need to see if they are actually the same
+    target_resolve
+        .package_names
+        .contains_key(package_name)
+}
+
 pub fn add_client_as_dependency_to_wit_dir(config: AddClientAsDepConfig) -> anyhow::Result<()> {
     log_action(
         "Adding",
@@ -473,10 +480,7 @@ pub fn add_client_as_dependency_to_wit_dir(config: AddClientAsDepConfig) -> anyh
                 });
             }
         } else {
-            if !dest_resolved_wit_root
-                .resolve
-                .package_names
-                .contains_key(package_name)
+            if !can_skip(&client_resolved_wit_root.resolve, &dest_resolved_wit_root.resolve, package_name)
             {
                 package_names_to_package_path.insert(
                     package_name.clone(),
