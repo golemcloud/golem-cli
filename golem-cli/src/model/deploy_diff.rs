@@ -16,12 +16,13 @@
 //       This solution is intended to be a naive and temporary one until environments
 //       and atomic deployments will be developed.
 
+use crate::model::api::to_method_pattern;
 use crate::model::app::HttpApiDefinitionName;
 use crate::model::app_raw::{HttpApiDefinition, HttpApiDefinitionBindingType};
 use crate::model::ComponentName;
 use golem_client::model::{
     GatewayBindingComponent, GatewayBindingData, GatewayBindingType, HttpApiDefinitionRequest,
-    HttpApiDefinitionResponseData, MethodPattern, RouteRequestData,
+    HttpApiDefinitionResponseData, RouteRequestData,
 };
 use golem_common::model::{ComponentFilePermissions, ComponentType};
 use serde::{Deserialize, Serialize};
@@ -97,7 +98,7 @@ impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition)
                 .routes
                 .iter()
                 .map(|route| RouteRequestData {
-                    method: to_method_pattern(&route.method),
+                    method: to_method_pattern(&route.method).expect("TODO"),
                     path: route.path.trim_end_matches('/').to_string(),
                     binding: GatewayBindingData {
                         binding_type: Some(
@@ -109,6 +110,9 @@ impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition)
                                     HttpApiDefinitionBindingType::Default => {
                                         GatewayBindingType::Default
                                     }
+                                    HttpApiDefinitionBindingType::CorsPreflight => {
+                                        GatewayBindingType::CorsPreflight
+                                    }
                                     HttpApiDefinitionBindingType::FileServer => {
                                         GatewayBindingType::FileServer
                                     }
@@ -118,11 +122,18 @@ impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition)
                                 })
                                 .unwrap_or_else(|| GatewayBindingType::Default),
                         ),
-                        component: Some(GatewayBindingComponent {
-                            name: route.binding.component_name.clone(),
-                            version: None, // TODO: how we should handle versions
-                        }),
-                        worker_name: route.binding.worker_name.clone(),
+                        component: {
+                            // TODO: how we should handle versions
+                            match &route.binding.component_name {
+                                Some(name) => Some(GatewayBindingComponent {
+                                    name: name.clone(),
+                                    version: route.binding.component_version,
+                                }),
+
+                                None => None,
+                            }
+                        },
+                        worker_name: None,
                         idempotency_key: route.binding.idempotency_key.clone(),
                         response: route
                             .binding
@@ -137,22 +148,6 @@ impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition)
                 .collect(),
             draft: api_definition.draft,
         }
-    }
-}
-
-// TODO: add validation for this in the manifest
-fn to_method_pattern(method: &str) -> MethodPattern {
-    match method.to_lowercase().as_str() {
-        "get" => MethodPattern::Get,
-        "connect" => MethodPattern::Connect,
-        "post" => MethodPattern::Post,
-        "delete" => MethodPattern::Delete,
-        "put" => MethodPattern::Put,
-        "patch" => MethodPattern::Patch,
-        "options" => MethodPattern::Options,
-        "trace" => MethodPattern::Trace,
-        "head" => MethodPattern::Head,
-        _ => unreachable!(), // TODO
     }
 }
 

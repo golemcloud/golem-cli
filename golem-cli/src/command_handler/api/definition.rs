@@ -31,12 +31,8 @@ use crate::model::text::fmt::{log_deployable_entity_yaml_diff, log_error, log_wa
 use crate::model::{PathBufOrStdin, ProjectNameAndId};
 use anyhow::{bail, Context as AnyhowContext};
 use golem_client::api::ApiDefinitionClient as ApiDefinitionClientOss;
-use golem_client::model::{
-    HttpApiDefinitionRequest as HttpApiDefinitionRequestOss, HttpApiDefinitionRequest,
-    HttpApiDefinitionResponseData,
-};
+use golem_client::model::{HttpApiDefinitionRequest, HttpApiDefinitionResponseData};
 use golem_cloud_client::api::ApiDefinitionClient as ApiDefinitionClientCloud;
-use golem_cloud_client::model::HttpApiDefinitionRequest as HttpApiDefinitionRequestCloud;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
@@ -51,14 +47,6 @@ impl ApiDefinitionCommandHandler {
 
     pub async fn handle_command(&mut self, command: ApiDefinitionSubcommand) -> anyhow::Result<()> {
         match command {
-            ApiDefinitionSubcommand::New {
-                project,
-                definition,
-            } => self.cmd_new(project, definition).await,
-            ApiDefinitionSubcommand::Update {
-                project,
-                definition,
-            } => self.cmd_update(project, definition).await,
             ApiDefinitionSubcommand::Import {
                 project,
                 definition,
@@ -75,46 +63,6 @@ impl ApiDefinitionCommandHandler {
             } => self.cmd_delete(project, id, version).await,
             ApiDefinitionSubcommand::List { project, id } => self.cmd_list(project, id).await,
         }
-    }
-
-    // TODO: drop
-    async fn cmd_new(
-        &self,
-        project: ProjectNameOptionalArg,
-        definition: PathBufOrStdin,
-    ) -> anyhow::Result<()> {
-        let project = self
-            .ctx
-            .cloud_project_handler()
-            .opt_select_project(None /* TODO: account id */, project.project.as_ref())
-            .await?;
-
-        let result = match self.ctx.golem_clients().await? {
-            GolemClients::Oss(clients) => clients
-                .api_definition
-                .create_definition_json(&read_and_parse_api_definition(definition)?)
-                .await
-                .map_service_error()?,
-            GolemClients::Cloud(clients) => clients
-                .api_definition
-                .create_definition_json(
-                    &self
-                        .ctx
-                        .cloud_project_handler()
-                        .selected_project_id_or_default(project.as_ref())
-                        .await?
-                        .0,
-                    &read_and_parse_api_definition(definition)?,
-                )
-                .await
-                .map_service_error()?,
-        };
-
-        self.ctx
-            .log_handler()
-            .log_view(&ApiDefinitionNewView(result));
-
-        Ok(())
     }
 
     async fn cmd_get(
@@ -144,56 +92,6 @@ impl ApiDefinitionCommandHandler {
                 bail!(NonSuccessfulExit)
             }
         }
-    }
-
-    // TODO: drop
-    async fn cmd_update(
-        &self,
-        project: ProjectNameOptionalArg,
-        definition: PathBufOrStdin,
-    ) -> anyhow::Result<()> {
-        let project = self
-            .ctx
-            .cloud_project_handler()
-            .opt_select_project(None /* TODO: account id */, project.project.as_ref())
-            .await?;
-
-        let result = match self.ctx.golem_clients().await? {
-            GolemClients::Oss(clients) => {
-                let api_def: HttpApiDefinitionRequestOss =
-                    read_and_parse_api_definition(definition)?;
-                clients
-                    .api_definition
-                    .update_definition_json(&api_def.id, &api_def.version, &api_def)
-                    .await
-                    .map_service_error()?
-            }
-            GolemClients::Cloud(clients) => {
-                let api_def: HttpApiDefinitionRequestCloud =
-                    read_and_parse_api_definition(definition)?;
-                clients
-                    .api_definition
-                    .update_definition_json(
-                        &self
-                            .ctx
-                            .cloud_project_handler()
-                            .selected_project_id_or_default(project.as_ref())
-                            .await?
-                            .0,
-                        &api_def.id,
-                        &api_def.version,
-                        &api_def,
-                    )
-                    .await
-                    .map_service_error()?
-            }
-        };
-
-        self.ctx
-            .log_handler()
-            .log_view(&ApiDefinitionUpdateView(result));
-
-        Ok(())
     }
 
     // TODO: drop or make it a client side feature?

@@ -1105,8 +1105,10 @@ pub mod api {
         use crate::model::PathBufOrStdin;
         use clap::Subcommand;
 
+        // TODO: add deploy for api, api def, api dep?
         #[derive(Debug, Subcommand)]
         pub enum ApiDefinitionSubcommand {
+            // TODO: decide if we drop it from cli for now, or move the import logic into the CLI
             /// Import OpenAPI file as api definition
             Import {
                 #[command(flatten)]
@@ -1114,22 +1116,6 @@ pub mod api {
                 /// The OpenAPI json or yaml file to be used as the api definition
                 ///
                 /// Json format expected unless file name ends up in `.yaml`
-                #[arg(value_hint = clap::ValueHint::FilePath)]
-                definition: PathBufOrStdin,
-            },
-            /// Creates an API definition
-            New {
-                #[command(flatten)]
-                project: ProjectNameOptionalArg,
-                /// The Golem API definition file
-                #[arg(value_hint = clap::ValueHint::FilePath)]
-                definition: PathBufOrStdin,
-            },
-            /// Updates an api definition
-            Update {
-                #[command(flatten)]
-                project: ProjectNameOptionalArg,
-                /// The Golem API definition file
                 #[arg(value_hint = clap::ValueHint::FilePath)]
                 definition: PathBufOrStdin,
             },

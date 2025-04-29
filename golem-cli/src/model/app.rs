@@ -1041,13 +1041,16 @@ impl InitialComponentFileSource {
 mod app_builder {
     use crate::fs::PathExtra;
     use crate::log::LogColorize;
+    use crate::model::api::to_method_pattern;
     use crate::model::app::{
         AppComponentName, Application, BuildProfileName, Component, ComponentProperties,
         DependencyType, DependentComponent, HttpApiDefinitionName, HttpApiDeploymentSite,
         ResolvedComponentProperties, TemplateName, WithSource,
     };
     use crate::model::app_raw;
-    use crate::model::app_raw::{HttpApiDefinition, HttpApiDeployment};
+    use crate::model::app_raw::{
+        HttpApiDefinition, HttpApiDefinitionBindingType, HttpApiDeployment,
+    };
     use crate::validation::{ValidatedResult, ValidationBuilder};
     use heck::{
         ToKebabCase, ToLowerCamelCase, ToPascalCase, ToShoutyKebabCase, ToShoutySnakeCase,
@@ -1065,6 +1068,7 @@ mod app_builder {
         AppBuilder::build(apps)
     }
 
+    // TODO: HTTP API route by method and path
     #[derive(Debug, PartialEq, Eq, Hash)]
     enum UniqueSourceCheckedEntityKey {
         Include,
@@ -1173,6 +1177,8 @@ mod app_builder {
             builder.validate_dependency_targets(&mut validation);
             builder.validate_unique_sources(&mut validation);
             builder.resolve_components(&mut validation);
+            builder.validate_http_api_definitions(&mut validation);
+            builder.validate_http_api_deployments(&mut validation);
 
             // TODO: validate API defs and deployments
 
@@ -1950,6 +1956,147 @@ mod app_builder {
                     ));
                 }
             }
+        }
+
+        fn validate_http_api_definitions(&self, validation: &mut ValidationBuilder) {
+            fn not_empty(
+                validation: &mut ValidationBuilder,
+                property_name: &str,
+                value: &str,
+            ) -> bool {
+                let is_empty = value.is_empty();
+                if is_empty {
+                    validation.add_error(format!(
+                        "Property {} is empty",
+                        property_name.log_color_highlight()
+                    ));
+                }
+                !is_empty
+            }
+
+            for (name, api_definition) in &self.api_definitions {
+                validation.with_context(
+                    vec![
+                        (
+                            "source",
+                            api_definition.source.to_string_lossy().to_string(),
+                        ),
+                        ("HTTP API definition", name.0.to_string()),
+                    ],
+                    |validation| {
+                        let def = &api_definition.value;
+
+                        if let Some(project) = &def.project {
+                            not_empty(validation, "project", project);
+                        }
+                        not_empty(validation, "version", &def.version);
+
+                        for route in &def.routes {
+                            validation.with_context(
+                                vec![
+                                    ("method", route.method.clone()),
+                                    ("path", route.path.clone()),
+                                ],
+                                |validation| {
+                                    if not_empty(validation, "method", &route.method) {
+                                        if to_method_pattern(&route.method).is_none() {
+                                            validation.add_error(format!(
+                                                "unknown method: {}",
+                                                route.method,
+                                            ));
+                                        }
+                                    }
+                                    not_empty(validation, "path", &route.path);
+
+
+                                    let binding_type = route.binding.type_.unwrap_or_default();
+                                    let binding_type_as_string = serde_json::to_string(&binding_type).unwrap();
+
+                                    let check_not_allowed = |validation: &mut ValidationBuilder, property_name: &str,
+                                                             value: &Option<String>| {
+                                        if value.is_some() {
+                                            validation.add_error(
+                                                format!(
+                                                    "Property {} is not allowed with binding type {}",
+                                                    property_name,
+                                                    binding_type_as_string,
+                                                )
+                                            );
+                                        }
+                                    };
+
+                                    let check_component_name_and_version = |validation: &mut ValidationBuilder|
+                                        {
+                                            match route.binding.component_name.as_ref().map(|s| s.as_str()) {
+                                                Some(name) => {
+                                                    if !self.resolved_components.contains_key(&name.into()) {
+                                                        validation.add_error(
+                                                            format!(
+                                                                "Property {} contains unknown component name: {}",
+                                                                "component_name".log_color_highlight(),
+                                                                name.log_color_highlight(),
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                                None => {
+                                                    validation.add_error(
+                                                        format!(
+                                                            "Property {} is required for binding type {}",
+                                                            "component_name".log_color_highlight(),
+                                                            binding_type_as_string,
+                                                        )
+                                                    );
+                                                }
+                                            }
+                                        };
+
+                                    let check_rib = |validation: &mut ValidationBuilder, property_name: &str, rib_script: &Option<String>| {
+                                        if let Some(rib) = rib_script.as_ref().map(|s| s.as_str()) {
+                                            if let Some(err) = rib::from_string(rib).err() {
+                                                validation.add_error(
+                                                    format!("Failed to parse property {} as Rib: {}", property_name.log_color_highlight(), err)
+                                                );
+                                            }
+                                        }
+                                    };
+
+                                    match route.binding.type_.unwrap_or_default() {
+                                        HttpApiDefinitionBindingType::Default => {
+                                            check_component_name_and_version(validation);
+                                            check_rib(validation, "idempotency_key", &route.binding.idempotency_key);
+                                            check_rib(validation, "invocation_context", &route.binding.invocation_context);
+                                            check_rib(validation, "response", &route.binding.response);
+                                        }
+                                        HttpApiDefinitionBindingType::CorsPreflight => {
+                                            check_not_allowed(validation, "component_name", &route.binding.component_name);
+                                            check_not_allowed(validation, "idempotency_key", &route.binding.component_name);
+                                            check_not_allowed(validation, "invocation_context", &route.binding.component_name);
+                                            check_rib(validation, "response", &route.binding.response);
+                                        }
+                                        HttpApiDefinitionBindingType::FileServer => {
+                                            check_component_name_and_version(validation);
+                                            check_rib(validation, "idempotency_key", &route.binding.idempotency_key);
+                                            check_rib(validation, "invocation_context", &route.binding.invocation_context);
+                                            check_rib(validation, "response", &route.binding.response);
+                                        }
+                                        HttpApiDefinitionBindingType::HttpHandler => {
+                                            check_component_name_and_version(validation);
+                                            check_not_allowed(validation, "idempotency_key", &route.binding.component_name);
+                                            check_not_allowed(validation, "invocation_context", &route.binding.component_name);
+                                            check_not_allowed(validation, "response", &route.binding.component_name);
+                                        }
+                                    }
+                                },
+                            );
+                        }
+                    },
+                );
+            }
+        }
+
+        fn validate_http_api_deployments(&self, _validation: &mut ValidationBuilder) {
+            // TODO
         }
     }
 }

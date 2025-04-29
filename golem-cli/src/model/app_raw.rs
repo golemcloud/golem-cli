@@ -114,32 +114,16 @@ pub struct HttpApiDefinitionRoute {
     pub method: String,
     pub path: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cors: Option<HttpApiCors>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub security: Option<String>,
     pub binding: HttpApiDefinitionBinding,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct HttpApiCors {
-    enabled: bool,
-    allow_origin: Option<String>,
-    allow_methods: Option<String>,
-    allow_headers: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    expose_headers: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    allow_credentials: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    max_age: Option<u64>,
-}
-
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum HttpApiDefinitionBindingType {
     #[default]
     Default,
+    CorsPreflight,
     FileServer,
     HttpHandler,
 }
@@ -149,18 +133,16 @@ pub enum HttpApiDefinitionBindingType {
 pub struct HttpApiDefinitionBinding {
     #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub type_: Option<HttpApiDefinitionBindingType>,
-    pub component_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub component_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub component_version: Option<u64>,
-    // TODO: let's drop this if we consider this deprecated
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub worker_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub idempotency_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub response: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub invocation_context: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
