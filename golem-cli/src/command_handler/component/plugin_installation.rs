@@ -22,8 +22,11 @@ use crate::model::component::Component;
 use anyhow::bail;
 use async_trait::async_trait;
 use golem_client::api::ComponentClient as OssComponentClient;
-use golem_client::model::{PluginInstallationCreation, PluginInstallationUpdate};
 use golem_cloud_client::api::ComponentClient as CloudComponentClient;
+use golem_common::model::plugin::{
+    PluginInstallationAction, PluginInstallationCreation, PluginInstallationUpdateWithId,
+    PluginUninstallation,
+};
 use golem_common::model::PluginInstallationId;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
@@ -48,7 +51,8 @@ impl PluginInstallationHandler {
         build_profile_name: Option<&BuildProfileName>,
         component: Component,
     ) -> anyhow::Result<Component> {
-        let target = ComponentPluginInstallationTarget::new(self.ctx.clone(), component.clone());
+        let mut target =
+            ComponentPluginInstallationTarget::new(self.ctx.clone(), component.clone());
 
         let all_defined_installations = self
             .get_all_defined_installations(component_name, build_profile_name)
@@ -106,6 +110,7 @@ impl PluginInstallationHandler {
                 for command in commands {
                     target.execute(command).await?;
                 }
+                target.finish().await?;
 
                 let latest_component = self.get_latest_component(&component).await?;
                 Ok(latest_component)
@@ -148,7 +153,7 @@ impl PluginInstallationHandler {
     }
 
     /// Full match between a plugin installation definition and the server state means that the
-    /// plugin name and version is matched, as well as the plugin parameters.
+    /// plugin name and version are matched, as well as the plugin parameters.
     fn full_match(
         defined: &PluginInstallation,
         existing: &golem_client::model::PluginInstallation,
@@ -425,7 +430,7 @@ trait PluginInstallationTarget {
         &self,
     ) -> anyhow::Result<Vec<golem_client::model::PluginInstallation>>;
 
-    async fn execute(&self, command: Command) -> anyhow::Result<()> {
+    async fn execute(&mut self, command: Command) -> anyhow::Result<()> {
         match command {
             Command::Uninstall { id } => self.uninstall(&id).await,
             Command::Update {
@@ -440,25 +445,34 @@ trait PluginInstallationTarget {
         }
     }
 
-    async fn uninstall(&self, id: &PluginInstallationId) -> anyhow::Result<()>;
+    async fn uninstall(&mut self, id: &PluginInstallationId) -> anyhow::Result<()>;
     async fn update(
-        &self,
+        &mut self,
         id: &PluginInstallationId,
         priority: i32,
         parameters: HashMap<String, String>,
     ) -> anyhow::Result<()>;
-    async fn create(&self, definition: PluginInstallation, priority: i32) -> anyhow::Result<()>;
+    async fn create(&mut self, definition: PluginInstallation, priority: i32)
+        -> anyhow::Result<()>;
+
+    /// Finishes a set of update commands; this can run the actual update in case the implementation supports batching
+    async fn finish(&mut self) -> anyhow::Result<()>;
 }
 
 /// PluginInstallationTarget implementation for components
 struct ComponentPluginInstallationTarget {
     ctx: Arc<Context>,
     component: Component,
+    actions: Vec<PluginInstallationAction>,
 }
 
 impl ComponentPluginInstallationTarget {
     fn new(ctx: Arc<Context>, component: Component) -> Self {
-        Self { ctx, component }
+        Self {
+            ctx,
+            component,
+            actions: Vec::new(),
+        }
     }
 }
 
@@ -490,77 +504,55 @@ impl PluginInstallationTarget for ComponentPluginInstallationTarget {
         Ok(installations)
     }
 
-    async fn uninstall(&self, id: &PluginInstallationId) -> anyhow::Result<()> {
-        match self.ctx.golem_clients().await? {
-            GolemClients::Oss(clients) => {
-                let _ = clients
-                    .component
-                    .uninstall_plugin(&self.component.versioned_component_id.component_id, &id.0)
-                    .await
-                    .map_service_error()?;
-            }
-            GolemClients::Cloud(clients) => {
-                let _ = clients
-                    .component
-                    .uninstall_plugin(&self.component.versioned_component_id.component_id, &id.0)
-                    .await
-                    .map_service_error()?;
-            }
-        }
+    async fn uninstall(&mut self, id: &PluginInstallationId) -> anyhow::Result<()> {
+        self.actions
+            .push(PluginInstallationAction::Uninstall(PluginUninstallation {
+                installation_id: id.clone(),
+            }));
         Ok(())
     }
 
     async fn update(
-        &self,
+        &mut self,
         id: &PluginInstallationId,
         priority: i32,
         parameters: HashMap<String, String>,
     ) -> anyhow::Result<()> {
-        match self.ctx.golem_clients().await? {
-            GolemClients::Oss(clients) => {
-                let _ = clients
-                    .component
-                    .update_installed_plugin(
-                        &self.component.versioned_component_id.component_id,
-                        &id.0,
-                        &PluginInstallationUpdate {
-                            priority,
-                            parameters,
-                        },
-                    )
-                    .await
-                    .map_service_error()?;
-            }
-            GolemClients::Cloud(clients) => {
-                let _ = clients
-                    .component
-                    .update_installed_plugin(
-                        &self.component.versioned_component_id.component_id,
-                        &id.0,
-                        &PluginInstallationUpdate {
-                            priority,
-                            parameters,
-                        },
-                    )
-                    .await
-                    .map_service_error()?;
-            }
-        }
+        self.actions.push(PluginInstallationAction::Update(
+            PluginInstallationUpdateWithId {
+                installation_id: id.clone(),
+                priority,
+                parameters: parameters.clone(),
+            },
+        ));
         Ok(())
     }
 
-    async fn create(&self, definition: PluginInstallation, priority: i32) -> anyhow::Result<()> {
+    async fn create(
+        &mut self,
+        definition: PluginInstallation,
+        priority: i32,
+    ) -> anyhow::Result<()> {
+        self.actions.push(PluginInstallationAction::Install(
+            PluginInstallationCreation {
+                name: definition.name,
+                version: definition.version,
+                parameters: definition.parameters,
+                priority,
+            },
+        ));
+        Ok(())
+    }
+
+    async fn finish(&mut self) -> anyhow::Result<()> {
         match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => {
                 let _ = clients
                     .component
-                    .install_plugin(
+                    .bath_update_installed_plugins(
                         &self.component.versioned_component_id.component_id,
-                        &PluginInstallationCreation {
-                            name: definition.name,
-                            version: definition.version,
-                            parameters: definition.parameters,
-                            priority,
+                        &golem_client::model::BatchPluginInstallationUpdates {
+                            actions: self.actions.drain(..).collect(),
                         },
                     )
                     .await
@@ -569,13 +561,10 @@ impl PluginInstallationTarget for ComponentPluginInstallationTarget {
             GolemClients::Cloud(clients) => {
                 let _ = clients
                     .component
-                    .install_plugin(
+                    .bath_update_installed_plugins(
                         &self.component.versioned_component_id.component_id,
-                        &PluginInstallationCreation {
-                            name: definition.name,
-                            version: definition.version,
-                            parameters: definition.parameters,
-                            priority,
+                        &golem_cloud_client::model::BatchPluginInstallationUpdates {
+                            actions: self.actions.drain(..).collect(),
                         },
                     )
                     .await
