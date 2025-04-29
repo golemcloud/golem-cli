@@ -14,7 +14,7 @@
 
 use crate::StartedComponents;
 use anyhow::Context;
-use poem::middleware::{OpenTelemetryMetrics, Tracing};
+use poem::middleware::{Cors, OpenTelemetryMetrics, Tracing};
 use poem::EndpointExt;
 use poem::{Route, Server};
 use std::net::Ipv4Addr;
@@ -116,6 +116,7 @@ pub fn start_router(
         .at("/v1/plugins/*", component_service_api.clone())
         .at("/metrics", metrics)
         .at("/healthcheck", component_service_api)
+        .with(Cors::new())
         .with(OpenTelemetryMetrics::new())
         .with(Tracing);
 
