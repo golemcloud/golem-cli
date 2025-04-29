@@ -1188,6 +1188,20 @@ pub mod api {
                 #[arg(value_name = "subdomain.host")]
                 site: String,
             },
+            /// Undeploy a specific API definition from a site
+            Undeploy {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
+                /// API definition id
+                #[arg(long)]
+                id: String,
+                /// API definition version
+                #[arg(long)]
+                version: String,
+                /// API definition host
+                #[arg(long)]
+                host: String,
+            },
         }
     }
 

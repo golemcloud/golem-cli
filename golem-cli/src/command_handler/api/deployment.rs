@@ -59,6 +59,12 @@ impl ApiDeploymentCommandHandler {
             ApiDeploymentSubcommand::Delete { project, site } => {
                 self.cmd_delete(project, site).await
             }
+            ApiDeploymentSubcommand::Undeploy {
+                project,
+                id,
+                version,
+                host,
+            } => self.cmd_undeploy(project, id, version, host).await,
         }
     }
 
@@ -255,6 +261,48 @@ impl ApiDeploymentCommandHandler {
         };
 
         log_warn_action("Deleted", format!("site {}", site.log_color_highlight()));
+
+        Ok(())
+    }
+
+    async fn cmd_undeploy(
+        &self,
+        project: ProjectNameOptionalArg,
+        id: String,
+        version: String,
+        host: String,
+    ) -> anyhow::Result<()> {
+        let project = self
+            .ctx
+            .cloud_project_handler()
+            .opt_select_project(None /* TODO: account id */, project.project.as_ref())
+            .await?;
+
+        match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => clients
+                .api_deployment
+                .undeploy_api(&host, &id, &version)
+                .await
+                .map_service_error()?,
+            GolemClients::Cloud(clients) => {
+                let project = self
+                    .ctx
+                    .cloud_project_handler()
+                    .selected_project_or_default(project)
+                    .await?;
+
+                clients
+                    .api_deployment
+                    .undeploy_api(&project.project_id.0, &host, &id, &version)
+                    .await
+                    .map_service_error()?
+            }
+        };
+
+        log_warn_action(
+            "Undeployed",
+            format!("API definition {}/{} from {}", id, version, host),
+        );
 
         Ok(())
     }
