@@ -45,7 +45,7 @@ pub fn format_warns(warns: &[String]) -> String {
     let label = "warning:".yellow().bold().to_string();
     warns
         .iter()
-        .map(|msg| format_message_with_level(&label, &msg))
+        .map(|msg| format_message_with_level(&label, msg))
         .join("\n")
 }
 
@@ -53,7 +53,7 @@ pub fn format_errors(errors: &[String]) -> String {
     let label = "error:".red().bold().to_string();
     errors
         .iter()
-        .map(|msg| format_message_with_level(&label, &msg))
+        .map(|msg| format_message_with_level(&label, msg))
         .join("\n")
 }
 

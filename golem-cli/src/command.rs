@@ -1175,6 +1175,8 @@ pub mod api {
             },
             /// Get API deployment
             Get {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
                 /// Deployment site
                 #[arg(value_name = "subdomain.host")]
                 site: String,
@@ -1188,6 +1190,8 @@ pub mod api {
             },
             /// Delete api deployment
             Delete {
+                #[command(flatten)]
+                project: ProjectNameOptionalArg,
                 /// Deployment site
                 #[arg(value_name = "subdomain.host")]
                 site: String,

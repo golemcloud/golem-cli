@@ -264,7 +264,7 @@ impl TaskResultMarker {
         dir: &Path,
         id_hash_hex: &str,
     ) -> anyhow::Result<(PathBuf, bool, Option<TaskResult>)> {
-        let marker_file_path = dir.join(&id_hash_hex);
+        let marker_file_path = dir.join(id_hash_hex);
         let marker_file_exists = marker_file_path.exists();
 
         let previous_result = {

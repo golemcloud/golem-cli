@@ -124,14 +124,12 @@ impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition)
                         ),
                         component: {
                             // TODO: how we should handle versions
-                            match &route.binding.component_name {
-                                Some(name) => Some(GatewayBindingComponent {
+                            route.binding.component_name.as_ref().map(|name| {
+                                GatewayBindingComponent {
                                     name: name.clone(),
                                     version: route.binding.component_version,
-                                }),
-
-                                None => None,
-                            }
+                                }
+                            })
                         },
                         worker_name: None,
                         idempotency_key: route.binding.idempotency_key.clone(),

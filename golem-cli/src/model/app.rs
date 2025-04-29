@@ -1998,13 +1998,11 @@ mod app_builder {
                                     ("path", route.path.clone()),
                                 ],
                                 |validation| {
-                                    if not_empty(validation, "method", &route.method) {
-                                        if to_method_pattern(&route.method).is_none() {
-                                            validation.add_error(format!(
-                                                "unknown method: {}",
-                                                route.method,
-                                            ));
-                                        }
+                                    if not_empty(validation, "method", &route.method) && to_method_pattern(&route.method).is_none() {
+                                        validation.add_error(format!(
+                                            "unknown method: {}",
+                                            route.method,
+                                        ));
                                     }
                                     not_empty(validation, "path", &route.path);
 
@@ -2027,7 +2025,7 @@ mod app_builder {
 
                                     let check_component_name_and_version = |validation: &mut ValidationBuilder|
                                         {
-                                            match route.binding.component_name.as_ref().map(|s| s.as_str()) {
+                                            match route.binding.component_name.as_deref() {
                                                 Some(name) => {
                                                     if !self.resolved_components.contains_key(&name.into()) {
                                                         validation.add_error(
