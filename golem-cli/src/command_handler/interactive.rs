@@ -115,6 +115,21 @@ impl InteractiveHandler {
         )
     }
 
+    pub fn confirm_plugin_installation_changes(
+        &self,
+        component: &AppComponentName,
+        rendered_steps: &[String],
+    ) -> anyhow::Result<bool> {
+        self.confirm(
+            true,
+            format!("The following changes will be applied to the installed plugins of component {}:\n{}",
+                component.to_string().log_color_highlight(),
+                rendered_steps.iter().map(|s| format!(" - {}", s)).collect::<Vec<_>>().join("\n")
+            ),
+            None
+        )
+    }
+
     pub fn create_profile(&self) -> anyhow::Result<(ProfileName, Profile, bool)> {
         if !self.confirm(
             true,
