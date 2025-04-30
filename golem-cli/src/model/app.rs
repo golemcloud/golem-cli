@@ -1051,6 +1051,8 @@ mod app_builder {
     use crate::model::app_raw::{
         HttpApiDefinition, HttpApiDefinitionBindingType, HttpApiDeployment,
     };
+    use crate::model::deploy_diff::normalize_http_api_binding_path;
+    use crate::model::text::fmt::format_rib_source_for_error;
     use crate::validation::{ValidatedResult, ValidationBuilder};
     use heck::{
         ToKebabCase, ToLowerCamelCase, ToPascalCase, ToShoutyKebabCase, ToShoutySnakeCase,
@@ -1079,6 +1081,11 @@ mod app_builder {
         Dependency((AppComponentName, DependentComponent)),
         Component(AppComponentName),
         HttpApiDefinition(HttpApiDefinitionName),
+        HttpApiDefinitionRoute {
+            api: HttpApiDefinitionName,
+            method: String,
+            path: String,
+        },
         HttpApiDeployment(HttpApiDeploymentSite),
     }
 
@@ -1094,6 +1101,9 @@ mod app_builder {
                 UniqueSourceCheckedEntityKey::Dependency(_) => "Dependency",
                 UniqueSourceCheckedEntityKey::Component(_) => "Component",
                 UniqueSourceCheckedEntityKey::HttpApiDefinition(_) => "HTTP API Definition",
+                UniqueSourceCheckedEntityKey::HttpApiDefinitionRoute { .. } => {
+                    "HTTP API Definition Route"
+                }
                 UniqueSourceCheckedEntityKey::HttpApiDeployment(_) => "HTTP API Deployment",
             }
         }
@@ -1131,6 +1141,14 @@ mod app_builder {
                         .as_str()
                         .log_color_highlight()
                         .to_string()
+                }
+                UniqueSourceCheckedEntityKey::HttpApiDefinitionRoute { api, method, path } => {
+                    format!(
+                        "{} - {} - {}",
+                        api.as_str().log_color_highlight(),
+                        method.log_color_highlight(),
+                        path.log_color_highlight(),
+                    )
                 }
                 UniqueSourceCheckedEntityKey::HttpApiDeployment(api_deployment_site) => {
                     format!(
@@ -1325,6 +1343,21 @@ mod app_builder {
                                 ),
                                 &app.source,
                             ) {
+                                for route in &api_definition.routes {
+                                    let Ok(method) = to_method_pattern(&route.method) else {
+                                        continue;
+                                    };
+
+                                    self.add_entity_source(
+                                        UniqueSourceCheckedEntityKey::HttpApiDefinitionRoute {
+                                            api: api_definition_name.clone(),
+                                            method: method.to_string(),
+                                            path: normalize_http_api_binding_path(&route.path),
+                                        },
+                                        &app.source,
+                                    );
+                                }
+
                                 self.api_definitions.insert(
                                     api_definition_name,
                                     WithSource::new(app.source.to_path_buf(), api_definition),
@@ -1998,11 +2031,10 @@ mod app_builder {
                                     ("path", route.path.clone()),
                                 ],
                                 |validation| {
-                                    if not_empty(validation, "method", &route.method) && to_method_pattern(&route.method).is_none() {
-                                        validation.add_error(format!(
-                                            "unknown method: {}",
-                                            route.method,
-                                        ));
+                                    if not_empty(validation, "method", &route.method) {
+                                        if let Err(err) = to_method_pattern(&route.method) {
+                                            validation.add_error(err.to_string());
+                                        }
                                     }
                                     not_empty(validation, "path", &route.path);
 
@@ -2053,7 +2085,13 @@ mod app_builder {
                                         if let Some(rib) = rib_script.as_ref().map(|s| s.as_str()) {
                                             if let Some(err) = rib::from_string(rib).err() {
                                                 validation.add_error(
-                                                    format!("Failed to parse property {} as Rib: {}", property_name.log_color_highlight(), err)
+                                                    format!(
+                                                        "Failed to parse property {} as Rib:\n{}\n{}\n{}",
+                                                        property_name.log_color_highlight(),
+                                                        err.to_string().lines().map(|l| format!("  {}", l)).join("\n").log_color_warn(),
+                                                        "Rib source:".log_color_highlight(),
+                                                        format_rib_source_for_error(rib, &err),
+                                                    )
                                                 );
                                             }
                                         }

@@ -16,10 +16,15 @@
 //       This solution is intended to be a naive and temporary one until environments
 //       and atomic deployments will be developed.
 
+use crate::log::LogColorize;
 use crate::model::api::to_method_pattern;
 use crate::model::app::HttpApiDefinitionName;
-use crate::model::app_raw::{HttpApiDefinition, HttpApiDefinitionBindingType};
+use crate::model::app_raw::{
+    HttpApiDefinition, HttpApiDefinitionBindingType, HttpApiDefinitionRoute,
+};
+use crate::model::text::fmt::format_rib_source_for_error;
 use crate::model::ComponentName;
+use anyhow::anyhow;
 use golem_client::model::{
     GatewayBindingComponent, GatewayBindingData, GatewayBindingType, HttpApiDefinitionRequest,
     HttpApiDefinitionResponseData, RouteRequestData,
@@ -49,12 +54,12 @@ pub struct DeployableComponent {
 
 // TODO: add DeployableHttpApiDefinition, currently using HttpApiDefinitionRequest
 pub trait AsHttpApiDefinitionRequest {
-    fn as_http_api_definition_request(&self) -> HttpApiDefinitionRequest;
+    fn as_http_api_definition_request(&self) -> anyhow::Result<HttpApiDefinitionRequest>;
 }
 
 impl AsHttpApiDefinitionRequest for HttpApiDefinitionResponseData {
-    fn as_http_api_definition_request(&self) -> HttpApiDefinitionRequest {
-        HttpApiDefinitionRequest {
+    fn as_http_api_definition_request(&self) -> anyhow::Result<HttpApiDefinitionRequest> {
+        Ok(HttpApiDefinitionRequest {
             id: self.id.clone(),
             version: self.version.clone(),
             security: None, // TODO: check that this is not needed anymore
@@ -75,78 +80,99 @@ impl AsHttpApiDefinitionRequest for HttpApiDefinitionResponseData {
                         worker_name: route.binding.worker_name.clone(),
                         idempotency_key: route.binding.idempotency_key.clone(),
                         response: route.binding.response.clone(),
-                        invocation_context: None, // TODO: should this be in the response?
+                        invocation_context: route.binding.invocation_context.clone(),
                     },
                     security: route.security.clone(),
                 })
                 .collect(),
             draft: self.draft,
-        }
+        })
     }
 }
 
 // TODO: wrapper for the tuple (especially once CORS representation is finalised)
 impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition) {
-    fn as_http_api_definition_request(&self) -> HttpApiDefinitionRequest {
+    fn as_http_api_definition_request(&self) -> anyhow::Result<HttpApiDefinitionRequest> {
         let (name, api_definition) = self;
 
-        HttpApiDefinitionRequest {
+        Ok(HttpApiDefinitionRequest {
             id: name.to_string(),
             version: api_definition.version.clone(),
             security: None, // TODO: check that this is not needed anymore
             routes: api_definition
                 .routes
                 .iter()
-                .map(|route| RouteRequestData {
-                    method: to_method_pattern(&route.method).expect("TODO"),
-                    path: route.path.trim_end_matches('/').to_string(),
-                    binding: GatewayBindingData {
-                        binding_type: Some(
-                            route
-                                .binding
-                                .type_
-                                .as_ref()
-                                .map(|binding_type| match binding_type {
-                                    HttpApiDefinitionBindingType::Default => {
-                                        GatewayBindingType::Default
-                                    }
-                                    HttpApiDefinitionBindingType::CorsPreflight => {
-                                        GatewayBindingType::CorsPreflight
-                                    }
-                                    HttpApiDefinitionBindingType::FileServer => {
-                                        GatewayBindingType::FileServer
-                                    }
-                                    HttpApiDefinitionBindingType::HttpHandler => {
-                                        GatewayBindingType::HttpHandler
-                                    }
-                                })
-                                .unwrap_or_else(|| GatewayBindingType::Default),
-                        ),
-                        component: {
-                            // TODO: how we should handle versions
-                            route.binding.component_name.as_ref().map(|name| {
-                                GatewayBindingComponent {
-                                    name: name.clone(),
-                                    version: route.binding.component_version,
-                                }
-                            })
-                        },
-                        worker_name: None,
-                        idempotency_key: route.binding.idempotency_key.clone(),
-                        response: route
-                            .binding
-                            .response
-                            .as_ref()
-                            .map(|rib| rib.trim_end_matches('\n').to_string()) // TODO: trim all rib script
-                            .clone(),
-                        invocation_context: None, // TODO: should this be in the response?
-                    },
-                    security: route.security.clone(),
-                })
-                .collect(),
+                .map(normalize_http_api_route)
+                .collect::<Result<Vec<_>, _>>()?,
             draft: api_definition.draft,
-        }
+        })
     }
+}
+
+fn normalize_http_api_route(route: &HttpApiDefinitionRoute) -> anyhow::Result<RouteRequestData> {
+    Ok(RouteRequestData {
+        method: to_method_pattern(&route.method)?,
+        path: normalize_http_api_binding_path(&route.path),
+        binding: GatewayBindingData {
+            binding_type: Some(
+                route
+                    .binding
+                    .type_
+                    .as_ref()
+                    .map(|binding_type| match binding_type {
+                        HttpApiDefinitionBindingType::Default => GatewayBindingType::Default,
+                        HttpApiDefinitionBindingType::CorsPreflight => {
+                            GatewayBindingType::CorsPreflight
+                        }
+                        HttpApiDefinitionBindingType::FileServer => GatewayBindingType::FileServer,
+                        HttpApiDefinitionBindingType::HttpHandler => {
+                            GatewayBindingType::HttpHandler
+                        }
+                    })
+                    .unwrap_or_else(|| GatewayBindingType::Default),
+            ),
+            component: {
+                // TODO: how we should handle versions
+                route
+                    .binding
+                    .component_name
+                    .as_ref()
+                    .map(|name| GatewayBindingComponent {
+                        name: name.clone(),
+                        version: route.binding.component_version,
+                    })
+            },
+            worker_name: None,
+            idempotency_key: normalize_rib_property(&route.binding.idempotency_key)?,
+            invocation_context: normalize_rib_property(&route.binding.invocation_context)?,
+            response: normalize_rib_property(&route.binding.response)?,
+        },
+        security: route.security.clone(),
+    })
+}
+
+fn normalize_rib_property(rib: &Option<String>) -> anyhow::Result<Option<String>> {
+    rib.as_ref()
+        .map(|r| r.as_str())
+        .map(normalize_rib_source_code)
+        .transpose()
+}
+
+pub fn normalize_http_api_binding_path(path: &str) -> String {
+    path.to_string()
+}
+
+fn normalize_rib_source_code(rib: &str) -> anyhow::Result<String> {
+    Ok(rib::from_string(rib)
+        .map_err(|err| {
+            anyhow!(
+                "Failed to normalize Rib source code: {}\n{}\n{}",
+                err,
+                "Rib source:".log_color_highlight(),
+                format_rib_source_for_error(&err, rib)
+            )
+        })?
+        .to_string())
 }
 
 pub trait ToYamlValueWithoutNulls {

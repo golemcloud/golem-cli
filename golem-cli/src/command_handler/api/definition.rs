@@ -253,11 +253,12 @@ impl ApiDefinitionCommandHandler {
                 api_definition.value.version.as_str(),
             )
             .await?
-            .map(|ad| ad.as_http_api_definition_request());
+            .map(|ad| ad.as_http_api_definition_request())
+            .transpose()?;
 
         let manifest_api_definition = {
             let mut manifest_api_definition =
-                (api_definition_name, &api_definition.value).as_http_api_definition_request();
+                (api_definition_name, &api_definition.value).as_http_api_definition_request()?;
 
             // NOTE: if the only diff if being non-draft on serverside, we hide that
             if let Some(server_api_definition) = &server_api_definition {

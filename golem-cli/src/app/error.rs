@@ -65,7 +65,7 @@ fn format_message_with_level(level: &str, message: &str) -> String {
             message.lines().map(|s| format!("  {}", s)).join("\n")
         )
     } else {
-        format!("{}: {}", level, message)
+        format!("{} {}", level, message)
     }
 }
 
