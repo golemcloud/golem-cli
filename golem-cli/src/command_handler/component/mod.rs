@@ -51,6 +51,7 @@ use golem_client::api::ComponentClient as ComponentClientOss;
 use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
 use golem_client::model::DynamicLinkedWasmRpc as DynamicLinkedWasmRpcOss;
 use golem_client::model::DynamicLinking as DynamicLinkingOss;
+use golem_client::model::{ComponentSearch as ComponentSearchOss, ComponentSearchParameters};
 use golem_cloud_client::api::ComponentClient as ComponentClientCloud;
 use golem_cloud_client::model::ComponentQuery;
 use golem_common::model::component_metadata::WasmRpcTarget;
@@ -250,7 +251,9 @@ impl ComponentCommandHandler {
             &ApplicationComponentSelectMode::CurrentDir,
             update_or_redeploy,
         )
-        .await
+        .await?;
+
+        Ok(())
     }
 
     fn cmd_templates(&self, filter: Option<String>) {
@@ -540,7 +543,7 @@ impl ComponentCommandHandler {
         let components = self
             .components_for_update_or_redeploy(component_name)
             .await?;
-        self.update_workers_by_components(components, update_mode)
+        self.update_workers_by_components(&components, update_mode)
             .await?;
 
         Ok(())
@@ -553,7 +556,7 @@ impl ComponentCommandHandler {
         let components = self
             .components_for_update_or_redeploy(component_name)
             .await?;
-        self.redeploy_workers_by_components(components).await?;
+        self.redeploy_workers_by_components(&components).await?;
 
         Ok(())
     }
@@ -625,7 +628,7 @@ impl ComponentCommandHandler {
         force_build: Option<ForceBuildArg>,
         default_component_select_mode: &ApplicationComponentSelectMode,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Vec<Component>> {
         self.ctx
             .app_handler()
             .build(
@@ -637,8 +640,6 @@ impl ComponentCommandHandler {
                 default_component_select_mode,
             )
             .await?;
-
-        // TODO: hash <-> version check for skipping deploy
 
         let selected_component_names = {
             let app_ctx = self.ctx.app_context_lock().await;
@@ -686,13 +687,13 @@ impl ComponentCommandHandler {
         };
 
         if let Some(update) = update_or_redeploy.update_workers {
-            self.update_workers_by_components(components, update)
+            self.update_workers_by_components(&components, update)
                 .await?;
         } else if update_or_redeploy.redeploy_workers {
-            self.redeploy_workers_by_components(components).await?;
+            self.redeploy_workers_by_components(&components).await?;
         }
 
-        Ok(())
+        Ok(components)
     }
 
     async fn deploy_component(
@@ -942,7 +943,7 @@ impl ComponentCommandHandler {
 
     pub async fn update_workers_by_components(
         &self,
-        components: Vec<Component>,
+        components: &[Component],
         update: WorkerUpdateMode,
     ) -> anyhow::Result<()> {
         if components.is_empty() {
@@ -956,7 +957,7 @@ impl ComponentCommandHandler {
         let _indent = LogIndent::new();
 
         let mut update_results = TryUpdateAllWorkersResult::default();
-        for component in &components {
+        for component in components {
             let result = self
                 .ctx
                 .worker_handler()
@@ -976,7 +977,7 @@ impl ComponentCommandHandler {
 
     pub async fn redeploy_workers_by_components(
         &self,
-        components: Vec<Component>,
+        components: &[Component],
     ) -> anyhow::Result<()> {
         if components.is_empty() {
             return Ok(());
@@ -985,7 +986,7 @@ impl ComponentCommandHandler {
         log_action("Redeploying", "existing workers");
         let _indent = LogIndent::new();
 
-        for component in &components {
+        for component in components {
             self.ctx
                 .worker_handler()
                 .redeploy_component_workers(
@@ -1337,6 +1338,55 @@ impl ComponentCommandHandler {
             .component(project, component_name.into(), None)
             .await?
             .map(|c| ComponentId(c.versioned_component_id.component_id)))
+    }
+
+    pub async fn latest_components_by_app(
+        &self,
+        project: Option<&ProjectNameAndId>,
+    ) -> anyhow::Result<BTreeMap<String, Component>> {
+        let component_names = {
+            let app_ctx = self.ctx.app_context_lock().await;
+            let app_ctx = app_ctx.some_or_err()?;
+            app_ctx
+                .application
+                .component_names()
+                .map(|component_name| component_name.as_str().into())
+                .collect::<Vec<_>>()
+        };
+
+        self.latest_components_by_name(project, component_names)
+            .await
+    }
+
+    // NOTE: the returned Map uses String as a key, so it is easy to use with all the different
+    //       ComponentName types without cloning
+    pub async fn latest_components_by_name(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        component_names: Vec<ComponentName>,
+    ) -> anyhow::Result<BTreeMap<String, Component>> {
+        let results = match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => clients
+                .component
+                .search_components(&ComponentSearchOss {
+                    components: component_names
+                        .into_iter()
+                        .map(|component_name| ComponentSearchParameters {
+                            name: component_name.0,
+                            version: None,
+                        })
+                        .collect(),
+                })
+                .await?
+                .into_iter()
+                .map(|component| (component.component_name.clone(), Component::from(component)))
+                .collect(),
+            GolemClients::Cloud(clients) => {
+                todo!()
+            }
+        };
+
+        Ok(results)
     }
 
     // NOTE: all of this is naive for now (as in performance, streaming, parallelism)

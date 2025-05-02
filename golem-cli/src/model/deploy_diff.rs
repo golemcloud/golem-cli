@@ -22,6 +22,7 @@ use crate::model::app::HttpApiDefinitionName;
 use crate::model::app_raw::{
     HttpApiDefinition, HttpApiDefinitionBindingType, HttpApiDefinitionRoute,
 };
+use crate::model::component::Component;
 use crate::model::text::fmt::format_rib_source_for_error;
 use crate::model::ComponentName;
 use anyhow::anyhow;
@@ -74,7 +75,7 @@ impl AsHttpApiDefinitionRequest for HttpApiDefinitionResponseData {
                         component: route.binding.component.as_ref().map(|component| {
                             GatewayBindingComponent {
                                 name: component.name.clone(),
-                                version: None, // TODO: None for now, how to handle diff on this?
+                                version: Some(component.version),
                             }
                         }),
                         worker_name: route.binding.worker_name.clone(),
@@ -90,26 +91,33 @@ impl AsHttpApiDefinitionRequest for HttpApiDefinitionResponseData {
     }
 }
 
-// TODO: wrapper for the tuple (especially once CORS representation is finalised)
-impl AsHttpApiDefinitionRequest for (&HttpApiDefinitionName, &HttpApiDefinition) {
-    fn as_http_api_definition_request(&self) -> anyhow::Result<HttpApiDefinitionRequest> {
-        let (name, api_definition) = self;
+pub struct HttpApiDefinitionDeployableManifestSource<'a> {
+    pub name: &'a HttpApiDefinitionName,
+    pub api_definition: &'a HttpApiDefinition,
+    pub latest_component_versions: &'a BTreeMap<String, Component>,
+}
 
+impl AsHttpApiDefinitionRequest for HttpApiDefinitionDeployableManifestSource<'_> {
+    fn as_http_api_definition_request(&self) -> anyhow::Result<HttpApiDefinitionRequest> {
         Ok(HttpApiDefinitionRequest {
-            id: name.to_string(),
-            version: api_definition.version.clone(),
+            id: self.name.to_string(),
+            version: self.api_definition.version.clone(),
             security: None, // TODO: check that this is not needed anymore
-            routes: api_definition
+            routes: self
+                .api_definition
                 .routes
                 .iter()
-                .map(normalize_http_api_route)
+                .map(|route| normalize_http_api_route(self.latest_component_versions, route))
                 .collect::<Result<Vec<_>, _>>()?,
-            draft: api_definition.draft,
+            draft: self.api_definition.draft,
         })
     }
 }
 
-fn normalize_http_api_route(route: &HttpApiDefinitionRoute) -> anyhow::Result<RouteRequestData> {
+fn normalize_http_api_route(
+    latest_component_versions: &BTreeMap<String, Component>,
+    route: &HttpApiDefinitionRoute,
+) -> anyhow::Result<RouteRequestData> {
     Ok(RouteRequestData {
         method: to_method_pattern(&route.method)?,
         path: normalize_http_api_binding_path(&route.path),
@@ -139,7 +147,12 @@ fn normalize_http_api_route(route: &HttpApiDefinitionRoute) -> anyhow::Result<Ro
                     .as_ref()
                     .map(|name| GatewayBindingComponent {
                         name: name.clone(),
-                        version: route.binding.component_version,
+                        version: route.binding.component_version.or_else(|| {
+                            // TODO: handle if not found by name?
+                            latest_component_versions
+                                .get(name)
+                                .map(|component| component.versioned_component_id.version)
+                        }),
                     })
             },
             worker_name: None,

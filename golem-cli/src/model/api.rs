@@ -21,6 +21,12 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Copy)]
+pub enum HttpApiDeployMode {
+    All,
+    Matching,
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum IdentityProviderType {
     Google,

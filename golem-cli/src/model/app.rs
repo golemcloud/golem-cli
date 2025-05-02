@@ -793,7 +793,42 @@ impl Application {
             .clone()
     }
 
-    pub fn api_deployments(
+    pub fn used_component_names_for_http_api_definition(
+        &self,
+        name: &HttpApiDefinitionName,
+    ) -> Vec<AppComponentName> {
+        self.http_api_definitions
+            .get(name)
+            .unwrap_or_else(|| panic!("HTTP API definition not found: {}", name.as_str()))
+            .value
+            .routes
+            .iter()
+            .filter_map(|route| {
+                route
+                    .binding
+                    .component_name
+                    .as_ref()
+                    .map(|component_name| AppComponentName::from(component_name.as_str()))
+            })
+            .collect()
+    }
+
+    pub fn used_component_names_for_all_http_api_definition(&self) -> Vec<AppComponentName> {
+        self.http_api_definitions
+            .values()
+            .flat_map(|def| {
+                def.value.routes.iter().filter_map(|route| {
+                    route
+                        .binding
+                        .component_name
+                        .as_ref()
+                        .map(|component_name| AppComponentName::from(component_name.as_str()))
+                })
+            })
+            .collect()
+    }
+
+    pub fn http_api_deployments(
         &self,
     ) -> &BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>> {
         &self.http_api_deployments
@@ -2043,7 +2078,7 @@ mod app_builder {
         }
 
         fn validate_http_api_definitions(&self, validation: &mut ValidationBuilder) {
-            fn not_empty(
+            fn check_not_empty(
                 validation: &mut ValidationBuilder,
                 property_name: &str,
                 value: &str,
@@ -2071,9 +2106,9 @@ mod app_builder {
                         let def = &api_definition.value;
 
                         if let Some(project) = &def.project {
-                            not_empty(validation, "project", project);
+                            check_not_empty(validation, "project", project);
                         }
-                        not_empty(validation, "version", &def.version);
+                        check_not_empty(validation, "version", &def.version);
 
                         for route in &def.routes {
                             validation.with_context(
@@ -2082,12 +2117,12 @@ mod app_builder {
                                     ("path", route.path.clone()),
                                 ],
                                 |validation| {
-                                    if not_empty(validation, "method", &route.method) {
+                                    if check_not_empty(validation, "method", &route.method) {
                                         if let Err(err) = to_method_pattern(&route.method) {
                                             validation.add_error(err.to_string());
                                         }
                                     }
-                                    not_empty(validation, "path", &route.path);
+                                    check_not_empty(validation, "path", &route.path);
 
 
                                     let binding_type = route.binding.type_.unwrap_or_default();
@@ -2099,8 +2134,8 @@ mod app_builder {
                                             validation.add_error(
                                                 format!(
                                                     "Property {} is not allowed with binding type {}",
-                                                    property_name,
-                                                    binding_type_as_string,
+                                                    property_name.log_color_highlight(),
+                                                    binding_type_as_string.log_color_highlight(),
                                                 )
                                             );
                                         }
@@ -2125,25 +2160,46 @@ mod app_builder {
                                                         format!(
                                                             "Property {} is required for binding type {}",
                                                             "component_name".log_color_highlight(),
-                                                            binding_type_as_string,
+                                                            binding_type_as_string.log_color_highlight(),
                                                         )
                                                     );
                                                 }
                                             }
                                         };
 
-                                    let check_rib = |validation: &mut ValidationBuilder, property_name: &str, rib_script: &Option<String>| {
-                                        if let Some(rib) = rib_script.as_ref().map(|s| s.as_str()) {
-                                            if let Some(err) = rib::from_string(rib).err() {
-                                                validation.add_error(
-                                                    format!(
-                                                        "Failed to parse property {} as Rib:\n{}\n{}\n{}",
-                                                        property_name.log_color_highlight(),
-                                                        err.to_string().lines().map(|l| format!("  {}", l)).join("\n").log_color_warn(),
-                                                        "Rib source:".log_color_highlight(),
-                                                        format_rib_source_for_error(rib, &err),
-                                                    )
-                                                );
+                                    let check_rib = |validation: &mut ValidationBuilder, property_name: &str, rib_script: &Option<String>, required: bool| {
+                                        match rib_script.as_ref().map(|s| s.as_str()) {
+                                            Some(rib) => {
+                                                if rib.trim().is_empty() {
+                                                    validation.add_error(
+                                                        format!(
+                                                            "Empty Rib script for property {}",
+                                                            property_name.log_color_highlight(),
+                                                        )
+                                                    );
+                                                }
+                                                if let Some(err) = rib::from_string(rib).err() {
+                                                    validation.add_error(
+                                                        format!(
+                                                            "Failed to parse property {} as Rib:\n{}\n{}\n{}",
+                                                            property_name.log_color_highlight(),
+                                                            err.to_string().lines().map(|l| format!("  {}", l)).join("\n").log_color_warn(),
+                                                            "Rib source:".log_color_highlight(),
+                                                            format_rib_source_for_error(rib, &err),
+                                                        )
+                                                    );
+                                                }
+                                            }
+                                            None => {
+                                                if required {
+                                                    validation.add_error(
+                                                        format!(
+                                                            "Property {} is required for binding type {}",
+                                                            property_name.log_color_highlight(),
+                                                            binding_type_as_string.log_color_highlight(),
+                                                        )
+                                                    );
+                                                }
                                             }
                                         }
                                     };
@@ -2151,21 +2207,21 @@ mod app_builder {
                                     match route.binding.type_.unwrap_or_default() {
                                         HttpApiDefinitionBindingType::Default => {
                                             check_component_name_and_version(validation);
-                                            check_rib(validation, "idempotency_key", &route.binding.idempotency_key);
-                                            check_rib(validation, "invocation_context", &route.binding.invocation_context);
-                                            check_rib(validation, "response", &route.binding.response);
+                                            check_rib(validation, "idempotency_key", &route.binding.idempotency_key, false);
+                                            check_rib(validation, "invocation_context", &route.binding.invocation_context, false);
+                                            check_rib(validation, "response", &route.binding.response, true);
                                         }
                                         HttpApiDefinitionBindingType::CorsPreflight => {
                                             check_not_allowed(validation, "component_name", &route.binding.component_name);
                                             check_not_allowed(validation, "idempotency_key", &route.binding.component_name);
                                             check_not_allowed(validation, "invocation_context", &route.binding.component_name);
-                                            check_rib(validation, "response", &route.binding.response);
+                                            check_rib(validation, "response", &route.binding.response, false);
                                         }
                                         HttpApiDefinitionBindingType::FileServer => {
                                             check_component_name_and_version(validation);
-                                            check_rib(validation, "idempotency_key", &route.binding.idempotency_key);
-                                            check_rib(validation, "invocation_context", &route.binding.invocation_context);
-                                            check_rib(validation, "response", &route.binding.response);
+                                            check_rib(validation, "idempotency_key", &route.binding.idempotency_key, false);
+                                            check_rib(validation, "invocation_context", &route.binding.invocation_context, false);
+                                            check_rib(validation, "response", &route.binding.response, true);
                                         }
                                         HttpApiDefinitionBindingType::HttpHandler => {
                                             check_component_name_and_version(validation);

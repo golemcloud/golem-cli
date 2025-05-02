@@ -631,12 +631,12 @@ impl ApplicationContext {
         }
 
         if config.api_deployments() {
-            if !self.application.api_deployments().is_empty() {
+            if !self.application.http_api_deployments().is_empty() {
                 logln(format!(
                     "{}",
                     "Application API deployments:".log_color_help_group()
                 ));
-                for dep in self.application.api_deployments().values() {
+                for dep in self.application.http_api_deployments().values() {
                     logln(format!(
                         "  {}{}",
                         match &dep.value.subdomain {

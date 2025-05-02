@@ -120,7 +120,7 @@ impl From<String> for ProjectName {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct ComponentName(pub String);
 
 impl From<&str> for ComponentName {

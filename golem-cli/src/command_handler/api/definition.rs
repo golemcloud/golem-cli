@@ -14,26 +14,33 @@
 
 use crate::app::yaml_edit::AppYamlEditor;
 use crate::command::api::definition::ApiDefinitionSubcommand;
-use crate::command::shared_args::ProjectNameOptionalArg;
+use crate::command::shared_args::{ProjectNameOptionalArg, WorkerUpdateOrRedeployArgs};
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
-use crate::log::{log_action, log_skipping_up_to_date, log_warn_action, LogColorize, LogIndent};
-use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion};
-use crate::model::app::{HttpApiDefinitionName, WithSource};
+use crate::log::{
+    log_action, log_skipping_up_to_date, log_warn_action, logln, LogColorize, LogIndent,
+};
+use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion, HttpApiDeployMode};
+use crate::model::app::{ApplicationComponentSelectMode, HttpApiDefinitionName, WithSource};
 use crate::model::app_raw::HttpApiDefinition;
-use crate::model::deploy_diff::{AsHttpApiDefinitionRequest, ToYamlValueWithoutNulls};
+use crate::model::component::Component;
+use crate::model::deploy_diff::{
+    AsHttpApiDefinitionRequest, HttpApiDefinitionDeployableManifestSource, ToYamlValueWithoutNulls,
+};
 use crate::model::text::api_definition::{
     ApiDefinitionGetView, ApiDefinitionNewView, ApiDefinitionUpdateView,
 };
 use crate::model::text::fmt::{log_deployable_entity_yaml_diff, log_error, log_warn};
-use crate::model::{PathBufOrStdin, ProjectNameAndId};
+use crate::model::{ComponentName, PathBufOrStdin, ProjectNameAndId};
 use anyhow::{bail, Context as AnyhowContext};
 use golem_client::api::ApiDefinitionClient as ApiDefinitionClientOss;
 use golem_client::model::{HttpApiDefinitionRequest, HttpApiDefinitionResponseData};
 use golem_cloud_client::api::ApiDefinitionClient as ApiDefinitionClientCloud;
+use itertools::Itertools;
 use serde::de::DeserializeOwned;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 pub struct ApiDefinitionCommandHandler {
@@ -47,6 +54,9 @@ impl ApiDefinitionCommandHandler {
 
     pub async fn handle_command(&mut self, command: ApiDefinitionSubcommand) -> anyhow::Result<()> {
         match command {
+            ApiDefinitionSubcommand::Deploy {
+                http_api_definition_name,
+            } => self.cmd_deploy(http_api_definition_name).await,
             ApiDefinitionSubcommand::Import {
                 project,
                 definition,
@@ -62,6 +72,93 @@ impl ApiDefinitionCommandHandler {
                 version,
             } => self.cmd_delete(project, id, version).await,
             ApiDefinitionSubcommand::List { project, id } => self.cmd_list(project, id).await,
+        }
+    }
+
+    async fn cmd_deploy(&self, name: Option<HttpApiDefinitionName>) -> anyhow::Result<()> {
+        let project = None::<ProjectNameAndId>; // TODO
+
+        let used_component_names = {
+            {
+                let app_ctx = self.ctx.app_context_lock().await;
+                let app_ctx = app_ctx.some_or_err()?;
+                match name.as_ref() {
+                    Some(name) => {
+                        if !app_ctx
+                            .application
+                            .http_api_definitions()
+                            .keys()
+                            .contains(name)
+                        {
+                            log_error(format!(
+                                "HTTP API definition {} not found in the application manifest",
+                                name.as_str().log_color_highlight()
+                            ));
+                            logln("");
+                            bail!(NonSuccessfulExit)
+                            // TODO: show available API names
+                        }
+
+                        app_ctx
+                            .application
+                            .used_component_names_for_http_api_definition(name)
+                    }
+                    None => app_ctx
+                        .application
+                        .used_component_names_for_all_http_api_definition(),
+                }
+            }
+            .into_iter()
+            .map(|component_name| ComponentName::from(component_name.to_string()))
+            .collect::<Vec<_>>()
+        };
+
+        let components = {
+            if used_component_names.len() > 0 {
+                self.ctx
+                    .component_handler()
+                    .deploy(
+                        project.as_ref(),
+                        used_component_names,
+                        None,
+                        &ApplicationComponentSelectMode::All,
+                        WorkerUpdateOrRedeployArgs::default(),
+                    )
+                    .await?
+                    .into_iter()
+                    .map(|component| (component.component_name.0.clone(), component))
+                    .collect::<BTreeMap<_, _>>()
+            } else {
+                BTreeMap::new()
+            }
+        };
+
+        match &name {
+            Some(name) => {
+                let definition = {
+                    let app_ctx = self.ctx.app_context_lock().await;
+                    let app_ctx = app_ctx.some_or_err()?;
+                    app_ctx
+                        .application
+                        .http_api_definitions()
+                        .get(name)
+                        .unwrap()
+                        .clone()
+                };
+
+                self.deploy_api_definition(
+                    project.as_ref(),
+                    HttpApiDeployMode::All,
+                    &components,
+                    &name,
+                    &definition,
+                )
+                .await
+            }
+            None => {
+                self.deploy(project.as_ref(), HttpApiDeployMode::All, &components)
+                    .await
+            }
         }
     }
 
@@ -217,13 +314,15 @@ impl ApiDefinitionCommandHandler {
         Ok(())
     }
 
-    pub async fn deploy(&self, project: Option<&ProjectNameAndId>) -> anyhow::Result<()> {
+    pub async fn deploy(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        deploy_mode: HttpApiDeployMode,
+        latest_component_versions: &BTreeMap<String, Component>,
+    ) -> anyhow::Result<()> {
         let api_definitions = {
             let app_ctx = self.ctx.app_context_lock().await;
-
             let app_ctx = app_ctx.some_or_err()?;
-
-            // TODO: selection based on components
             app_ctx.application.http_api_definitions().clone()
         };
 
@@ -232,8 +331,14 @@ impl ApiDefinitionCommandHandler {
 
             for (api_definition_name, api_definition) in api_definitions {
                 let _indent = LogIndent::new();
-                self.deploy_api_definition(project, &api_definition_name, &api_definition)
-                    .await?;
+                self.deploy_api_definition(
+                    project,
+                    deploy_mode,
+                    latest_component_versions,
+                    &api_definition_name,
+                    &api_definition,
+                )
+                .await?;
             }
         }
 
@@ -243,9 +348,32 @@ impl ApiDefinitionCommandHandler {
     async fn deploy_api_definition(
         &self,
         project: Option<&ProjectNameAndId>,
+        deploy_mode: HttpApiDeployMode,
+        latest_component_versions: &BTreeMap<String, Component>,
         api_definition_name: &HttpApiDefinitionName,
         api_definition: &WithSource<HttpApiDefinition>,
     ) -> anyhow::Result<()> {
+        let skip_by_component_filter = match deploy_mode {
+            HttpApiDeployMode::All => false,
+            HttpApiDeployMode::Matching => !api_definition.value.routes.iter().any(|route| {
+                match &route.binding.component_name {
+                    Some(component_name) => latest_component_versions.contains_key(component_name),
+                    None => false,
+                }
+            }),
+        };
+
+        if skip_by_component_filter {
+            log_warn_action(
+                "Skipping",
+                format!(
+                    "deploying HTTP API definition {}, not matched by component selection",
+                    api_definition_name.as_str().log_color_highlight()
+                ),
+            );
+            return Ok(());
+        };
+
         let server_api_definition = self
             .api_definition(
                 project,
@@ -257,8 +385,12 @@ impl ApiDefinitionCommandHandler {
             .transpose()?;
 
         let manifest_api_definition = {
-            let mut manifest_api_definition =
-                (api_definition_name, &api_definition.value).as_http_api_definition_request()?;
+            let mut manifest_api_definition = HttpApiDefinitionDeployableManifestSource {
+                name: &api_definition_name,
+                api_definition: &api_definition.value,
+                latest_component_versions: &latest_component_versions,
+            }
+            .as_http_api_definition_request()?;
 
             // NOTE: if the only diff if being non-draft on serverside, we hide that
             if let Some(server_api_definition) = &server_api_definition {

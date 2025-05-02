@@ -25,6 +25,7 @@ use crate::error::{HintError, NonSuccessfulExit};
 use crate::fs;
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::log::{log_action, logln, LogColorize, LogIndent, LogOutput, Output};
+use crate::model::api::HttpApiDeployMode;
 use crate::model::app::{ApplicationComponentSelectMode, DynamicHelpSections};
 use crate::model::component::Component;
 use crate::model::text::fmt::{log_error, log_fuzzy_matches, log_text_view, log_warn};
@@ -37,6 +38,7 @@ use golem_templates::model::{
     ComposableAppGroupName, GuestLanguage, PackageName, Template, TemplateName,
 };
 use itertools::Itertools;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
@@ -276,7 +278,7 @@ impl AppCommandHandler {
         let components = self.components_for_update_or_redeploy().await?;
         self.ctx
             .component_handler()
-            .update_workers_by_components(components, update_mode)
+            .update_workers_by_components(&components, update_mode)
             .await?;
 
         Ok(())
@@ -292,7 +294,7 @@ impl AppCommandHandler {
         let components = self.components_for_update_or_redeploy().await?;
         self.ctx
             .component_handler()
-            .redeploy_workers_by_components(components)
+            .redeploy_workers_by_components(&components)
             .await?;
 
         Ok(())
@@ -315,13 +317,16 @@ impl AppCommandHandler {
         force_build: ForceBuildArg,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
+        let is_any_component_explicitly_selected = !component_name.component_name.is_empty();
+
         let project = self
             .ctx
             .cloud_project_handler()
             .opt_select_project(None, None) // TODO: project, account id
             .await?;
 
-        self.ctx
+        let components = self
+            .ctx
             .component_handler()
             .deploy(
                 project.as_ref(),
@@ -332,7 +337,23 @@ impl AppCommandHandler {
             )
             .await?;
 
-        self.ctx.api_handler().deploy(project.as_ref()).await?;
+        let components = components
+            .into_iter()
+            .map(|component| (component.component_name.0.clone(), component))
+            .collect::<BTreeMap<_, _>>();
+
+        self.ctx
+            .api_handler()
+            .deploy(
+                project.as_ref(),
+                if is_any_component_explicitly_selected {
+                    HttpApiDeployMode::Matching
+                } else {
+                    HttpApiDeployMode::All
+                },
+                &components,
+            )
+            .await?;
 
         Ok(())
     }

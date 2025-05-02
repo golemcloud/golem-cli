@@ -1077,6 +1077,8 @@ pub mod api {
 
     #[derive(Debug, Subcommand)]
     pub enum ApiSubcommand {
+        /// Deploy API Definitions and Deployments
+        Deploy,
         /// Manage API definitions
         Definition {
             #[clap(subcommand)]
@@ -1102,12 +1104,17 @@ pub mod api {
     pub mod definition {
         use crate::command::shared_args::ProjectNameOptionalArg;
         use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion};
+        use crate::model::app::HttpApiDefinitionName;
         use crate::model::PathBufOrStdin;
         use clap::Subcommand;
 
-        // TODO: add deploy for api, api def, api dep?
         #[derive(Debug, Subcommand)]
         pub enum ApiDefinitionSubcommand {
+            /// Deploy API Definitions
+            Deploy {
+                /// API definition to deploy, if not specified, all definitions are deployed
+                http_api_definition_name: Option<HttpApiDefinitionName>,
+            },
             // TODO: decide if we drop it from cli for now, or move the import logic into the CLI
             /// Import OpenAPI file as api definition
             Import {
@@ -1123,7 +1130,7 @@ pub mod api {
             Get {
                 #[command(flatten)]
                 project: ProjectNameOptionalArg,
-                /// Api definition id
+                /// API definition id
                 #[arg(short, long)]
                 id: ApiDefinitionId,
                 /// Version of the api definition
@@ -1134,7 +1141,7 @@ pub mod api {
             List {
                 #[command(flatten)]
                 project: ProjectNameOptionalArg,
-                /// Api definition id to get all versions. Optional.
+                /// API definition id to get all versions. Optional.
                 #[arg(short, long)]
                 id: Option<ApiDefinitionId>,
             },
@@ -1142,7 +1149,7 @@ pub mod api {
             Delete {
                 #[command(flatten)]
                 project: ProjectNameOptionalArg,
-                /// Api definition id
+                /// API definition id
                 #[arg(short, long)]
                 id: ApiDefinitionId,
                 /// Version of the api definition
@@ -1159,7 +1166,7 @@ pub mod api {
 
         #[derive(Debug, Subcommand)]
         pub enum ApiDeploymentSubcommand {
-            /// Create or update deployment
+            /// Deploy API Deployments
             Deploy {
                 #[command(flatten)]
                 project: ProjectNameOptionalArg,
