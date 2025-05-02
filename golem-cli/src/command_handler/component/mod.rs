@@ -34,7 +34,7 @@ use crate::model::app::{
 use crate::model::app::{DependencyType, InitialComponentFile};
 use crate::model::component::{Component, ComponentSelection, ComponentView};
 use crate::model::deploy::TryUpdateAllWorkersResult;
-use crate::model::deploy_diff::DeployableComponent;
+use crate::model::deploy_diff::DeployDiffableComponent;
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
 use crate::model::text::fmt::{
     log_deployable_entity_yaml_diff, log_error, log_text_view, log_warn,
@@ -674,16 +674,16 @@ impl ComponentCommandHandler {
             .as_ref()
             .map(|c| c.versioned_component_id.component_id);
 
-        let manifest_deployable_component = self
-            .manifest_deployable_component(component_name, &deploy_properties)
+        let manifest_deploy_diffable_component = self
+            .manifest_deploy_diffable_component(component_name, &deploy_properties)
             .await?;
 
         if let Some(server_component) = server_component {
-            let server_deployable_component = self
-                .server_deployable_component(project, &server_component)
+            let server_deploy_diffable_component = self
+                .server_deploy_diffable_component(project, &server_component)
                 .await?;
 
-            if server_deployable_component == manifest_deployable_component {
+            if server_deploy_diffable_component == manifest_deploy_diffable_component {
                 log_skipping_up_to_date(format!(
                     "deploying component {}",
                     component_name.as_str().log_color_highlight()
@@ -701,8 +701,8 @@ impl ComponentCommandHandler {
                 {
                     let _indent = self.ctx.log_handler().nested_text_view_indent();
                     log_deployable_entity_yaml_diff(
-                        &server_deployable_component,
-                        &manifest_deployable_component,
+                        &server_deploy_diffable_component,
+                        &manifest_deploy_diffable_component,
                     )?;
                 }
             }
@@ -855,9 +855,9 @@ impl ComponentCommandHandler {
             GetServerComponentHash {
                 profile_name: self.ctx.profile_name(),
                 project_name: project.map(|p| &p.project_name),
-                component_name: &manifest_deployable_component.component_name,
+                component_name: &manifest_deploy_diffable_component.component_name,
                 component_version: component.versioned_component_id.version,
-                component_hash: Some(&manifest_deployable_component.component_hash),
+                component_hash: Some(&manifest_deploy_diffable_component.component_hash),
             },
         )?
         .success()?;
@@ -1400,11 +1400,11 @@ impl ComponentCommandHandler {
     }
 
     // NOTE: all of this is naive for now (as in performance, streaming, parallelism)
-    async fn manifest_deployable_component(
+    async fn manifest_deploy_diffable_component(
         &self,
         component_name: &AppComponentName,
         properties: &ComponentDeployProperties,
-    ) -> anyhow::Result<DeployableComponent> {
+    ) -> anyhow::Result<DeployDiffableComponent> {
         let component_hash = {
             let file = std::fs::File::open(&properties.linked_wasm_path)?;
             let mut component_hasher = blake3::Hasher::new();
@@ -1414,7 +1414,7 @@ impl ComponentCommandHandler {
             component_hasher.finalize().to_hex().to_string()
         };
 
-        Ok(DeployableComponent {
+        Ok(DeployDiffableComponent {
             component_name: component_name.as_str().into(),
             component_hash,
             component_type: properties.component_type,
@@ -1443,12 +1443,12 @@ impl ComponentCommandHandler {
     }
 
     // NOTE: all of this is naive for now (as in performance, streaming, parallelism)
-    async fn server_deployable_component(
+    async fn server_deploy_diffable_component(
         &self,
         project: Option<&ProjectNameAndId>,
         component: &Component,
-    ) -> anyhow::Result<DeployableComponent> {
-        Ok(DeployableComponent {
+    ) -> anyhow::Result<DeployDiffableComponent> {
+        Ok(DeployDiffableComponent {
             component_name: component.component_name.clone(),
             component_hash: self
                 .server_component_hash(

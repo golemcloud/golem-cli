@@ -36,31 +36,33 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct DeployableComponentFile {
+pub struct DeployableDiffableComponentFile {
     pub hash: String,
     pub permissions: ComponentFilePermissions,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct DeployableComponent {
+pub struct DeployDiffableComponent {
     pub component_name: ComponentName,
     pub component_hash: String,
     pub component_type: ComponentType,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub files: BTreeMap<String, DeployableComponentFile>,
+    pub files: BTreeMap<String, DeployableDiffableComponentFile>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dynamic_linking: BTreeMap<String, BTreeMap<String, String>>,
 }
 
-// TODO: add DeployableHttpApiDefinition, currently using HttpApiDefinitionRequest
-pub trait AsHttpApiDefinitionRequest {
-    fn as_http_api_definition_request(&self) -> anyhow::Result<HttpApiDefinitionRequest>;
+// NOTE: for now HttpApiDefinitionRequest is used as DeployableHttpApiDefinition
+type DeployDiffableHttpApiDefinition = HttpApiDefinitionRequest;
+
+pub trait ToDeployDiffableHttpApiDefinition {
+    fn to_diffable(&self) -> anyhow::Result<DeployDiffableHttpApiDefinition>;
 }
 
-impl AsHttpApiDefinitionRequest for HttpApiDefinitionResponseData {
-    fn as_http_api_definition_request(&self) -> anyhow::Result<HttpApiDefinitionRequest> {
-        Ok(HttpApiDefinitionRequest {
+impl ToDeployDiffableHttpApiDefinition for HttpApiDefinitionResponseData {
+    fn to_diffable(&self) -> anyhow::Result<DeployDiffableHttpApiDefinition> {
+        Ok(DeployDiffableHttpApiDefinition {
             id: self.id.clone(),
             version: self.version.clone(),
             security: None, // TODO: check that this is not needed anymore
@@ -97,9 +99,9 @@ pub struct HttpApiDefinitionDeployableManifestSource<'a> {
     pub latest_component_versions: &'a BTreeMap<String, Component>,
 }
 
-impl AsHttpApiDefinitionRequest for HttpApiDefinitionDeployableManifestSource<'_> {
-    fn as_http_api_definition_request(&self) -> anyhow::Result<HttpApiDefinitionRequest> {
-        Ok(HttpApiDefinitionRequest {
+impl ToDeployDiffableHttpApiDefinition for HttpApiDefinitionDeployableManifestSource<'_> {
+    fn to_diffable(&self) -> anyhow::Result<DeployDiffableHttpApiDefinition> {
+        Ok(DeployDiffableHttpApiDefinition {
             id: self.name.to_string(),
             version: self.api_definition.version.clone(),
             security: None, // TODO: check that this is not needed anymore

@@ -27,7 +27,8 @@ use crate::model::app::{ApplicationComponentSelectMode, HttpApiDefinitionName, W
 use crate::model::app_raw::HttpApiDefinition;
 use crate::model::component::Component;
 use crate::model::deploy_diff::{
-    AsHttpApiDefinitionRequest, HttpApiDefinitionDeployableManifestSource, ToYamlValueWithoutNulls,
+    HttpApiDefinitionDeployableManifestSource, ToDeployDiffableHttpApiDefinition,
+    ToYamlValueWithoutNulls,
 };
 use crate::model::text::api_definition::{
     ApiDefinitionGetView, ApiDefinitionNewView, ApiDefinitionUpdateView,
@@ -374,42 +375,43 @@ impl ApiDefinitionCommandHandler {
             return Ok(());
         };
 
-        let server_api_definition = self
+        let server_diffable_api_definition = self
             .api_definition(
                 project,
                 api_definition_name.as_str(),
                 api_definition.value.version.as_str(),
             )
             .await?
-            .map(|ad| ad.as_http_api_definition_request())
+            .map(|ad| ad.to_diffable())
             .transpose()?;
 
         let manifest_api_definition = {
-            let mut manifest_api_definition = HttpApiDefinitionDeployableManifestSource {
+            let mut manifest_diffable_api_definition = HttpApiDefinitionDeployableManifestSource {
                 name: api_definition_name,
                 api_definition: &api_definition.value,
                 latest_component_versions,
             }
-            .as_http_api_definition_request()?;
+            .to_diffable()?;
 
             // NOTE: if the only diff if being non-draft on serverside, we hide that
-            if let Some(server_api_definition) = &server_api_definition {
-                if manifest_api_definition.version == server_api_definition.version
-                    && !server_api_definition.draft
-                    && manifest_api_definition.draft
+            if let Some(server_diffable_api_definition) = &server_diffable_api_definition {
+                if manifest_diffable_api_definition.version
+                    == server_diffable_api_definition.version
+                    && !server_diffable_api_definition.draft
+                    && manifest_diffable_api_definition.draft
                 {
-                    manifest_api_definition.draft = false;
+                    manifest_diffable_api_definition.draft = false;
                 }
             }
 
-            manifest_api_definition
+            manifest_diffable_api_definition
         };
 
         let manifest_api_definition_yaml = manifest_api_definition
             .clone()
             .to_yaml_value_without_nulls()?;
 
-        let server_api_definition_yaml = server_api_definition
+        let server_api_definition_yaml = server_diffable_api_definition
             .clone()
             .map(|ad| ad.to_yaml_value_without_nulls())
             .transpose()?;
@@ -437,7 +439,7 @@ impl ApiDefinitionCommandHandler {
                         )?;
                     }
 
-                    if server_api_definition.map(|ad| ad.draft) == Some(true) {
+                    if server_diffable_api_definition.map(|ad| ad.draft) == Some(true) {
                         log_action(
                             "Updating",
                             format!(
