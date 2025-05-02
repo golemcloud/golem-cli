@@ -62,8 +62,10 @@ use golem_cloud_client::model::{
     WorkerCreationRequest as WorkerCreationRequestCloud,
 };
 use golem_common::model::public_oplog::OplogCursor;
+use golem_wasm_ast::analysis::AnalysedType;
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::parse_type_annotated_value;
+use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
 use itertools::{EitherOrBoth, Itertools};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -1868,7 +1870,7 @@ fn wave_args_to_invoke_args(
     let type_annotated_values = wave_args
         .iter()
         .zip(types.iter())
-        .map(|(wave, typ)| parse_type_annotated_value(typ, wave))
+        .map(|(wave, typ)| lenient_parse_type_annotated_value(typ, wave))
         .collect::<Vec<_>>();
 
     if type_annotated_values
@@ -1905,6 +1907,20 @@ fn wave_args_to_invoke_args(
         .map(|tav| tav.try_into())
         .collect::<Result<Vec<_>, _>>()
         .map_err(|err| anyhow!("Failed to convert type annotated value: {err}"))
+}
+
+pub fn lenient_parse_type_annotated_value(
+    analysed_type: &AnalysedType,
+    input: &str,
+) -> Result<TypeAnnotatedValue, String> {
+    let patched_input = match analysed_type {
+        AnalysedType::Chr(_) => (!input.starts_with('\'')).then(|| format!("'{}'", input)),
+        AnalysedType::Str(_) => (!input.starts_with('"')).then(|| format!("\"{}\"", input)),
+        _ => None,
+    };
+
+    let input = patched_input.as_deref().unwrap_or(input);
+    parse_type_annotated_value(analysed_type, input)
 }
 
 fn scan_cursor_to_string(cursor: &ScanCursor) -> String {
