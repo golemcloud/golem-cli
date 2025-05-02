@@ -80,7 +80,7 @@ impl ComponentCommandHandler {
         Self { ctx }
     }
 
-    pub async fn handle_command(&mut self, subcommand: ComponentSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&self, subcommand: ComponentSubcommand) -> anyhow::Result<()> {
         match subcommand {
             ComponentSubcommand::New {
                 template,
@@ -143,7 +143,7 @@ impl ComponentCommandHandler {
     }
 
     async fn cmd_new(
-        &mut self,
+        &self,
         template: ComponentTemplatePositionalArg,
         component_package_name: PackageName,
     ) -> anyhow::Result<()> {
@@ -209,7 +209,7 @@ impl ComponentCommandHandler {
     }
 
     async fn cmd_build(
-        &mut self,
+        &self,
         component_name: ComponentOptionalComponentNames,
         build_args: BuildArgs,
     ) -> anyhow::Result<()> {
@@ -224,7 +224,7 @@ impl ComponentCommandHandler {
     }
 
     async fn cmd_clean(
-        &mut self,
+        &self,
         component_name: ComponentOptionalComponentNames,
     ) -> anyhow::Result<()> {
         self.ctx
@@ -237,7 +237,7 @@ impl ComponentCommandHandler {
     }
 
     async fn cmd_deploy(
-        &mut self,
+        &self,
         component_name: ComponentOptionalComponentNames,
         force_build: ForceBuildArg,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
@@ -411,7 +411,7 @@ impl ComponentCommandHandler {
                 .await?;
 
             if let Some(component) = component {
-                component_views.push(Component::from(component).into());
+                component_views.push(component.into());
             }
         }
 
@@ -578,7 +578,7 @@ impl ComponentCommandHandler {
     }
 
     pub async fn deploy(
-        &mut self,
+        &self,
         project: Option<&ProjectNameAndId>,
         component_names: Vec<ComponentName>,
         force_build: Option<ForceBuildArg>,
@@ -653,7 +653,7 @@ impl ComponentCommandHandler {
     }
 
     async fn deploy_component(
-        &mut self,
+        &self,
         build_profile: Option<&BuildProfileName>,
         project: Option<&ProjectNameAndId>,
         component_name: &AppComponentName,

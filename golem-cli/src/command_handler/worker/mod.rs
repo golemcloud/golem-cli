@@ -80,7 +80,7 @@ impl WorkerCommandHandler {
         Self { ctx }
     }
 
-    pub async fn handle_command(&mut self, subcommand: WorkerSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&self, subcommand: WorkerSubcommand) -> anyhow::Result<()> {
         match subcommand {
             WorkerSubcommand::New {
                 worker_name,
@@ -170,7 +170,7 @@ impl WorkerCommandHandler {
     }
 
     async fn cmd_new(
-        &mut self,
+        &self,
         worker_name: WorkerNameArg,
         arguments: Vec<NewWorkerArgument>,
         env: Vec<(String, String)>,
@@ -231,7 +231,7 @@ impl WorkerCommandHandler {
     }
 
     async fn cmd_invoke(
-        &mut self,
+        &self,
         worker_name: WorkerNameArg,
         function_name: &WorkerFunctionName,
         arguments: Vec<WorkerFunctionArgument>,
@@ -390,7 +390,7 @@ impl WorkerCommandHandler {
     }
 
     async fn cmd_stream(
-        &mut self,
+        &self,
         worker_name: WorkerNameArg,
         stream_args: StreamArgs,
     ) -> anyhow::Result<()> {
@@ -422,7 +422,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_simulate_crash(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    async fn cmd_simulate_crash(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -452,7 +452,7 @@ impl WorkerCommandHandler {
     }
 
     async fn cmd_oplog(
-        &mut self,
+        &self,
         worker_name: WorkerNameArg,
         from: Option<u64>,
         query: Option<String>,
@@ -526,7 +526,7 @@ impl WorkerCommandHandler {
     }
 
     async fn cmd_revert(
-        &mut self,
+        &self,
         worker_name: WorkerNameArg,
         last_oplog_index: Option<u64>,
         number_of_invocations: Option<u64>,
@@ -615,7 +615,7 @@ impl WorkerCommandHandler {
     }
 
     async fn cmd_cancel_invocation(
-        &mut self,
+        &self,
         worker_name: WorkerNameArg,
         idempotency_key: IdempotencyKey,
     ) -> anyhow::Result<()> {
@@ -744,7 +744,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_interrupt(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    async fn cmd_interrupt(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -767,7 +767,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_resume(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    async fn cmd_resume(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -790,7 +790,7 @@ impl WorkerCommandHandler {
     }
 
     async fn cmd_update(
-        &mut self,
+        &self,
         worker_name: WorkerNameArg,
         mode: WorkerUpdateMode,
         target_version: Option<u64>,
@@ -840,7 +840,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    async fn cmd_get(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -881,7 +881,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(&mut self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    async fn cmd_delete(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -945,7 +945,7 @@ impl WorkerCommandHandler {
     }
 
     pub async fn invoke_worker(
-        &mut self,
+        &self,
         component: &Component,
         worker_name: Option<&WorkerName>,
         function_name: &str,
@@ -1491,7 +1491,7 @@ impl WorkerCommandHandler {
     }
 
     async fn component_by_worker_name_match(
-        &mut self,
+        &self,
         worker_name_match: &WorkerNameMatch,
     ) -> anyhow::Result<(Component, WorkerName)> {
         let Some(worker_name) = &worker_name_match.worker_name else {
@@ -1528,7 +1528,7 @@ impl WorkerCommandHandler {
     }
 
     async fn resume_worker(
-        &mut self,
+        &self,
         component: &Component,
         worker_name: &WorkerName,
     ) -> anyhow::Result<()> {
@@ -1558,7 +1558,7 @@ impl WorkerCommandHandler {
     }
 
     async fn interrupt_worker(
-        &mut self,
+        &self,
         component: &Component,
         worker_name: &WorkerName,
         recover_immediately: bool,
@@ -1591,7 +1591,7 @@ impl WorkerCommandHandler {
     }
 
     pub async fn match_worker_name(
-        &mut self,
+        &self,
         worker_name: WorkerName,
     ) -> anyhow::Result<WorkerNameMatch> {
         fn to_opt_worker_name(worker_name: String) -> Option<WorkerName> {

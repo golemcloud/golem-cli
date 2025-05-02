@@ -2334,7 +2334,7 @@ mod app_builder {
                 return format!("No {} are defined", entity_plural);
             }
 
-            let fuzzy_search = FuzzySearch::new(options.iter().map(|s| *s));
+            let fuzzy_search = FuzzySearch::new(options.iter().copied());
 
             let hint = match fuzzy_search.find(unknown_option) {
                 Err(fuzzy::Error::Ambiguous {

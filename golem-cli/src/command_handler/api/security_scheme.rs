@@ -35,10 +35,7 @@ impl ApiSecuritySchemeCommandHandler {
         Self { ctx }
     }
 
-    pub async fn handle_command(
-        &mut self,
-        command: ApiSecuritySchemeSubcommand,
-    ) -> anyhow::Result<()> {
+    pub async fn handle_command(&self, command: ApiSecuritySchemeSubcommand) -> anyhow::Result<()> {
         match command {
             ApiSecuritySchemeSubcommand::Create {
                 project,

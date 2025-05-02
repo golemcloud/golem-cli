@@ -44,7 +44,7 @@ impl CloudProjectCommandHandler {
         Self { ctx }
     }
 
-    pub async fn handle_command(&mut self, subcommand: ProjectSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&self, subcommand: ProjectSubcommand) -> anyhow::Result<()> {
         match subcommand {
             ProjectSubcommand::New {
                 project_name,
@@ -80,7 +80,7 @@ impl CloudProjectCommandHandler {
     }
 
     async fn cmd_new(
-        &mut self,
+        &self,
         project_name: ProjectName,
         description: Option<String>,
     ) -> anyhow::Result<()> {
@@ -100,7 +100,7 @@ impl CloudProjectCommandHandler {
         Ok(())
     }
 
-    async fn cmd_list(&mut self, project_name: Option<ProjectName>) -> anyhow::Result<()> {
+    async fn cmd_list(&self, project_name: Option<ProjectName>) -> anyhow::Result<()> {
         let projects = self
             .ctx
             .golem_clients_cloud()
@@ -115,7 +115,7 @@ impl CloudProjectCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get_default(&mut self) -> anyhow::Result<()> {
+    async fn cmd_get_default(&self) -> anyhow::Result<()> {
         let project = self
             .ctx
             .golem_clients_cloud()

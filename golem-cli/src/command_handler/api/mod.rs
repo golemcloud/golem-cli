@@ -37,7 +37,7 @@ impl ApiCommandHandler {
         Self { ctx }
     }
 
-    pub async fn handle_command(&mut self, command: ApiSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&self, command: ApiSubcommand) -> anyhow::Result<()> {
         match command {
             ApiSubcommand::Deploy => self.ctx.api_handler().cmd_deploy().await,
             ApiSubcommand::Definition { subcommand } => {
@@ -84,7 +84,7 @@ impl ApiCommandHandler {
         };
 
         let components = {
-            if used_component_names.len() > 0 {
+            if !used_component_names.is_empty() {
                 self.ctx
                     .component_handler()
                     .deploy(

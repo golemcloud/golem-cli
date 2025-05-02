@@ -52,7 +52,7 @@ impl AppCommandHandler {
         Self { ctx }
     }
 
-    pub async fn handle_command(&mut self, subcommand: AppSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&self, subcommand: AppSubcommand) -> anyhow::Result<()> {
         match subcommand {
             AppSubcommand::New {
                 application_name,
@@ -88,7 +88,7 @@ impl AppCommandHandler {
     }
 
     async fn cmd_new(
-        &mut self,
+        &self,
         application_name: &str,
         languages: Vec<GuestLanguage>,
     ) -> anyhow::Result<()> {
@@ -186,7 +186,7 @@ impl AppCommandHandler {
     }
 
     async fn cmd_build(
-        &mut self,
+        &self,
         component_name: AppOptionalComponentNames,
         build_args: BuildArgs,
     ) -> anyhow::Result<()> {
@@ -198,7 +198,7 @@ impl AppCommandHandler {
         .await
     }
 
-    async fn cmd_clean(&mut self, component_name: AppOptionalComponentNames) -> anyhow::Result<()> {
+    async fn cmd_clean(&self, component_name: AppOptionalComponentNames) -> anyhow::Result<()> {
         self.clean(
             component_name.component_name,
             &ApplicationComponentSelectMode::All,
@@ -207,7 +207,7 @@ impl AppCommandHandler {
     }
 
     async fn cmd_deploy(
-        &mut self,
+        &self,
         component_name: AppOptionalComponentNames,
         force_build: ForceBuildArg,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
@@ -216,7 +216,7 @@ impl AppCommandHandler {
             .await
     }
 
-    async fn cmd_custom_command(&mut self, command: Vec<String>) -> anyhow::Result<()> {
+    async fn cmd_custom_command(&self, command: Vec<String>) -> anyhow::Result<()> {
         if command.len() != 1 {
             bail!(
                 "Expected exactly one custom subcommand, got: {}",
@@ -268,7 +268,7 @@ impl AppCommandHandler {
     }
 
     async fn cmd_update_workers(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
         update_mode: WorkerUpdateMode,
     ) -> anyhow::Result<()> {
@@ -285,7 +285,7 @@ impl AppCommandHandler {
     }
 
     async fn cmd_redeploy_workers(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
     ) -> anyhow::Result<()> {
         self.must_select_components(component_names, &ApplicationComponentSelectMode::All)
@@ -300,10 +300,7 @@ impl AppCommandHandler {
         Ok(())
     }
 
-    async fn cmd_diagnose(
-        &mut self,
-        component_names: AppOptionalComponentNames,
-    ) -> anyhow::Result<()> {
+    async fn cmd_diagnose(&self, component_names: AppOptionalComponentNames) -> anyhow::Result<()> {
         self.diagnose(
             component_names.component_name,
             &ApplicationComponentSelectMode::All,
@@ -312,7 +309,7 @@ impl AppCommandHandler {
     }
 
     async fn deploy(
-        &mut self,
+        &self,
         component_name: AppOptionalComponentNames,
         force_build: ForceBuildArg,
         update_or_redeploy: WorkerUpdateOrRedeployArgs,
@@ -359,7 +356,7 @@ impl AppCommandHandler {
     }
 
     pub async fn build(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
         build: Option<BuildArgs>,
         default_component_select_mode: &ApplicationComponentSelectMode,
@@ -379,7 +376,7 @@ impl AppCommandHandler {
     }
 
     pub async fn clean(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
         default_component_select_mode: &ApplicationComponentSelectMode,
     ) -> anyhow::Result<()> {
@@ -428,7 +425,7 @@ impl AppCommandHandler {
     }
 
     pub async fn must_select_components(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
         default: &ApplicationComponentSelectMode,
     ) -> anyhow::Result<()> {
@@ -439,7 +436,7 @@ impl AppCommandHandler {
     }
 
     pub async fn opt_select_components(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
         default: &ApplicationComponentSelectMode,
     ) -> anyhow::Result<bool> {
@@ -448,7 +445,7 @@ impl AppCommandHandler {
     }
 
     pub async fn opt_select_components_allow_not_found(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
         default: &ApplicationComponentSelectMode,
     ) -> anyhow::Result<bool> {
@@ -459,7 +456,7 @@ impl AppCommandHandler {
     // TODO: forbid matching the same component multiple times
     // Returns false if there is no app
     async fn opt_select_components_internal(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
         default: &ApplicationComponentSelectMode,
         allow_not_found: bool,
@@ -678,7 +675,7 @@ impl AppCommandHandler {
     }
 
     pub async fn diagnose(
-        &mut self,
+        &self,
         component_names: Vec<ComponentName>,
         default_component_select_mode: &ApplicationComponentSelectMode,
     ) -> anyhow::Result<()> {

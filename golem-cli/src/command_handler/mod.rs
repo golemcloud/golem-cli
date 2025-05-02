@@ -206,7 +206,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                 init_tracing(verbosity, pretty_mode);
 
                 match Self::new_with_init_hint_error_handler(&command.global_flags, hooks) {
-                    Ok(mut handler) => {
+                    Ok(handler) => {
                         let result = handler
                             .handle_command(command)
                             .await
@@ -295,7 +295,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
         })
     }
 
-    async fn handle_command(&mut self, command: GolemCliCommand) -> anyhow::Result<()> {
+    async fn handle_command(&self, command: GolemCliCommand) -> anyhow::Result<()> {
         match command.subcommand {
             GolemCliSubcommand::App { subcommand } => {
                 self.ctx.app_handler().handle_command(subcommand).await

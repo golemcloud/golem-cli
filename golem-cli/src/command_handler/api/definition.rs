@@ -52,7 +52,7 @@ impl ApiDefinitionCommandHandler {
         Self { ctx }
     }
 
-    pub async fn handle_command(&mut self, command: ApiDefinitionSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&self, command: ApiDefinitionSubcommand) -> anyhow::Result<()> {
         match command {
             ApiDefinitionSubcommand::Deploy {
                 http_api_definition_name,
@@ -114,7 +114,7 @@ impl ApiDefinitionCommandHandler {
         };
 
         let components = {
-            if used_component_names.len() > 0 {
+            if !used_component_names.is_empty() {
                 self.ctx
                     .component_handler()
                     .deploy(
@@ -150,7 +150,7 @@ impl ApiDefinitionCommandHandler {
                     project.as_ref(),
                     HttpApiDeployMode::All,
                     &components,
-                    &name,
+                    name,
                     &definition,
                 )
                 .await
@@ -386,9 +386,9 @@ impl ApiDefinitionCommandHandler {
 
         let manifest_api_definition = {
             let mut manifest_api_definition = HttpApiDefinitionDeployableManifestSource {
-                name: &api_definition_name,
+                name: api_definition_name,
                 api_definition: &api_definition.value,
-                latest_component_versions: &latest_component_versions,
+                latest_component_versions,
             }
             .as_http_api_definition_request()?;
 

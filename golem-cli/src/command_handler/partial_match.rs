@@ -40,7 +40,7 @@ impl ErrorHandler {
     }
 
     pub async fn handle_partial_match(
-        &mut self,
+        &self,
         partial_match: GolemCliCommandPartialMatch,
     ) -> anyhow::Result<()> {
         match partial_match {

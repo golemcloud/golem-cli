@@ -43,7 +43,7 @@ impl ApiDeploymentCommandHandler {
         Self { ctx }
     }
 
-    pub async fn handle_command(&mut self, command: ApiDeploymentSubcommand) -> anyhow::Result<()> {
+    pub async fn handle_command(&self, command: ApiDeploymentSubcommand) -> anyhow::Result<()> {
         match command {
             ApiDeploymentSubcommand::Deploy {
                 project,
