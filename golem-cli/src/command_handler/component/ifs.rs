@@ -333,7 +333,7 @@ impl FileProcessor<HashedFile> for FileHasher {
         let mut hasher = blake3::Hasher::new();
         hasher
             .update_reader(
-                std::fs::File::open(&path)
+                std::fs::File::open(path)
                     .with_context(|| anyhow!("Error reading local IFS file: {}", path.display()))?,
             )
             .with_context(|| anyhow!("Failed to hash local IFS file: {}", path.display()))?;

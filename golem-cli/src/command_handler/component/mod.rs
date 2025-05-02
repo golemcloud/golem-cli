@@ -1659,7 +1659,7 @@ impl ComponentCommandHandler {
                             .download_component_file(
                                 &component_id.0,
                                 &component_version.to_string(),
-                                &target_path,
+                                target_path,
                             )
                             .await?
                     }
@@ -1669,7 +1669,7 @@ impl ComponentCommandHandler {
                             .download_component_file(
                                 &component_id.0,
                                 &component_version.to_string(),
-                                &target_path,
+                                target_path,
                             )
                             .await?
                     }
