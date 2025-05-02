@@ -142,7 +142,6 @@ fn normalize_http_api_route(
                     .unwrap_or_else(|| GatewayBindingType::Default),
             ),
             component: {
-                // TODO: how we should handle versions
                 route
                     .binding
                     .component_name
@@ -150,7 +149,6 @@ fn normalize_http_api_route(
                     .map(|name| GatewayBindingComponent {
                         name: name.clone(),
                         version: route.binding.component_version.or_else(|| {
-                            // TODO: handle if not found by name?
                             latest_component_versions
                                 .get(name)
                                 .map(|component| component.versioned_component_id.version)

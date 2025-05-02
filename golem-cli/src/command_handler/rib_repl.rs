@@ -58,7 +58,7 @@ impl RibReplHandler {
             } else {
                 self.ctx
                     .interactive_handler()
-                    .select_component(selected_components.component_names.clone())?
+                    .select_component_for_repl(selected_components.component_names.clone())?
             }
         };
 

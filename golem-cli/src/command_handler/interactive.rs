@@ -209,8 +209,7 @@ impl InteractiveHandler {
         Ok((profile_name.into(), profile, set_as_active))
     }
 
-    // TODO: select_component_for_repl, should use app_ctx and filtering
-    pub fn select_component(
+    pub fn select_component_for_repl(
         &self,
         component_names: Vec<ComponentName>,
     ) -> anyhow::Result<ComponentName> {
