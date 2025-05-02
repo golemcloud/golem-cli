@@ -26,7 +26,7 @@ use crate::model::text::fmt::{log_error, log_text_view};
 use crate::model::text::project::{
     ProjectCreatedView, ProjectGetView, ProjectGrantView, ProjectListView,
 };
-use crate::model::{ProjectName, ProjectNameAndId};
+use crate::model::{AccountDetails, ProjectName, ProjectNameAndId};
 use anyhow::{anyhow, bail};
 use golem_cloud_client::api::{ProjectClient, ProjectGrantClient};
 use golem_cloud_client::model::{Project, ProjectDataRequest, ProjectGrantDataRequest};
@@ -132,7 +132,7 @@ impl CloudProjectCommandHandler {
 
     async fn opt_project_by_name(
         &self,
-        account_id: Option<&AccountId>,
+        account: Option<&AccountDetails>,
         project_name: &ProjectName,
     ) -> anyhow::Result<Option<Project>> {
         let mut projects = self
@@ -144,11 +144,11 @@ impl CloudProjectCommandHandler {
             .await
             .map_service_error()?;
 
-        match account_id {
-            Some(account_id) => {
-                let project_idx = projects
-                    .iter()
-                    .position(|project| project.project_data.owner_account_id == account_id.0);
+        match account {
+            Some(account) => {
+                let project_idx = projects.iter().position(|project| {
+                    project.project_data.owner_account_id == account.account_id.0
+                });
                 match project_idx {
                     Some(project_idx) => Ok(Some(projects.swap_remove(project_idx))),
                     None => Ok(None),
@@ -172,12 +172,12 @@ impl CloudProjectCommandHandler {
 
     pub async fn project_by_name(
         &self,
-        account_id: Option<&AccountId>,
+        account: Option<&AccountDetails>,
         project_name: &ProjectName,
     ) -> anyhow::Result<Project> {
-        match self.opt_project_by_name(account_id, project_name).await? {
+        match self.opt_project_by_name(account, project_name).await? {
             Some(project) => Ok(project),
-            None => Err(project_not_found(account_id, project_name)),
+            None => Err(project_not_found(account, project_name)),
         }
     }
 
@@ -185,7 +185,7 @@ impl CloudProjectCommandHandler {
     //       project selection can be defined if app manifest too
     pub async fn opt_select_project(
         &self,
-        account_id: Option<&AccountId>,
+        account: Option<&AccountDetails>,
         project_name: Option<&ProjectName>,
     ) -> anyhow::Result<Option<ProjectNameAndId>> {
         match (self.ctx.profile_kind(), project_name) {
@@ -196,7 +196,7 @@ impl CloudProjectCommandHandler {
             }
             (ProfileKind::Oss, None) => Ok(None),
             (ProfileKind::Cloud, Some(project_name)) => {
-                let project = self.project_by_name(account_id, project_name).await?;
+                let project = self.project_by_name(account, project_name).await?;
                 Ok(Some(ProjectNameAndId {
                     project_name: project.project_data.name.into(),
                     project_id: project.project_id.into(),
@@ -208,15 +208,12 @@ impl CloudProjectCommandHandler {
 
     pub async fn select_project(
         &self,
-        account_id: Option<&AccountId>,
+        account: Option<&AccountDetails>,
         project_name: &ProjectName,
     ) -> anyhow::Result<ProjectNameAndId> {
-        match self
-            .opt_select_project(account_id, Some(project_name))
-            .await?
-        {
+        match self.opt_select_project(account, Some(project_name)).await? {
             Some(project) => Ok(project),
-            None => Err(project_not_found(account_id, project_name)),
+            None => Err(project_not_found(account, project_name)),
         }
     }
 
@@ -273,9 +270,12 @@ impl CloudProjectCommandHandler {
     }
 }
 
-fn project_not_found(account_id: Option<&AccountId>, project_name: &ProjectName) -> anyhow::Error {
-    let formatted_account = account_id
-        .map(|id| format!("{}/", id.0.log_color_highlight()))
+fn project_not_found(
+    account: Option<&AccountDetails>,
+    project_name: &ProjectName,
+) -> anyhow::Error {
+    let formatted_account = account
+        .map(|acc| format!("{}/", acc.email.log_color_highlight()))
         .unwrap_or_default();
     log_error(format!(
         "Project {}{} not found.",
