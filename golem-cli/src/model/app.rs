@@ -215,6 +215,15 @@ pub struct HttpApiDeploymentSite {
     subdomain: Option<String>,
 }
 
+impl Display for HttpApiDeploymentSite {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.subdomain {
+            Some(subdomain) => write!(f, "{}.{}", subdomain, self.host),
+            None => write!(f, "{}", self.host),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BuildProfileName(String);
 
@@ -1126,6 +1135,8 @@ impl PluginInstallation {
 
 mod app_builder {
     use crate::fs::PathExtra;
+    use crate::fuzzy;
+    use crate::fuzzy::FuzzySearch;
     use crate::log::LogColorize;
     use crate::model::api::to_method_pattern;
     use crate::model::app::{
@@ -1140,6 +1151,7 @@ mod app_builder {
     use crate::model::deploy_diff::normalize_http_api_binding_path;
     use crate::model::text::fmt::format_rib_source_for_error;
     use crate::validation::{ValidatedResult, ValidationBuilder};
+    use colored::Colorize;
     use heck::{
         ToKebabCase, ToLowerCamelCase, ToPascalCase, ToShoutyKebabCase, ToShoutySnakeCase,
         ToSnakeCase, ToTitleCase, ToTrainCase, ToUpperCamelCase,
@@ -1147,6 +1159,7 @@ mod app_builder {
     use itertools::Itertools;
     use serde::Serialize;
     use std::collections::{BTreeMap, BTreeSet, HashMap};
+    use std::fmt::Debug;
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
 
@@ -1265,8 +1278,8 @@ mod app_builder {
         clean: Vec<WithSource<String>>,
         raw_components: HashMap<AppComponentName, (PathBuf, app_raw::Component)>,
         resolved_components: BTreeMap<AppComponentName, Component>,
-        api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
-        api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
+        http_api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
+        http_api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
 
         all_sources: BTreeSet<PathBuf>,
         entity_sources: HashMap<UniqueSourceCheckedEntityKey, Vec<PathBuf>>,
@@ -1278,13 +1291,11 @@ mod app_builder {
             let mut validation = ValidationBuilder::default();
 
             builder.add_raw_apps(&mut validation, apps);
+            builder.resolve_components(&mut validation);
             builder.validate_dependency_targets(&mut validation);
             builder.validate_unique_sources(&mut validation);
-            builder.resolve_components(&mut validation);
             builder.validate_http_api_definitions(&mut validation);
             builder.validate_http_api_deployments(&mut validation);
-
-            // TODO: validate API defs and deployments
 
             let dependency_sources = {
                 let mut dependency_sources =
@@ -1319,8 +1330,8 @@ mod app_builder {
                 no_dependencies: BTreeSet::new(),
                 custom_commands: builder.custom_commands,
                 clean: builder.clean,
-                http_api_definitions: builder.api_definitions,
-                http_api_deployments: builder.api_deployments,
+                http_api_definitions: builder.http_api_definitions,
+                http_api_deployments: builder.http_api_deployments,
             })
         }
 
@@ -1444,7 +1455,7 @@ mod app_builder {
                                     );
                                 }
 
-                                self.api_definitions.insert(
+                                self.http_api_definitions.insert(
                                     api_definition_name,
                                     WithSource::new(app.source.to_path_buf(), api_definition),
                                 );
@@ -1462,7 +1473,7 @@ mod app_builder {
                                 ),
                                 &app.source,
                             ) {
-                                self.api_deployments.insert(
+                                self.http_api_deployments.insert(
                                     api_deployment_site,
                                     WithSource::new(
                                         app.source.to_path_buf(),
@@ -1591,8 +1602,8 @@ mod app_builder {
         fn validate_dependency_targets(&mut self, validation: &mut ValidationBuilder) {
             for (component, deps) in &self.dependencies {
                 for target in deps {
-                    let invalid_source = !self.raw_components.contains_key(component);
-                    let invalid_target = !self.raw_components.contains_key(&target.name);
+                    let invalid_source = !self.resolved_components.contains_key(component);
+                    let invalid_target = !self.resolved_components.contains_key(&target.name);
 
                     if invalid_source || invalid_target {
                         let source = self
@@ -1610,18 +1621,22 @@ mod app_builder {
                             |validation| {
                                 if invalid_source {
                                     validation.add_error(format!(
-                                        "{} {} - {} references unknown component",
+                                        "{} {} - {} references unknown component: {}\n\n{}",
                                         target.dep_type.describe(),
+                                        component.as_str().log_color_highlight(),
+                                        target.name.as_str().log_color_highlight(),
                                         component.as_str().log_color_error_highlight(),
-                                        target.name.as_str().log_color_highlight()
+                                        self.available_components(component.as_str())
                                     ))
                                 }
                                 if invalid_target {
                                     validation.add_error(format!(
-                                        "{} {} - {} references unknown target component",
+                                        "{} {} - {} references unknown target component: {}\n\n{}",
                                         target.dep_type.describe(),
                                         component.as_str().log_color_highlight(),
-                                        target.name.as_str().log_color_error_highlight()
+                                        target.name.as_str().log_color_highlight(),
+                                        target.name.as_str().log_color_error_highlight(),
+                                        self.available_components(target.name.as_str())
                                     ))
                                 }
                             },
@@ -1705,8 +1720,9 @@ mod app_builder {
                                 ),
                                 None => {
                                     validation.add_error(format!(
-                                        "Component references unknown template: {}",
-                                        template_name.as_str().log_color_error_highlight()
+                                        "Component references unknown template: {}\n\n{}",
+                                        template_name.as_str().log_color_error_highlight(),
+                                        self.available_templates(template_name.as_str())
                                     ));
                                     None
                                 }
@@ -2093,7 +2109,7 @@ mod app_builder {
                 !is_empty
             }
 
-            for (name, api_definition) in &self.api_definitions {
+            for (name, api_definition) in &self.http_api_definitions {
                 validation.with_context(
                     vec![
                         (
@@ -2148,9 +2164,10 @@ mod app_builder {
                                                     if !self.resolved_components.contains_key(&name.into()) {
                                                         validation.add_error(
                                                             format!(
-                                                                "Property {} contains unknown component name: {}",
+                                                                "Property {} contains unknown component name: {}\n\n{}",
                                                                 "component_name".log_color_highlight(),
-                                                                name.log_color_highlight(),
+                                                                name.log_color_error_highlight(),
+                                                                self.available_components(name)
                                                             )
                                                         )
                                                     }
@@ -2238,8 +2255,117 @@ mod app_builder {
             }
         }
 
-        fn validate_http_api_deployments(&self, _validation: &mut ValidationBuilder) {
-            // TODO
+        fn validate_http_api_deployments(&self, validation: &mut ValidationBuilder) {
+            for (site, api_deployment) in &self.http_api_deployments {
+                validation.with_context(
+                    vec![
+                        (
+                            "source",
+                            api_deployment.source.to_string_lossy().to_string(),
+                        ),
+                        ("HTTP API deployment site", site.to_string()),
+                    ],
+                    |validation| {
+                        for def_name in &api_deployment.value.definitions {
+                            let parts = def_name.split("@").collect::<Vec<_>>();
+                            let def_name = match parts.len() {
+                                1 => HttpApiDefinitionName::from(def_name.as_str()),
+                                2 => HttpApiDefinitionName::from(parts[0]),
+                                _ => {
+                                    validation.add_error(
+                                        format!(
+                                            "Invalid definition name: {}, expected 'api-name', or 'api-name@version'",
+                                            def_name.log_color_highlight(),
+                                        ),
+                                    );
+                                    continue;
+                                }
+                            };
+                            if !self.http_api_definitions.contains_key(&def_name) {
+                                validation.add_error(
+                                    format!(
+                                        "Unknown HTTP API definition name: {}\n\n{}",
+                                        def_name.as_str().log_color_error_highlight(),
+                                        self.available_http_api_definitions(def_name.as_str())
+                                    ),
+                                )
+                            }
+                        }
+                    },
+                );
+            }
+        }
+
+        fn available_templates(&self, unknown: &str) -> String {
+            self.available_options_help(
+                "templates",
+                "template names",
+                unknown,
+                self.templates.keys().map(|name| name.as_str()),
+            )
+        }
+
+        fn available_components(&self, unknown: &str) -> String {
+            self.available_options_help(
+                "components",
+                "component names",
+                unknown,
+                self.resolved_components.keys().map(|name| name.as_str()),
+            )
+        }
+
+        fn available_http_api_definitions(&self, unknown: &str) -> String {
+            self.available_options_help(
+                "HTTP API definitions",
+                "HTTP API definition names",
+                unknown,
+                self.http_api_definitions.keys().map(|name| name.as_str()),
+            )
+        }
+
+        fn available_options_help<'a, I: Iterator<Item = &'a str>>(
+            &self,
+            entity_plural: &str,
+            entity_name_plural: &str,
+            unknown_option: &str,
+            name_options: I,
+        ) -> String {
+            let options = name_options.collect::<Vec<_>>();
+            if options.is_empty() {
+                return format!("No {} are defined", entity_plural);
+            }
+
+            let fuzzy_search = FuzzySearch::new(options.iter().map(|s| *s));
+
+            let hint = match fuzzy_search.find(unknown_option) {
+                Err(fuzzy::Error::Ambiguous {
+                    highlighted_options,
+                    ..
+                }) => {
+                    if highlighted_options.len() == 1 {
+                        format!(
+                            "Did you mean {}?\n\n",
+                            highlighted_options[0].log_color_highlight()
+                        )
+                    } else {
+                        format!(
+                            "Did you mean one of {}?\n\n",
+                            highlighted_options
+                                .iter()
+                                .map(|option| option.bold())
+                                .join(",")
+                        )
+                    }
+                }
+                _ => "".to_string(),
+            };
+
+            format!(
+                "{}{}\n{}",
+                hint,
+                format!("Available {}:", entity_name_plural).log_color_help_group(),
+                options.iter().map(|name| format!("- {}", name)).join("\n")
+            )
         }
     }
 }

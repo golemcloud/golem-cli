@@ -46,7 +46,7 @@ pub fn format_warns(warns: &[String]) -> String {
     warns
         .iter()
         .map(|msg| format_message_with_level(&label, msg))
-        .join("\n")
+        .join("\n\n")
 }
 
 pub fn format_errors(errors: &[String]) -> String {
@@ -54,7 +54,7 @@ pub fn format_errors(errors: &[String]) -> String {
     errors
         .iter()
         .map(|msg| format_message_with_level(&label, msg))
-        .join("\n")
+        .join("\n\n")
 }
 
 fn format_message_with_level(level: &str, message: &str) -> String {
