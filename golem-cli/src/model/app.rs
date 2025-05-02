@@ -1158,7 +1158,7 @@ mod app_builder {
     };
     use itertools::Itertools;
     use serde::Serialize;
-    use std::collections::{BTreeMap, BTreeSet, HashMap};
+    use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
     use std::fmt::Debug;
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
@@ -1275,10 +1275,14 @@ mod app_builder {
         dependencies: BTreeMap<AppComponentName, BTreeSet<DependentComponent>>,
         custom_commands: HashMap<String, WithSource<Vec<app_raw::ExternalCommand>>>,
         clean: Vec<WithSource<String>>,
-        raw_components: HashMap<AppComponentName, (PathBuf, app_raw::Component)>,
-        resolved_components: BTreeMap<AppComponentName, Component>,
         http_api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
         http_api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
+
+        // NOTE: raw component names are available (for validation) even after component resolving
+        raw_component_names: HashSet<String>,
+        // NOTE: raw components are moved into resolved_components during resolving
+        raw_components: HashMap<AppComponentName, (PathBuf, app_raw::Component)>,
+        resolved_components: BTreeMap<AppComponentName, Component>,
 
         all_sources: BTreeSet<PathBuf>,
         entity_sources: HashMap<UniqueSourceCheckedEntityKey, Vec<PathBuf>>,
@@ -1392,12 +1396,13 @@ mod app_builder {
                     }
 
                     for (component_name, component) in app.application.components {
-                        let component_name = AppComponentName::from(component_name);
+                        let app_component_name = AppComponentName::from(component_name.clone());
                         let unique_key =
-                            UniqueSourceCheckedEntityKey::Component(component_name.clone());
+                            UniqueSourceCheckedEntityKey::Component(app_component_name.clone());
                         if self.add_entity_source(unique_key, &app.source) {
+                            self.raw_component_names.insert(component_name);
                             self.raw_components
-                                .insert(component_name, (app.source.to_path_buf(), component));
+                                .insert(app_component_name, (app.source.to_path_buf(), component));
                         }
                     }
 
@@ -1601,8 +1606,8 @@ mod app_builder {
         fn validate_dependency_targets(&mut self, validation: &mut ValidationBuilder) {
             for (component, deps) in &self.dependencies {
                 for target in deps {
-                    let invalid_source = !self.resolved_components.contains_key(component);
-                    let invalid_target = !self.resolved_components.contains_key(&target.name);
+                    let invalid_source = !self.raw_component_names.contains(&component.0);
+                    let invalid_target = !self.raw_component_names.contains(&target.name.0);
 
                     if invalid_source || invalid_target {
                         let source = self
@@ -2160,7 +2165,7 @@ mod app_builder {
                                         {
                                             match route.binding.component_name.as_deref() {
                                                 Some(name) => {
-                                                    if !self.resolved_components.contains_key(&name.into()) {
+                                                    if !self.raw_component_names.contains(name) {
                                                         validation.add_error(
                                                             format!(
                                                                 "Property {} contains unknown component name: {}\n\n{}",
@@ -2309,8 +2314,7 @@ mod app_builder {
                 "components",
                 "component names",
                 unknown,
-                // TODO: use unresolved component names (and keep them)
-                self.resolved_components.keys().map(|name| name.as_str()),
+                self.raw_component_names.iter().map(|name| name.as_str()),
             )
         }
 
