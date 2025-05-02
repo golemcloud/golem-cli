@@ -46,7 +46,7 @@ use crate::model::{
 };
 use anyhow::{anyhow, bail};
 use colored::Colorize;
-use golem_client::api::{ComponentClient as ComponentClientOss, WorkerClient as WorkerClientOss};
+use golem_client::api::WorkerClient as WorkerClientOss;
 use golem_client::model::{
     ComponentType, InvokeParameters as InvokeParametersOss, InvokeResult, PublicOplogEntry,
     RevertLastInvocations as RevertLastInvocationsOss, RevertToOplogIndex as RevertToOplogIndexOss,
@@ -54,9 +54,7 @@ use golem_client::model::{
     UpdateWorkerRequest as UpdateWorkerRequestOss,
     WorkerCreationRequest as WorkerCreationRequestOss,
 };
-use golem_cloud_client::api::{
-    ComponentClient as ComponentClientCloud, WorkerClient as WorkerClientCloud,
-};
+use golem_cloud_client::api::WorkerClient as WorkerClientCloud;
 use golem_cloud_client::model::{
     InvokeParameters as InvokeParametersCloud, RevertLastInvocations as RevertLastInvocationsCloud,
     RevertToOplogIndex as RevertToOplogIndexCloud, RevertWorkerTarget as RevertWorkerTargetCloud,
@@ -806,25 +804,16 @@ impl WorkerCommandHandler {
         let target_version = match target_version {
             Some(target_version) => target_version,
             None => {
-                let latest_version = match self.ctx.golem_clients().await? {
-                    GolemClients::Oss(clients) => {
-                        let latest_component = clients
-                            .component
-                            .get_latest_component_metadata(
-                                &component.versioned_component_id.component_id,
-                            )
-                            .await?;
-                        latest_component.versioned_component_id.version
-                    }
-                    GolemClients::Cloud(clients) => {
-                        let latest_component = clients
-                            .component
-                            .get_latest_component_metadata(
-                                &component.versioned_component_id.component_id,
-                            )
-                            .await?;
-                        latest_component.versioned_component_id.version
-                    }
+                let Some(latest_version) = self
+                    .ctx
+                    .component_handler()
+                    .latest_component_version_by_id(component.versioned_component_id.component_id)
+                    .await?
+                else {
+                    bail!(
+                        "Component {} not found, while getting latest component version",
+                        component.component_name
+                    );
                 };
 
                 if !self.ctx.interactive_handler().confirm_update_to_latest(

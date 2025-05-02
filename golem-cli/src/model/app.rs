@@ -1169,7 +1169,6 @@ mod app_builder {
         AppBuilder::build(apps)
     }
 
-    // TODO: HTTP API route by method and path
     #[derive(Debug, PartialEq, Eq, Hash)]
     enum UniqueSourceCheckedEntityKey {
         Include,
