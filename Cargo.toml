@@ -24,7 +24,7 @@ golem-wasm-rpc = { version = "=1.2.2-dev.14", default-features = false, features
 golem-wit = "=1.2.2-dev.9"
 
 # Golem cloud deps
-golem-cloud-client = "1.2.2-dev.15"
+golem-cloud-client = "=1.2.2-dev.15"
 
 # External deps
 anyhow = "1.0.97"
