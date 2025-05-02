@@ -36,7 +36,7 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct DeployableDiffableComponentFile {
+pub struct DeployDiffableComponentFile {
     pub hash: String,
     pub permissions: ComponentFilePermissions,
 }
@@ -48,12 +48,12 @@ pub struct DeployDiffableComponent {
     pub component_hash: String,
     pub component_type: ComponentType,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub files: BTreeMap<String, DeployableDiffableComponentFile>,
+    pub files: BTreeMap<String, DeployDiffableComponentFile>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dynamic_linking: BTreeMap<String, BTreeMap<String, String>>,
 }
 
-// NOTE: for now HttpApiDefinitionRequest is used as DeployableHttpApiDefinition
+// NOTE: for now HttpApiDefinitionRequest is used as DeployDiffableHttpApiDefinition
 type DeployDiffableHttpApiDefinition = HttpApiDefinitionRequest;
 
 pub trait ToDeployDiffableHttpApiDefinition {

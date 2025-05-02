@@ -2309,6 +2309,7 @@ mod app_builder {
                 "components",
                 "component names",
                 unknown,
+                // TODO: use unresolved component names (and keep them)
                 self.resolved_components.keys().map(|name| name.as_str()),
             )
         }

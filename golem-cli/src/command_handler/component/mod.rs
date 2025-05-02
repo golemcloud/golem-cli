@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::app::build::task_result_marker::{GetServerComponentHash, TaskResultMarker};
+use crate::app::build::task_result_marker::{
+    GetServerComponentHash, GetServerIfsFileHash, TaskResultMarker,
+};
 use crate::app::context::ApplicationContext;
 use crate::app::yaml_edit::AppYamlEditor;
 use crate::command::component::ComponentSubcommand;
@@ -20,7 +22,7 @@ use crate::command::shared_args::{
     BuildArgs, ComponentOptionalComponentNames, ComponentTemplatePositionalArg, ForceBuildArg,
     WorkerUpdateOrRedeployArgs,
 };
-use crate::command_handler::component::ifs::IfsArchiveBuilder;
+use crate::command_handler::component::ifs::IfsFileManager;
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
@@ -34,7 +36,7 @@ use crate::model::app::{
 use crate::model::app::{DependencyType, InitialComponentFile};
 use crate::model::component::{Component, ComponentSelection, ComponentView};
 use crate::model::deploy::TryUpdateAllWorkersResult;
-use crate::model::deploy_diff::DeployDiffableComponent;
+use crate::model::deploy_diff::{DeployDiffableComponent, DeployDiffableComponentFile};
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
 use crate::model::text::fmt::{
     log_deployable_entity_yaml_diff, log_error, log_text_view, log_warn,
@@ -724,8 +726,8 @@ impl ComponentCommandHandler {
         let ifs_files = {
             if !deploy_properties.files.is_empty() {
                 Some(
-                    IfsArchiveBuilder::new(self.ctx.file_download_client().await?)
-                        .build_files_archive(deploy_properties.files)
+                    IfsFileManager::new(self.ctx.file_download_client().await?)
+                        .build_files_archive(deploy_properties.files.as_slice())
                         .await?,
                 )
             } else {
@@ -853,7 +855,6 @@ impl ComponentCommandHandler {
         TaskResultMarker::new(
             &self.ctx.task_result_marker_dir().await?,
             GetServerComponentHash {
-                profile_name: self.ctx.profile_name(),
                 project_name: project.map(|p| &p.project_name),
                 component_name: &manifest_deploy_diffable_component.component_name,
                 component_version: component.versioned_component_id.version,
@@ -1385,9 +1386,9 @@ impl ComponentCommandHandler {
                         .map(|component_name|
                             // TODO: should be the same as ComponentSearchParametersOss in the next release
                             ComponentSearchParametersCloud {
-                            name: component_name.0,
-                            version: None,
-                        })
+                                name: component_name.0,
+                                version: None,
+                            })
                         .collect(),
                 })
                 .await?
@@ -1406,6 +1407,13 @@ impl ComponentCommandHandler {
         properties: &ComponentDeployProperties,
     ) -> anyhow::Result<DeployDiffableComponent> {
         let component_hash = {
+            log_action(
+                "Calculating hash",
+                format!(
+                    "for local component {}",
+                    component_name.as_str().log_color_highlight()
+                ),
+            );
             let file = std::fs::File::open(&properties.linked_wasm_path)?;
             let mut component_hasher = blake3::Hasher::new();
             component_hasher
@@ -1414,11 +1422,28 @@ impl ComponentCommandHandler {
             component_hasher.finalize().to_hex().to_string()
         };
 
+        let files: BTreeMap<String, DeployDiffableComponentFile> = {
+            IfsFileManager::new(self.ctx.file_download_client().await?)
+                .collect_file_hashes(properties.files.as_slice())
+                .await?
+                .into_iter()
+                .map(|file_hash| {
+                    (
+                        file_hash.target.path.to_rel_string(),
+                        DeployDiffableComponentFile {
+                            hash: file_hash.hash_hex,
+                            permissions: file_hash.target.permissions,
+                        },
+                    )
+                })
+                .collect()
+        };
+
         Ok(DeployDiffableComponent {
             component_name: component_name.as_str().into(),
             component_hash,
             component_type: properties.component_type,
-            files: Default::default(), // TODO:
+            files,
             dynamic_linking: properties
                 .dynamic_linking
                 .iter()
@@ -1448,18 +1473,53 @@ impl ComponentCommandHandler {
         project: Option<&ProjectNameAndId>,
         component: &Component,
     ) -> anyhow::Result<DeployDiffableComponent> {
+        let component_hash = self
+            .server_component_hash(
+                project,
+                &component.component_name,
+                ComponentId(component.versioned_component_id.component_id),
+                component.versioned_component_id.version,
+            )
+            .await?;
+
+        let files: BTreeMap<String, DeployDiffableComponentFile> = {
+            if component.files.is_empty() {
+                BTreeMap::new()
+            } else {
+                log_action("Calculating hashes", "for server IFS files");
+                let _indent = LogIndent::new();
+
+                let mut files = BTreeMap::new();
+                for file in &component.files {
+                    let target_path = file.path.to_rel_string();
+
+                    let hash = self
+                        .server_ifs_file_hash(
+                            project,
+                            &component.component_name,
+                            ComponentId(component.versioned_component_id.component_id),
+                            component.versioned_component_id.version,
+                            &target_path,
+                        )
+                        .await?;
+                    files.insert(
+                        target_path,
+                        DeployDiffableComponentFile {
+                            hash,
+                            permissions: file.permissions,
+                        },
+                    );
+                }
+
+                files
+            }
+        };
+
         Ok(DeployDiffableComponent {
             component_name: component.component_name.clone(),
-            component_hash: self
-                .server_component_hash(
-                    project,
-                    &component.component_name,
-                    ComponentId(component.versioned_component_id.component_id),
-                    component.versioned_component_id.version,
-                )
-                .await?,
+            component_hash,
             component_type: component.component_type,
-            files: Default::default(), // TODO:
+            files,
             dynamic_linking: component
                 .metadata
                 .dynamic_linking
@@ -1491,15 +1551,14 @@ impl ComponentCommandHandler {
     ) -> anyhow::Result<String> {
         let task_result_marker_dir = self.ctx.task_result_marker_dir().await?;
 
-        let hasher = |component_hash| GetServerComponentHash {
-            profile_name: self.ctx.profile_name(),
+        let hash_result = |component_hash| GetServerComponentHash {
             project_name: project.map(|p| &p.project_name),
             component_name,
             component_version,
             component_hash,
         };
 
-        let hash = TaskResultMarker::get_hash(&task_result_marker_dir, hasher(None))?;
+        let hash = TaskResultMarker::get_hash(&task_result_marker_dir, hash_result(None))?;
 
         match hash {
             Some(hash) => {
@@ -1513,14 +1572,16 @@ impl ComponentCommandHandler {
                 Ok(hash)
             }
             None => {
-                log_warn_action(
-                    "Downloading",
+                log_action(
+                    "Calculating hash",
                     format!(
-                        "server component {}@{} for diffing",
+                        "for server component {}@{}",
                         component_name.0.log_color_highlight(),
                         component_version.to_string().log_color_highlight()
                     ),
                 );
+
+                // TODO: streaming
                 let component_bytes = match self.ctx.golem_clients().await? {
                     GolemClients::Oss(clients) => {
                         clients
@@ -1540,7 +1601,86 @@ impl ComponentCommandHandler {
                 component_hasher.update(&component_bytes);
                 let hash = component_hasher.finalize().to_hex().to_string();
 
-                TaskResultMarker::new(&task_result_marker_dir, hasher(Some(&hash)))?.success()?;
+                TaskResultMarker::new(&task_result_marker_dir, hash_result(Some(&hash)))?
+                    .success()?;
+
+                Ok(hash)
+            }
+        }
+    }
+
+    async fn server_ifs_file_hash(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        component_name: &ComponentName,
+        component_id: ComponentId,
+        component_version: u64,
+        target_path: &str,
+    ) -> anyhow::Result<String> {
+        let task_result_marker_dir = self.ctx.task_result_marker_dir().await?;
+
+        let hash_result = |file_hash| GetServerIfsFileHash {
+            project_name: project.map(|p| &p.project_name),
+            component_name,
+            component_version,
+            target_path,
+            file_hash,
+        };
+
+        let hash = TaskResultMarker::get_hash(&task_result_marker_dir, hash_result(None))?;
+
+        match hash {
+            Some(hash) => {
+                debug!(
+                    component_name = component_name.0,
+                    component_id = ?component_id.0,
+                    component_version,
+                    hash,
+                    "Found cached hash for server IFS file"
+                );
+                Ok(hash)
+            }
+            None => {
+                log_action(
+                    "Calculating hash",
+                    format!(
+                        "for server IFS file {}@{} - {}",
+                        component_name.0.log_color_highlight(),
+                        component_version.to_string().log_color_highlight(),
+                        target_path.log_color_highlight()
+                    ),
+                );
+
+                // TODO: streaming
+                let component_bytes = match self.ctx.golem_clients().await? {
+                    GolemClients::Oss(clients) => {
+                        clients
+                            .component
+                            .download_component_file(
+                                &component_id.0,
+                                &component_version.to_string(),
+                                &target_path,
+                            )
+                            .await?
+                    }
+                    GolemClients::Cloud(clients) => {
+                        clients
+                            .component
+                            .download_component_file(
+                                &component_id.0,
+                                &component_version.to_string(),
+                                &target_path,
+                            )
+                            .await?
+                    }
+                };
+
+                let mut component_hasher = blake3::Hasher::new();
+                component_hasher.update(&component_bytes);
+                let hash = component_hasher.finalize().to_hex().to_string();
+
+                TaskResultMarker::new(&task_result_marker_dir, hash_result(Some(&hash)))?
+                    .success()?;
 
                 Ok(hash)
             }

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::app::build::task_result_marker::TaskResultMarkerHashSourceKind::{Hash, HashFromString};
-use crate::config::ProfileName;
 use crate::fs;
 use crate::log::log_warn_action;
 use crate::model::app::{AppComponentName, DependentComponent};
@@ -160,9 +159,6 @@ impl TaskResultMarkerHashSource for AddMetadataMarkerHash<'_> {
 }
 
 pub struct GetServerComponentHash<'a> {
-    // NOTE: This can break if somebody reuses a profile name,
-    //       but can be workaround even then with a clean deploy
-    pub profile_name: &'a ProfileName,
     pub project_name: Option<&'a ProjectName>,
     pub component_name: &'a ComponentName,
     pub component_version: u64,
@@ -177,8 +173,8 @@ impl TaskResultMarkerHashSource for GetServerComponentHash<'_> {
 
     fn id(&self) -> anyhow::Result<Option<String>> {
         Ok(Some(format!(
-            "{}#{:?}#{}#{}",
-            self.profile_name, self.project_name, self.component_name, self.component_version
+            "{:?}#{}#{}",
+            self.project_name, self.component_name, self.component_version
         )))
     }
 
@@ -186,6 +182,39 @@ impl TaskResultMarkerHashSource for GetServerComponentHash<'_> {
         match self.component_hash {
             Some(hash) => Ok(Hash(hash.to_string())),
             None => bail!("Missing precalculated hash for {}", self.component_name),
+        }
+    }
+}
+
+pub struct GetServerIfsFileHash<'a> {
+    pub project_name: Option<&'a ProjectName>,
+    pub component_name: &'a ComponentName,
+    pub component_version: u64,
+    pub target_path: &'a str,
+    // NOTE: use None for querying
+    pub file_hash: Option<&'a str>,
+}
+
+impl TaskResultMarkerHashSource for GetServerIfsFileHash<'_> {
+    fn kind() -> &'static str {
+        "GetServerIfsFileHash"
+    }
+
+    fn id(&self) -> anyhow::Result<Option<String>> {
+        Ok(Some(format!(
+            "{:?}#{}#{}#{}",
+            self.project_name, self.component_name, self.component_version, self.target_path
+        )))
+    }
+
+    fn source(&self) -> anyhow::Result<TaskResultMarkerHashSourceKind> {
+        match self.file_hash {
+            Some(hash) => Ok(Hash(hash.to_string())),
+            None => bail!(
+                "Missing precalculated hash for {} - {}",
+                self.component_name,
+                self.target_path
+            ),
         }
     }
 }

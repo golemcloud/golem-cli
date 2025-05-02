@@ -315,6 +315,7 @@ fn basic_ifs_deploy(_tracing: &Tracing) {
 
     let outputs = ctx.cli([cmd::APP, cmd::DEPLOY]);
     assert!(outputs.success());
+    check!(outputs.stdout_contains("Creating component app:rust"));
     check!(outputs.stdout_contains("ro /Cargo.toml"));
     check!(outputs.stdout_contains("rw /src/lib.rs"));
 
@@ -344,10 +345,15 @@ fn basic_ifs_deploy(_tracing: &Tracing) {
 
     let outputs = ctx.cli([cmd::APP, cmd::DEPLOY]);
     assert!(outputs.success());
+    check!(outputs.stdout_contains("Updating component app:rust"));
     check!(!outputs.stdout_contains("ro /Cargo.toml"));
     check!(outputs.stdout_contains("ro /Cargo2.toml"));
     check!(!outputs.stdout_contains("rw /src/lib.rs"));
     check!(outputs.stdout_contains("ro /src/lib.rs"));
+
+    let outputs = ctx.cli([cmd::APP, cmd::DEPLOY]);
+    assert!(outputs.success());
+    assert!(outputs.stdout_contains("Skipping deploying component app:rust"));
 }
 
 #[test]
@@ -951,7 +957,6 @@ impl TestContext {
                 .args([
                     "server",
                     "run",
-                    "-vvv",
                     "--config-dir",
                     self.config_dir.path().to_str().unwrap(),
                     "--data-dir",
