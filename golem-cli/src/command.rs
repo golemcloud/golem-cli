@@ -613,12 +613,6 @@ pub mod shared_args {
     }
 
     #[derive(Debug, Args)]
-    pub struct ComponentTemplatePositionalArg {
-        /// Component template name to be used for the component
-        pub component_template: ComponentTemplateName,
-    }
-
-    #[derive(Debug, Args)]
     pub struct ForceBuildArg {
         /// When set to true will skip modification time based up-to-date checks, defaults to false
         #[clap(long, default_value = "false")]
@@ -772,7 +766,7 @@ pub mod component {
     use crate::command::component::plugin::ComponentPluginSubcommand;
     use crate::command::shared_args::{
         BuildArgs, ComponentOptionalComponentName, ComponentOptionalComponentNames,
-        ComponentTemplatePositionalArg, ForceBuildArg, WorkerUpdateOrRedeployArgs,
+        ComponentTemplateName, ForceBuildArg, WorkerUpdateOrRedeployArgs,
     };
     use crate::model::app::DependencyType;
     use crate::model::{ComponentName, WorkerUpdateMode};
@@ -783,10 +777,10 @@ pub mod component {
     pub enum ComponentSubcommand {
         /// Create new component in the current application
         New {
-            #[command(flatten)]
-            template: ComponentTemplatePositionalArg,
+            /// Template to be used for the new component
+            template: Option<ComponentTemplateName>,
             /// Name of the new component package in 'package:name' form
-            component_package_name: PackageName,
+            component_package_name: Option<PackageName>,
         },
         /// List or search component templates
         Templates {
@@ -1764,6 +1758,9 @@ pub fn builtin_app_subcommands() -> BTreeSet<String> {
 
 fn help_target_to_subcommand_names(target: ShowClapHelpTarget) -> Vec<&'static str> {
     match target {
+        ShowClapHelpTarget::ComponentNew => {
+            vec!["component", "new"]
+        }
         ShowClapHelpTarget::ComponentAddDependency => {
             vec!["component", "add-dependency"]
         }

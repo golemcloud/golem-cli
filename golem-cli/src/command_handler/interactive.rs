@@ -28,14 +28,17 @@ use colored::Colorize;
 use golem_client::model::HttpApiDefinitionRequest;
 use golem_cloud_client::model::Account;
 use golem_common::model::ComponentVersion;
+use golem_templates::model::{ComposableAppGroupName, GuestLanguage, PackageName};
 use inquire::error::InquireResult;
 use inquire::validator::{ErrorMessage, Validation};
 use inquire::{Confirm, CustomType, InquireError, Select, Text};
 use itertools::Itertools;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
+use tracing_subscriber::fmt::format;
 use url::Url;
 
 // NOTE: in the interactive handler is it okay to _read_ context (e.g. read selected component names)
@@ -122,11 +125,11 @@ impl InteractiveHandler {
     ) -> anyhow::Result<bool> {
         self.confirm(
             true,
-            format!("The following changes will be applied to the installed plugins of component {}:\n{}\n",
-                component.to_string().log_color_highlight(),
-                rendered_steps.iter().map(|s| format!(" - {}", s)).collect::<Vec<_>>().join("\n")
+            format!("The following changes will be applied to the installed plugins of component {}:\n{}\nDo you want to continue?",
+                    component.to_string().log_color_highlight(),
+                    rendered_steps.iter().map(|s| format!(" - {}", s)).collect::<Vec<_>>().join("\n")
             ),
-            None
+            None,
         )
     }
 
@@ -138,7 +141,7 @@ impl InteractiveHandler {
         self.confirm(
             true,
             format!(
-                "The following changes will be applied to site {}:\n{}\n",
+                "The following changes will be applied to site {}:\n{}\nDo you want to continue?",
                 site.to_string().log_color_highlight(),
                 rendered_steps
                     .iter()
@@ -488,6 +491,69 @@ impl InteractiveHandler {
             .none_if_not_interactive_logged()
     }
 
+    pub fn select_new_component_template_and_package_name(
+        &self,
+        existing_component_names: HashSet<String>,
+    ) -> anyhow::Result<Option<(String, PackageName)>> {
+        let Some(language) = Select::new(
+            "Select language for the new component",
+            GuestLanguage::iter().collect(),
+        )
+        .prompt()
+        .none_if_not_interactive_logged()?
+        else {
+            return Ok(None);
+        };
+
+        let template_options = self
+            .ctx
+            .templates()
+            .get(&language)
+            .unwrap()
+            .get(&ComposableAppGroupName::default())
+            .unwrap()
+            .components
+            .iter()
+            .map(|(name, template)| TemplateOption {
+                template_name: name.to_string(),
+                description: template.description.clone(),
+            })
+            .collect::<Vec<_>>();
+
+        let Some(template) =
+            Select::new("Select a template for the new component:", template_options)
+                .prompt()
+                .none_if_not_interactive_logged()?
+        else {
+            return Ok(None);
+        };
+
+        let Some(component_name) = Text::new("Component Package Name:")
+            .with_validator(move |value: &str| {
+                if existing_component_names.contains(value) {
+                    return Ok(Validation::Invalid(ErrorMessage::Custom(
+                        "The component name already exists!".to_string(),
+                    )));
+                }
+
+                if let Err(error) = PackageName::from_str(value) {
+                    return Ok(Validation::Invalid(ErrorMessage::Custom(error)));
+                }
+
+                Ok(Validation::Valid)
+            })
+            .prompt()
+            .none_if_not_interactive_logged()?
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some((
+            format!("{}/{}", language.id(), template.template_name),
+            PackageName::from_str(&component_name).unwrap(),
+        )))
+    }
+
     fn confirm<M: AsRef<str>>(
         &self,
         default: bool,
@@ -604,5 +670,21 @@ fn confirm<M: AsRef<str>>(
                 Err(error.into())
             }
         }
+    }
+}
+
+struct TemplateOption {
+    pub template_name: String,
+    pub description: String,
+}
+
+impl Display for TemplateOption {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {}",
+            self.template_name.log_color_highlight(),
+            self.description
+        )
     }
 }

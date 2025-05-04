@@ -19,7 +19,7 @@ use crate::app::context::ApplicationContext;
 use crate::app::yaml_edit::AppYamlEditor;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{
-    BuildArgs, ComponentOptionalComponentNames, ComponentTemplatePositionalArg, ForceBuildArg,
+    BuildArgs, ComponentOptionalComponentNames, ComponentTemplateName, ForceBuildArg,
     WorkerUpdateOrRedeployArgs,
 };
 use crate::command_handler::component::ifs::IfsFileManager;
@@ -61,7 +61,8 @@ use golem_common::model::{ComponentId, ComponentType};
 use golem_templates::add_component_by_template;
 use golem_templates::model::{GuestLanguage, PackageName};
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
+use regex::escape;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
@@ -144,35 +145,59 @@ impl ComponentCommandHandler {
 
     async fn cmd_new(
         &self,
-        template: ComponentTemplatePositionalArg,
-        component_package_name: PackageName,
+        template: Option<ComponentTemplateName>,
+        component_package_name: Option<PackageName>,
     ) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
-
-        let app_handler = self.ctx.app_handler();
-        let (common_template, component_template) =
-            app_handler.get_template(&template.component_template)?;
 
         // Loading app for:
         //   - checking that we are inside an application
         //   - switching to the root dir as a side effect
-        //   - check for existing component names
-        {
+        //   - getting existing component names
+        let existing_component_names = {
             let app_ctx = self.ctx.app_context_lock().await;
             let app_ctx = app_ctx.some_or_err()?;
-            let component_name =
-                AppComponentName::from(component_package_name.to_string_with_colon());
-            if app_ctx
+            app_ctx
                 .application
                 .component_names()
-                .contains(&component_name)
-            {
-                log_error(format!("Component {} already exists", component_name));
-                logln("");
-                app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?;
-                bail!(NonSuccessfulExit)
-            }
+                .map(|name| name.to_string())
+                .collect::<HashSet<_>>()
         };
+
+        let Some((template, component_package_name)) = ({
+            match (template, component_package_name) {
+                (Some(template), Some(component_package_name)) => {
+                    Some((template, component_package_name))
+                }
+                _ => self
+                    .ctx
+                    .interactive_handler()
+                    .select_new_component_template_and_package_name(
+                        existing_component_names.clone(),
+                    )?,
+            }
+        }) else {
+            log_error(
+                "Both TEMPLATE and COMPONENT_PACKAGE_NAME are required in non-interactive mode",
+            );
+            logln("");
+            bail!(HintError::ShowClapHelp(ShowClapHelpTarget::ComponentNew));
+        };
+
+        let component_name = AppComponentName::from(component_package_name.to_string_with_colon());
+
+        if existing_component_names.contains(component_name.as_str()) {
+            let app_ctx = self.ctx.app_context_lock().await;
+            let app_ctx = app_ctx.some_or_err()?;
+
+            log_error(format!("Component {} already exists", component_name));
+            logln("");
+            app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?;
+            bail!(NonSuccessfulExit)
+        }
+
+        let app_handler = self.ctx.app_handler();
+        let (common_template, component_template) = app_handler.get_template(&template)?;
 
         // Unloading app context, so we can reload after the new component is created
         self.ctx.unload_app_context().await;
