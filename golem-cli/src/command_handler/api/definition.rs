@@ -23,17 +23,16 @@ use crate::log::{
     log_action, log_skipping_up_to_date, log_warn_action, logln, LogColorize, LogIndent,
 };
 use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion, HttpApiDeployMode};
-use crate::model::app::{ApplicationComponentSelectMode, HttpApiDefinitionName, WithSource};
+use crate::model::app::{
+    ApplicationComponentSelectMode, DynamicHelpSections, HttpApiDefinitionName, WithSource,
+};
 use crate::model::app_raw::HttpApiDefinition;
 use crate::model::component::Component;
-use crate::model::deploy_diff::{
-    HttpApiDefinitionDeployableManifestSource, ToDeployDiffableHttpApiDefinition,
-    ToYamlValueWithoutNulls,
-};
+use crate::model::deploy_diff::api_definition::DiffableHttpApiDefinition;
 use crate::model::text::api_definition::{
     ApiDefinitionGetView, ApiDefinitionNewView, ApiDefinitionUpdateView,
 };
-use crate::model::text::fmt::{log_deployable_entity_yaml_diff, log_error, log_warn};
+use crate::model::text::fmt::{log_deploy_diff, log_error, log_warn};
 use crate::model::{ComponentName, PathBufOrStdin, ProjectNameAndId};
 use anyhow::{bail, Context as AnyhowContext};
 use golem_client::api::ApiDefinitionClient as ApiDefinitionClientOss;
@@ -41,7 +40,7 @@ use golem_client::model::{HttpApiDefinitionRequest, HttpApiDefinitionResponseDat
 use golem_cloud_client::api::ApiDefinitionClient as ApiDefinitionClientCloud;
 use itertools::Itertools;
 use serde::de::DeserializeOwned;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 pub struct ApiDefinitionCommandHandler {
@@ -77,62 +76,33 @@ impl ApiDefinitionCommandHandler {
     }
 
     async fn cmd_deploy(&self, name: Option<HttpApiDefinitionName>) -> anyhow::Result<()> {
-        let project = None::<ProjectNameAndId>; // TODO
+        let project = None::<ProjectNameAndId>; // TODO: project from manifest
 
-        let used_component_names = {
+        if let Some(name) = name.as_ref() {
+            let app_ctx = self.ctx.app_context_lock().await;
+            let app_ctx = app_ctx.some_or_err()?;
+            if !app_ctx
+                .application
+                .http_api_definitions()
+                .keys()
+                .contains(name)
             {
-                let app_ctx = self.ctx.app_context_lock().await;
-                let app_ctx = app_ctx.some_or_err()?;
-                match name.as_ref() {
-                    Some(name) => {
-                        if !app_ctx
-                            .application
-                            .http_api_definitions()
-                            .keys()
-                            .contains(name)
-                        {
-                            log_error(format!(
-                                "HTTP API definition {} not found in the application manifest",
-                                name.as_str().log_color_highlight()
-                            ));
-                            logln("");
-                            bail!(NonSuccessfulExit)
-                            // TODO: show available API names
-                        }
-
-                        app_ctx
-                            .application
-                            .used_component_names_for_http_api_definition(name)
-                    }
-                    None => app_ctx
-                        .application
-                        .used_component_names_for_all_http_api_definition(),
-                }
+                logln("");
+                log_error(format!(
+                    "HTTP API definition {} not found in the application manifest",
+                    name.as_str().log_color_highlight()
+                ));
+                logln("");
+                app_ctx.log_dynamic_help(&DynamicHelpSections::show_api_definitions())?;
+                bail!(NonSuccessfulExit)
             }
-            .into_iter()
-            .map(|component_name| ComponentName::from(component_name.to_string()))
-            .collect::<Vec<_>>()
-        };
+        }
 
-        let components = {
-            if !used_component_names.is_empty() {
-                self.ctx
-                    .component_handler()
-                    .deploy(
-                        project.as_ref(),
-                        used_component_names,
-                        None,
-                        &ApplicationComponentSelectMode::All,
-                        WorkerUpdateOrRedeployArgs::default(),
-                    )
-                    .await?
-                    .into_iter()
-                    .map(|component| (component.component_name.0.clone(), component))
-                    .collect::<BTreeMap<_, _>>()
-            } else {
-                BTreeMap::new()
-            }
-        };
+        let api_def_filter = name.as_ref().into_iter().cloned().collect::<BTreeSet<_>>();
+
+        let lastest_used_components = self
+            .deploy_required_components(project.as_ref(), api_def_filter)
+            .await?;
 
         match &name {
             Some(name) => {
@@ -150,15 +120,23 @@ impl ApiDefinitionCommandHandler {
                 self.deploy_api_definition(
                     project.as_ref(),
                     HttpApiDeployMode::All,
-                    &components,
+                    &lastest_used_components,
                     name,
                     &definition,
                 )
-                .await
+                .await?;
+
+                Ok(())
             }
             None => {
-                self.deploy(project.as_ref(), HttpApiDeployMode::All, &components)
-                    .await
+                self.deploy(
+                    project.as_ref(),
+                    HttpApiDeployMode::All,
+                    &lastest_used_components,
+                )
+                .await?;
+
+                Ok(())
             }
         }
     }
@@ -320,40 +298,47 @@ impl ApiDefinitionCommandHandler {
         project: Option<&ProjectNameAndId>,
         deploy_mode: HttpApiDeployMode,
         latest_component_versions: &BTreeMap<String, Component>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<BTreeMap<String, String>> {
         let api_definitions = {
             let app_ctx = self.ctx.app_context_lock().await;
             let app_ctx = app_ctx.some_or_err()?;
             app_ctx.application.http_api_definitions().clone()
         };
 
+        let mut latest_api_definition_versions = BTreeMap::new();
+
         if !api_definitions.is_empty() {
             log_action("Deploying", "HTTP API definitions");
 
             for (api_definition_name, api_definition) in api_definitions {
                 let _indent = LogIndent::new();
-                self.deploy_api_definition(
-                    project,
-                    deploy_mode,
-                    latest_component_versions,
-                    &api_definition_name,
-                    &api_definition,
-                )
-                .await?;
+                let version = self
+                    .deploy_api_definition(
+                        project,
+                        deploy_mode,
+                        latest_component_versions,
+                        &api_definition_name,
+                        &api_definition,
+                    )
+                    .await?;
+
+                if let Some(version) = version {
+                    latest_api_definition_versions.insert(api_definition_name.to_string(), version);
+                }
             }
         }
 
-        Ok(())
+        Ok(latest_api_definition_versions)
     }
 
-    async fn deploy_api_definition(
+    pub async fn deploy_api_definition(
         &self,
         project: Option<&ProjectNameAndId>,
         deploy_mode: HttpApiDeployMode,
         latest_component_versions: &BTreeMap<String, Component>,
         api_definition_name: &HttpApiDefinitionName,
         api_definition: &WithSource<HttpApiDefinition>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<String>> {
         let skip_by_component_filter = match deploy_mode {
             HttpApiDeployMode::All => false,
             HttpApiDeployMode::Matching => !api_definition.value.routes.iter().any(|route| {
@@ -372,7 +357,7 @@ impl ApiDefinitionCommandHandler {
                     api_definition_name.as_str().log_color_highlight()
                 ),
             );
-            return Ok(());
+            return Ok(None);
         };
 
         let server_diffable_api_definition = self
@@ -382,49 +367,26 @@ impl ApiDefinitionCommandHandler {
                 api_definition.value.version.as_str(),
             )
             .await?
-            .map(|ad| ad.to_diffable())
+            .map(DiffableHttpApiDefinition::from_server)
             .transpose()?;
 
-        let manifest_api_definition = {
-            let mut manifest_diffable_api_definition = HttpApiDefinitionDeployableManifestSource {
-                name: api_definition_name,
-                api_definition: &api_definition.value,
-                latest_component_versions,
-            }
-            .to_diffable()?;
+        let manifest_api_definition = DiffableHttpApiDefinition::from_manifest(
+            server_diffable_api_definition.as_ref(),
+            &api_definition_name,
+            &api_definition.value,
+            latest_component_versions,
+        )?;
 
-            // NOTE: if the only diff if being non-draft on serverside, we hide that
-            if let Some(server_diffable_api_definition) = &server_diffable_api_definition {
-                if manifest_diffable_api_definition.version
-                    == server_diffable_api_definition.version
-                    && !server_diffable_api_definition.draft
-                    && manifest_diffable_api_definition.draft
-                {
-                    manifest_diffable_api_definition.draft = false;
-                }
-            }
-
-            manifest_diffable_api_definition
-        };
-
-        let manifest_api_definition_yaml = manifest_api_definition
-            .clone()
-            .to_yaml_value_without_nulls()?;
-
-        let server_api_definition_yaml = server_diffable_api_definition
-            .clone()
-            .map(|ad| ad.to_yaml_value_without_nulls())
-            .transpose()?;
-
-        match server_api_definition_yaml {
-            Some(server_api_definition_yaml) => {
-                if server_api_definition_yaml != manifest_api_definition_yaml {
+        match server_diffable_api_definition {
+            Some(server_diffable_api_definition) => {
+                if server_diffable_api_definition != manifest_api_definition {
                     log_warn_action(
                         "Found",
                         format!(
                             "changes in HTTP API definition {}@{}",
                             api_definition_name.as_str().log_color_highlight(),
                             manifest_api_definition
+                                .0
                                 .version
                                 .as_str()
                                 .log_color_highlight()
@@ -433,13 +395,10 @@ impl ApiDefinitionCommandHandler {
 
                     {
                         let _indent = self.ctx.log_handler().nested_text_view_indent();
-                        log_deployable_entity_yaml_diff(
-                            &server_api_definition_yaml,
-                            &manifest_api_definition_yaml,
-                        )?;
+                        log_deploy_diff(&server_diffable_api_definition, &manifest_api_definition)?;
                     }
 
-                    if server_diffable_api_definition.map(|ad| ad.draft) == Some(true) {
+                    if server_diffable_api_definition.0.draft {
                         log_action(
                             "Updating",
                             format!(
@@ -449,14 +408,14 @@ impl ApiDefinitionCommandHandler {
                         );
 
                         let result = self
-                            .update_api_definition(project, &manifest_api_definition)
+                            .update_api_definition(project, &manifest_api_definition.0)
                             .await?;
 
                         self.ctx
                             .log_handler()
                             .log_view(&ApiDefinitionUpdateView(result));
 
-                        Ok(())
+                        Ok(Some(manifest_api_definition.0.version))
                     } else {
                         log_warn(
                             "The current version of the HTTP API is already deployed as non-draft.",
@@ -465,16 +424,16 @@ impl ApiDefinitionCommandHandler {
                         match self
                             .ctx
                             .interactive_handler()
-                            .select_new_api_definition_version(&manifest_api_definition)?
+                            .select_new_api_definition_version(&manifest_api_definition.0)?
                         {
                             Some(new_version) => {
                                 let new_draft = true;
-                                let old_version = manifest_api_definition.version.clone();
+                                let old_version = manifest_api_definition.0.version.clone();
 
                                 let manifest_api_definition = {
                                     let mut manifest_api_definition = manifest_api_definition;
-                                    manifest_api_definition.version = new_version;
-                                    manifest_api_definition.draft = new_draft;
+                                    manifest_api_definition.0.version = new_version;
+                                    manifest_api_definition.0.draft = new_draft;
                                     manifest_api_definition
                                 };
 
@@ -485,7 +444,7 @@ impl ApiDefinitionCommandHandler {
                                     let mut editor = AppYamlEditor::new(&app_ctx.application);
                                     editor.update_api_definition_version(
                                         api_definition_name,
-                                        &manifest_api_definition.version,
+                                        &manifest_api_definition.0.version,
                                         new_draft,
                                     )?;
                                     editor.update_documents()?;
@@ -498,21 +457,21 @@ impl ApiDefinitionCommandHandler {
                                         api_definition_name.as_str().log_color_highlight(),
                                         old_version.log_color_highlight(),
                                         manifest_api_definition
-                                            .version
+                                            .0.version
                                             .as_str()
                                             .log_color_highlight()
                                     ),
                                 );
 
                                 let result = self
-                                    .new_api_definition(project, &manifest_api_definition)
+                                    .new_api_definition(project, &manifest_api_definition.0)
                                     .await?;
 
                                 self.ctx
                                     .log_handler()
                                     .log_view(&ApiDefinitionNewView(result));
 
-                                Ok(())
+                                Ok(Some(manifest_api_definition.0.version))
                             }
                             None => {
                                 log_error(format!(
@@ -529,7 +488,7 @@ impl ApiDefinitionCommandHandler {
                         "deploying HTTP API definition {}",
                         api_definition_name.as_str().log_color_highlight()
                     ));
-                    Ok(())
+                    Ok(Some(server_diffable_api_definition.0.version))
                 }
             }
             None => {
@@ -539,6 +498,7 @@ impl ApiDefinitionCommandHandler {
                         "new HTTP API definition version {}@{}",
                         api_definition_name.as_str().log_color_highlight(),
                         manifest_api_definition
+                            .0
                             .version
                             .as_str()
                             .log_color_highlight()
@@ -546,16 +506,71 @@ impl ApiDefinitionCommandHandler {
                 );
 
                 let result = self
-                    .new_api_definition(project, &manifest_api_definition)
+                    .new_api_definition(project, &manifest_api_definition.0)
                     .await?;
 
                 self.ctx
                     .log_handler()
                     .log_view(&ApiDefinitionNewView(result));
 
-                Ok(())
+                Ok(Some(manifest_api_definition.0.version))
             }
         }
+    }
+
+    pub async fn deploy_required_components(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        api_defs_filter: BTreeSet<HttpApiDefinitionName>,
+    ) -> anyhow::Result<BTreeMap<String, Component>> {
+        let used_component_names = {
+            {
+                let app_ctx = self.ctx.app_context_lock().await;
+                let app_ctx = app_ctx.some_or_err()?;
+
+                if api_defs_filter.is_empty() {
+                    app_ctx
+                        .application
+                        .used_component_names_for_all_http_api_definition()
+                } else {
+                    api_defs_filter
+                        .iter()
+                        .flat_map(|name| {
+                            app_ctx
+                                .application
+                                .used_component_names_for_http_api_definition(&name)
+                        })
+                        .collect()
+                }
+            }
+            .into_iter()
+            .map(|component_name| ComponentName::from(component_name.to_string()))
+            .collect::<Vec<_>>()
+        };
+
+        if used_component_names.is_empty() {
+            return Ok(BTreeMap::new());
+        }
+
+        log_action("Deploying", "required components");
+        let _indent = LogIndent::new();
+
+        let latest_components = self
+            .ctx
+            .component_handler()
+            .deploy(
+                project,
+                used_component_names,
+                None,
+                &ApplicationComponentSelectMode::All,
+                WorkerUpdateOrRedeployArgs::default(),
+            )
+            .await?
+            .into_iter()
+            .map(|component| (component.component_name.0.clone(), component))
+            .collect::<BTreeMap<_, _>>();
+
+        Ok(latest_components)
     }
 
     async fn api_definition(

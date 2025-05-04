@@ -285,7 +285,7 @@ impl TextView for InvokeResultView {
 impl TextView for Vec<(u64, PublicOplogEntry)> {
     fn log(&self) {
         for (idx, entry) in self {
-            print!("{}: ", format_main_id(&format!("#{idx:0>5}")));
+            logln(format!("{}: ", format_main_id(&format!("#{idx:0>5}"))));
             entry.log()
         }
     }

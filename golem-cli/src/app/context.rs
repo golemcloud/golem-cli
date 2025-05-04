@@ -494,7 +494,6 @@ impl ApplicationContext {
         clean_app(self)
     }
 
-    // TODO: wrap dynamic help errors with context
     pub fn log_dynamic_help(&self, config: &DynamicHelpSections) -> anyhow::Result<()> {
         static LABEL_SOURCE: &str = "Source";
         static LABEL_SELECTED: &str = "Selected";
@@ -609,7 +608,6 @@ impl ApplicationContext {
             }
         }
 
-        // TODO: add dynamic help for api commands
         if config.api_definitions() {
             if !self.application.http_api_definitions().is_empty() {
                 logln(format!(

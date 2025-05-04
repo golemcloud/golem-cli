@@ -117,6 +117,26 @@ impl DynamicHelpSections {
         }
     }
 
+    pub fn show_api_definitions() -> Self {
+        Self {
+            components: false,
+            custom_commands: false,
+            builtin_commands: Default::default(),
+            api_definitions: true,
+            api_deployments: false,
+        }
+    }
+
+    pub fn show_api_deployments() -> Self {
+        Self {
+            components: true,
+            custom_commands: false,
+            builtin_commands: Default::default(),
+            api_definitions: true,
+            api_deployments: false,
+        }
+    }
+
     pub fn components(&self) -> bool {
         self.components
     }
@@ -211,8 +231,8 @@ impl From<&str> for HttpApiDefinitionName {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HttpApiDeploymentSite {
-    host: String,
-    subdomain: Option<String>,
+    pub host: String,
+    pub subdomain: Option<String>,
 }
 
 impl Display for HttpApiDeploymentSite {
@@ -1148,7 +1168,7 @@ mod app_builder {
     use crate::model::app_raw::{
         HttpApiDefinition, HttpApiDefinitionBindingType, HttpApiDeployment,
     };
-    use crate::model::deploy_diff::normalize_http_api_binding_path;
+    use crate::model::deploy_diff::api_definition::normalize_http_api_binding_path;
     use crate::model::text::fmt::format_rib_source_for_error;
     use crate::validation::{ValidatedResult, ValidationBuilder};
     use colored::Colorize;
@@ -2098,21 +2118,6 @@ mod app_builder {
         }
 
         fn validate_http_api_definitions(&self, validation: &mut ValidationBuilder) {
-            fn check_not_empty(
-                validation: &mut ValidationBuilder,
-                property_name: &str,
-                value: &str,
-            ) -> bool {
-                let is_empty = value.is_empty();
-                if is_empty {
-                    validation.add_error(format!(
-                        "Property {} is empty",
-                        property_name.log_color_highlight()
-                    ));
-                }
-                !is_empty
-            }
-
             for (name, api_definition) in &self.http_api_definitions {
                 validation.with_context(
                     vec![
@@ -2191,14 +2196,7 @@ mod app_builder {
                                     let check_rib = |validation: &mut ValidationBuilder, property_name: &str, rib_script: &Option<String>, required: bool| {
                                         match rib_script.as_ref().map(|s| s.as_str()) {
                                             Some(rib) => {
-                                                if rib.trim().is_empty() {
-                                                    validation.add_error(
-                                                        format!(
-                                                            "Empty Rib script for property {}",
-                                                            property_name.log_color_highlight(),
-                                                        )
-                                                    );
-                                                }
+                                                check_not_empty(validation, property_name, rib);
                                                 if let Some(err) = rib::from_string(rib).err() {
                                                     validation.add_error(
                                                         format!(
@@ -2272,27 +2270,46 @@ mod app_builder {
                     |validation| {
                         for def_name in &api_deployment.value.definitions {
                             let parts = def_name.split("@").collect::<Vec<_>>();
-                            let def_name = match parts.len() {
-                                1 => HttpApiDefinitionName::from(def_name.as_str()),
-                                2 => HttpApiDefinitionName::from(parts[0]),
+                            let (name, version) = match parts.len() {
+                                1 => (HttpApiDefinitionName::from(def_name.as_str()), None),
+                                2 => (HttpApiDefinitionName::from(parts[0]), Some(parts[1])),
                                 _ => {
                                     validation.add_error(
                                         format!(
                                             "Invalid definition name: {}, expected 'api-name', or 'api-name@version'",
-                                            def_name.log_color_highlight(),
+                                            def_name.log_color_error_highlight(),
                                         ),
                                     );
                                     continue;
                                 }
                             };
-                            if !self.http_api_definitions.contains_key(&def_name) {
+                            if name.0.is_empty() {
                                 validation.add_error(
                                     format!(
-                                        "Unknown HTTP API definition name: {}\n\n{}",
-                                        def_name.as_str().log_color_error_highlight(),
-                                        self.available_http_api_definitions(def_name.as_str())
+                                        "Invalid definition name, empty API name part: {}, expected 'api-name', or 'api-name@version'",
+                                        def_name.log_color_error_highlight(),
                                     ),
-                                )
+                                );
+                            }  else {
+                                if !self.http_api_definitions.contains_key(&name) {
+                                    validation.add_error(
+                                        format!(
+                                            "Unknown HTTP API definition name: {}\n\n{}",
+                                            def_name.as_str().log_color_error_highlight(),
+                                            self.available_http_api_definitions(def_name.as_str())
+                                        ),
+                                    )
+                                }
+                            }
+                            if let Some(version) = version {
+                                if version.is_empty() {
+                                    validation.add_error(
+                                        format!(
+                                            "Invalid definition name, empty version part: {}, expected 'api-name', or 'api-name@version'",
+                                            def_name.log_color_error_highlight(),
+                                        ),
+                                    );
+                                }
                             }
                         }
                     },
@@ -2371,5 +2388,20 @@ mod app_builder {
                 options.iter().map(|name| format!("- {}", name)).join("\n")
             )
         }
+    }
+
+    fn check_not_empty(
+        validation: &mut ValidationBuilder,
+        property_name: &str,
+        value: &str,
+    ) -> bool {
+        let is_empty = value.is_empty();
+        if is_empty {
+            validation.add_error(format!(
+                "Property {} is empty",
+                property_name.log_color_highlight()
+            ));
+        }
+        !is_empty
     }
 }

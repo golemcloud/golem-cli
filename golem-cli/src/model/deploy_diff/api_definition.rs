@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// NOTE: This module contains normalized entities for doing diffs before deployment.
-//       This solution is intended to be a naive and temporary one until environments
-//       and atomic deployments will be developed.
-
 use crate::log::LogColorize;
 use crate::model::api::to_method_pattern;
 use crate::model::app::HttpApiDefinitionName;
@@ -23,96 +19,87 @@ use crate::model::app_raw::{
     HttpApiDefinition, HttpApiDefinitionBindingType, HttpApiDefinitionRoute,
 };
 use crate::model::component::Component;
+use crate::model::deploy_diff::{DiffSerialize, ToYamlValueWithoutNulls};
 use crate::model::text::fmt::format_rib_source_for_error;
-use crate::model::ComponentName;
 use anyhow::anyhow;
 use golem_client::model::{
     GatewayBindingComponent, GatewayBindingData, GatewayBindingType, HttpApiDefinitionRequest,
     HttpApiDefinitionResponseData, RouteRequestData,
 };
-use golem_common::model::{ComponentFilePermissions, ComponentType};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct DeployDiffableComponentFile {
-    pub hash: String,
-    pub permissions: ComponentFilePermissions,
-}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DiffableHttpApiDefinition(pub HttpApiDefinitionRequest);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct DeployDiffableComponent {
-    pub component_name: ComponentName,
-    pub component_hash: String,
-    pub component_type: ComponentType,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub files: BTreeMap<String, DeployDiffableComponentFile>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub dynamic_linking: BTreeMap<String, BTreeMap<String, String>>,
-}
-
-// NOTE: for now HttpApiDefinitionRequest is used as DeployDiffableHttpApiDefinition
-type DeployDiffableHttpApiDefinition = HttpApiDefinitionRequest;
-
-pub trait ToDeployDiffableHttpApiDefinition {
-    fn to_diffable(&self) -> anyhow::Result<DeployDiffableHttpApiDefinition>;
-}
-
-impl ToDeployDiffableHttpApiDefinition for HttpApiDefinitionResponseData {
-    fn to_diffable(&self) -> anyhow::Result<DeployDiffableHttpApiDefinition> {
-        Ok(DeployDiffableHttpApiDefinition {
-            id: self.id.clone(),
-            version: self.version.clone(),
+impl DiffableHttpApiDefinition {
+    pub fn from_server(api_definition: HttpApiDefinitionResponseData) -> anyhow::Result<Self> {
+        Ok(Self(HttpApiDefinitionRequest {
+            id: api_definition.id,
+            version: api_definition.version,
             security: None, // TODO: check that this is not needed anymore
-            routes: self
+            routes: api_definition
                 .routes
-                .iter()
+                .into_iter()
                 .map(|route| RouteRequestData {
-                    method: route.method.clone(),
-                    path: route.path.clone(),
+                    method: route.method,
+                    path: route.path,
                     binding: GatewayBindingData {
-                        binding_type: route.binding.binding_type.clone(),
-                        component: route.binding.component.as_ref().map(|component| {
+                        binding_type: route.binding.binding_type,
+                        component: route.binding.component.map(|component| {
                             GatewayBindingComponent {
-                                name: component.name.clone(),
+                                name: component.name,
                                 version: Some(component.version),
                             }
                         }),
-                        worker_name: route.binding.worker_name.clone(),
-                        idempotency_key: route.binding.idempotency_key.clone(),
-                        response: route.binding.response.clone(),
-                        invocation_context: route.binding.invocation_context.clone(),
+                        worker_name: route.binding.worker_name,
+                        idempotency_key: route.binding.idempotency_key,
+                        response: route.binding.response,
+                        invocation_context: route.binding.invocation_context,
                     },
-                    security: route.security.clone(),
+                    security: route.security,
                 })
                 .collect(),
-            draft: self.draft,
-        })
+            draft: api_definition.draft,
+        }))
+    }
+
+    pub fn from_manifest(
+        server_api_def: Option<&DiffableHttpApiDefinition>,
+        name: &HttpApiDefinitionName,
+        api_definition: &HttpApiDefinition,
+        latest_component_versions: &BTreeMap<String, Component>,
+    ) -> anyhow::Result<Self> {
+        let mut manifest_api_def = Self(HttpApiDefinitionRequest {
+            id: name.to_string(),
+            version: api_definition.version.clone(),
+            security: None, // TODO: check that this is not needed anymore
+            routes: api_definition
+                .routes
+                .iter()
+                .map(|route| normalize_http_api_route(latest_component_versions, route))
+                .collect::<Result<Vec<_>, _>>()?,
+            draft: api_definition.draft,
+        });
+
+        // NOTE: if the only diff is being non-draft on serverside, we hide that
+        if let Some(server_api_def) = server_api_def {
+            if manifest_api_def.0.version == server_api_def.0.version
+                && !server_api_def.0.draft
+                && manifest_api_def.0.draft
+            {
+                manifest_api_def.0.draft = false;
+            }
+        }
+
+        Ok(manifest_api_def)
     }
 }
 
-pub struct HttpApiDefinitionDeployableManifestSource<'a> {
-    pub name: &'a HttpApiDefinitionName,
-    pub api_definition: &'a HttpApiDefinition,
-    pub latest_component_versions: &'a BTreeMap<String, Component>,
-}
-
-impl ToDeployDiffableHttpApiDefinition for HttpApiDefinitionDeployableManifestSource<'_> {
-    fn to_diffable(&self) -> anyhow::Result<DeployDiffableHttpApiDefinition> {
-        Ok(DeployDiffableHttpApiDefinition {
-            id: self.name.to_string(),
-            version: self.api_definition.version.clone(),
-            security: None, // TODO: check that this is not needed anymore
-            routes: self
-                .api_definition
-                .routes
-                .iter()
-                .map(|route| normalize_http_api_route(self.latest_component_versions, route))
-                .collect::<Result<Vec<_>, _>>()?,
-            draft: self.api_definition.draft,
-        })
+impl DiffSerialize for DiffableHttpApiDefinition {
+    fn to_diffable_string(&self) -> anyhow::Result<String> {
+        let yaml_value = self.0.clone().to_yaml_value_without_nulls()?;
+        Ok(serde_yaml::to_string(&yaml_value)?)
     }
 }
 
@@ -186,35 +173,4 @@ fn normalize_rib_source_code(rib: &str) -> anyhow::Result<String> {
             )
         })?
         .to_string())
-}
-
-pub trait ToYamlValueWithoutNulls {
-    fn to_yaml_value_without_nulls(self) -> serde_yaml::Result<serde_yaml::Value>;
-}
-
-impl<T: Serialize> ToYamlValueWithoutNulls for T {
-    fn to_yaml_value_without_nulls(self) -> serde_yaml::Result<serde_yaml::Value> {
-        Ok(yaml_value_without_nulls(serde_yaml::to_value(self)?))
-    }
-}
-
-fn yaml_value_without_nulls(value: serde_yaml::Value) -> serde_yaml::Value {
-    match value {
-        serde_yaml::Value::Mapping(mapping) => serde_yaml::Value::Mapping(
-            mapping
-                .into_iter()
-                .filter_map(|(key, value)| {
-                    if value == serde_yaml::Value::Null {
-                        None
-                    } else {
-                        Some((key, yaml_value_without_nulls(value)))
-                    }
-                })
-                .collect(),
-        ),
-        serde_yaml::Value::Sequence(sequence) => serde_yaml::Value::Sequence(
-            sequence.into_iter().map(yaml_value_without_nulls).collect(),
-        ),
-        _ => value,
-    }
 }

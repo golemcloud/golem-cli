@@ -151,8 +151,6 @@ pub struct HttpApiDeployment {
     pub host: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subdomain: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub project: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub definitions: Vec<String>,
 }

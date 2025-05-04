@@ -36,11 +36,9 @@ use crate::model::app::{
 use crate::model::app::{DependencyType, InitialComponentFile};
 use crate::model::component::{Component, ComponentSelection, ComponentView};
 use crate::model::deploy::TryUpdateAllWorkersResult;
-use crate::model::deploy_diff::{DeployDiffableComponent, DeployDiffableComponentFile};
+use crate::model::deploy_diff::component::{DiffableComponent, DiffableComponentFile};
 use crate::model::text::component::{ComponentCreateView, ComponentGetView, ComponentUpdateView};
-use crate::model::text::fmt::{
-    log_deployable_entity_yaml_diff, log_error, log_text_view, log_warn,
-};
+use crate::model::text::fmt::{log_deploy_diff, log_error, log_text_view, log_warn};
 use crate::model::text::help::ComponentNameHelp;
 use crate::model::to_cloud::ToCloud;
 use crate::model::{
@@ -676,16 +674,16 @@ impl ComponentCommandHandler {
             .as_ref()
             .map(|c| c.versioned_component_id.component_id);
 
-        let manifest_deploy_diffable_component = self
-            .manifest_deploy_diffable_component(component_name, &deploy_properties)
+        let manifest_diffable_component = self
+            .manifest_diffable_component(component_name, &deploy_properties)
             .await?;
 
         if let Some(server_component) = server_component {
-            let server_deploy_diffable_component = self
-                .server_deploy_diffable_component(project, &server_component)
+            let server_diffable_component = self
+                .server_diffable_component(project, &server_component)
                 .await?;
 
-            if server_deploy_diffable_component == manifest_deploy_diffable_component {
+            if server_diffable_component == manifest_diffable_component {
                 log_skipping_up_to_date(format!(
                     "deploying component {}",
                     component_name.as_str().log_color_highlight()
@@ -702,10 +700,7 @@ impl ComponentCommandHandler {
 
                 {
                     let _indent = self.ctx.log_handler().nested_text_view_indent();
-                    log_deployable_entity_yaml_diff(
-                        &server_deploy_diffable_component,
-                        &manifest_deploy_diffable_component,
-                    )?;
+                    log_deploy_diff(&server_diffable_component, &manifest_diffable_component)?;
                 }
             }
         }
@@ -856,9 +851,9 @@ impl ComponentCommandHandler {
             &self.ctx.task_result_marker_dir().await?,
             GetServerComponentHash {
                 project_name: project.map(|p| &p.project_name),
-                component_name: &manifest_deploy_diffable_component.component_name,
+                component_name: &manifest_diffable_component.component_name,
                 component_version: component.versioned_component_id.version,
-                component_hash: Some(&manifest_deploy_diffable_component.component_hash),
+                component_hash: Some(&manifest_diffable_component.component_hash),
             },
         )?
         .success()?;
@@ -1401,11 +1396,11 @@ impl ComponentCommandHandler {
     }
 
     // NOTE: all of this is naive for now (as in performance, streaming, parallelism)
-    async fn manifest_deploy_diffable_component(
+    async fn manifest_diffable_component(
         &self,
         component_name: &AppComponentName,
         properties: &ComponentDeployProperties,
-    ) -> anyhow::Result<DeployDiffableComponent> {
+    ) -> anyhow::Result<DiffableComponent> {
         let component_hash = {
             log_action(
                 "Calculating hash",
@@ -1422,15 +1417,15 @@ impl ComponentCommandHandler {
             component_hasher.finalize().to_hex().to_string()
         };
 
-        let files: BTreeMap<String, DeployDiffableComponentFile> = {
+        let files: BTreeMap<String, DiffableComponentFile> = {
             IfsFileManager::new(self.ctx.file_download_client().await?)
-                .collect_file_hashes(properties.files.as_slice())
+                .collect_file_hashes(component_name.as_str(), properties.files.as_slice())
                 .await?
                 .into_iter()
                 .map(|file_hash| {
                     (
                         file_hash.target.path.to_rel_string(),
-                        DeployDiffableComponentFile {
+                        DiffableComponentFile {
                             hash: file_hash.hash_hex,
                             permissions: file_hash.target.permissions,
                         },
@@ -1439,40 +1434,21 @@ impl ComponentCommandHandler {
                 .collect()
         };
 
-        Ok(DeployDiffableComponent {
-            component_name: component_name.as_str().into(),
+        DiffableComponent::from_manifest(
+            &component_name,
             component_hash,
-            component_type: properties.component_type,
+            properties.component_type,
             files,
-            dynamic_linking: properties
-                .dynamic_linking
-                .iter()
-                .flat_map(|dl| {
-                    dl.dynamic_linking.iter().map(|(name, instance)| {
-                        (
-                            name.clone(),
-                            match instance {
-                                DynamicLinkedInstanceOss::WasmRpc(links) => links
-                                    .targets
-                                    .iter()
-                                    .map(|(resource, target)| {
-                                        (resource.clone(), target.interface_name.clone())
-                                    })
-                                    .collect::<BTreeMap<_, _>>(),
-                            },
-                        )
-                    })
-                })
-                .collect(),
-        })
+            properties.dynamic_linking.as_ref(),
+        )
     }
 
     // NOTE: all of this is naive for now (as in performance, streaming, parallelism)
-    async fn server_deploy_diffable_component(
+    async fn server_diffable_component(
         &self,
         project: Option<&ProjectNameAndId>,
         component: &Component,
-    ) -> anyhow::Result<DeployDiffableComponent> {
+    ) -> anyhow::Result<DiffableComponent> {
         let component_hash = self
             .server_component_hash(
                 project,
@@ -1482,11 +1458,17 @@ impl ComponentCommandHandler {
             )
             .await?;
 
-        let files: BTreeMap<String, DeployDiffableComponentFile> = {
+        let files: BTreeMap<String, DiffableComponentFile> = {
             if component.files.is_empty() {
                 BTreeMap::new()
             } else {
-                log_action("Calculating hashes", "for server IFS files");
+                log_action(
+                    "Calculating hashes",
+                    format!(
+                        "for server IFS files, component: {}",
+                        &component.component_name.0
+                    ),
+                );
                 let _indent = LogIndent::new();
 
                 let mut files = BTreeMap::new();
@@ -1504,7 +1486,7 @@ impl ComponentCommandHandler {
                         .await?;
                     files.insert(
                         target_path,
-                        DeployDiffableComponentFile {
+                        DiffableComponentFile {
                             hash,
                             permissions: file.permissions,
                         },
@@ -1515,31 +1497,7 @@ impl ComponentCommandHandler {
             }
         };
 
-        Ok(DeployDiffableComponent {
-            component_name: component.component_name.clone(),
-            component_hash,
-            component_type: component.component_type,
-            files,
-            dynamic_linking: component
-                .metadata
-                .dynamic_linking
-                .iter()
-                .map(|(name, link)| {
-                    (
-                        name.clone(),
-                        match link {
-                            golem_common::model::component_metadata::DynamicLinkedInstance::WasmRpc(links) => links
-                                .targets
-                                .iter()
-                                .map(|(resource, target)| {
-                                    (resource.clone(), target.interface_name.clone())
-                                })
-                                .collect::<BTreeMap<String, String>>(),
-                        },
-                    )
-                })
-                .collect(),
-        })
+        DiffableComponent::from_server(component, component_hash, files)
     }
 
     async fn server_component_hash(

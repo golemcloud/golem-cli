@@ -132,6 +132,7 @@ impl IfsFileManager {
 
     pub async fn collect_file_hashes(
         &self,
+        component_name: &str,
         component_files: &[InitialComponentFile],
     ) -> anyhow::Result<Vec<HashedFile>> {
         if component_files.is_empty() {
@@ -142,7 +143,13 @@ impl IfsFileManager {
             client: self.client.clone(),
         };
 
-        log_action("Calculating hashes", "for manifest IFS files");
+        log_action(
+            "Calculating hashes",
+            format!(
+                "for manifest IFS files, component: {}",
+                component_name.log_color_highlight()
+            ),
+        );
         let _indent = LogIndent::new();
 
         validate_unique_targets(component_files)?;

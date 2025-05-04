@@ -122,11 +122,31 @@ impl InteractiveHandler {
     ) -> anyhow::Result<bool> {
         self.confirm(
             true,
-            format!("The following changes will be applied to the installed plugins of component {}:\n{}",
+            format!("The following changes will be applied to the installed plugins of component {}:\n{}\n",
                 component.to_string().log_color_highlight(),
                 rendered_steps.iter().map(|s| format!(" - {}", s)).collect::<Vec<_>>().join("\n")
             ),
             None
+        )
+    }
+
+    pub fn confirm_deployment_installation_changes(
+        &self,
+        site: &str,
+        rendered_steps: &[String],
+    ) -> anyhow::Result<bool> {
+        self.confirm(
+            true,
+            format!(
+                "The following changes will be applied to site {}:\n{}\n",
+                site.to_string().log_color_highlight(),
+                rendered_steps
+                    .iter()
+                    .map(|s| format!(" - {}", s))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+            None,
         )
     }
 
@@ -474,7 +494,10 @@ impl InteractiveHandler {
         message: M,
         extra_hint: Option<&str>,
     ) -> anyhow::Result<bool> {
-        confirm(self.ctx.yes(), default, message, extra_hint)
+        logln("");
+        let result = confirm(self.ctx.yes(), default, message, extra_hint)?;
+        logln("");
+        Ok(result)
     }
 }
 
@@ -553,10 +576,10 @@ fn confirm<M: AsRef<str>>(
     const YES_FLAG_HINT: &str = "To automatically confirm such questions use the '--yes' flag.";
 
     if yes {
-        log_warn_action(
-            "Auto confirming",
-            format!("question: \"{}\"", message.as_ref().cyan()),
-        );
+        log_warn_action("Auto confirming", "");
+        for line in message.as_ref().cyan().lines() {
+            logln(format!("> {}", line));
+        }
         return Ok(true);
     }
 

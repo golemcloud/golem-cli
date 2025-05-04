@@ -356,7 +356,8 @@ impl Command {
                     )
                 } else {
                     format!(
-                        "Uninstalling plugin installation {}",
+                        "{} plugin installation {}",
+                        "Uninstalling".log_color_warn(),
                         id.to_string().log_color_highlight()
                     )
                 }

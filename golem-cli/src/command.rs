@@ -1115,8 +1115,9 @@ pub mod api {
                 /// API definition to deploy, if not specified, all definitions are deployed
                 http_api_definition_name: Option<HttpApiDefinitionName>,
             },
-            // TODO: decide if we drop it from cli for now, or move the import logic into the CLI
+            // TODO: decide if we drop it from cli for now, or move the import logic into the CLI, hidden for now
             /// Import OpenAPI file as api definition
+            #[clap(hide = true)]
             Import {
                 #[command(flatten)]
                 project: ProjectNameOptionalArg,
@@ -1161,24 +1162,15 @@ pub mod api {
 
     pub mod deployment {
         use crate::command::shared_args::ProjectNameOptionalArg;
-        use crate::model::api::{ApiDefinitionId, ApiDefinitionIdWithVersion};
+        use crate::model::api::ApiDefinitionId;
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
         pub enum ApiDeploymentSubcommand {
             /// Deploy API Deployments
             Deploy {
-                #[command(flatten)]
-                project: ProjectNameOptionalArg,
-                /// API definition IDs with version
-                #[arg(required = true)]
-                definitions: Vec<ApiDefinitionIdWithVersion>,
-                #[arg(long)]
-                /// API definition host
-                host: Option<String>,
-                /// Optional API definition subdomain
-                #[arg(long)]
-                subdomain: Option<String>,
+                /// Host or site to deploy, if not defined, all deployments will be deployed
+                host_or_site: Option<String>,
             },
             /// Get API deployment
             Get {

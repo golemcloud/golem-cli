@@ -113,9 +113,17 @@ impl ApiCommandHandler {
         deploy_mode: HttpApiDeployMode,
         latest_component_versions: &BTreeMap<String, Component>,
     ) -> anyhow::Result<()> {
-        self.ctx
+        let latest_api_definition_versions = self
+            .ctx
             .api_definition_handler()
             .deploy(project, deploy_mode, latest_component_versions)
-            .await
+            .await?;
+
+        self.ctx
+            .api_deployment_handler()
+            .deploy(project, &latest_api_definition_versions)
+            .await?;
+
+        Ok(())
     }
 }

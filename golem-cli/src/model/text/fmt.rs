@@ -14,6 +14,7 @@
 
 use crate::fuzzy::Match;
 use crate::log::{log_warn_action, logln, LogColorize, LogIndent};
+use crate::model::deploy_diff::DiffSerialize;
 use crate::model::{Format, WorkerNameMatch};
 use anyhow::Context;
 use cli_table::{Row, Title, WithTitle};
@@ -22,7 +23,6 @@ use colored::Colorize;
 use golem_client::model::{InitialComponentFile, WorkerStatus};
 use itertools::Itertools;
 use regex::Regex;
-use serde::Serialize;
 use similar::TextDiff;
 use std::collections::BTreeMap;
 
@@ -360,18 +360,18 @@ pub fn log_fuzzy_match(m: &Match) {
     );
 }
 
-pub fn log_deployable_entity_yaml_diff<T: Serialize>(
-    server: &T,
-    manifest: &T,
-) -> anyhow::Result<()> {
-    let server_yaml = serde_yaml::to_string(server).context("failed to serialize server entity")?;
-    let manifest_yaml =
-        serde_yaml::to_string(manifest).context("failed to serialize manifest entity")?;
+pub fn log_deploy_diff<T: DiffSerialize>(server: &T, manifest: &T) -> anyhow::Result<()> {
+    let server = server
+        .to_diffable_string()
+        .context("failed to serialize server entity")?;
+    let manifest = manifest
+        .to_diffable_string()
+        .context("failed to serialize manifest entity")?;
 
     log_unified_diff(
-        &TextDiff::from_lines(&server_yaml, &manifest_yaml)
+        &TextDiff::from_lines(&server, &manifest)
             .unified_diff()
-            .context_radius(5)
+            .context_radius(4)
             .header("sever", "manifest")
             .to_string(),
     );
@@ -458,25 +458,24 @@ pub fn format_rib_source_for_error(source: &str, error: &str) -> String {
 }
 
 pub struct NestedTextViewIndent {
-    format: Format,
+    decorated: bool,
     log_indent: Option<LogIndent>,
 }
 
 impl NestedTextViewIndent {
     pub fn new(format: Format) -> Self {
-        // TODO: do we still need this format checking?
         match format {
-            Format::Json | Format::Yaml => Self {
-                format,
-                log_indent: Some(LogIndent::new()),
-            },
-            Format::Text => {
+            Format::Text if SHOULD_COLORIZE.should_colorize() => {
                 logln("╔═");
                 Self {
-                    format,
+                    decorated: true,
                     log_indent: Some(LogIndent::prefix("║ ")),
                 }
             }
+            _ => Self {
+                decorated: false,
+                log_indent: Some(LogIndent::new()),
+            },
         }
     }
 }
@@ -485,11 +484,8 @@ impl Drop for NestedTextViewIndent {
     fn drop(&mut self) {
         if let Some(ident) = self.log_indent.take() {
             drop(ident);
-            match self.format {
-                Format::Json | Format::Yaml => {
-                    // NOP
-                }
-                Format::Text => logln("╚═"),
+            if self.decorated {
+                logln("╚═");
             }
         }
     }
