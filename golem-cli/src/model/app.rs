@@ -492,8 +492,13 @@ impl Application {
         &self.clean
     }
 
-    pub fn wit_deps(&self) -> &WithSource<Vec<String>> {
-        &self.wit_deps
+    pub fn wit_deps(&self) -> Vec<PathBuf> {
+        self.wit_deps
+            .value
+            .iter()
+            .cloned()
+            .map(|path| self.wit_deps.source.join(path))
+            .collect()
     }
 
     pub fn all_dependencies(&self) -> BTreeSet<DependentComponent> {

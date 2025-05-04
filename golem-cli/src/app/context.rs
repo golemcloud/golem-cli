@@ -325,17 +325,10 @@ impl ApplicationContext {
             .common_wit_deps
             .get_or_init(|| {
                 let sources = self.application.wit_deps();
-                if sources.value.is_empty() {
+                if sources.is_empty() {
                     bail!("No common witDeps were defined in the application manifest")
                 }
-                WitDepsResolver::new(
-                    sources
-                        .value
-                        .iter()
-                        .cloned()
-                        .map(|path| sources.source.join(path))
-                        .collect(),
-                )
+                WitDepsResolver::new(sources)
             })
             .as_ref()
         {
