@@ -20,6 +20,7 @@ impl Error for NonSuccessfulExit {}
 
 #[derive(Clone, Copy, Debug, Display, EnumIter)]
 pub enum ShowClapHelpTarget {
+    AppNew,
     ComponentNew,
     ComponentAddDependency,
 }

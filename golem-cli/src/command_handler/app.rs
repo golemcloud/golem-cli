@@ -21,7 +21,7 @@ use crate::command::shared_args::{
 use crate::command_handler::Handlers;
 use crate::context::Context;
 use crate::diagnose::diagnose;
-use crate::error::{HintError, NonSuccessfulExit};
+use crate::error::{HintError, NonSuccessfulExit, ShowClapHelpTarget};
 use crate::fs;
 use crate::fuzzy::{Error, FuzzySearch};
 use crate::log::{log_action, logln, LogColorize, LogIndent, LogOutput, Output};
@@ -57,7 +57,7 @@ impl AppCommandHandler {
             AppSubcommand::New {
                 application_name,
                 language,
-            } => self.cmd_new(&application_name, language).await,
+            } => self.cmd_new(application_name, language).await,
             AppSubcommand::Build {
                 component_name,
                 build: build_args,
@@ -89,7 +89,7 @@ impl AppCommandHandler {
 
     async fn cmd_new(
         &self,
-        application_name: &str,
+        application_name: Option<String>,
         languages: Vec<GuestLanguage>,
     ) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
@@ -115,6 +115,29 @@ impl AppCommandHandler {
             }
         }
 
+        let Some((application_name, components)) = ({
+            match application_name {
+                Some(application_name) => Some((application_name, vec![])),
+                None => self
+                    .ctx
+                    .interactive_handler()
+                    .select_new_app_name_and_components()?
+                    .map(|new_app| (new_app.app_name, new_app.templated_component_names)),
+            }
+        }) else {
+            log_error("Both APPLICATION_NAME and LANGUAGES are required in non-interactive mode");
+            logln("");
+            bail!(HintError::ShowClapHelp(ShowClapHelpTarget::AppNew));
+        };
+
+        if components.is_empty() && languages.is_empty() {
+            log_error("LANGUAGES are required in non-interactive mode");
+            logln("");
+            logln("Either specify languages or use the new command without APPLICATION_NAME to use the interactive wizard!");
+            logln("");
+            bail!(HintError::ShowClapHelp(ShowClapHelpTarget::AppNew));
+        }
+
         let app_dir = PathBuf::from(&application_name);
         if app_dir.exists() {
             bail!(
@@ -132,36 +155,72 @@ impl AppCommandHandler {
             ),
         );
 
-        let common_templates = languages
-            .iter()
-            .map(|language| {
-                self.get_template(&language.id())
-                    .map(|(common, _component)| common)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        if components.is_empty() {
+            let common_templates = languages
+                .iter()
+                .map(|language| {
+                    self.get_template(&language.id())
+                        .map(|(common, _component)| common)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
 
-        {
-            let _indent = LogIndent::new();
-            // TODO: cleanup add_component_by_example, so we don't have to pass a dummy arg
-            let dummy_package_name = PackageName::from_string("app:comp").unwrap();
-            for common_template in common_templates.into_iter().flatten() {
+            {
+                let _indent = LogIndent::new();
+                // TODO: cleanup add_component_by_example, so we don't have to pass a dummy arg
+                let dummy_package_name = PackageName::from_string("app:comp").unwrap();
+                for common_template in common_templates.into_iter().flatten() {
+                    match add_component_by_template(
+                        Some(common_template),
+                        None,
+                        &app_dir,
+                        &dummy_package_name,
+                    ) {
+                        Ok(()) => {
+                            log_action(
+                                "Added",
+                                format!(
+                                    "common template for {}",
+                                    common_template.language.name().log_color_highlight()
+                                ),
+                            );
+                        }
+                        Err(error) => {
+                            bail!("Failed to add common template for new app: {}", error)
+                        }
+                    }
+                }
+            }
+        } else {
+            for (template, component_package_name) in &components {
+                log_action(
+                    "Adding",
+                    format!(
+                        "component {}",
+                        component_package_name
+                            .to_string_with_colon()
+                            .log_color_highlight()
+                    ),
+                );
+                let (common_template, component_template) = self.get_template(template)?;
                 match add_component_by_template(
-                    Some(common_template),
-                    None,
+                    common_template,
+                    Some(component_template),
                     &app_dir,
-                    &dummy_package_name,
+                    component_package_name,
                 ) {
                     Ok(()) => {
                         log_action(
                             "Added",
                             format!(
-                                "common template for {}",
-                                common_template.language.name().log_color_highlight()
+                                "new app component {}",
+                                component_package_name
+                                    .to_string_with_colon()
+                                    .log_color_highlight()
                             ),
                         );
                     }
                     Err(error) => {
-                        bail!("Failed to add common template for new app: {}", error)
+                        bail!("Failed to create new app component: {}", error)
                     }
                 }
             }
@@ -173,14 +232,33 @@ impl AppCommandHandler {
         );
 
         logln("");
-        logln(
-            format!(
-                "To add components to the application, switch to the {} directory, and use the `{}` command.",
-                application_name.log_color_highlight(),
-                "component new".log_color_highlight(),
-            )
-        );
-        logln("");
+
+        if components.is_empty() {
+            logln(
+                format!(
+                    "To add components to the application, switch to the {} directory, and use the `{}` command.",
+                    application_name.log_color_highlight(),
+                    "component new".log_color_highlight(),
+                )
+            );
+        } else {
+            // Unloading app context and switching dir, so we can reload the new app
+            self.ctx.unload_app_context().await;
+            std::env::set_current_dir(app_dir)?;
+
+            let app_ctx = self.ctx.app_context_lock().await;
+            let app_ctx = app_ctx.some_or_err()?;
+
+            app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?;
+            logln(
+                format!(
+                    "Switch to the {} directory, and use the `{}` or `{}` commands to use your new application!",
+                    application_name.log_color_highlight(),
+                    "app build".log_color_highlight(),
+                    "app deploy".log_color_highlight(),
+                )
+            );
+        }
 
         Ok(())
     }

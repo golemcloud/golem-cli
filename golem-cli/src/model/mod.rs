@@ -29,7 +29,7 @@ pub mod wave;
 pub mod worker;
 
 use crate::cloud::{AccountId, ProjectId};
-use crate::command::shared_args::StreamArgs;
+use crate::command::shared_args::{ComponentTemplateName, StreamArgs};
 use crate::config::{
     CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileKind, ProfileName,
 };
@@ -46,7 +46,9 @@ use golem_client::model::{
 };
 use golem_cloud_client::model::PluginDefinitionCloudPluginOwnerCloudPluginScope;
 use golem_common::model::trim_date::TrimDateTime;
-use golem_templates::model::{GuestLanguage, GuestLanguageTier, Template, TemplateName};
+use golem_templates::model::{
+    GuestLanguage, GuestLanguageTier, PackageName, Template, TemplateName,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -886,4 +888,9 @@ impl From<PluginDefinitionCloudPluginOwnerCloudPluginScope> for PluginDefinition
 
         plugin_definition
     }
+}
+
+pub struct NewInteractiveApp {
+    pub app_name: String,
+    pub templated_component_names: Vec<(ComponentTemplateName, PackageName)>,
 }

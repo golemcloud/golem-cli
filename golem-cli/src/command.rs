@@ -712,9 +712,8 @@ pub mod app {
         /// Create new application
         New {
             /// Application folder name where the new application should be created
-            application_name: String,
+            application_name: Option<String>,
             /// Languages that the application should support
-            #[arg(required = true)]
             language: Vec<GuestLanguage>,
         },
         /// Build all or selected components in the application
@@ -1758,6 +1757,9 @@ pub fn builtin_app_subcommands() -> BTreeSet<String> {
 
 fn help_target_to_subcommand_names(target: ShowClapHelpTarget) -> Vec<&'static str> {
     match target {
+        ShowClapHelpTarget::AppNew => {
+            vec!["app", "new"]
+        }
         ShowClapHelpTarget::ComponentNew => {
             vec!["component", "new"]
         }

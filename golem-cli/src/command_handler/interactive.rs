@@ -22,7 +22,7 @@ use crate::log::{log_action, log_warn_action, logln, LogColorize};
 use crate::model::app::{AppComponentName, DependencyType};
 use crate::model::component::AppComponentType;
 use crate::model::text::fmt::{log_error, log_warn};
-use crate::model::{ComponentName, Format, WorkerName};
+use crate::model::{ComponentName, Format, NewInteractiveApp, WorkerName};
 use anyhow::bail;
 use colored::Colorize;
 use golem_client::model::HttpApiDefinitionRequest;
@@ -33,12 +33,12 @@ use inquire::error::InquireResult;
 use inquire::validator::{ErrorMessage, Validation};
 use inquire::{Confirm, CustomType, InquireError, Select, Text};
 use itertools::Itertools;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
-use tracing_subscriber::fmt::format;
+use strum_macros::EnumIter;
 use url::Url;
 
 // NOTE: in the interactive handler is it okay to _read_ context (e.g. read selected component names)
@@ -491,6 +491,62 @@ impl InteractiveHandler {
             .none_if_not_interactive_logged()
     }
 
+    pub fn select_new_app_name_and_components(&self) -> anyhow::Result<Option<NewInteractiveApp>> {
+        let Some(app_name) = Text::new("Application name:")
+            .with_validator(|value: &str| {
+                if std::env::current_dir()?.join(value).exists() {
+                    return Ok(Validation::Invalid(ErrorMessage::Custom(
+                        "The specified application name already exists as a directory!".to_string(),
+                    )));
+                }
+                Ok(Validation::Valid)
+            })
+            .prompt()
+            .none_if_not_interactive_logged()?
+        else {
+            return Ok(None);
+        };
+
+        let mut existing_component_names = HashSet::<String>::new();
+        let mut templated_component_names = Vec::<(String, PackageName)>::new();
+
+        loop {
+            let Some(templated_component_name) = self
+                .select_new_component_template_and_package_name(existing_component_names.clone())?
+            else {
+                return Ok(None);
+            };
+
+            let Some(choice) = Select::new(
+                "Add another component or create application?",
+                AddComponentOrCreateApp::iter().collect_vec(),
+            )
+            .prompt()
+            .none_if_not_interactive_logged()?
+            else {
+                return Ok(None);
+            };
+
+            match choice {
+                AddComponentOrCreateApp::AddComponent => {
+                    existing_component_names
+                        .insert(templated_component_name.1.to_string_with_colon());
+                    templated_component_names.push(templated_component_name);
+                    continue;
+                }
+                AddComponentOrCreateApp::CreateApp => {
+                    templated_component_names.push(templated_component_name);
+                    break;
+                }
+            }
+        }
+
+        Ok(Some(NewInteractiveApp {
+            app_name,
+            templated_component_names,
+        }))
+    }
+
     pub fn select_new_component_template_and_package_name(
         &self,
         existing_component_names: HashSet<String>,
@@ -686,5 +742,20 @@ impl Display for TemplateOption {
             self.template_name.log_color_highlight(),
             self.description
         )
+    }
+}
+
+#[derive(Debug, Clone, Copy, EnumIter)]
+enum AddComponentOrCreateApp {
+    AddComponent,
+    CreateApp,
+}
+
+impl Display for AddComponentOrCreateApp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AddComponentOrCreateApp::AddComponent => write!(f, "Add another component"),
+            AddComponentOrCreateApp::CreateApp => write!(f, "Create application"),
+        }
     }
 }
