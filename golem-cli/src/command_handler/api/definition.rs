@@ -372,7 +372,7 @@ impl ApiDefinitionCommandHandler {
 
         let manifest_api_definition = DiffableHttpApiDefinition::from_manifest(
             server_diffable_api_definition.as_ref(),
-            &api_definition_name,
+            api_definition_name,
             &api_definition.value,
             latest_component_versions,
         )?;
@@ -538,7 +538,7 @@ impl ApiDefinitionCommandHandler {
                         .flat_map(|name| {
                             app_ctx
                                 .application
-                                .used_component_names_for_http_api_definition(&name)
+                                .used_component_names_for_http_api_definition(name)
                         })
                         .collect()
                 }

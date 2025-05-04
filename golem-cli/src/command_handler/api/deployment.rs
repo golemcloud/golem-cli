@@ -117,8 +117,8 @@ impl ApiDeploymentCommandHandler {
             self.deploy_api_deployment(
                 project.as_ref(),
                 &latest_api_definition_versions,
-                &site,
-                &deployment,
+                site,
+                deployment,
             )
             .await?;
         }
@@ -339,7 +339,7 @@ impl ApiDeploymentCommandHandler {
                                     site_as_str.log_color_highlight()
                                 ),
                             );
-                            self.undeploy_api_definition(project, &site, &name, &version)
+                            self.undeploy_api_definition(project, site, &name, &version)
                                 .await?;
                             log_action(
                                 "Undeployed",
@@ -466,10 +466,10 @@ impl ApiDeploymentCommandHandler {
         let result = match self.ctx.golem_clients().await? {
             GolemClients::Oss(clients) => clients
                 .api_deployment
-                .get_deployment(&site)
+                .get_deployment(site)
                 .await
                 .map_service_error_not_found_as_opt()?
-                .map(|result| ApiDeployment::from(result)),
+                .map(ApiDeployment::from),
             GolemClients::Cloud(clients) => clients
                 .api_deployment
                 .get_deployment(
@@ -479,12 +479,11 @@ impl ApiDeploymentCommandHandler {
                         .selected_project_id_or_default(project)
                         .await?
                         .0,
-                    &site,
+                    site,
                 )
                 .await
                 .map_service_error_not_found_as_opt()?
-                .map(|result| ApiDeployment::from(result))
-                .into(),
+                .map(ApiDeployment::from),
         };
 
         Ok(result)

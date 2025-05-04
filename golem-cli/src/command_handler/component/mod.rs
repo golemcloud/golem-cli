@@ -1435,7 +1435,7 @@ impl ComponentCommandHandler {
         };
 
         DiffableComponent::from_manifest(
-            &component_name,
+            component_name,
             component_hash,
             properties.component_type,
             files,

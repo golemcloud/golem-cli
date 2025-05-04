@@ -2290,16 +2290,14 @@ mod app_builder {
                                         def_name.log_color_error_highlight(),
                                     ),
                                 );
-                            }  else {
-                                if !self.http_api_definitions.contains_key(&name) {
-                                    validation.add_error(
-                                        format!(
-                                            "Unknown HTTP API definition name: {}\n\n{}",
-                                            def_name.as_str().log_color_error_highlight(),
-                                            self.available_http_api_definitions(def_name.as_str())
-                                        ),
-                                    )
-                                }
+                            }  else if !self.http_api_definitions.contains_key(&name) {
+                                validation.add_error(
+                                    format!(
+                                        "Unknown HTTP API definition name: {}\n\n{}",
+                                        def_name.as_str().log_color_error_highlight(),
+                                        self.available_http_api_definitions(def_name.as_str())
+                                    ),
+                                )
                             }
                             if let Some(version) = version {
                                 if version.is_empty() {
