@@ -777,9 +777,9 @@ pub mod component {
         /// Create new component in the current application
         New {
             /// Template to be used for the new component
-            template: Option<ComponentTemplateName>,
+            component_template: Option<ComponentTemplateName>,
             /// Name of the new component package in 'package:name' form
-            component_package_name: Option<PackageName>,
+            component_name: Option<PackageName>,
         },
         /// List or search component templates
         Templates {

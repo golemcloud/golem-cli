@@ -83,9 +83,9 @@ impl ComponentCommandHandler {
     pub async fn handle_command(&self, subcommand: ComponentSubcommand) -> anyhow::Result<()> {
         match subcommand {
             ComponentSubcommand::New {
-                template,
-                component_package_name,
-            } => self.cmd_new(template, component_package_name).await,
+                component_template,
+                component_name,
+            } => self.cmd_new(component_template, component_name).await,
             ComponentSubcommand::Templates { filter } => {
                 self.cmd_templates(filter);
                 Ok(())
@@ -179,6 +179,8 @@ impl ComponentCommandHandler {
             log_error(
                 "Both TEMPLATE and COMPONENT_PACKAGE_NAME are required in non-interactive mode",
             );
+            logln("");
+            self.ctx.app_handler().log_templates_help(None, None);
             logln("");
             bail!(HintError::ShowClapHelp(ShowClapHelpTarget::ComponentNew));
         };
