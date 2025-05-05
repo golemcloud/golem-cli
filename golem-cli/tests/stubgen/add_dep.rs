@@ -670,6 +670,9 @@ impl WitSource for &[(&str, &[(&str, &str)])] {
     fn resolve(&self) -> anyhow::Result<Resolve> {
         let mut resolve = Resolve::new();
         for (name, sources) in *self {
+            let mut sources: Vec<_> = sources.iter().collect();
+            sources.sort_by_key(|(name, _)| *name);
+
             let split_sources = sources
                 .iter()
                 .map(|(_, source)| {
@@ -684,10 +687,11 @@ impl WitSource for &[(&str, &[(&str, &str)])] {
 
             let mut merged_sources = split_sources
                 .iter()
-                .find(|(hdr, _)| hdr.len() > 0)
+                .find(|(hdr, _)| !hdr.is_empty())
                 .unwrap()
                 .0
                 .to_string();
+            merged_sources.push('\n');
             merged_sources.push_str(&split_sources.iter().map(|(_, source)| source).join("\n"));
             merged_sources.push('\n');
             let _ = resolve.push_str(name, &merged_sources)?;
@@ -719,8 +723,8 @@ fn assert_has_package_by_name(package_name: &PackageName, wit_source: impl WitSo
 
 fn assert_has_wasm_rpc_wit_deps(wit_dir: &Path) {
     let deps: Vec<(&str, &[(&str, &str)])> = vec![
-        ("wasi:clocks", WASI_CLOCKS),
         ("wasi:io", WASI_IO),
+        ("wasi:clocks", WASI_CLOCKS),
         ("wasm-rpc", &[("wasm-rpc.wit", WASM_RPC_WIT)]),
     ];
 
