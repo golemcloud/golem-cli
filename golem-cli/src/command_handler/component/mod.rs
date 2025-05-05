@@ -1492,7 +1492,7 @@ impl ComponentCommandHandler {
                     "Calculating hashes",
                     format!(
                         "for server IFS files, component: {}",
-                        &component.component_name.0
+                        &component.component_name.0.log_color_highlight()
                     ),
                 );
                 let _indent = LogIndent::new();
