@@ -609,10 +609,9 @@ impl ApplicationContext {
                 ));
                 for (name, def) in self.application.http_api_definitions() {
                     logln(format!(
-                        "  {}@{}{}",
+                        "  {}@{}",
                         name.as_str().log_color_highlight(),
                         def.value.version.log_color_highlight(),
-                        if def.value.draft { " (draft)" } else { "" }
                     ));
                 }
                 logln("");

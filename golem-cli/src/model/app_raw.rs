@@ -103,7 +103,6 @@ pub struct HttpApiDefinition {
     pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project: Option<String>,
-    pub draft: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub routes: Vec<HttpApiDefinitionRoute>,
 }

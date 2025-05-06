@@ -129,7 +129,6 @@ impl<'a> AppYamlEditor<'a> {
         &mut self,
         api_definition_name: &HttpApiDefinitionName,
         version: &str,
-        draft: bool,
     ) -> anyhow::Result<()> {
         let path = self.document_path_for_api_definition(api_definition_name);
 
@@ -159,16 +158,6 @@ impl<'a> AppYamlEditor<'a> {
                 )
             })?
             .set_string(version);
-        api_definition
-            .get_mut("draft")
-            .ok_or_else(|| {
-                anyhow!(
-                    "missing version field for HTTP API definition {} in {}",
-                    api_definition_name.as_str(),
-                    path.display()
-                )
-            })?
-            .set_bool(draft);
 
         Ok(())
     }

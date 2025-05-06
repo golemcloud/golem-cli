@@ -79,7 +79,7 @@ impl DiffableHttpApiDefinition {
                 .iter()
                 .map(|route| normalize_http_api_route(latest_component_versions, route))
                 .collect::<Result<Vec<_>, _>>()?,
-            draft: api_definition.draft,
+            draft: true,
         });
 
         // NOTE: if the only diff is being non-draft on serverside, we hide that

@@ -444,7 +444,6 @@ impl ApiDefinitionCommandHandler {
                                     editor.update_api_definition_version(
                                         api_definition_name,
                                         &manifest_api_definition.0.version,
-                                        new_draft,
                                     )?;
                                     editor.update_documents()?;
                                 }
