@@ -681,6 +681,7 @@ pub struct ComponentProperties {
     pub component_type: AppComponentType,
     pub files: Vec<InitialComponentFile>,
     pub plugins: Vec<PluginInstallation>,
+    pub env: HashMap<String, String>,
 }
 
 impl ComponentProperties {
@@ -703,6 +704,7 @@ impl ComponentProperties {
             component_type: raw.component_type.unwrap_or_default(),
             files,
             plugins,
+            env: raw.env,
         })
     }
 

@@ -14,17 +14,17 @@ exclude = [
 [workspace.dependencies]
 
 # Golem dep
-golem-client = "=1.2.2-dev.14"
-golem-common = "=1.2.2-dev.14"
-golem-rib = "=1.2.2-dev.14"
-golem-rib-repl = "=1.2.2-dev.14"
-golem-service-base = "=1.2.2-dev.14"
-golem-wasm-ast = { version = "=1.2.2-dev.14", default-features = false, features = ["analysis", "wave"] }
-golem-wasm-rpc = { version = "=1.2.2-dev.14", default-features = false, features = ["host"] }
+golem-client = { path = "../golem/golem-client" }
+golem-common = {path = "../golem/golem-common"}
+golem-rib = { path = "../golem/golem-rib" }
+golem-rib-repl = {path = "../golem/golem-rib-repl"}
+golem-service-base = {path = "../golem/golem-service-base"}
+golem-wasm-ast = { path = "../golem/wasm-ast",  default-features = false, features = ["analysis", "wave"] }
+golem-wasm-rpc = { path = "../golem/wasm-rpc", default-features = false, features = ["host"] }
 golem-wit = "=1.2.2-dev.10"
 
 # Golem cloud deps
-golem-cloud-client = "=1.2.2-dev.15"
+golem-cloud-client =  { path = "../golem-cloud/golem-cloud-client" }
 
 # External deps
 anyhow = "1.0.97"
@@ -119,13 +119,13 @@ wit-encoder = "=0.227.1"
 wit-parser = "=0.227.1"
 
 [patch.crates-io]
-golem-client = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
-golem-common = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
-golem-rib = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
-golem-rib-repl = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
-golem-service-base = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
-golem-wasm-ast = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
-golem-wasm-rpc = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
+golem-client = { git = "https://github.com/golemcloud/golem.git", branch = "component_env" }
+golem-common = { git = "https://github.com/golemcloud/golem.git", branch = "component_env" }
+golem-rib = { git = "https://github.com/golemcloud/golem.git", branch = "component_env" }
+golem-rib-repl = { git = "https://github.com/golemcloud/golem.git", branch = "component_env" }
+golem-service-base = { git = "https://github.com/golemcloud/golem.git", branch = "component_env" }
+golem-wasm-ast = { git = "https://github.com/golemcloud/golem.git", branch = "component_env" }
+golem-wasm-rpc = { git = "https://github.com/golemcloud/golem.git", branch = "component_env" }
 
 redis-protocol = { git = "https://github.com/golemcloud/redis-protocol.rs.git", branch = "unpin-cookie-factory" }
 wasmtime = { git = "https://github.com/golemcloud/wasmtime.git", branch = "golem-wasmtime-v27.0.0" }
