@@ -20,7 +20,8 @@ use crate::command_handler::Handlers;
 use crate::config::Config;
 use crate::context::Context;
 use crate::error::{ContextInitHintError, HintError, ShowClapHelpTarget};
-use crate::log::{log_action, logln, LogColorize};
+use crate::log::Output::Stdout;
+use crate::log::{log_action, logln, set_log_output, LogColorize};
 use crate::model::app::{ApplicationComponentSelectMode, DynamicHelpSections};
 use crate::model::component::show_exported_functions;
 use crate::model::text::fmt::{log_error, log_text_view, NestedTextViewIndent};
@@ -234,7 +235,12 @@ impl ErrorHandler {
                 Ok(())
             }
             HintError::ShowClapHelp(help_target) => {
+                // TODO: we should print to STDERR to match normal help behaviour,
+                //       but 'print_long_help' is hardcoded to use STDOUT.
+                //       Using 'render_help' is also option, but that loses colors / highlights.
+                //       To make it a bit more consistent, we switch to STDOUT for custom help as well.
                 help_target_to_command(*help_target).print_long_help()?;
+                set_log_output(Stdout);
 
                 match help_target {
                     ShowClapHelpTarget::AppNew => {
@@ -277,6 +283,6 @@ fn show_available_profiles_help(config_dir: &Path) {
     logln("");
     logln("Available profiles:".log_color_help_group().to_string());
     for profile_name in config.profiles.keys() {
-        println!(" {}", profile_name);
+        logln(format!(" {}", profile_name));
     }
 }

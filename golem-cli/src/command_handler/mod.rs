@@ -167,7 +167,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
         match Self::new(global_flags, hooks) {
             Ok(ok) => Ok(ok),
             Err(error) => {
-                set_log_output(Output::Stdout);
+                set_log_output(Output::Stderr);
                 if let Some(hint_error) = error.downcast_ref::<ContextInitHintError>() {
                     ErrorHandler::handle_context_init_hint_errors(global_flags, hint_error)
                         .and_then(|()| Err(anyhow!(NonSuccessfulExit)))
@@ -215,7 +215,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                         match result {
                             Ok(result) => Ok(result),
                             Err(error) => {
-                                set_log_output(Output::Stdout);
+                                set_log_output(Output::Stderr);
                                 if let Some(hint_error) = error.downcast_ref::<HintError>() {
                                     handler
                                         .ctx
@@ -251,7 +251,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                 match Self::new_with_init_hint_error_handler(&fallback_command.global_flags, hooks)
                 {
                     Ok(handler) => {
-                        set_log_output(Output::Stdout);
+                        set_log_output(Output::Stderr);
                         let exit_code = clamp_exit_code(error.exit_code());
                         handler
                             .ctx
