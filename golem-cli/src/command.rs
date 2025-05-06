@@ -1579,7 +1579,7 @@ pub mod cloud {
     }
 
     pub mod project {
-        use crate::cloud::AccountId;
+
         use crate::command::cloud::project::plugin::ProjectPluginSubcommand;
         use crate::command::cloud::project::policy::PolicySubcommand;
         use crate::model::{ProjectAction, ProjectName, ProjectPolicyId};
@@ -1617,8 +1617,8 @@ pub mod cloud {
             Grant {
                 /// The project to be shared
                 project_name: ProjectName,
-                /// User account the project will be shared with
-                recipient_account_id: AccountId,
+                /// Email of the user account the project will be shared with
+                recipient_email: String,
                 #[command(flatten)]
                 project_actions_or_policy_id: ProjectActionsOrPolicyId,
             },

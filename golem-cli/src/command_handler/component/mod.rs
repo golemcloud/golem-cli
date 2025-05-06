@@ -789,6 +789,7 @@ impl ComponentCommandHandler {
                                 ifs_properties,
                                 ifs_archive,
                                 deploy_properties.dynamic_linking.as_ref(),
+                                None, // TODO: component env
                             )
                             .await
                             .map_service_error()?;
@@ -807,6 +808,7 @@ impl ComponentCommandHandler {
                                     .dynamic_linking
                                     .map(|dl| dl.to_cloud())
                                     .as_ref(),
+                                None, // TODO: component env
                             )
                             .await
                             .map_service_error()?;
@@ -837,6 +839,7 @@ impl ComponentCommandHandler {
                                 ifs_properties,
                                 ifs_archive,
                                 deploy_properties.dynamic_linking.as_ref(),
+                                None, // TODO: component env
                             )
                             .await
                             .map_service_error()?;
@@ -858,6 +861,7 @@ impl ComponentCommandHandler {
                                     .dynamic_linking
                                     .map(|dl| dl.to_cloud())
                                     .as_ref(),
+                                None, // TODO: component env
                             )
                             .await
                             .map_service_error()?;
