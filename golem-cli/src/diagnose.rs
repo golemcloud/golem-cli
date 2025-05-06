@@ -319,7 +319,6 @@ enum Tool {
     MoonBit,
     Node,
     Npm,
-    Python,
     RustTargetWasm32WasiP1,
     Rustc,
     Rustup,
@@ -453,14 +452,6 @@ impl Tool {
                 version_requirement: MinimumVersion("10.8.2"),
                 instructions: indoc! {"
                     See node above (https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-                "},
-            },
-            Tool::Python => ToolMetadata {
-                short_name: "python",
-                description: "Python interpreter",
-                version_requirement: MinimumVersion("3.10"),
-                instructions: indoc! {"
-                    Install python: https://www.python.org/
                 "},
             },
             Tool::Rustc => ToolMetadata {
@@ -629,7 +620,6 @@ impl Tool {
             Tool::MoonBit => vec![],
             Tool::Node => vec![],
             Tool::Npm => vec![Tool::Node],
-            Tool::Python => vec![],
             Tool::RustTargetWasm32WasiP1 => vec![Tool::Rustc],
             Tool::Rustc => vec![Tool::Rustup],
             Tool::Rustup => vec![],
@@ -695,7 +685,6 @@ impl Tool {
             Tool::Jco => npm_package_version(&find_node_modules(dir), "@bytecodealliance/jco"),
             Tool::Node => cmd_version(dir, "node", vec!["--version"], &version_regex),
             Tool::Npm => cmd_version(dir, "npm", vec!["--version"], &version_regex),
-            Tool::Python => cmd_version(dir, "python", vec!["--version"], &version_regex),
             Tool::Rustc => cmd_version(dir, "rustc", vec!["--version"], &version_regex),
             Tool::Rustup => cmd_version(dir, "rustup", vec!["--version"], &version_regex),
             Tool::RustTargetWasm32WasiP1 => rust_target(dir, "wasm32-wasip1"),
