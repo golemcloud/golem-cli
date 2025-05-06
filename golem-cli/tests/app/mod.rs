@@ -183,10 +183,10 @@ fn app_new_language_hints(_tracing: &Tracing) {
     let ctx = TestContext::new();
     let outputs = ctx.cli([cmd::APP, cmd::NEW, "dummy-app-name"]);
     assert!(!outputs.success());
-    check!(outputs.stderr_contains("Available languages:"));
+    check!(outputs.stdout_contains("Available languages:"));
 
     let languages_without_templates = GuestLanguage::iter()
-        .filter(|language| !outputs.stderr_contains(format!("- {}", language)))
+        .filter(|language| !outputs.stdout_contains(format!("- {}", language)))
         .collect::<Vec<_>>();
 
     assert!(

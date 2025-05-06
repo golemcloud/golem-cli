@@ -19,7 +19,7 @@ use crate::command::{
 use crate::command_handler::Handlers;
 use crate::config::Config;
 use crate::context::Context;
-use crate::error::{ContextInitHintError, HintError};
+use crate::error::{ContextInitHintError, HintError, ShowClapHelpTarget};
 use crate::log::{log_action, logln, LogColorize};
 use crate::model::app::{ApplicationComponentSelectMode, DynamicHelpSections};
 use crate::model::component::show_exported_functions;
@@ -59,10 +59,6 @@ impl ErrorHandler {
                     ))?
                 }
 
-                Ok(())
-            }
-            GolemCliCommandPartialMatch::AppNewMissingLanguage => {
-                self.ctx.app_handler().log_languages_help();
                 Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
@@ -110,10 +106,6 @@ impl ErrorHandler {
                     app_ctx.log_dynamic_help(&DynamicHelpSections::show_components())?
                 }
 
-                Ok(())
-            }
-            GolemCliCommandPartialMatch::ComponentNewMissingTemplate => {
-                self.ctx.app_handler().log_templates_help(None, None);
                 Ok(())
             }
             GolemCliCommandPartialMatch::WorkerHelp => {
@@ -243,6 +235,16 @@ impl ErrorHandler {
             }
             HintError::ShowClapHelp(help_target) => {
                 help_target_to_command(*help_target).print_long_help()?;
+
+                match help_target {
+                    ShowClapHelpTarget::AppNew => {
+                        self.ctx.app_handler().log_languages_help();
+                    }
+                    ShowClapHelpTarget::ComponentNew => {
+                        self.ctx.app_handler().log_templates_help(None, None);
+                    }
+                    ShowClapHelpTarget::ComponentAddDependency => {}
+                }
                 Ok(())
             }
         }

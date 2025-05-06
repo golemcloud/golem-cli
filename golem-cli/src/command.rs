@@ -357,18 +357,6 @@ impl GolemCliCommand {
     fn invalid_arg_matchers() -> Vec<InvalidArgMatcher> {
         vec![
             InvalidArgMatcher {
-                subcommands: vec!["app", "new"],
-                found_positional_args: vec![],
-                missing_positional_arg: "language",
-                to_partial_match: |_| GolemCliCommandPartialMatch::AppNewMissingLanguage,
-            },
-            InvalidArgMatcher {
-                subcommands: vec!["component", "new"],
-                found_positional_args: vec![],
-                missing_positional_arg: "component_template",
-                to_partial_match: |_| GolemCliCommandPartialMatch::ComponentNewMissingTemplate,
-            },
-            InvalidArgMatcher {
                 subcommands: vec!["worker", "invoke"],
                 found_positional_args: vec![],
                 missing_positional_arg: "worker_name",
@@ -479,10 +467,8 @@ pub enum GolemCliCommandParseResult {
 pub enum GolemCliCommandPartialMatch {
     AppHelp,
     AppMissingSubcommandHelp,
-    AppNewMissingLanguage,
     ComponentHelp,
     ComponentMissingSubcommandHelp,
-    ComponentNewMissingTemplate,
     WorkerHelp,
     WorkerInvokeMissingFunctionName { worker_name: WorkerName },
     WorkerInvokeMissingWorkerName,
