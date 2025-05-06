@@ -161,7 +161,7 @@ fn normalize_rib_property(rib: &Option<String>) -> anyhow::Result<Option<String>
 pub fn normalize_http_api_binding_path(path: &str) -> String {
     path.to_string()
         .strip_suffix("/")
-        .unwrap_or(&path)
+        .unwrap_or(path)
         .to_string()
 }
 
