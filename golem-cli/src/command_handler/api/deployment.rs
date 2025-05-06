@@ -116,6 +116,7 @@ impl ApiDeploymentCommandHandler {
         for (site, deployment) in &api_deployments {
             self.deploy_api_deployment(
                 project.as_ref(),
+                HttpApiDeployMode::Matching,
                 &latest_api_definition_versions,
                 site,
                 deployment,
@@ -238,6 +239,7 @@ impl ApiDeploymentCommandHandler {
     pub async fn deploy(
         &self,
         project: Option<&ProjectNameAndId>,
+        deploy_mode: HttpApiDeployMode,
         latest_api_definition_versions: &BTreeMap<String, String>,
     ) -> anyhow::Result<()> {
         let api_deployments = {
@@ -253,6 +255,7 @@ impl ApiDeploymentCommandHandler {
                 let _indent = LogIndent::new();
                 self.deploy_api_deployment(
                     project,
+                    deploy_mode,
                     latest_api_definition_versions,
                     &site,
                     &api_deployment,
@@ -267,11 +270,33 @@ impl ApiDeploymentCommandHandler {
     async fn deploy_api_deployment(
         &self,
         project: Option<&ProjectNameAndId>,
+        deploy_mode: HttpApiDeployMode,
         latest_api_definition_versions: &BTreeMap<String, String>,
         site: &HttpApiDeploymentSite,
         api_definition: &WithSource<HttpApiDeployment>,
     ) -> anyhow::Result<()> {
         let site_as_str = site.to_string();
+
+        let skip_by_api_def_filter = match deploy_mode {
+            HttpApiDeployMode::All => false,
+            HttpApiDeployMode::Matching => !api_definition
+                .value
+                .definitions
+                .iter()
+                .any(|api_def| latest_api_definition_versions.contains_key(api_def)),
+        };
+
+        if skip_by_api_def_filter {
+            log_warn_action(
+                "Skipping",
+                format!(
+                    "deploying HTTP API deployment {}, not matched by definition selection",
+                    site.to_string().log_color_highlight()
+                ),
+            );
+            return Ok(());
+        }
+
         let server_diffable_api_deployment = self
             .api_deployment(project, &site_as_str)
             .await?

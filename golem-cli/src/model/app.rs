@@ -2237,8 +2237,8 @@ mod app_builder {
                                         }
                                         HttpApiDefinitionBindingType::CorsPreflight => {
                                             check_not_allowed(validation, "component_name", &route.binding.component_name);
-                                            check_not_allowed(validation, "idempotency_key", &route.binding.component_name);
-                                            check_not_allowed(validation, "invocation_context", &route.binding.component_name);
+                                            check_not_allowed(validation, "idempotency_key", &route.binding.idempotency_key);
+                                            check_not_allowed(validation, "invocation_context", &route.binding.invocation_context);
                                             check_rib(validation, "response", &route.binding.response, false);
                                         }
                                         HttpApiDefinitionBindingType::FileServer => {
@@ -2249,9 +2249,9 @@ mod app_builder {
                                         }
                                         HttpApiDefinitionBindingType::HttpHandler => {
                                             check_component_name_and_version(validation);
-                                            check_not_allowed(validation, "idempotency_key", &route.binding.component_name);
-                                            check_not_allowed(validation, "invocation_context", &route.binding.component_name);
-                                            check_not_allowed(validation, "response", &route.binding.component_name);
+                                            check_not_allowed(validation, "idempotency_key", &route.binding.idempotency_key);
+                                            check_not_allowed(validation, "invocation_context", &route.binding.invocation_context);
+                                            check_not_allowed(validation, "response", &route.binding.response);
                                         }
                                     }
                                 },
@@ -2295,7 +2295,7 @@ mod app_builder {
                                         def_name.log_color_error_highlight(),
                                     ),
                                 );
-                            }  else if !self.http_api_definitions.contains_key(&name) {
+                            } else if !self.http_api_definitions.contains_key(&name) {
                                 validation.add_error(
                                     format!(
                                         "Unknown HTTP API definition name: {}\n\n{}",

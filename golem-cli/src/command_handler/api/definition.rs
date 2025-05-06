@@ -369,7 +369,6 @@ impl ApiDefinitionCommandHandler {
             .await?
             .map(DiffableHttpApiDefinition::from_server)
             .transpose()?;
-
         let manifest_api_definition = DiffableHttpApiDefinition::from_manifest(
             server_diffable_api_definition.as_ref(),
             api_definition_name,

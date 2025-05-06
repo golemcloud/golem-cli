@@ -121,7 +121,7 @@ impl ApiCommandHandler {
 
         self.ctx
             .api_deployment_handler()
-            .deploy(project, &latest_api_definition_versions)
+            .deploy(project, deploy_mode, &latest_api_definition_versions)
             .await?;
 
         Ok(())
