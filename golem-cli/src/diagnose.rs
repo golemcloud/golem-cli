@@ -184,7 +184,7 @@ impl Language {
                 Tool::ComponentizeJs,
                 Tool::GolemSdkTypeScript,
             ],
-            Language::Python => vec![Tool::ComponentizePy, Tool::Uv],
+            Language::Python => vec![Tool::Uv, Tool::ComponentizePy],
             Language::Rust => vec![
                 Tool::RustTargetWasm32WasiP1,
                 Tool::CargoComponent,
@@ -319,7 +319,6 @@ enum Tool {
     MoonBit,
     Node,
     Npm,
-    Pip,
     Python,
     RustTargetWasm32WasiP1,
     Rustc,
@@ -378,7 +377,7 @@ impl Tool {
                 version_requirement: ExactVersion("0.16.0"),
                 instructions: indoc! {"
                     Install the following specific version:
-                        pip install componentize-py==0.16.0
+                        uv pip install componentize-py==0.16.0
 
                     For more information see:
                         https://github.com/bytecodealliance/componentize-py
@@ -454,14 +453,6 @@ impl Tool {
                 version_requirement: MinimumVersion("10.8.2"),
                 instructions: indoc! {"
                     See node above (https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-                "},
-            },
-            Tool::Pip => ToolMetadata {
-                short_name: "pip",
-                description: "Python package installer",
-                version_requirement: MinimumVersion("24.0"),
-                instructions: indoc! {"
-                    Install latest pip: https://pip.pypa.io/en/stable/installation/
                 "},
             },
             Tool::Python => ToolMetadata {
@@ -628,7 +619,7 @@ impl Tool {
             Tool::Cargo => vec![Tool::Rustup],
             Tool::CargoComponent => vec![Tool::Cargo],
             Tool::ComponentizeJs => vec![Tool::Npm],
-            Tool::ComponentizePy => vec![Tool::Pip],
+            Tool::ComponentizePy => vec![Tool::Uv],
             Tool::Go => vec![],
             Tool::GolemSdkGo => vec![Tool::Go],
             Tool::GolemSdkRust => vec![Tool::Cargo],
@@ -638,7 +629,6 @@ impl Tool {
             Tool::MoonBit => vec![],
             Tool::Node => vec![],
             Tool::Npm => vec![Tool::Node],
-            Tool::Pip => vec![Tool::Python],
             Tool::Python => vec![],
             Tool::RustTargetWasm32WasiP1 => vec![Tool::Rustc],
             Tool::Rustc => vec![Tool::Rustup],
@@ -690,9 +680,12 @@ impl Tool {
             Tool::ComponentizeJs => {
                 npm_package_version(&find_node_modules(dir), "@bytecodealliance/componentize-js")
             }
-            Tool::ComponentizePy => {
-                cmd_version(dir, "componentize-py", vec!["--version"], &version_regex)
-            }
+            Tool::ComponentizePy => cmd_version(
+                dir,
+                "uv",
+                vec!["run", "componentize-py", "--version"],
+                &version_regex,
+            ),
             Tool::Go => cmd_version(dir, "go", vec!["version"], &version_regex),
             Tool::GolemSdkGo => go_mod_version(dir, "github.com/golemcloud/golem-go"),
             Tool::GolemSdkRust => rust_package_version(dir, "golem-rust"),
@@ -702,7 +695,6 @@ impl Tool {
             Tool::Jco => npm_package_version(&find_node_modules(dir), "@bytecodealliance/jco"),
             Tool::Node => cmd_version(dir, "node", vec!["--version"], &version_regex),
             Tool::Npm => cmd_version(dir, "npm", vec!["--version"], &version_regex),
-            Tool::Pip => cmd_version(dir, "pip", vec!["--version"], &version_regex),
             Tool::Python => cmd_version(dir, "python", vec!["--version"], &version_regex),
             Tool::Rustc => cmd_version(dir, "rustc", vec!["--version"], &version_regex),
             Tool::Rustup => cmd_version(dir, "rustup", vec!["--version"], &version_regex),
