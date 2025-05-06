@@ -14,7 +14,7 @@
 
 use crate::app::yaml_edit::AppYamlEditor;
 use crate::command::api::definition::ApiDefinitionSubcommand;
-use crate::command::shared_args::{ProjectNameOptionalArg, WorkerUpdateOrRedeployArgs};
+use crate::command::shared_args::{ProjectNameOptionalArg, UpdateOrRedeployArgs};
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
@@ -56,7 +56,11 @@ impl ApiDefinitionCommandHandler {
         match command {
             ApiDefinitionSubcommand::Deploy {
                 http_api_definition_name,
-            } => self.cmd_deploy(http_api_definition_name).await,
+                update_or_redeploy,
+            } => {
+                self.cmd_deploy(http_api_definition_name, update_or_redeploy)
+                    .await
+            }
             ApiDefinitionSubcommand::Import {
                 project,
                 definition,
@@ -75,7 +79,11 @@ impl ApiDefinitionCommandHandler {
         }
     }
 
-    async fn cmd_deploy(&self, name: Option<HttpApiDefinitionName>) -> anyhow::Result<()> {
+    async fn cmd_deploy(
+        &self,
+        name: Option<HttpApiDefinitionName>,
+        update_or_redeploy: UpdateOrRedeployArgs,
+    ) -> anyhow::Result<()> {
         let project = None::<ProjectNameAndId>; // TODO: project from manifest
 
         if let Some(name) = name.as_ref() {
@@ -101,7 +109,7 @@ impl ApiDefinitionCommandHandler {
         let api_def_filter = name.as_ref().into_iter().cloned().collect::<BTreeSet<_>>();
 
         let lastest_used_components = self
-            .deploy_required_components(project.as_ref(), api_def_filter)
+            .deploy_required_components(project.as_ref(), &update_or_redeploy, api_def_filter)
             .await?;
 
         match &name {
@@ -120,6 +128,7 @@ impl ApiDefinitionCommandHandler {
                 self.deploy_api_definition(
                     project.as_ref(),
                     HttpApiDeployMode::All,
+                    &update_or_redeploy,
                     &lastest_used_components,
                     name,
                     &definition,
@@ -132,6 +141,7 @@ impl ApiDefinitionCommandHandler {
                 self.deploy(
                     project.as_ref(),
                     HttpApiDeployMode::All,
+                    &update_or_redeploy,
                     &lastest_used_components,
                 )
                 .await?;
@@ -297,6 +307,7 @@ impl ApiDefinitionCommandHandler {
         &self,
         project: Option<&ProjectNameAndId>,
         deploy_mode: HttpApiDeployMode,
+        update_or_redeploy: &UpdateOrRedeployArgs,
         latest_component_versions: &BTreeMap<String, Component>,
     ) -> anyhow::Result<BTreeMap<String, String>> {
         let api_definitions = {
@@ -316,6 +327,7 @@ impl ApiDefinitionCommandHandler {
                     .deploy_api_definition(
                         project,
                         deploy_mode,
+                        update_or_redeploy,
                         latest_component_versions,
                         &api_definition_name,
                         &api_definition,
@@ -335,6 +347,7 @@ impl ApiDefinitionCommandHandler {
         &self,
         project: Option<&ProjectNameAndId>,
         deploy_mode: HttpApiDeployMode,
+        update_or_redeploy: &UpdateOrRedeployArgs,
         latest_component_versions: &BTreeMap<String, Component>,
         api_definition_name: &HttpApiDefinitionName,
         api_definition: &WithSource<HttpApiDefinition>,
@@ -420,64 +433,97 @@ impl ApiDefinitionCommandHandler {
                             "The current version of the HTTP API is already deployed as non-draft.",
                         );
 
-                        match self
-                            .ctx
-                            .interactive_handler()
-                            .select_new_api_definition_version(&manifest_api_definition.0)?
-                        {
-                            Some(new_version) => {
-                                let new_draft = true;
-                                let old_version = manifest_api_definition.0.version.clone();
+                        if update_or_redeploy.redeploy_http_api() {
+                            self.ctx
+                                .api_deployment_handler()
+                                .undeploy_api_from_all_sites_for_redeploy(
+                                    project,
+                                    api_definition_name,
+                                )
+                                .await?;
 
-                                let manifest_api_definition = {
-                                    let mut manifest_api_definition = manifest_api_definition;
-                                    manifest_api_definition.0.version = new_version;
-                                    manifest_api_definition.0.draft = new_draft;
-                                    manifest_api_definition
-                                };
-
-                                {
-                                    let app_ctx = self.ctx.app_context_lock().await;
-                                    let app_ctx = app_ctx.some_or_err()?;
-
-                                    let mut editor = AppYamlEditor::new(&app_ctx.application);
-                                    editor.update_api_definition_version(
-                                        api_definition_name,
-                                        &manifest_api_definition.0.version,
-                                    )?;
-                                    editor.update_documents()?;
-                                }
-
-                                log_action(
-                                    "Creating",
-                                    format!(
-                                        "new HTTP API definition version for {}, with version updated from {} to {}",
-                                        api_definition_name.as_str().log_color_highlight(),
-                                        old_version.log_color_highlight(),
-                                        manifest_api_definition
-                                            .0.version
-                                            .as_str()
-                                            .log_color_highlight()
-                                    ),
-                                );
-
-                                let result = self
-                                    .new_api_definition(project, &manifest_api_definition.0)
-                                    .await?;
-
-                                self.ctx
-                                    .log_handler()
-                                    .log_view(&ApiDefinitionNewView(result));
-
-                                Ok(Some(manifest_api_definition.0.version))
-                            }
-                            None => {
-                                log_error(format!(
-                                    "Please specify a new version for {} in {}",
+                            log_action(
+                                "Redeploying",
+                                format!(
+                                    "new HTTP API definition version {}@{}",
                                     api_definition_name.as_str().log_color_highlight(),
-                                    api_definition.source.log_color_highlight()
-                                ));
-                                bail!(NonSuccessfulExit)
+                                    manifest_api_definition
+                                        .0
+                                        .version
+                                        .as_str()
+                                        .log_color_highlight()
+                                ),
+                            );
+
+                            let result = self
+                                .update_api_definition(project, &manifest_api_definition.0)
+                                .await?;
+
+                            self.ctx
+                                .log_handler()
+                                .log_view(&ApiDefinitionNewView(result));
+
+                            Ok(Some(manifest_api_definition.0.version))
+                        } else {
+                            match self
+                                .ctx
+                                .interactive_handler()
+                                .select_new_api_definition_version(&manifest_api_definition.0)?
+                            {
+                                Some(new_version) => {
+                                    let new_draft = true;
+                                    let old_version = manifest_api_definition.0.version.clone();
+
+                                    let manifest_api_definition = {
+                                        let mut manifest_api_definition = manifest_api_definition;
+                                        manifest_api_definition.0.version = new_version;
+                                        manifest_api_definition.0.draft = new_draft;
+                                        manifest_api_definition
+                                    };
+
+                                    {
+                                        let app_ctx = self.ctx.app_context_lock().await;
+                                        let app_ctx = app_ctx.some_or_err()?;
+
+                                        let mut editor = AppYamlEditor::new(&app_ctx.application);
+                                        editor.update_api_definition_version(
+                                            api_definition_name,
+                                            &manifest_api_definition.0.version,
+                                        )?;
+                                        editor.update_documents()?;
+                                    }
+
+                                    log_action(
+                                        "Creating",
+                                        format!(
+                                            "new HTTP API definition version for {}, with version updated from {} to {}",
+                                            api_definition_name.as_str().log_color_highlight(),
+                                            old_version.log_color_highlight(),
+                                            manifest_api_definition
+                                                .0.version
+                                                .as_str()
+                                                .log_color_highlight()
+                                        ),
+                                    );
+
+                                    let result = self
+                                        .new_api_definition(project, &manifest_api_definition.0)
+                                        .await?;
+
+                                    self.ctx
+                                        .log_handler()
+                                        .log_view(&ApiDefinitionNewView(result));
+
+                                    Ok(Some(manifest_api_definition.0.version))
+                                }
+                                None => {
+                                    log_error(format!(
+                                        "Please specify a new version for {} in {}",
+                                        api_definition_name.as_str().log_color_highlight(),
+                                        api_definition.source.log_color_highlight()
+                                    ));
+                                    bail!(NonSuccessfulExit)
+                                }
                             }
                         }
                     }
@@ -519,6 +565,7 @@ impl ApiDefinitionCommandHandler {
     pub async fn deploy_required_components(
         &self,
         project: Option<&ProjectNameAndId>,
+        update_or_redeploy: &UpdateOrRedeployArgs,
         api_defs_filter: BTreeSet<HttpApiDefinitionName>,
     ) -> anyhow::Result<BTreeMap<String, Component>> {
         let used_component_names = {
@@ -561,7 +608,7 @@ impl ApiDefinitionCommandHandler {
                 used_component_names,
                 None,
                 &ApplicationComponentSelectMode::All,
-                WorkerUpdateOrRedeployArgs::default(),
+                update_or_redeploy,
             )
             .await?
             .into_iter()

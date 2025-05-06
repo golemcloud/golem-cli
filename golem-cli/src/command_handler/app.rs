@@ -16,7 +16,7 @@ use crate::app::error::CustomCommandError;
 use crate::command::app::AppSubcommand;
 use crate::command::builtin_app_subcommands;
 use crate::command::shared_args::{
-    AppOptionalComponentNames, BuildArgs, ForceBuildArg, WorkerUpdateOrRedeployArgs,
+    AppOptionalComponentNames, BuildArgs, ForceBuildArg, UpdateOrRedeployArgs,
 };
 use crate::command_handler::Handlers;
 use crate::context::Context;
@@ -288,7 +288,7 @@ impl AppCommandHandler {
         &self,
         component_name: AppOptionalComponentNames,
         force_build: ForceBuildArg,
-        update_or_redeploy: WorkerUpdateOrRedeployArgs,
+        update_or_redeploy: UpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
         self.deploy(component_name, force_build, update_or_redeploy)
             .await
@@ -390,7 +390,7 @@ impl AppCommandHandler {
         &self,
         component_name: AppOptionalComponentNames,
         force_build: ForceBuildArg,
-        update_or_redeploy: WorkerUpdateOrRedeployArgs,
+        update_or_redeploy: UpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
         let is_any_component_explicitly_selected = !component_name.component_name.is_empty();
 
@@ -408,7 +408,7 @@ impl AppCommandHandler {
                 component_name.component_name,
                 Some(force_build),
                 &ApplicationComponentSelectMode::All,
-                update_or_redeploy,
+                &update_or_redeploy,
             )
             .await?;
 
@@ -426,6 +426,7 @@ impl AppCommandHandler {
                 } else {
                     HttpApiDeployMode::All
                 },
+                &update_or_redeploy,
                 &components,
             )
             .await?;

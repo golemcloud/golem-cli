@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::command::api::ApiSubcommand;
-use crate::command::shared_args::WorkerUpdateOrRedeployArgs;
+use crate::command::shared_args::UpdateOrRedeployArgs;
 use crate::command_handler::Handlers;
 use crate::context::Context;
 use crate::model::api::HttpApiDeployMode;
@@ -39,7 +39,9 @@ impl ApiCommandHandler {
 
     pub async fn handle_command(&self, command: ApiSubcommand) -> anyhow::Result<()> {
         match command {
-            ApiSubcommand::Deploy => self.ctx.api_handler().cmd_deploy().await,
+            ApiSubcommand::Deploy { update_or_redeploy } => {
+                self.ctx.api_handler().cmd_deploy(update_or_redeploy).await
+            }
             ApiSubcommand::Definition { subcommand } => {
                 self.ctx
                     .api_definition_handler()
@@ -67,7 +69,7 @@ impl ApiCommandHandler {
         }
     }
 
-    pub async fn cmd_deploy(&self) -> anyhow::Result<()> {
+    pub async fn cmd_deploy(&self, update_or_redeploy: UpdateOrRedeployArgs) -> anyhow::Result<()> {
         let project = None::<ProjectNameAndId>; // TODO
 
         let used_component_names = {
@@ -92,7 +94,7 @@ impl ApiCommandHandler {
                         used_component_names,
                         None,
                         &ApplicationComponentSelectMode::All,
-                        WorkerUpdateOrRedeployArgs::default(),
+                        &update_or_redeploy,
                     )
                     .await?
                     .into_iter()
@@ -103,20 +105,31 @@ impl ApiCommandHandler {
             }
         };
 
-        self.deploy(project.as_ref(), HttpApiDeployMode::All, &components)
-            .await
+        self.deploy(
+            project.as_ref(),
+            HttpApiDeployMode::All,
+            &update_or_redeploy,
+            &components,
+        )
+        .await
     }
 
     pub async fn deploy(
         &self,
         project: Option<&ProjectNameAndId>,
         deploy_mode: HttpApiDeployMode,
+        update_or_redeploy: &UpdateOrRedeployArgs,
         latest_component_versions: &BTreeMap<String, Component>,
     ) -> anyhow::Result<()> {
         let latest_api_definition_versions = self
             .ctx
             .api_definition_handler()
-            .deploy(project, deploy_mode, latest_component_versions)
+            .deploy(
+                project,
+                deploy_mode,
+                update_or_redeploy,
+                latest_component_versions,
+            )
             .await?;
 
         self.ctx

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::command::api::deployment::ApiDeploymentSubcommand;
-use crate::command::shared_args::ProjectNameOptionalArg;
+use crate::command::shared_args::{ProjectNameOptionalArg, UpdateOrRedeployArgs};
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
@@ -27,7 +27,7 @@ use crate::model::app::{
 };
 use crate::model::app_raw::HttpApiDeployment;
 use crate::model::deploy_diff::api_deployment::DiffableHttpApiDeployment;
-use crate::model::text::fmt::{log_deploy_diff, log_error};
+use crate::model::text::fmt::{log_deploy_diff, log_error, log_warn};
 use crate::model::ProjectNameAndId;
 use anyhow::bail;
 use golem_client::api::ApiDeploymentClient as ApiDeploymentClientOss;
@@ -54,7 +54,10 @@ impl ApiDeploymentCommandHandler {
 
     pub async fn handle_command(&self, command: ApiDeploymentSubcommand) -> anyhow::Result<()> {
         match command {
-            ApiDeploymentSubcommand::Deploy { host_or_site } => self.cmd_deploy(host_or_site).await,
+            ApiDeploymentSubcommand::Deploy {
+                host_or_site,
+                update_or_redeploy,
+            } => self.cmd_deploy(host_or_site, update_or_redeploy).await,
             ApiDeploymentSubcommand::Get { project, site } => self.cmd_get(project, site).await,
             ApiDeploymentSubcommand::List {
                 project,
@@ -66,7 +69,11 @@ impl ApiDeploymentCommandHandler {
         }
     }
 
-    async fn cmd_deploy(&self, host_or_site: Option<String>) -> anyhow::Result<()> {
+    async fn cmd_deploy(
+        &self,
+        host_or_site: Option<String>,
+        update_or_redeploy: UpdateOrRedeployArgs,
+    ) -> anyhow::Result<()> {
         let project = None::<ProjectNameAndId>; // TODO: project from manifest
 
         let api_deployments = {
@@ -104,6 +111,7 @@ impl ApiDeploymentCommandHandler {
         let latest_api_definition_versions = self
             .deploy_required_api_definitions(
                 project.as_ref(),
+                &update_or_redeploy,
                 api_deployments.values().map(|dep| &dep.value),
             )
             .await?;
@@ -430,6 +438,7 @@ impl ApiDeploymentCommandHandler {
     async fn deploy_required_api_definitions<'a, I: Iterator<Item = &'a HttpApiDeployment>>(
         &self,
         project: Option<&ProjectNameAndId>,
+        update_or_redeploy: &UpdateOrRedeployArgs,
         api_deployments: I,
     ) -> anyhow::Result<BTreeMap<String, String>> {
         let used_definition_names = api_deployments
@@ -456,7 +465,7 @@ impl ApiDeploymentCommandHandler {
         let latest_components = self
             .ctx
             .api_definition_handler()
-            .deploy_required_components(project, used_definition_names)
+            .deploy_required_components(project, update_or_redeploy, used_definition_names)
             .await?;
 
         log_action("Deploying", "required HTTP API definitions");
@@ -470,6 +479,7 @@ impl ApiDeploymentCommandHandler {
                 .deploy_api_definition(
                     project,
                     HttpApiDeployMode::Matching,
+                    update_or_redeploy,
                     &latest_components,
                     name,
                     definition,
@@ -599,5 +609,114 @@ impl ApiDeploymentCommandHandler {
                 .map_service_error()
                 .map(|_| ()),
         }
+    }
+
+    pub async fn undeploy_api_from_all_sites_for_redeploy(
+        &self,
+        project: Option<&ProjectNameAndId>,
+        api_definition_name: &HttpApiDefinitionName,
+    ) -> anyhow::Result<()> {
+        let targets: Vec<(HttpApiDeploymentSite, String)> = match self.ctx.golem_clients().await? {
+            GolemClients::Oss(clients) => clients
+                .api_deployment
+                .list_deployments(Some(api_definition_name.as_str()))
+                .await
+                .map_service_error()?
+                .into_iter()
+                .filter_map(|dep| {
+                    dep.api_definitions
+                        .into_iter()
+                        .find_map(|def| {
+                            (def.id == api_definition_name.as_str()).then_some(def.version)
+                        })
+                        .map(|version| {
+                            (
+                                HttpApiDeploymentSite {
+                                    host: dep.site.host,
+                                    subdomain: dep.site.subdomain,
+                                },
+                                version,
+                            )
+                        })
+                })
+                .collect(),
+            GolemClients::Cloud(clients) => clients
+                .api_deployment
+                .list_deployments(
+                    &self
+                        .ctx
+                        .cloud_project_handler()
+                        .selected_project_id_or_default(project)
+                        .await?
+                        .0,
+                    api_definition_name.as_str(),
+                )
+                .await
+                .map_service_error()?
+                .into_iter()
+                .filter_map(|dep| {
+                    dep.api_definitions
+                        .into_iter()
+                        .find_map(|def| {
+                            (def.id == api_definition_name.as_str()).then_some(def.version)
+                        })
+                        .map(|version| {
+                            (
+                                HttpApiDeploymentSite {
+                                    host: dep.site.host,
+                                    subdomain: dep.site.subdomain,
+                                },
+                                version,
+                            )
+                        })
+                })
+                .collect(),
+        };
+
+        if targets.is_empty() {
+            log_warn(format!(
+                "No deployments found using HTTP API: {}",
+                api_definition_name.as_str().log_color_highlight()
+            ));
+            return Ok(());
+        }
+
+        if !self
+            .ctx
+            .interactive_handler()
+            .confirm_undeploy_api_from_sites_for_redeploy(
+                api_definition_name.as_str(),
+                targets.as_slice(),
+            )?
+        {
+            bail!(NonSuccessfulExit)
+        }
+
+        log_warn_action("Undeploying", "HTTP API {} for redeploy");
+        let _indent = LogIndent::new();
+        for (site, version) in targets {
+            log_warn_action(
+                "Undeploying",
+                format!(
+                    "HTTP API definition {}@{} from {} for redeploy",
+                    api_definition_name.as_str().log_color_highlight(),
+                    version.log_color_highlight(),
+                    site.to_string().log_color_highlight()
+                ),
+            );
+            self.undeploy_api_definition(project, &site, api_definition_name.as_str(), &version)
+                .await?;
+            log_action(
+                "Undeployed",
+                format!(
+                    "HTTP API definition {}@{} from {}",
+                    api_definition_name.as_str().log_color_highlight(),
+                    version.log_color_highlight(),
+                    site.to_string().log_color_highlight()
+                ),
+            );
+        }
+
+        Ok(())
     }
 }

@@ -101,11 +101,13 @@ pub struct GolemCliGlobalFlags {
     pub profile: Option<ProfileName>,
 
     /// Select builtin "local" profile, to use services provided by the "golem server" command
-    #[arg(long, short, global = true, conflicts_with_all = ["profile", "cloud"], display_order = 103)]
+    #[arg(long, short, global = true, conflicts_with_all = ["profile", "cloud"], display_order = 103
+    )]
     pub local: bool,
 
     /// Select builtin "cloud" profile to use Golem Cloud
-    #[arg(long, short, global = true, conflicts_with_all = ["profile", "local"], display_order = 104)]
+    #[arg(long, short, global = true, conflicts_with_all = ["profile", "local"], display_order = 104
+    )]
     pub cloud: bool,
 
     /// Custom path to the root application manifest (golem.yaml)
@@ -636,15 +638,41 @@ pub mod shared_args {
         pub stream_no_timestamp: bool,
     }
 
-    #[derive(Debug, Args, Default)]
-    pub struct WorkerUpdateOrRedeployArgs {
+    #[derive(Debug, Args)]
+    pub struct UpdateOrRedeployArgs {
         /// Update existing workers with auto or manual update mode
-        #[clap(long, value_name = "UPDATE_MODE", short, conflicts_with_all = ["redeploy_workers"], num_args = 0..=1
+        #[clap(long, value_name = "UPDATE_MODE", short, conflicts_with_all = ["redeploy_workers", "redeploy_all"], num_args = 0..=1
         )]
         pub update_workers: Option<WorkerUpdateMode>,
         /// Delete and recreate existing workers
-        #[clap(long, short, conflicts_with_all = ["update_workers"])]
+        #[clap(long, conflicts_with_all = ["update_workers"])]
         pub redeploy_workers: bool,
+        /// Delete and recreate HTTP API definitions and deployment
+        #[clap(long, conflicts_with_all = ["redeploy_all"])]
+        pub redeploy_http_api: bool,
+        /// Delete and recreate components and HTTP APIs
+        #[clap(long, short, conflicts_with_all = ["update_workers", "redeploy_workers", "redeploy_http_api"]
+        )]
+        pub redeploy_all: bool,
+    }
+
+    impl UpdateOrRedeployArgs {
+        pub fn none() -> Self {
+            UpdateOrRedeployArgs {
+                update_workers: None,
+                redeploy_workers: false,
+                redeploy_http_api: false,
+                redeploy_all: false,
+            }
+        }
+
+        pub fn redeploy_workers(&self) -> bool {
+            self.redeploy_all || self.redeploy_workers
+        }
+
+        pub fn redeploy_http_api(&self) -> bool {
+            self.redeploy_all || self.redeploy_http_api
+        }
     }
 
     #[derive(Debug, Args)]
@@ -687,7 +715,7 @@ pub mod shared_args {
 
 pub mod app {
     use crate::command::shared_args::{
-        AppOptionalComponentNames, BuildArgs, ForceBuildArg, WorkerUpdateOrRedeployArgs,
+        AppOptionalComponentNames, BuildArgs, ForceBuildArg, UpdateOrRedeployArgs,
     };
     use crate::model::WorkerUpdateMode;
     use clap::Subcommand;
@@ -709,14 +737,14 @@ pub mod app {
             #[command(flatten)]
             build: BuildArgs,
         },
-        /// Deploy all or selected components in the application, includes building
+        /// Deploy all or selected components and HTTP APIs in the application, includes building
         Deploy {
             #[command(flatten)]
             component_name: AppOptionalComponentNames,
             #[command(flatten)]
             force_build: ForceBuildArg,
             #[command(flatten)]
-            update_or_redeploy: WorkerUpdateOrRedeployArgs,
+            update_or_redeploy: UpdateOrRedeployArgs,
         },
         /// Clean all components in the application or by selection
         Clean {
@@ -751,7 +779,7 @@ pub mod component {
     use crate::command::component::plugin::ComponentPluginSubcommand;
     use crate::command::shared_args::{
         BuildArgs, ComponentOptionalComponentName, ComponentOptionalComponentNames,
-        ComponentTemplateName, ForceBuildArg, WorkerUpdateOrRedeployArgs,
+        ComponentTemplateName, ForceBuildArg, UpdateOrRedeployArgs,
     };
     use crate::model::app::DependencyType;
     use crate::model::{ComponentName, WorkerUpdateMode};
@@ -779,14 +807,14 @@ pub mod component {
             #[command(flatten)]
             build: BuildArgs,
         },
-        /// Deploy component(s) based on the current directory or by selection
+        /// Deploy component(s) and dependent HTTP APIs based on the current directory or by selection
         Deploy {
             #[command(flatten)]
             component_name: ComponentOptionalComponentNames,
             #[command(flatten)]
             force_build: ForceBuildArg,
             #[command(flatten)]
-            update_or_redeploy: WorkerUpdateOrRedeployArgs,
+            update_or_redeploy: UpdateOrRedeployArgs,
         },
         /// Clean component(s) based on the current directory or by selection
         Clean {
@@ -1052,12 +1080,16 @@ pub mod api {
     use crate::command::api::definition::ApiDefinitionSubcommand;
     use crate::command::api::deployment::ApiDeploymentSubcommand;
     use crate::command::api::security_scheme::ApiSecuritySchemeSubcommand;
+    use crate::command::shared_args::UpdateOrRedeployArgs;
     use clap::Subcommand;
 
     #[derive(Debug, Subcommand)]
     pub enum ApiSubcommand {
         /// Deploy API Definitions and Deployments
-        Deploy,
+        Deploy {
+            #[command(flatten)]
+            update_or_redeploy: UpdateOrRedeployArgs,
+        },
         /// Manage API definitions
         Definition {
             #[clap(subcommand)]
@@ -1081,7 +1113,7 @@ pub mod api {
     }
 
     pub mod definition {
-        use crate::command::shared_args::ProjectNameOptionalArg;
+        use crate::command::shared_args::{ProjectNameOptionalArg, UpdateOrRedeployArgs};
         use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion};
         use crate::model::app::HttpApiDefinitionName;
         use crate::model::PathBufOrStdin;
@@ -1089,10 +1121,12 @@ pub mod api {
 
         #[derive(Debug, Subcommand)]
         pub enum ApiDefinitionSubcommand {
-            /// Deploy API Definitions
+            /// Deploy API Definitions and required components
             Deploy {
                 /// API definition to deploy, if not specified, all definitions are deployed
                 http_api_definition_name: Option<HttpApiDefinitionName>,
+                #[command(flatten)]
+                update_or_redeploy: UpdateOrRedeployArgs,
             },
             // TODO: decide if we drop it from cli for now, or move the import logic into the CLI, hidden for now
             /// Import OpenAPI file as api definition
@@ -1140,7 +1174,7 @@ pub mod api {
     }
 
     pub mod deployment {
-        use crate::command::shared_args::ProjectNameOptionalArg;
+        use crate::command::shared_args::{ProjectNameOptionalArg, UpdateOrRedeployArgs};
         use crate::model::api::ApiDefinitionId;
         use clap::Subcommand;
 
@@ -1150,6 +1184,8 @@ pub mod api {
             Deploy {
                 /// Host or site to deploy, if not defined, all deployments will be deployed
                 host_or_site: Option<String>,
+                #[command(flatten)]
+                update_or_redeploy: UpdateOrRedeployArgs,
             },
             /// Get API deployment
             Get {

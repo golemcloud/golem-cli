@@ -20,7 +20,7 @@ use crate::app::yaml_edit::AppYamlEditor;
 use crate::command::component::ComponentSubcommand;
 use crate::command::shared_args::{
     BuildArgs, ComponentOptionalComponentNames, ComponentTemplateName, ForceBuildArg,
-    WorkerUpdateOrRedeployArgs,
+    UpdateOrRedeployArgs,
 };
 use crate::command_handler::component::ifs::IfsFileManager;
 use crate::command_handler::Handlers;
@@ -266,7 +266,7 @@ impl ComponentCommandHandler {
         &self,
         component_name: ComponentOptionalComponentNames,
         force_build: ForceBuildArg,
-        update_or_redeploy: WorkerUpdateOrRedeployArgs,
+        update_or_redeploy: UpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
         self.deploy(
             self.ctx
@@ -277,7 +277,7 @@ impl ComponentCommandHandler {
             component_name.component_name,
             Some(force_build),
             &ApplicationComponentSelectMode::CurrentDir,
-            update_or_redeploy,
+            &update_or_redeploy,
         )
         .await?;
 
@@ -609,7 +609,7 @@ impl ComponentCommandHandler {
         component_names: Vec<ComponentName>,
         force_build: Option<ForceBuildArg>,
         default_component_select_mode: &ApplicationComponentSelectMode,
-        update_or_redeploy: WorkerUpdateOrRedeployArgs,
+        update_or_redeploy: &UpdateOrRedeployArgs,
     ) -> anyhow::Result<Vec<Component>> {
         self.ctx
             .app_handler()
@@ -671,7 +671,7 @@ impl ComponentCommandHandler {
         if let Some(update) = update_or_redeploy.update_workers {
             self.update_workers_by_components(&components, update)
                 .await?;
-        } else if update_or_redeploy.redeploy_workers {
+        } else if update_or_redeploy.redeploy_workers() {
             self.redeploy_workers_by_components(&components).await?;
         }
 
@@ -1189,7 +1189,7 @@ impl ComponentCommandHandler {
                             vec![component_name.clone()],
                             None,
                             &ApplicationComponentSelectMode::CurrentDir,
-                            WorkerUpdateOrRedeployArgs::default(),
+                            &UpdateOrRedeployArgs::none(),
                         )
                         .await?;
                     self.ctx
