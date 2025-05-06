@@ -538,7 +538,9 @@ pub enum GolemCliSubcommand {
 pub mod shared_args {
     use crate::cloud::AccountId;
     use crate::model::app::AppBuildStep;
-    use crate::model::{ComponentName, ProjectReference, WorkerName, WorkerUpdateMode};
+    use crate::model::{
+        ComponentName, ProjectName, ProjectReference, WorkerName, WorkerUpdateMode,
+    };
     use clap::Args;
     use golem_templates::model::GuestLanguage;
 
@@ -694,9 +696,12 @@ pub mod shared_args {
         /// Global scope (plugin available for all components)
         #[arg(long, conflicts_with_all=["account", "project", "component"])]
         pub global: bool,
-        /// Project reference; Required when component name is used. Without a given component, it defines a project scope.
+        /// Account id, optionally specifies the account id for the project name
         #[arg(long, conflicts_with_all = ["global"])]
-        pub project: Option<ProjectReference>,
+        pub account: Option<String>,
+        /// Project name; Required when component name is used. Without a given component, it defines a project scope.
+        #[arg(long, conflicts_with_all = ["global"])]
+        pub project: Option<ProjectName>,
         /// Component scope given by the component's name (plugin only available for this component)
         #[arg(long, conflicts_with_all=["global"])]
         pub component: Option<ComponentName>,
@@ -704,7 +709,8 @@ pub mod shared_args {
 
     impl PluginScopeArgs {
         pub fn is_global(&self) -> bool {
-            self.global || (self.project.is_none() && self.component.is_none())
+            self.global
+                || (self.account.is_none() && self.project.is_none() && self.component.is_none())
         }
     }
 }

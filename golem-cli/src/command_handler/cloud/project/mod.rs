@@ -141,7 +141,7 @@ impl CloudProjectCommandHandler {
                     .golem_clients_cloud()
                     .await?
                     .project
-                    .get_projects(Some(project_name))
+                    .get_projects(Some(&project_name.0))
                     .await
                     .map_service_error()?;
 
@@ -151,7 +151,7 @@ impl CloudProjectCommandHandler {
                     _ => {
                         log_error(format!(
                             "Project name {} is ambiguous!",
-                            project_name.log_color_highlight()
+                            project_name.0.log_color_highlight()
                         ));
                         logln("");
                         log_text_view(&ProjectListView::from(projects));
@@ -174,7 +174,7 @@ impl CloudProjectCommandHandler {
                     .golem_clients_cloud()
                     .await?
                     .project
-                    .get_projects(Some(project_name))
+                    .get_projects(Some(&project_name.0))
                     .await
                     .map_service_error()?;
                 let project_idx = projects.iter().position(|project| {
@@ -289,7 +289,7 @@ fn project_not_found(project_reference: &ProjectReference) -> anyhow::Error {
     match project_reference {
         ProjectReference::JustName(project_name) => log_error(format!(
             "Project {} not found.",
-            project_name.log_color_highlight()
+            project_name.0.log_color_highlight()
         )),
         ProjectReference::WithAccount {
             account_email,
@@ -297,7 +297,7 @@ fn project_not_found(project_reference: &ProjectReference) -> anyhow::Error {
         } => log_error(format!(
             "Project {}/{} not found.",
             account_email.log_color_highlight(),
-            project_name.log_color_highlight()
+            project_name.0.log_color_highlight()
         )),
     };
     anyhow!(NonSuccessfulExit)

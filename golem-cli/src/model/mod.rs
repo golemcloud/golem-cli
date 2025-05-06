@@ -124,10 +124,10 @@ impl From<String> for ProjectName {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ProjectReference {
-    JustName(String),
+    JustName(ProjectName),
     WithAccount {
         account_email: String,
-        project_name: String,
+        project_name: ProjectName,
     },
 }
 
@@ -137,9 +137,9 @@ impl FromStr for ProjectReference {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut segments = s.split("/").collect::<Vec<_>>();
         match segments.len() {
-            1 => Ok(Self::JustName(segments.pop().unwrap().to_string())),
+            1 => Ok(Self::JustName(segments.pop().unwrap().into())),
             2 => {
-                let project_name = segments.pop().unwrap().to_string();
+                let project_name = segments.pop().unwrap().into();
                 let account_email = segments.pop().unwrap().to_string();
                 Ok(Self::WithAccount { account_email, project_name })
             }
@@ -151,11 +151,11 @@ impl FromStr for ProjectReference {
 impl Display for ProjectReference {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::JustName(project_name) => write!(f, "{}", project_name),
+            Self::JustName(project_name) => write!(f, "{}", project_name.0),
             Self::WithAccount {
                 account_email,
                 project_name,
-            } => write!(f, "{}/{}", account_email, project_name),
+            } => write!(f, "{}/{}", account_email, project_name.0),
         }
     }
 }

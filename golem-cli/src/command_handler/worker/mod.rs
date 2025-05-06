@@ -41,8 +41,9 @@ use crate::model::text::worker::{WorkerCreateView, WorkerGetView};
 use crate::model::to_oss::ToOss;
 use crate::model::worker::fuzzy_match_function_name;
 use crate::model::{
-    ComponentName, ComponentNameMatchKind, IdempotencyKey, ProjectReference, WorkerMetadata,
-    WorkerMetadataView, WorkerName, WorkerNameMatch, WorkerUpdateMode, WorkersMetadataResponseView,
+    ComponentName, ComponentNameMatchKind, IdempotencyKey, ProjectName, ProjectReference,
+    WorkerMetadata, WorkerMetadataView, WorkerName, WorkerNameMatch, WorkerUpdateMode,
+    WorkersMetadataResponseView,
 };
 use anyhow::{anyhow, bail};
 use colored::Colorize;
@@ -1691,7 +1692,7 @@ impl WorkerCommandHandler {
 
                 let (account_email, project_name, component_name, worker_name): (
                     Option<String>,
-                    Option<String>,
+                    Option<ProjectName>,
                     ComponentName,
                     String,
                 ) = match segments.len() {

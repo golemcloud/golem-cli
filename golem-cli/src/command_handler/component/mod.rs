@@ -1045,7 +1045,7 @@ impl ComponentCommandHandler {
                                 self.ctx
                                     .cloud_project_handler()
                                     .select_project(&ProjectReference::JustName(
-                                        empty_checked_project(segments[0])?.to_string(),
+                                        empty_checked_project(segments[0])?.into(),
                                     ))
                                     .await?,
                             ),
@@ -1066,7 +1066,7 @@ impl ComponentCommandHandler {
                                         .select_project(&ProjectReference::WithAccount {
                                             account_email,
                                             project_name: empty_checked_project(segments[1])?
-                                                .to_string(),
+                                                .into(),
                                         })
                                         .await?,
                                 ),
