@@ -2,7 +2,11 @@ module app
 
 go 1.24
 
-require go.bytecodealliance.org/cm v0.2.2 // indirect
+require github.com/google/uuid v1.6.0
+
+require go.bytecodealliance.org/cm v0.2.2
+
+require github.com/golemcloud/golem-go v1.3.2 // indirect
 
 require (
 	github.com/coreos/go-semver v0.3.1 // indirect
