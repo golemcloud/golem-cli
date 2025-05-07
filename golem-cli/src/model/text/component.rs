@@ -16,6 +16,7 @@ use crate::model::component::ComponentView;
 use crate::model::text::fmt::*;
 use crate::model::ComponentName;
 use cli_table::{format::Justify, Table};
+
 use serde::{Deserialize, Serialize};
 
 // TODO: review columns and formats
@@ -71,12 +72,6 @@ fn component_view_fields(view: &ComponentView) -> Vec<(String, String)> {
             view.files.as_slice(),
             !view.files.is_empty(),
             format_ifs_entry,
-        )
-        .fmt_field_optional(
-            "Component env keys",
-            view.env_keys.as_slice(),
-            !view.env_keys.is_empty(),
-            format_component_env_keys,
         );
 
     fields.build()

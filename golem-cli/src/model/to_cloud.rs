@@ -68,14 +68,6 @@ impl ToCloud<golem_cloud_client::model::InvokeParameters>
     }
 }
 
-impl ToCloud<golem_cloud_client::model::ComponentEnv> for golem_client::model::ComponentEnv {
-    fn to_cloud(self) -> golem_cloud_client::model::ComponentEnv {
-        golem_cloud_client::model::ComponentEnv {
-            key_values: self.key_values,
-        }
-    }
-}
-
 impl ToCloud<golem_cloud_client::model::DynamicLinking> for golem_client::model::DynamicLinking {
     fn to_cloud(self) -> golem_cloud_client::model::DynamicLinking {
         golem_cloud_client::model::DynamicLinking {
