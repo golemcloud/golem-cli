@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::cloud::ProjectId;
+use crate::model::app::ComponentEnv;
 use crate::model::to_oss::ToOss;
 use crate::model::wave::function_wave_compatible;
 use crate::model::ComponentName;
@@ -71,10 +72,21 @@ pub struct Component {
     pub project_id: Option<ProjectId>,
     pub created_at: Option<DateTime<Utc>>,
     pub files: Vec<InitialComponentFile>,
+    pub env: Option<ComponentEnv>,
 }
 
 impl From<golem_client::model::Component> for Component {
     fn from(value: golem_client::model::Component) -> Self {
+        let client_env = value.env;
+
+        let env = if client_env.is_empty() {
+            None
+        } else {
+            Some(ComponentEnv::from(golem_client::model::ComponentEnv {
+                key_values: client_env,
+            }))
+        };
+
         Component {
             versioned_component_id: value.versioned_component_id,
             component_name: value.component_name.into(),
@@ -84,12 +96,23 @@ impl From<golem_client::model::Component> for Component {
             project_id: None,
             created_at: Some(value.created_at),
             files: value.files,
+            env,
         }
     }
 }
 
 impl From<golem_cloud_client::model::Component> for Component {
     fn from(value: golem_cloud_client::model::Component) -> Self {
+        let client_env = value.env;
+
+        let env = if client_env.is_empty() {
+            None
+        } else {
+            Some(ComponentEnv::from(golem_client::model::ComponentEnv {
+                key_values: client_env,
+            }))
+        };
+
         Component {
             versioned_component_id: value.versioned_component_id.to_oss(),
             component_name: value.component_name.into(),
@@ -99,6 +122,7 @@ impl From<golem_cloud_client::model::Component> for Component {
             created_at: Some(value.created_at),
             component_type: value.component_type,
             files: value.files,
+            env,
         }
     }
 }
@@ -176,6 +200,7 @@ pub struct ComponentView {
     pub exports: Vec<String>,
     pub dynamic_linking: BTreeMap<String, BTreeMap<String, String>>,
     pub files: Vec<InitialComponentFile>,
+    pub env_keys: Vec<String>,
 }
 
 impl TrimDateTime for ComponentView {
@@ -224,6 +249,7 @@ impl From<&Component> for ComponentView {
                 })
                 .collect(),
             files: value.files.clone(),
+            env_keys: value.env.as_ref().map(|env| env.keys()).unwrap_or_default(),
         }
     }
 }

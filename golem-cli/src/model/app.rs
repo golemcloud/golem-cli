@@ -1126,18 +1126,26 @@ impl InitialComponentFileSource {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ComponentEnvKeyValue {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ComponentEnv {
     key_values: Vec<ComponentEnvKeyValue>,
 }
 
 impl ComponentEnv {
+    pub fn keys(&self) -> Vec<String> {
+        self.key_values
+            .iter()
+            .map(|kv| kv.name.to_string())
+            .collect()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.key_values.is_empty()
     }
@@ -1196,6 +1204,18 @@ impl From<&ComponentEnv> for golem_client::model::ComponentEnv {
     fn from(env: &ComponentEnv) -> Self {
         golem_client::model::ComponentEnv {
             key_values: env.as_env_map(),
+        }
+    }
+}
+
+impl From<golem_client::model::ComponentEnv> for ComponentEnv {
+    fn from(env: golem_client::model::ComponentEnv) -> Self {
+        ComponentEnv {
+            key_values: env
+                .key_values
+                .into_iter()
+                .map(|(name, value)| ComponentEnvKeyValue { name, value })
+                .collect(),
         }
     }
 }

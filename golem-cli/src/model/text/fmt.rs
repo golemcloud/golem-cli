@@ -301,6 +301,12 @@ pub fn format_ifs_entry(files: &[InitialComponentFile]) -> String {
         .join("\n")
 }
 
+pub fn format_component_env_keys(keys: &[String]) -> String {
+    keys.iter()
+        .map(|key| format!("{} {}", key.log_color_highlight(), key.black()))
+        .join("\n")
+}
+
 pub fn format_table<E, R>(table: &[E]) -> String
 where
     R: Title + 'static + for<'b> From<&'b E>,
