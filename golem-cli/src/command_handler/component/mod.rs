@@ -47,6 +47,7 @@ use crate::model::{
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient as ComponentClientOss;
+use golem_client::model::ComponentEnv as ComponentEnvOss;
 use golem_client::model::ComponentSearch as ComponentSearchOss;
 use golem_client::model::ComponentSearchParameters as ComponentSearchParametersOss;
 use golem_client::model::DynamicLinkedInstance as DynamicLinkedInstanceOss;
@@ -731,6 +732,8 @@ impl ComponentCommandHandler {
             }
         }
 
+        let component_env = deploy_properties.env;
+
         let linked_wasm = File::open(&deploy_properties.linked_wasm_path)
             .await
             .with_context(|| {
@@ -755,6 +758,7 @@ impl ComponentCommandHandler {
                 None
             }
         };
+
         let ifs_properties = ifs_files.as_ref().map(|f| &f.properties);
         let ifs_archive = {
             if let Some(files) = ifs_files.as_ref() {
@@ -789,7 +793,7 @@ impl ComponentCommandHandler {
                                 ifs_properties,
                                 ifs_archive,
                                 deploy_properties.dynamic_linking.as_ref(),
-                                None, // TODO: component env
+                                component_env.as_ref(),
                             )
                             .await
                             .map_service_error()?;
@@ -808,7 +812,7 @@ impl ComponentCommandHandler {
                                     .dynamic_linking
                                     .map(|dl| dl.to_cloud())
                                     .as_ref(),
-                                None, // TODO: component env
+                                component_env.map(|env| env.to_cloud()).as_ref(),
                             )
                             .await
                             .map_service_error()?;
@@ -839,7 +843,7 @@ impl ComponentCommandHandler {
                                 ifs_properties,
                                 ifs_archive,
                                 deploy_properties.dynamic_linking.as_ref(),
-                                None, // TODO: component env
+                                component_env.as_ref(),
                             )
                             .await
                             .map_service_error()?;
@@ -861,7 +865,7 @@ impl ComponentCommandHandler {
                                     .dynamic_linking
                                     .map(|dl| dl.to_cloud())
                                     .as_ref(),
-                                None, // TODO: component env
+                                component_env.map(|env| env.to_cloud()).as_ref(),
                             )
                             .await
                             .map_service_error()?;
@@ -1681,6 +1685,7 @@ struct ComponentDeployProperties {
     linked_wasm_path: PathBuf,
     files: Vec<InitialComponentFile>,
     dynamic_linking: Option<DynamicLinkingOss>,
+    env: Option<ComponentEnvOss>,
 }
 
 fn component_deploy_properties(
@@ -1699,6 +1704,7 @@ fn component_deploy_properties(
         .as_deployable_component_type()
         .ok_or_else(|| anyhow!("Component {component_name} is not deployable"))?;
     let files = component_properties.files.clone();
+    let env = component_properties.env.as_ref().map(|env| env.into());
     let dynamic_linking = app_component_dynamic_linking(app_ctx, component_name)?;
 
     Ok(ComponentDeployProperties {
@@ -1706,6 +1712,7 @@ fn component_deploy_properties(
         linked_wasm_path,
         files,
         dynamic_linking,
+        env,
     })
 }
 

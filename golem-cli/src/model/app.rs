@@ -903,6 +903,7 @@ pub struct ComponentProperties {
     pub component_type: AppComponentType,
     pub files: Vec<InitialComponentFile>,
     pub plugins: Vec<PluginInstallation>,
+    pub env: Option<ComponentEnv>,
 }
 
 impl ComponentProperties {
@@ -913,6 +914,14 @@ impl ComponentProperties {
     ) -> Option<Self> {
         let files = InitialComponentFile::from_raw_vec(validation, source, raw.files)?;
         let plugins = PluginInstallation::from_raw_vec(validation, source, raw.plugins)?;
+
+        let env = match raw.env {
+            Some(env) => {
+                let validated = ComponentEnv::from_raw(validation, env)?;
+                Some(validated)
+            }
+            None => None,
+        };
 
         Some(Self {
             source_wit: raw.source_wit.unwrap_or_default(),
@@ -925,6 +934,7 @@ impl ComponentProperties {
             component_type: raw.component_type.unwrap_or_default(),
             files,
             plugins,
+            env,
         })
     }
 
@@ -1119,6 +1129,60 @@ impl InitialComponentFileSource {
 
     pub fn into_url(self) -> Url {
         self.0
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ComponentEnv {
+    pub key_values: HashMap<String, String>,
+}
+
+impl ComponentEnv {
+    pub fn from_raw(
+        validation: &mut ValidationBuilder,
+        key_values: HashMap<String, String>,
+    ) -> Option<ComponentEnv> {
+        let mut validated = HashMap::new();
+        let mut has_errors = false;
+
+        for (key, value) in key_values {
+            let (key, value) = (key.trim(), value.trim());
+
+            match (key.is_empty(), value.is_empty()) {
+                (true, _) => validation.add_error(format!("Empty key in env variables: {}", value)),
+                (_, true) => {
+                    validation.add_error(format!("Empty value in component env variables: {}", key))
+                }
+                _ if matches!(
+                    key,
+                    "GOLEM_WORKER_NAME" | "GOLEM_COMPONENT_ID" | "GOLEM_COMPONENT_VERSION"
+                ) =>
+                {
+                    validation.add_error(format!(
+                        "{} is a reserved environment variable and cannot be used as a key",
+                        key
+                    ))
+                }
+                _ => {
+                    validated.insert(key.to_string(), value.to_string());
+                    continue;
+                }
+            }
+
+            has_errors = true;
+        }
+
+        (!has_errors).then_some(Self {
+            key_values: validated,
+        })
+    }
+}
+
+impl From<&ComponentEnv> for golem_client::model::ComponentEnv {
+    fn from(env: &ComponentEnv) -> Self {
+        golem_client::model::ComponentEnv {
+            key_values: env.key_values.clone(),
+        }
     }
 }
 
