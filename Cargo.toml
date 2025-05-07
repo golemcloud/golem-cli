@@ -1,30 +1,29 @@
 [workspace]
 resolver = "2"
 
-members = [
-    "golem",
-    "golem-cli",
-    "golem-templates",
-]
+members = ["golem", "golem-cli", "golem-templates"]
 
-exclude = [
-    "desktop-app/src-tauri",
-]
+exclude = ["desktop-app/src-tauri"]
 
 [workspace.dependencies]
 
 # Golem dep
-golem-client = "1.2.2-dev.13"
-golem-common = "1.2.2-dev.13"
-golem-rib = "1.2.2-dev.13"
-golem-rib-repl = "1.2.2-dev.13"
-golem-service-base = "1.2.2-dev.13"
-golem-wasm-ast = { version = "1.2.2-dev.13", default-features = false, features = ["analysis", "wave"] }
-golem-wasm-rpc = { version = "1.2.2-dev.13", default-features = false, features = ["host"] }
-golem-wit = "=1.2.2-dev.9"
+golem-client = "=1.2.2-dev.14"
+golem-common = "=1.2.2-dev.14"
+golem-rib = "=1.2.2-dev.14"
+golem-rib-repl = "=1.2.2-dev.14"
+golem-service-base = "=1.2.2-dev.14"
+golem-wasm-ast = { version = "=1.2.2-dev.14", default-features = false, features = [
+    "analysis",
+    "wave",
+] }
+golem-wasm-rpc = { version = "=1.2.2-dev.14", default-features = false, features = [
+    "host",
+] }
+golem-wit = "=1.2.2-dev.11"
 
 # Golem cloud deps
-golem-cloud-client = "1.2.2-dev.14"
+golem-cloud-client = "=1.2.2-dev.15"
 
 # External deps
 anyhow = "1.0.97"
@@ -70,6 +69,7 @@ log = "0.4.25"
 minijinja = "2.7.0"
 nanoid = "0.4.0"
 native-tls = "0.2.13"
+nondestructive = "0.0.26"
 opentelemetry = "0.28.0"
 opentelemetry-prometheus = "0.28.0"
 opentelemetry_sdk = "0.28.0"
@@ -88,8 +88,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_json_path = "0.7.1"
 serde_yaml = "0.9.34"
-shadow-rs = { version = "1.1.1", default-features = false, features = ["build"] }
+shadow-rs = { version = "1.1.1", default-features = false, features = [
+    "build",
+] }
 shlex = "1.3.0"
+similar = "2.7.0"
 sqlx = "=0.8.3"
 strip-ansi-escapes = "0.2.0"
 strum = "0.27.1"
@@ -119,13 +122,13 @@ wit-encoder = "=0.227.1"
 wit-parser = "=0.227.1"
 
 [patch.crates-io]
-golem-client = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.13" }
-golem-common = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.13" }
-golem-rib = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.13" }
-golem-rib-repl = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.13" }
-golem-service-base = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.13" }
-golem-wasm-ast = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.13" }
-golem-wasm-rpc = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.13" }
+golem-client = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
+golem-common = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
+golem-rib = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
+golem-rib-repl = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
+golem-service-base = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
+golem-wasm-ast = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
+golem-wasm-rpc = { git = "https://github.com/golemcloud/golem.git", tag = "v1.2.2-dev.14" }
 
 redis-protocol = { git = "https://github.com/golemcloud/redis-protocol.rs.git", branch = "unpin-cookie-factory" }
 wasmtime = { git = "https://github.com/golemcloud/wasmtime.git", branch = "golem-wasmtime-v27.0.0" }
