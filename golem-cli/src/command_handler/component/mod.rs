@@ -1704,7 +1704,13 @@ fn component_deploy_properties(
         .as_deployable_component_type()
         .ok_or_else(|| anyhow!("Component {component_name} is not deployable"))?;
     let files = component_properties.files.clone();
-    let env = component_properties.env.as_ref().map(|env| env.into());
+
+    let env = if component_properties.env.is_empty() {
+        None
+    } else {
+        Some((&component_properties.env).into())
+    };
+
     let dynamic_linking = app_component_dynamic_linking(app_ctx, component_name)?;
 
     Ok(ComponentDeployProperties {

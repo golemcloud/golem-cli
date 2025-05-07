@@ -903,7 +903,7 @@ pub struct ComponentProperties {
     pub component_type: AppComponentType,
     pub files: Vec<InitialComponentFile>,
     pub plugins: Vec<PluginInstallation>,
-    pub env: Option<ComponentEnv>,
+    pub env: ComponentEnv,
 }
 
 impl ComponentProperties {
@@ -915,13 +915,7 @@ impl ComponentProperties {
         let files = InitialComponentFile::from_raw_vec(validation, source, raw.files)?;
         let plugins = PluginInstallation::from_raw_vec(validation, source, raw.plugins)?;
 
-        let env = match raw.env {
-            Some(env) => {
-                let validated = ComponentEnv::from_raw(validation, env)?;
-                Some(validated)
-            }
-            None => None,
-        };
+        let env = ComponentEnv::from_raw(validation, raw.env)?;
 
         Some(Self {
             source_wit: raw.source_wit.unwrap_or_default(),
@@ -1132,21 +1126,38 @@ impl InitialComponentFileSource {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ComponentEnvKeyValue {
+    pub name: String,
+    pub value: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct ComponentEnv {
-    pub key_values: HashMap<String, String>,
+    key_values: Vec<ComponentEnvKeyValue>,
 }
 
 impl ComponentEnv {
+    pub fn is_empty(&self) -> bool {
+        self.key_values.is_empty()
+    }
+
+    pub fn as_env_map(&self) -> HashMap<String, String> {
+        self.key_values
+            .iter()
+            .map(|kv| (kv.name.clone(), kv.value.clone()))
+            .collect()
+    }
+
     pub fn from_raw(
         validation: &mut ValidationBuilder,
-        key_values: HashMap<String, String>,
+        key_values: Vec<ComponentEnvKeyValue>,
     ) -> Option<ComponentEnv> {
-        let mut validated = HashMap::new();
+        let mut validated = vec![];
         let mut has_errors = false;
 
-        for (key, value) in key_values {
-            let (key, value) = (key.trim(), value.trim());
+        for ComponentEnvKeyValue { name, value } in key_values {
+            let (key, value) = (name.trim(), value.trim());
 
             match (key.is_empty(), value.is_empty()) {
                 (true, _) => validation.add_error(format!("Empty key in env variables: {}", value)),
@@ -1164,7 +1175,10 @@ impl ComponentEnv {
                     ))
                 }
                 _ => {
-                    validated.insert(key.to_string(), value.to_string());
+                    validated.push(ComponentEnvKeyValue {
+                        name: key.to_string(),
+                        value: value.to_string(),
+                    });
                     continue;
                 }
             }
@@ -1181,7 +1195,7 @@ impl ComponentEnv {
 impl From<&ComponentEnv> for golem_client::model::ComponentEnv {
     fn from(env: &ComponentEnv) -> Self {
         golem_client::model::ComponentEnv {
-            key_values: env.key_values.clone(),
+            key_values: env.as_env_map(),
         }
     }
 }

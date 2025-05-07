@@ -1,5 +1,6 @@
 use crate::fs;
 use crate::log::LogColorize;
+use crate::model::app::ComponentEnvKeyValue;
 use crate::model::component::AppComponentType;
 use anyhow::{anyhow, Context};
 use golem_common::model::{ComponentFilePath, ComponentFilePermissions};
@@ -185,8 +186,8 @@ pub struct ComponentProperties {
     pub files: Vec<InitialComponentFile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginInstallation>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub env: Option<HashMap<String, String>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub env: Vec<ComponentEnvKeyValue>,
 }
 
 impl ComponentProperties {
