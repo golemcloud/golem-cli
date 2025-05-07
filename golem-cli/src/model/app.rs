@@ -1,8 +1,8 @@
+use crate::config::ProfileName;
 use crate::fs;
 use crate::log::LogColorize;
-use crate::model::app::app_builder::build_application;
+use crate::model::app::app_builder::{build_application, build_profiles};
 use crate::model::app_raw;
-use crate::model::app_raw::{HttpApiDefinition, HttpApiDeployment};
 use crate::model::component::AppComponentType;
 use crate::model::template::Template;
 use crate::validation::{ValidatedResult, ValidationBuilder};
@@ -27,9 +27,8 @@ pub const DEFAULT_CONFIG_FILE_NAME: &str = "golem.yaml";
 
 #[derive(Clone, Debug)]
 pub struct ApplicationConfig {
-    pub app_source_mode: ApplicationSourceMode,
     pub skip_up_to_date_checks: bool,
-    pub profile: Option<BuildProfileName>,
+    pub build_profile: Option<BuildProfileName>,
     pub offline: bool,
     pub steps_filter: HashSet<AppBuildStep>,
     pub golem_rust_override: RustDependencyOverride,
@@ -48,7 +47,11 @@ impl ApplicationConfig {
 #[derive(Debug, Clone)]
 pub enum ApplicationSourceMode {
     Automatic,
-    Explicit(PathBuf),
+    ByRootManifest(PathBuf),
+    Preloaded {
+        raw_apps: Vec<app_raw::ApplicationWithSource>,
+        calling_working_dir: PathBuf,
+    },
     None,
 }
 
@@ -319,7 +322,7 @@ pub enum ResolvedComponentProperties {
         any_template_overrides: bool,
         properties: ComponentProperties,
     },
-    Profiles {
+    BuildProfiles {
         template_name: Option<TemplateName>,
         any_template_overrides: HashMap<BuildProfileName, bool>,
         default_profile: BuildProfileName,
@@ -457,11 +460,17 @@ pub struct Application {
     no_dependencies: BTreeSet<DependentComponent>,
     custom_commands: HashMap<String, WithSource<Vec<app_raw::ExternalCommand>>>,
     clean: Vec<WithSource<String>>,
-    http_api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>>,
-    http_api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>,
+    http_api_definitions: BTreeMap<HttpApiDefinitionName, WithSource<app_raw::HttpApiDefinition>>,
+    http_api_deployments: BTreeMap<HttpApiDeploymentSite, WithSource<app_raw::HttpApiDeployment>>,
 }
 
 impl Application {
+    pub fn profiles_from_raw_apps(
+        apps: &[app_raw::ApplicationWithSource],
+    ) -> ValidatedResult<BTreeMap<ProfileName, app_raw::Profile>> {
+        build_profiles(apps)
+    }
+
     pub fn from_raw_apps(apps: Vec<app_raw::ApplicationWithSource>) -> ValidatedResult<Self> {
         build_application(apps)
     }
@@ -505,16 +514,16 @@ impl Application {
         self.dependencies.values().flatten().cloned().collect()
     }
 
-    pub fn all_profiles(&self) -> BTreeSet<BuildProfileName> {
+    pub fn all_build_profiles(&self) -> BTreeSet<BuildProfileName> {
         self.component_names()
-            .flat_map(|component_name| self.component_profiles(component_name))
+            .flat_map(|component_name| self.component_build_profiles(component_name))
             .collect()
     }
 
-    pub fn all_option_profiles(&self) -> BTreeSet<Option<BuildProfileName>> {
+    pub fn all_option_build_profiles(&self) -> BTreeSet<Option<BuildProfileName>> {
         let mut profiles = self
             .component_names()
-            .flat_map(|component_name| self.component_profiles(component_name))
+            .flat_map(|component_name| self.component_build_profiles(component_name))
             .map(Some)
             .collect::<BTreeSet<_>>();
         profiles.insert(None);
@@ -533,7 +542,7 @@ impl Application {
         custom_commands
     }
 
-    pub fn all_custom_commands_for_all_profiles(
+    pub fn all_custom_commands_for_all_build_profiles(
         &self,
     ) -> BTreeMap<Option<BuildProfileName>, BTreeSet<String>> {
         let mut custom_commands = BTreeMap::<Option<BuildProfileName>, BTreeSet<String>>::new();
@@ -543,7 +552,7 @@ impl Application {
             .or_default()
             .extend(self.custom_commands.keys().cloned());
 
-        for profile in self.all_option_profiles() {
+        for profile in self.all_option_build_profiles() {
             let profile_commands: &mut BTreeSet<String> = {
                 if custom_commands.contains_key(&profile) {
                     custom_commands.get_mut(&profile).unwrap()
@@ -615,13 +624,13 @@ impl Application {
             })
     }
 
-    pub fn component_profiles(
+    pub fn component_build_profiles(
         &self,
         component_name: &AppComponentName,
     ) -> BTreeSet<BuildProfileName> {
         match &self.component(component_name).properties {
             ResolvedComponentProperties::Properties { .. } => BTreeSet::new(),
-            ResolvedComponentProperties::Profiles { profiles, .. } => {
+            ResolvedComponentProperties::BuildProfiles { profiles, .. } => {
                 profiles.keys().cloned().collect()
             }
         }
@@ -643,7 +652,7 @@ impl Application {
                 is_requested_profile: false,
                 any_template_overrides: *any_template_overrides,
             },
-            ResolvedComponentProperties::Profiles {
+            ResolvedComponentProperties::BuildProfiles {
                 template_name,
                 any_template_overrides,
                 default_profile,
@@ -682,7 +691,7 @@ impl Application {
     ) -> &ComponentProperties {
         match &self.component(component_name).properties {
             ResolvedComponentProperties::Properties { properties, .. } => properties,
-            ResolvedComponentProperties::Profiles {
+            ResolvedComponentProperties::BuildProfiles {
                 default_profile,
                 profiles,
                 ..
@@ -815,7 +824,7 @@ impl Application {
 
     pub fn http_api_definitions(
         &self,
-    ) -> &BTreeMap<HttpApiDefinitionName, WithSource<HttpApiDefinition>> {
+    ) -> &BTreeMap<HttpApiDefinitionName, WithSource<app_raw::HttpApiDefinition>> {
         &self.http_api_definitions
     }
 
@@ -864,7 +873,7 @@ impl Application {
 
     pub fn http_api_deployments(
         &self,
-    ) -> &BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>> {
+    ) -> &BTreeMap<HttpApiDeploymentSite, WithSource<app_raw::HttpApiDeployment>> {
         &self.http_api_deployments
     }
 }
@@ -1159,6 +1168,7 @@ impl PluginInstallation {
 }
 
 mod app_builder {
+    use crate::config::ProfileName;
     use crate::fs::PathExtra;
     use crate::fuzzy;
     use crate::fuzzy::FuzzySearch;
@@ -1171,7 +1181,7 @@ mod app_builder {
     };
     use crate::model::app_raw;
     use crate::model::app_raw::{
-        HttpApiDefinition, HttpApiDefinitionBindingType, HttpApiDeployment,
+        HttpApiDefinition, HttpApiDefinitionBindingType, HttpApiDeployment, Profile,
     };
     use crate::model::deploy_diff::api_definition::normalize_http_api_binding_path;
     use crate::model::text::fmt::format_rib_source_for_error;
@@ -1188,10 +1198,18 @@ mod app_builder {
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
 
+    // Load full manifest EXCEPT profiles
     pub fn build_application(
         apps: Vec<app_raw::ApplicationWithSource>,
     ) -> ValidatedResult<Application> {
-        AppBuilder::build(apps)
+        AppBuilder::build_app(apps)
+    }
+
+    // Load only profiles
+    pub fn build_profiles(
+        apps: &[app_raw::ApplicationWithSource],
+    ) -> ValidatedResult<BTreeMap<ProfileName, Profile>> {
+        AppBuilder::build_profiles(apps)
     }
 
     #[derive(Debug, PartialEq, Eq, Hash)]
@@ -1210,6 +1228,7 @@ mod app_builder {
             path: String,
         },
         HttpApiDeployment(HttpApiDeploymentSite),
+        Profile(ProfileName),
     }
 
     impl UniqueSourceCheckedEntityKey {
@@ -1228,6 +1247,7 @@ mod app_builder {
                     "HTTP API Definition Route"
                 }
                 UniqueSourceCheckedEntityKey::HttpApiDeployment(_) => "HTTP API Deployment",
+                UniqueSourceCheckedEntityKey::Profile(_) => "Profile",
             }
         }
 
@@ -1287,6 +1307,9 @@ mod app_builder {
                         api_deployment_site.host.as_str().log_color_highlight()
                     )
                 }
+                UniqueSourceCheckedEntityKey::Profile(profile_name) => {
+                    profile_name.0.log_color_highlight().to_string()
+                }
             }
         }
     }
@@ -1309,16 +1332,23 @@ mod app_builder {
         raw_components: HashMap<AppComponentName, (PathBuf, app_raw::Component)>,
         resolved_components: BTreeMap<AppComponentName, Component>,
 
+        profiles: BTreeMap<ProfileName, app_raw::Profile>,
+
         all_sources: BTreeSet<PathBuf>,
         entity_sources: HashMap<UniqueSourceCheckedEntityKey, Vec<PathBuf>>,
     }
 
     impl AppBuilder {
-        fn build(apps: Vec<app_raw::ApplicationWithSource>) -> ValidatedResult<Application> {
+        // NOTE: build_app DOES NOT include profiles, those are preloaded with build_profiles, so
+        //       flows that do not use manifest otherwise won't get blocked by high-level validation errors,
+        //       and we do not "steal" manifest loading logs from those which do use the manifest fully.
+        fn build_app(apps: Vec<app_raw::ApplicationWithSource>) -> ValidatedResult<Application> {
             let mut builder = Self::default();
             let mut validation = ValidationBuilder::default();
 
-            builder.add_raw_apps(&mut validation, apps);
+            for app in apps {
+                builder.add_raw_app(&mut validation, app);
+            }
             builder.resolve_components(&mut validation);
             builder.validate_dependency_targets(&mut validation);
             builder.validate_unique_sources(&mut validation);
@@ -1363,21 +1393,28 @@ mod app_builder {
             })
         }
 
+        // NOTE: Unlike build_app, here we do not consume the source apps, so they can be
+        //       used for build_app. For more info on this separation, see build_app.
+        //
+        //       Ironically build_profiles does not build BuildProfiles, only regular ones.
+        fn build_profiles(
+            apps: &[app_raw::ApplicationWithSource],
+        ) -> ValidatedResult<BTreeMap<ProfileName, app_raw::Profile>> {
+            let mut builder = Self::default();
+            let mut validation = ValidationBuilder::default();
+
+            for app in apps {
+                builder.add_raw_app_profiles_only(&mut validation, app)
+            }
+
+            validation.build(builder.profiles)
+        }
+
         fn add_entity_source(&mut self, key: UniqueSourceCheckedEntityKey, source: &Path) -> bool {
             let sources = self.entity_sources.entry(key).or_default();
             let is_first = sources.is_empty();
             sources.push(source.to_path_buf());
             is_first
-        }
-
-        fn add_raw_apps(
-            &mut self,
-            validation: &mut ValidationBuilder,
-            apps: Vec<app_raw::ApplicationWithSource>,
-        ) {
-            for app in apps {
-                self.add_raw_app(validation, app);
-            }
         }
 
         fn add_raw_app(
@@ -1514,6 +1551,81 @@ mod app_builder {
                     }
                 },
             );
+        }
+
+        fn add_raw_app_profiles_only(
+            &mut self,
+            validation: &mut ValidationBuilder,
+            app: &app_raw::ApplicationWithSource,
+        ) {
+            fn check_not_allowed_for_cloud_profile<T>(
+                validation: &mut ValidationBuilder,
+                property_name: &str,
+                value: &Option<T>,
+            ) {
+                if value.is_some() {
+                    validation.add_error(format!(
+                        "Property {} is not allowed for Cloud profiles",
+                        property_name.log_color_highlight()
+                    ))
+                }
+            }
+
+            let mut default_profile_names = BTreeSet::<ProfileName>::new();
+
+            validation.with_context(
+                vec![("source", app.source.to_string_lossy().to_string())],
+                |validation| {
+                    for (profile_name, profile) in &app.application.profiles {
+                        if self.add_entity_source(
+                            UniqueSourceCheckedEntityKey::Profile(profile_name.clone()),
+                            &app.source,
+                        ) {
+                            if profile.default == Some(true) {
+                                default_profile_names.insert(profile_name.clone());
+                            };
+
+                            self.profiles.insert(profile_name.clone(), profile.clone());
+                            validation.with_context(
+                                vec![("profile", profile_name.to_string())],
+                                |validation| {
+                                    let is_cloud =
+                                        profile_name.is_builtin_cloud() || profile.is_cloud();
+                                    if is_cloud {
+                                        check_not_allowed_for_cloud_profile(
+                                            validation,
+                                            "url",
+                                            &profile.url,
+                                        );
+
+                                        check_not_allowed_for_cloud_profile(
+                                            validation,
+                                            "worker_url",
+                                            &profile.worker_url,
+                                        );
+                                    }
+                                    if profile_name.is_builtin_local() && profile.is_cloud() {
+                                        validation.add_error(format!(
+                                            "Builtin profile '{}' cannot be used as Cloud profile",
+                                            profile_name.0.log_color_highlight(),
+                                        ))
+                                    }
+                                },
+                            );
+                        }
+                    }
+                },
+            );
+
+            if default_profile_names.len() > 1 {
+                validation.add_error(format!(
+                    "Only one profile can be used as default! Profiles marked as default: {}",
+                    default_profile_names
+                        .iter()
+                        .map(|pn| pn.0.log_color_highlight())
+                        .join(", ")
+                ));
+            }
         }
 
         fn add_raw_template(
@@ -1929,7 +2041,7 @@ mod app_builder {
                     (resolved_profiles, resolved_overrides)
                 });
 
-            valid.then(|| ResolvedComponentProperties::Profiles {
+            valid.then(|| ResolvedComponentProperties::BuildProfiles {
                 template_name: Some(template_name),
                 any_template_overrides,
                 default_profile: default_profile
@@ -1986,7 +2098,7 @@ mod app_builder {
                     }
                 });
 
-            valid.then(|| ResolvedComponentProperties::Profiles {
+            valid.then(|| ResolvedComponentProperties::BuildProfiles {
                 template_name: None,
                 any_template_overrides: Default::default(),
                 default_profile: component

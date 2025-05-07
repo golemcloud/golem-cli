@@ -17,7 +17,7 @@ use crate::command::{
     GolemCliGlobalFlags,
 };
 use crate::command_handler::Handlers;
-use crate::config::Config;
+use crate::config::{Config, ProfileName};
 use crate::context::Context;
 use crate::error::{ContextInitHintError, HintError, ShowClapHelpTarget};
 use crate::log::Output::Stdout;
@@ -28,6 +28,7 @@ use crate::model::text::fmt::{log_error, log_text_view, NestedTextViewIndent};
 use crate::model::text::help::{AvailableFunctionNamesHelp, WorkerNameHelp};
 use crate::model::{ComponentNameMatchKind, Format};
 use colored::Colorize;
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -201,7 +202,7 @@ impl ErrorHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::ProfileSwitchMissingProfileName => {
-                show_available_profiles_help(self.ctx.config_dir());
+                show_available_profiles_help(self.ctx.config_dir(), vec![].as_slice());
 
                 Ok(())
             }
@@ -261,13 +262,16 @@ impl ErrorHandler {
         hint_error: &ContextInitHintError,
     ) -> anyhow::Result<()> {
         match hint_error {
-            ContextInitHintError::ProfileNotFound(profile_name) => {
+            ContextInitHintError::ProfileNotFound {
+                profile_name,
+                manifest_profile_names,
+            } => {
                 log_error(format!(
                     "Profile '{}' not found!",
                     profile_name.0.log_color_highlight()
                 ));
 
-                show_available_profiles_help(&global_flags.config_dir());
+                show_available_profiles_help(&global_flags.config_dir(), manifest_profile_names);
 
                 Ok(())
             }
@@ -275,14 +279,20 @@ impl ErrorHandler {
     }
 }
 
-fn show_available_profiles_help(config_dir: &Path) {
+fn show_available_profiles_help(config_dir: &Path, manifest_profile_names: &[ProfileName]) {
     let Ok(config) = Config::from_dir(config_dir) else {
         return;
     };
 
+    let profile_names = {
+        let mut profile_names = BTreeSet::from_iter(manifest_profile_names.iter().cloned());
+        profile_names.extend(config.profiles.keys().cloned());
+        profile_names
+    };
+
     logln("");
     logln("Available profiles:".log_color_help_group().to_string());
-    for profile_name in config.profiles.keys() {
-        logln(format!(" {}", profile_name));
+    for profile_name in profile_names {
+        logln(format!("- {}", profile_name));
     }
 }

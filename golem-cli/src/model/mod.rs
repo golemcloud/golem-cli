@@ -65,11 +65,17 @@ use uuid::Uuid;
 // TODO: move arg thing into command
 // TODO: move non generic entities into mods
 
+// NOTE: using aliases for lower-case support in manifest, as global configs are using the
+//       PascalCase versions historically, should be cleared up (migrated), if we touch the global
+//       CLI config
 #[derive(Copy, Clone, PartialEq, Eq, Debug, EnumIter, Serialize, Deserialize, Default)]
 pub enum Format {
+    #[serde(alias = "json")]
     Json,
+    #[serde(alias = "yaml")]
     Yaml,
     #[default]
+    #[serde(alias = "text")]
     Text,
 }
 

@@ -68,7 +68,6 @@ impl Auth {
     pub async fn authenticate(
         &self,
         token_override: Option<Uuid>,
-        profile_name: &ProfileName,
         auth_config: Option<&CloudAuthenticationConfig>,
         config_dir: &Path,
     ) -> anyhow::Result<CloudAuthentication> {
@@ -80,8 +79,7 @@ impl Auth {
 
             Ok(CloudAuthentication(UnsafeToken { data, secret }))
         } else {
-            self.profile_authentication(profile_name, auth_config, config_dir)
-                .await
+            self.profile_authentication(auth_config, config_dir).await
         }
     }
 
@@ -91,12 +89,12 @@ impl Auth {
         profile_name: &ProfileName,
         config_dir: &Path,
     ) -> anyhow::Result<()> {
-        let profile = Config::get_profile(profile_name, config_dir)?.ok_or(anyhow!(
+        let profile = Config::get_profile(config_dir, profile_name)?.ok_or(anyhow!(
             "Can't find profile {} in config",
             profile_name.0.log_color_highlight()
         ))?;
 
-        match profile {
+        match profile.profile {
             Profile::Golem(_) => Err(anyhow!(
                 "Profile {} is an OSS profile. Cloud profile expected.",
                 profile_name.0.log_color_highlight()
@@ -129,14 +127,13 @@ impl Auth {
 
     async fn profile_authentication(
         &self,
-        profile_name: &ProfileName,
         auth_config: Option<&CloudAuthenticationConfig>,
         config_dir: &Path,
     ) -> anyhow::Result<CloudAuthentication> {
         if let Some(data) = auth_config {
             Ok(data.into())
         } else {
-            self.oauth2(profile_name, config_dir).await
+            self.oauth2(&ProfileName::cloud(), config_dir).await
         }
     }
 

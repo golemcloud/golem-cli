@@ -433,7 +433,7 @@ impl ApiDefinitionCommandHandler {
                             "The current version of the HTTP API is already deployed as non-draft.",
                         );
 
-                        if update_or_redeploy.redeploy_http_api() {
+                        if update_or_redeploy.redeploy_http_api(self.ctx.update_or_redeploy()) {
                             self.ctx
                                 .api_deployment_handler()
                                 .undeploy_api_from_all_sites_for_redeploy(

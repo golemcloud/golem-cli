@@ -90,7 +90,7 @@ impl Verbosity {
     }
 }
 
-#[derive(Debug, Default, Args)]
+#[derive(Debug, Clone, Default, Args)]
 pub struct GolemCliGlobalFlags {
     /// Output format, defaults to text, unless specified by the selected profile
     #[arg(long, short, global = true, display_order = 101)]
@@ -505,7 +505,7 @@ pub enum GolemCliSubcommand {
         #[clap(subcommand)]
         subcommand: PluginSubcommand,
     },
-    /// Manage CLI profiles
+    /// Manage global CLI profiles
     Profile {
         #[clap(subcommand)]
         subcommand: ProfileSubcommand,
@@ -666,12 +666,18 @@ pub mod shared_args {
             }
         }
 
-        pub fn redeploy_workers(&self) -> bool {
-            self.redeploy_all || self.redeploy_workers
+        pub fn redeploy_workers(&self, profile_args: &UpdateOrRedeployArgs) -> bool {
+            profile_args.redeploy_all
+                || profile_args.redeploy_workers
+                || self.redeploy_all
+                || self.redeploy_workers
         }
 
-        pub fn redeploy_http_api(&self) -> bool {
-            self.redeploy_all || self.redeploy_http_api
+        pub fn redeploy_http_api(&self, profile_args: &UpdateOrRedeployArgs) -> bool {
+            profile_args.redeploy_all
+                || profile_args.redeploy_http_api
+                || self.redeploy_all
+                || self.redeploy_http_api
         }
     }
 
@@ -1388,7 +1394,7 @@ pub mod profile {
     #[allow(clippy::large_enum_variant)]
     #[derive(Debug, Subcommand)]
     pub enum ProfileSubcommand {
-        /// Create new profile, call without <PROFILE_NAME> for interactive setup
+        /// Create new global profile, call without <PROFILE_NAME> for interactive setup
         New {
             /// Profile kind
             profile_kind: ProfileKind,
@@ -1418,24 +1424,24 @@ pub mod profile {
             #[arg(long, hide = true)]
             allow_insecure: bool,
         },
-        /// List profiles
+        /// List global profiles
         List,
-        /// Set the active default profile
+        /// Set the active global default profile
         Switch {
             /// Profile name to switch to
             profile_name: ProfileName,
         },
-        /// Show profile details
+        /// Show global profile details
         Get {
             /// Name of profile to show, shows active profile if not specified.
             profile_name: Option<ProfileName>,
         },
-        /// Remove profile
+        /// Remove global profile
         Delete {
             /// Profile name to delete
             profile_name: ProfileName,
         },
-        /// Profile config
+        /// Configure global profile
         Config {
             /// Profile name
             profile_name: ProfileName,

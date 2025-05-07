@@ -671,7 +671,7 @@ impl ComponentCommandHandler {
         if let Some(update) = update_or_redeploy.update_workers {
             self.update_workers_by_components(&components, update)
                 .await?;
-        } else if update_or_redeploy.redeploy_workers() {
+        } else if update_or_redeploy.redeploy_workers(self.ctx.update_or_redeploy()) {
             self.redeploy_workers_by_components(&components).await?;
         }
 

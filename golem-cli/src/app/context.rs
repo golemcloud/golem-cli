@@ -16,8 +16,9 @@ use crate::app::build::build_app;
 use crate::app::build::clean::clean_app;
 use crate::app::build::external_command::execute_custom_command;
 use crate::app::error::{format_warns, AppValidationError, CustomCommandError};
+use crate::config::ProfileName;
 use crate::fs::{compile_and_collect_globs, PathExtra};
-use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent};
+use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent, LogOutput, Output};
 use crate::model::app::{
     includes_from_yaml_file, AppComponentName, Application, ApplicationComponentSelectMode,
     ApplicationConfig, ApplicationSourceMode, BuildProfileName, ComponentStubInterfaces,
@@ -49,16 +50,40 @@ pub struct ApplicationContext {
 }
 
 impl ApplicationContext {
-    pub fn new(config: ApplicationConfig) -> anyhow::Result<Option<ApplicationContext>> {
-        let Some(app_and_calling_working_dir) = load_app(&config) else {
+    pub fn preload_sources_and_get_profiles(
+        source_mode: ApplicationSourceMode,
+    ) -> anyhow::Result<(
+        Option<BTreeMap<ProfileName, app_raw::Profile>>,
+        ApplicationSourceMode,
+    )> {
+        let _output = LogOutput::new(Output::None);
+
+        match load_profiles(source_mode) {
+            Some(profiles_and_new_source_mode) => {
+                let (profiles, new_source_mode) = to_anyhow(
+                    "Failed to load application manifest profiles, see problems above",
+                    profiles_and_new_source_mode,
+                )?;
+
+                Ok((Some(profiles), new_source_mode))
+            }
+            None => Ok((None, ApplicationSourceMode::None)),
+        }
+    }
+
+    pub fn new(
+        source_mode: ApplicationSourceMode,
+        config: ApplicationConfig,
+    ) -> anyhow::Result<Option<ApplicationContext>> {
+        let Some(app_and_calling_working_dir) = load_app(source_mode) else {
             return Ok(None);
         };
 
         let ctx = to_anyhow(
-            "Failed to create application context, see problems above",
+            "Failed to load application manifest, see problems above",
             app_and_calling_working_dir.and_then(|(application, calling_working_dir)| {
-                ResolvedWitApplication::new(&application, config.profile.as_ref()).map(|wit| {
-                    ApplicationContext {
+                ResolvedWitApplication::new(&application, config.build_profile.as_ref()).map(
+                    |wit| ApplicationContext {
                         config,
                         application,
                         wit,
@@ -67,8 +92,8 @@ impl ApplicationContext {
                         common_wit_deps: OnceLock::new(),
                         component_generated_base_wit_deps: HashMap::new(),
                         selected_component_names: BTreeSet::new(),
-                    }
-                })
+                    },
+                )
             }),
         )?;
 
@@ -82,9 +107,9 @@ impl ApplicationContext {
     }
 
     fn select_and_validate_profiles(&self) -> anyhow::Result<()> {
-        match &self.config.profile {
+        match &self.config.build_profile {
             Some(profile) => {
-                let all_profiles = self.application.all_profiles();
+                let all_profiles = self.application.all_build_profiles();
                 if all_profiles.is_empty() {
                     bail!(
                         "Profile {} not found, no available profiles",
@@ -251,7 +276,7 @@ impl ApplicationContext {
     }
 
     pub fn profile(&self) -> Option<&BuildProfileName> {
-        self.config.profile.as_ref()
+        self.config.build_profile.as_ref()
     }
 
     pub fn update_wit_context(&mut self) -> anyhow::Result<()> {
@@ -371,41 +396,29 @@ impl ApplicationContext {
 
         let selected_component_names: ValidatedResult<BTreeSet<AppComponentName>> =
             match component_select_mode {
-                ApplicationComponentSelectMode::CurrentDir => match &self.config.app_source_mode {
-                    ApplicationSourceMode::Automatic => {
-                        let called_from_project_root = self.calling_working_dir == current_dir;
-                        if called_from_project_root {
-                            ValidatedResult::Ok(
-                                self.application
-                                    .component_names()
-                                    .map(|cn| cn.to_owned())
-                                    .collect(),
-                            )
-                        } else {
-                            ValidatedResult::Ok(
-                                self.application
-                                    .component_names()
-                                    .filter(|component_name| {
-                                        self.application
-                                            .component_source_dir(component_name)
-                                            .starts_with(self.calling_working_dir.as_path())
-                                    })
-                                    .cloned()
-                                    .collect(),
-                            )
-                        }
+                ApplicationComponentSelectMode::CurrentDir => {
+                    let called_from_project_root = self.calling_working_dir == current_dir;
+                    if called_from_project_root {
+                        ValidatedResult::Ok(
+                            self.application
+                                .component_names()
+                                .map(|cn| cn.to_owned())
+                                .collect(),
+                        )
+                    } else {
+                        ValidatedResult::Ok(
+                            self.application
+                                .component_names()
+                                .filter(|component_name| {
+                                    self.application
+                                        .component_source_dir(component_name)
+                                        .starts_with(self.calling_working_dir.as_path())
+                                })
+                                .cloned()
+                                .collect(),
+                        )
                     }
-                    // TODO: review this after changing explicit mode
-                    ApplicationSourceMode::Explicit(_) => ValidatedResult::Ok(
-                        self.application
-                            .component_names()
-                            .map(|cn| cn.to_owned())
-                            .collect(),
-                    ),
-                    ApplicationSourceMode::None => {
-                        panic!("Cannot select components without source");
-                    }
-                },
+                }
                 ApplicationComponentSelectMode::All => ValidatedResult::Ok(
                     self.application
                         .component_names()
@@ -556,7 +569,7 @@ impl ApplicationContext {
                         print_field(
                             LABEL_PROFILES,
                             self.application
-                                .component_profiles(component_name)
+                                .component_build_profiles(component_name)
                                 .iter()
                                 .map(|profile| {
                                     if selected_profile == profile {
@@ -647,7 +660,10 @@ impl ApplicationContext {
         }
 
         if config.custom_commands() {
-            for (profile, commands) in self.application.all_custom_commands_for_all_profiles() {
+            for (profile, commands) in self
+                .application
+                .all_custom_commands_for_all_build_profiles()
+            {
                 if commands.is_empty() {
                     continue;
                 }
@@ -691,26 +707,71 @@ impl ApplicationContext {
     }
 }
 
-fn load_app(config: &ApplicationConfig) -> Option<ValidatedResult<(Application, PathBuf)>> {
-    let result =
-        collect_sources(&config.app_source_mode)?.and_then(|(sources, calling_working_dir)| {
-            sources
-                .into_iter()
-                .map(|source| {
-                    ValidatedResult::from_result(app_raw::ApplicationWithSource::from_yaml_file(
-                        source,
-                    ))
-                })
-                .collect::<ValidatedResult<Vec<_>>>()
-                .and_then(Application::from_raw_apps)
-                .map(|app| (app, calling_working_dir))
-        });
-
-    Some(result)
+fn load_app(source_mode: ApplicationSourceMode) -> Option<ValidatedResult<(Application, PathBuf)>> {
+    load_raw_apps(source_mode).map(|raw_apps_and_calling_working_dir| {
+        raw_apps_and_calling_working_dir.and_then(|(raw_apps, calling_working_dir)| {
+            Application::from_raw_apps(raw_apps).map(|app| (app, calling_working_dir))
+        })
+    })
 }
 
-fn collect_sources(
-    mode: &ApplicationSourceMode,
+fn load_profiles(
+    source_mode: ApplicationSourceMode,
+) -> Option<
+    ValidatedResult<(
+        BTreeMap<ProfileName, app_raw::Profile>,
+        ApplicationSourceMode,
+    )>,
+> {
+    load_raw_apps(source_mode).map(|raw_apps_and_calling_working_dir| {
+        raw_apps_and_calling_working_dir.and_then(|(raw_apps, calling_working_dir)| {
+            Application::profiles_from_raw_apps(raw_apps.as_slice()).map(|app| {
+                (
+                    app,
+                    ApplicationSourceMode::Preloaded {
+                        raw_apps,
+                        calling_working_dir,
+                    },
+                )
+            })
+        })
+    })
+}
+
+fn load_raw_apps(
+    source_mode: ApplicationSourceMode,
+) -> Option<ValidatedResult<(Vec<app_raw::ApplicationWithSource>, PathBuf)>> {
+    fn load(
+        root_source: Option<&Path>,
+    ) -> Option<ValidatedResult<(Vec<app_raw::ApplicationWithSource>, PathBuf)>> {
+        collect_sources_and_switch_to_app_root(root_source).map(|sources_and_calling_working_dir| {
+            sources_and_calling_working_dir.and_then(|(sources, calling_working_dir)| {
+                sources
+                    .into_iter()
+                    .map(|source| {
+                        ValidatedResult::from_result(
+                            app_raw::ApplicationWithSource::from_yaml_file(source),
+                        )
+                    })
+                    .collect::<ValidatedResult<Vec<_>>>()
+                    .map(|raw_apps| (raw_apps, calling_working_dir))
+            })
+        })
+    }
+
+    match source_mode {
+        ApplicationSourceMode::Automatic => load(None),
+        ApplicationSourceMode::ByRootManifest(root_manifest) => load(Some(&root_manifest)),
+        ApplicationSourceMode::Preloaded {
+            raw_apps,
+            calling_working_dir,
+        } => Some(ValidatedResult::Ok((raw_apps, calling_working_dir))),
+        ApplicationSourceMode::None => None,
+    }
+}
+
+fn collect_sources_and_switch_to_app_root(
+    root_manifest: Option<&Path>,
 ) -> Option<ValidatedResult<(BTreeSet<PathBuf>, PathBuf)>> {
     let calling_working_dir = std::env::current_dir()
         .expect("Failed to get current working directory")
@@ -740,12 +801,12 @@ fn collect_sources(
         }
     }
 
-    let sources = match mode {
-        ApplicationSourceMode::Automatic => match find_main_source() {
+    let sources = match root_manifest {
+        None => match find_main_source() {
             Some(source) => collect_by_main_source(&source),
             None => None,
         },
-        ApplicationSourceMode::Explicit(source) => match source.canonicalize() {
+        Some(source) => match source.canonicalize() {
             Ok(source) => collect_by_main_source(&source),
             Err(err) => Some(ValidatedResult::from_error(format!(
                 "Cannot resolve requested application manifest source {}: {}",
@@ -753,7 +814,6 @@ fn collect_sources(
                 err
             ))),
         },
-        ApplicationSourceMode::None => None,
     };
 
     sources.map(|sources| {
