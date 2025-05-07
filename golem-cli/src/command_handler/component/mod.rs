@@ -692,7 +692,7 @@ impl ComponentCommandHandler {
             )
             .await?;
         let deploy_properties = {
-            let mut app_ctx = self.ctx.app_context_lock_mut().await;
+            let mut app_ctx = self.ctx.app_context_lock_mut().await?;
             let app_ctx = app_ctx.some_or_err_mut()?;
             component_deploy_properties(app_ctx, component_name, build_profile)?
         };
@@ -1716,7 +1716,7 @@ fn app_component_dynamic_linking(
         .component_dependencies(component_name)
         .iter()
         .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc)
-        .cloned()
+        .filter_map(|dep| dep.as_dependent_app_component())
         .collect::<Vec<_>>();
 
     for wasm_rpc_dep in wasm_rpc_deps {
