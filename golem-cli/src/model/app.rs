@@ -1558,15 +1558,17 @@ mod app_builder {
             validation: &mut ValidationBuilder,
             app: &app_raw::ApplicationWithSource,
         ) {
-            fn check_not_allowed_for_cloud_profile<T>(
+            fn check_not_allowed_for_profile<T>(
+                message_suffix: &str,
                 validation: &mut ValidationBuilder,
                 property_name: &str,
                 value: &Option<T>,
             ) {
                 if value.is_some() {
                     validation.add_error(format!(
-                        "Property {} is not allowed for Cloud profiles",
-                        property_name.log_color_highlight()
+                        "Property {} is not allowed for {}",
+                        property_name.log_color_highlight(),
+                        message_suffix
                     ))
                 }
             }
@@ -1589,22 +1591,28 @@ mod app_builder {
                             validation.with_context(
                                 vec![("profile", profile_name.to_string())],
                                 |validation| {
+                                    let is_builtin_local = profile_name.is_builtin_local();
                                     let is_cloud =
                                         profile_name.is_builtin_cloud() || profile.is_cloud();
-                                    if is_cloud {
-                                        check_not_allowed_for_cloud_profile(
+                                    if is_builtin_local || is_cloud {
+                                        check_not_allowed_for_profile(
+                                            &format!("{} profiles", "Cloud".log_color_highlight()),
                                             validation,
                                             "url",
                                             &profile.url,
                                         );
 
-                                        check_not_allowed_for_cloud_profile(
+                                        check_not_allowed_for_profile(
+                                            &format!(
+                                                "builtin {} profiles",
+                                                "local".log_color_highlight()
+                                            ),
                                             validation,
                                             "worker_url",
                                             &profile.worker_url,
                                         );
                                     }
-                                    if profile_name.is_builtin_local() && profile.is_cloud() {
+                                    if is_builtin_local {
                                         validation.add_error(format!(
                                             "Builtin profile '{}' cannot be used as Cloud profile",
                                             profile_name.0.log_color_highlight(),
