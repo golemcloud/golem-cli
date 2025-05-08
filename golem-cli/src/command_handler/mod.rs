@@ -238,21 +238,22 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                     false,
                 );
 
+                set_log_output(Output::Stderr);
+
                 debug!(partial_match = ?partial_match, "Partial match");
                 debug_log_parse_error(&error, &fallback_command);
 
-                let handler = 
-                    Self::new_with_init_hint_error_handler(
+                let handler = Self::new_with_init_hint_error_handler(
                     fallback_command.global_flags.clone(),
                     hooks,
                 )
                 .await;
 
+                logln("");
                 error.print().unwrap();
 
                 match handler {
                     Ok(handler) => {
-                        set_log_output(Output::Stderr);
                         let exit_code = clamp_exit_code(error.exit_code());
                         handler
                             .ctx
