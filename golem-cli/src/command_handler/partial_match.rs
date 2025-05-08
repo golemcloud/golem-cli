@@ -47,6 +47,8 @@ impl ErrorHandler {
     ) -> anyhow::Result<()> {
         match partial_match {
             GolemCliCommandPartialMatch::AppHelp => {
+                let profile = self.ctx.profile_name().clone();
+
                 self.ctx.silence_app_context_init().await;
                 self.ctx
                     .app_handler()
@@ -57,6 +59,7 @@ impl ErrorHandler {
                 if let Some(app_ctx) = app_ctx.opt()? {
                     logln("");
                     app_ctx.log_dynamic_help(&DynamicHelpSections::show_all(
+                        profile,
                         builtin_app_subcommands(),
                     ))?
                 }
@@ -64,6 +67,8 @@ impl ErrorHandler {
                 Ok(())
             }
             GolemCliCommandPartialMatch::AppMissingSubcommandHelp => {
+                let profile = self.ctx.profile_name().clone();
+
                 self.ctx.silence_app_context_init().await;
                 self.ctx
                     .app_handler()
@@ -74,6 +79,7 @@ impl ErrorHandler {
                 if let Some(app_ctx) = app_ctx.opt()? {
                     logln("");
                     app_ctx.log_dynamic_help(&DynamicHelpSections::show_all(
+                        profile,
                         builtin_app_subcommands(),
                     ))?
                 }

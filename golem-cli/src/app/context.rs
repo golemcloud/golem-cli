@@ -72,10 +72,11 @@ impl ApplicationContext {
     }
 
     pub fn new(
+        available_profiles: &BTreeSet<ProfileName>,
         source_mode: ApplicationSourceMode,
         config: ApplicationConfig,
     ) -> anyhow::Result<Option<ApplicationContext>> {
-        let Some(app_and_calling_working_dir) = load_app(source_mode) else {
+        let Some(app_and_calling_working_dir) = load_app(available_profiles, source_mode) else {
             return Ok(None);
         };
 
@@ -633,29 +634,26 @@ impl ApplicationContext {
             }
         }
 
-        if config.api_deployments() {
-            if !self.application.http_api_deployments().is_empty() {
-                logln(format!(
-                    "{}",
-                    "Application API deployments:".log_color_help_group()
-                ));
-                for dep in self.application.http_api_deployments().values() {
+        if let Some(profile) = config.api_deployments_profile() {
+            let http_api_deployments = self.application.http_api_deployments(profile);
+            match http_api_deployments {
+                Some(http_api_deployments) => {
                     logln(format!(
-                        "  {}{}",
-                        match &dep.value.subdomain {
-                            Some(subdomain) => {
-                                format!("{}.", subdomain.log_color_highlight())
-                            }
-                            None => {
-                                "".to_string()
-                            }
-                        },
-                        dep.value.host.log_color_highlight(),
+                        "{}",
+                        format!("Application API deployments for profile {}:", profile.0)
+                            .log_color_help_group()
+                    ));
+                    for site in http_api_deployments.keys() {
+                        logln(format!("  {}", site.to_string().log_color_highlight(),));
+                    }
+                    logln("");
+                }
+                None => {
+                    logln(format!(
+                        "No API deployments found in the application for profile {}.\n",
+                        profile.0.log_color_highlight()
                     ));
                 }
-                logln("");
-            } else {
-                logln("No API deployments found in the application.\n");
             }
         }
 
@@ -707,10 +705,14 @@ impl ApplicationContext {
     }
 }
 
-fn load_app(source_mode: ApplicationSourceMode) -> Option<ValidatedResult<(Application, PathBuf)>> {
+fn load_app(
+    available_profiles: &BTreeSet<ProfileName>,
+    source_mode: ApplicationSourceMode,
+) -> Option<ValidatedResult<(Application, PathBuf)>> {
     load_raw_apps(source_mode).map(|raw_apps_and_calling_working_dir| {
         raw_apps_and_calling_working_dir.and_then(|(raw_apps, calling_working_dir)| {
-            Application::from_raw_apps(raw_apps).map(|app| (app, calling_working_dir))
+            Application::from_raw_apps(available_profiles, raw_apps)
+                .map(|app| (app, calling_working_dir))
         })
     })
 }

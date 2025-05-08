@@ -58,7 +58,7 @@ use golem_cloud_client::{Context as ContextCloud, Security};
 use golem_rib_repl::ReplDependencies;
 use golem_templates::model::{ComposableAppGroupName, GuestLanguage};
 use golem_templates::ComposableAppTemplate;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
@@ -75,6 +75,7 @@ pub struct Context {
     profile_name: ProfileName,
     profile_kind: ProfileKind,
     profile: Profile,
+    available_profile_names: BTreeSet<ProfileName>,
     app_context_config: ApplicationContextConfig,
     http_batch_size: u64,
     auth_token_override: Option<Uuid>,
@@ -116,7 +117,7 @@ impl Context {
             )?;
         let manifest_profiles = manifest_profiles.unwrap_or_default();
 
-        let (profile, manifest_profile) = load_merged_profiles(
+        let (available_profile_names, profile, manifest_profile) = load_merged_profiles(
             &config_dir,
             app_context_config.requested_profile_name.as_ref(),
             manifest_profiles,
@@ -166,6 +167,7 @@ impl Context {
             profile_name: profile.name,
             profile_kind: profile.profile.kind(),
             profile: profile.profile,
+            available_profile_names,
             app_context_config,
             http_batch_size: http_batch_size.unwrap_or(50),
             auth_token_override: auth_token,
@@ -221,6 +223,10 @@ impl Context {
 
     pub fn profile_name(&self) -> &ProfileName {
         &self.profile_name
+    }
+
+    pub fn available_profile_names(&self) -> &BTreeSet<ProfileName> {
+        &self.available_profile_names
     }
 
     pub fn build_profile(&self) -> Option<&AppBuildProfileName> {
@@ -333,7 +339,7 @@ impl Context {
         &self,
     ) -> tokio::sync::RwLockWriteGuard<'_, ApplicationContextState> {
         let mut state = self.app_context_state.write().await;
-        state.init(&self.app_context_config);
+        state.init(&self.available_profile_names, &self.app_context_config);
         state
     }
 
@@ -714,7 +720,11 @@ impl ApplicationContextState {
         }
     }
 
-    fn init(&mut self, config: &ApplicationContextConfig) {
+    fn init(
+        &mut self,
+        available_profile_names: &BTreeSet<ProfileName>,
+        config: &ApplicationContextConfig,
+    ) {
         if self.app_context.is_some() {
             return;
         }
@@ -723,7 +733,7 @@ impl ApplicationContextState {
             .silent_init
             .then(|| LogOutput::new(Output::TracingDebug));
 
-        let config = ApplicationConfig {
+        let app_config = ApplicationConfig {
             skip_up_to_date_checks: self.skip_up_to_date_checks,
             build_profile: config.build_profile.as_ref().map(|p| p.to_string().into()),
             offline: config.wasm_rpc_client_build_offline,
@@ -731,14 +741,15 @@ impl ApplicationContextState {
             golem_rust_override: config.golem_rust_override.clone(),
         };
 
-        debug!(config = ?config, "Initializing application context");
+        debug!(app_config = ?app_config, "Initializing application context");
 
         self.app_context = Some(
             ApplicationContext::new(
+                available_profile_names,
                 self.app_source_mode
                     .take()
                     .expect("ApplicationContextState.app_source_mode is not set"),
-                config,
+                app_config,
             )
             .map_err(Arc::new),
         )
@@ -826,7 +837,17 @@ fn load_merged_profiles(
     config_dir: &Path,
     profile_name: Option<&ProfileName>,
     manifest_profiles: BTreeMap<ProfileName, app_raw::Profile>,
-) -> anyhow::Result<(NamedProfile, Option<app_raw::Profile>)> {
+) -> anyhow::Result<(
+    BTreeSet<ProfileName>,
+    NamedProfile,
+    Option<app_raw::Profile>,
+)> {
+    let mut available_profile_names = BTreeSet::new();
+
+    let mut config = Config::from_dir(config_dir)?;
+    available_profile_names.extend(config.profiles.keys().cloned());
+    available_profile_names.extend(manifest_profiles.keys().cloned());
+
     // Use the requested profile name or the manifest default profile if none was requested
     // and there is a manifest default one
     let profile_name = match profile_name {
@@ -838,8 +859,14 @@ fn load_merged_profiles(
             }),
     };
 
-    let global_profile = match &profile_name {
-        Some(profile_name) => Config::get_profile(config_dir, profile_name)?,
+    let global_profile = match profile_name {
+        Some(profile_name) => config
+            .profiles
+            .remove(profile_name)
+            .map(|profile| NamedProfile {
+                name: profile_name.clone(),
+                profile,
+            }),
         None => Some(Config::get_default_profile(config_dir)?),
     };
 
@@ -854,7 +881,7 @@ fn load_merged_profiles(
         .as_ref()
         .and_then(|profile_name| manifest_profiles.get(profile_name));
 
-    Ok(match (global_profile, manifest_profile) {
+    let (profile, manifest_profile) = match (global_profile, manifest_profile) {
         (Some(mut profile), Some(manifest_profile)) => {
             let profile_name = &profile.name;
             let manifest_is_cloud = profile_name.is_builtin_cloud() || manifest_profile.is_cloud();
@@ -951,7 +978,7 @@ fn load_merged_profiles(
             }
         }
         (None, None) => {
-            // If no profile is found, then it's name must be defined, as otherwise the global
+            // If no profile is found, then its name must be defined, as otherwise the global
             // default should have returned
             let profile_name = profile_name.as_ref().unwrap().clone();
             bail!(ContextInitHintError::ProfileNotFound {
@@ -959,7 +986,9 @@ fn load_merged_profiles(
                 manifest_profile_names: manifest_profiles.keys().cloned().collect(),
             });
         }
-    })
+    };
+
+    Ok((available_profile_names, profile, manifest_profile))
 }
 
 #[cfg(test)]

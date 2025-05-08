@@ -98,8 +98,8 @@ pub struct Component {
 pub struct HttpApi {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub definitions: HashMap<String, HttpApiDefinition>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub deployments: Vec<HttpApiDeployment>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub deployments: HashMap<ProfileName, Vec<HttpApiDeployment>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

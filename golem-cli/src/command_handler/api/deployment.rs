@@ -76,12 +76,7 @@ impl ApiDeploymentCommandHandler {
     ) -> anyhow::Result<()> {
         let project = None::<ProjectNameAndId>; // TODO: project from manifest
 
-        let api_deployments = {
-            let app_ctx = self.ctx.app_context_lock().await;
-            let app_ctx = app_ctx.some_or_err()?;
-            app_ctx.application.http_api_deployments().clone()
-        };
-
+        let api_deployments = self.manifest_api_deployments().await?;
         let api_deployments = match &host_or_site {
             Some(host_or_site) => api_deployments
                 .into_iter()
@@ -250,11 +245,7 @@ impl ApiDeploymentCommandHandler {
         deploy_mode: HttpApiDeployMode,
         latest_api_definition_versions: &BTreeMap<String, String>,
     ) -> anyhow::Result<()> {
-        let api_deployments = {
-            let app_ctx = self.ctx.app_context_lock().await;
-            let app_ctx = app_ctx.some_or_err()?;
-            app_ctx.application.http_api_deployments().clone()
-        };
+        let api_deployments = self.manifest_api_deployments().await?;
 
         if !api_deployments.is_empty() {
             log_action("Deploying", "HTTP API deployments");
@@ -718,5 +709,19 @@ impl ApiDeploymentCommandHandler {
         }
 
         Ok(())
+    }
+
+    async fn manifest_api_deployments(
+        &self,
+    ) -> anyhow::Result<BTreeMap<HttpApiDeploymentSite, WithSource<HttpApiDeployment>>> {
+        let profile = self.ctx.profile_name().clone();
+
+        let app_ctx = self.ctx.app_context_lock().await;
+        let app_ctx = app_ctx.some_or_err()?;
+        Ok(app_ctx
+            .application
+            .http_api_deployments(&profile)
+            .map(|deployments| deployments.clone())
+            .unwrap_or_default())
     }
 }
