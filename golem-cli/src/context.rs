@@ -89,8 +89,10 @@ pub struct Context {
     #[allow(unused)]
     start_local_server: Box<dyn Fn() -> BoxFuture<'static, anyhow::Result<()>> + Send + Sync>,
 
+    file_download_client: reqwest::Client,
+
     // Lazy initialized
-    clients: tokio::sync::OnceCell<Clients>,
+    golem_clients: tokio::sync::OnceCell<GolemClients>,
     templates: std::sync::OnceLock<
         BTreeMap<GuestLanguage, BTreeMap<ComposableAppGroupName, ComposableAppTemplate>>,
     >,
@@ -197,6 +199,8 @@ impl Context {
         );
 
         let client_config = ClientConfig::from(&profile.profile);
+        let file_download_client =
+            new_reqwest_client(&client_config.file_download_http_client_config)?;
 
         Ok(Self {
             config_dir,
@@ -215,7 +219,8 @@ impl Context {
             yes,
             start_local_server,
             client_config,
-            clients: tokio::sync::OnceCell::new(),
+            golem_clients: tokio::sync::OnceCell::new(),
+            file_download_client,
             templates: std::sync::OnceLock::new(),
             app_context_state: tokio::sync::RwLock::new(ApplicationContextState::new(
                 app_source_mode,
@@ -282,10 +287,10 @@ impl Context {
         self.http_batch_size
     }
 
-    pub async fn clients(&self) -> anyhow::Result<&Clients> {
-        self.clients
+    pub async fn golem_clients(&self) -> anyhow::Result<&GolemClients> {
+        self.golem_clients
             .get_or_try_init(|| async {
-                let clients = Clients::new(
+                let clients = GolemClients::new(
                     self.client_config.clone(),
                     self.auth_token_override,
                     {
@@ -315,12 +320,12 @@ impl Context {
     }
 
     #[cfg(feature = "server-commands")]
-    async fn start_local_server_if_needed(&self, clients: &Clients) -> anyhow::Result<()> {
+    async fn start_local_server_if_needed(&self, clients: &GolemClients) -> anyhow::Result<()> {
         if !self.profile_name.is_builtin_local() {
             return Ok(());
         };
 
-        let GolemClients::Oss(clients) = &clients.golem else {
+        let GolemClients::Oss(clients) = &clients else {
             return Ok(());
         };
 
@@ -339,20 +344,16 @@ impl Context {
     }
 
     #[cfg(not(feature = "server-commands"))]
-    async fn start_local_server_if_needed(&self, _clients: &Clients) -> anyhow::Result<()> {
+    async fn start_local_server_if_needed(&self, _clients: &GolemClients) -> anyhow::Result<()> {
         Ok(())
     }
 
-    pub async fn golem_clients(&self) -> anyhow::Result<&GolemClients> {
-        Ok(&self.clients().await?.golem)
-    }
-
-    pub async fn file_download_client(&self) -> anyhow::Result<reqwest::Client> {
-        Ok(self.clients().await?.file_download.clone())
+    pub fn file_download_client(&self) -> &reqwest::Client {
+        &self.file_download_client
     }
 
     pub async fn golem_clients_cloud(&self) -> anyhow::Result<&GolemClientsCloud> {
-        match &self.clients().await?.golem {
+        match &self.golem_clients().await? {
             GolemClients::Oss(_) => Err(anyhow!(HintError::ExpectedCloudProfile)),
             GolemClients::Cloud(clients) => Ok(clients),
         }
@@ -397,7 +398,7 @@ impl Context {
         state.init(
             &self.available_profile_names,
             &self.app_context_config,
-            self.clients().await?,
+            self.file_download_client.clone(),
         );
         Ok(state)
     }
@@ -471,12 +472,12 @@ impl Context {
     }
 }
 
-pub struct Clients {
-    pub golem: GolemClients,
-    pub file_download: reqwest::Client,
+pub enum GolemClients {
+    Oss(GolemClientsOss),
+    Cloud(GolemClientsCloud),
 }
 
-impl Clients {
+impl GolemClients {
     pub async fn new(
         config: ClientConfig,
         token_override: Option<Uuid>,
@@ -489,8 +490,6 @@ impl Clients {
             new_reqwest_client(&config.local_health_check_http_client_config)?;
         let service_http_client = new_reqwest_client(&config.service_http_client_config)?;
         let invoke_http_client = new_reqwest_client(&config.invoke_http_client_config)?;
-        let file_download_http_client =
-            new_reqwest_client(&config.file_download_http_client_config)?;
 
         match &config.cloud_url {
             Some(cloud_url) => {
@@ -537,66 +536,63 @@ impl Clients {
                     security_token: security_token.clone(),
                 };
 
-                Ok(Clients {
-                    golem: GolemClients::Cloud(GolemClientsCloud {
-                        authentication,
-                        account: AccountClientCloud {
-                            context: cloud_context(),
-                        },
-                        account_summary: AccountSummaryClientCloud {
-                            context: worker_context(),
-                        },
-                        api_certificate: ApiCertificateClientCloud {
-                            context: worker_context(),
-                        },
-                        api_definition: ApiDefinitionClientCloud {
-                            context: worker_context(),
-                        },
-                        api_deployment: ApiDeploymentClientCloud {
-                            context: worker_context(),
-                        },
-                        api_domain: ApiDomainClientCloud {
-                            context: worker_context(),
-                        },
-                        api_security: ApiSecurityClientCloud {
-                            context: worker_context(),
-                        },
-                        component: ComponentClientCloud {
-                            context: component_context(),
-                        },
-                        grant: GrantClientCloud {
-                            context: cloud_context(),
-                        },
-                        limits: LimitsClientCloud {
-                            context: worker_context(),
-                        },
-                        login: LoginClientCloud {
-                            context: login_context(),
-                        },
-                        plugin: PluginClientCloud {
-                            context: component_context(),
-                        },
-                        project: ProjectClientCloud {
-                            context: cloud_context(),
-                        },
-                        project_grant: ProjectGrantClientCloud {
-                            context: cloud_context(),
-                        },
-                        project_policy: ProjectPolicyClientCloud {
-                            context: cloud_context(),
-                        },
-                        token: TokenClientCloud {
-                            context: cloud_context(),
-                        },
-                        worker: WorkerClientCloud {
-                            context: worker_context(),
-                        },
-                        worker_invoke: WorkerClientCloud {
-                            context: worker_invoke_context(),
-                        },
-                    }),
-                    file_download: file_download_http_client,
-                })
+                Ok(GolemClients::Cloud(GolemClientsCloud {
+                    authentication,
+                    account: AccountClientCloud {
+                        context: cloud_context(),
+                    },
+                    account_summary: AccountSummaryClientCloud {
+                        context: worker_context(),
+                    },
+                    api_certificate: ApiCertificateClientCloud {
+                        context: worker_context(),
+                    },
+                    api_definition: ApiDefinitionClientCloud {
+                        context: worker_context(),
+                    },
+                    api_deployment: ApiDeploymentClientCloud {
+                        context: worker_context(),
+                    },
+                    api_domain: ApiDomainClientCloud {
+                        context: worker_context(),
+                    },
+                    api_security: ApiSecurityClientCloud {
+                        context: worker_context(),
+                    },
+                    component: ComponentClientCloud {
+                        context: component_context(),
+                    },
+                    grant: GrantClientCloud {
+                        context: cloud_context(),
+                    },
+                    limits: LimitsClientCloud {
+                        context: worker_context(),
+                    },
+                    login: LoginClientCloud {
+                        context: login_context(),
+                    },
+                    plugin: PluginClientCloud {
+                        context: component_context(),
+                    },
+                    project: ProjectClientCloud {
+                        context: cloud_context(),
+                    },
+                    project_grant: ProjectGrantClientCloud {
+                        context: cloud_context(),
+                    },
+                    project_policy: ProjectPolicyClientCloud {
+                        context: cloud_context(),
+                    },
+                    token: TokenClientCloud {
+                        context: cloud_context(),
+                    },
+                    worker: WorkerClientCloud {
+                        context: worker_context(),
+                    },
+                    worker_invoke: WorkerClientCloud {
+                        context: worker_invoke_context(),
+                    },
+                }))
             }
             None => {
                 let component_context = || ContextOss {
@@ -625,43 +621,35 @@ impl Clients {
                     base_url: config.worker_url.clone(),
                 };
 
-                Ok(Clients {
-                    golem: GolemClients::Oss(GolemClientsOss {
-                        api_definition: ApiDefinitionClientOss {
-                            context: worker_context(),
-                        },
-                        api_deployment: ApiDeploymentClientOss {
-                            context: worker_context(),
-                        },
-                        api_security: ApiSecurityClientOss {
-                            context: worker_context(),
-                        },
-                        component: ComponentClientOss {
-                            context: component_context(),
-                        },
-                        component_healthcheck: HealthCheckClientOss {
-                            context: component_healthcheck_context(),
-                        },
-                        plugin: PluginClientOss {
-                            context: component_context(),
-                        },
-                        worker: WorkerClientOss {
-                            context: worker_context(),
-                        },
-                        worker_invoke: WorkerClientOss {
-                            context: worker_invoke_context(),
-                        },
-                    }),
-                    file_download: file_download_http_client,
-                })
+                Ok(GolemClients::Oss(GolemClientsOss {
+                    api_definition: ApiDefinitionClientOss {
+                        context: worker_context(),
+                    },
+                    api_deployment: ApiDeploymentClientOss {
+                        context: worker_context(),
+                    },
+                    api_security: ApiSecurityClientOss {
+                        context: worker_context(),
+                    },
+                    component: ComponentClientOss {
+                        context: component_context(),
+                    },
+                    component_healthcheck: HealthCheckClientOss {
+                        context: component_healthcheck_context(),
+                    },
+                    plugin: PluginClientOss {
+                        context: component_context(),
+                    },
+                    worker: WorkerClientOss {
+                        context: worker_context(),
+                    },
+                    worker_invoke: WorkerClientOss {
+                        context: worker_invoke_context(),
+                    },
+                }))
             }
         }
     }
-}
-
-pub enum GolemClients {
-    Oss(GolemClientsOss),
-    Cloud(GolemClientsCloud),
 }
 
 pub struct GolemClientsOss {
@@ -783,7 +771,7 @@ impl ApplicationContextState {
         &mut self,
         available_profile_names: &BTreeSet<ProfileName>,
         config: &ApplicationContextConfig,
-        clients: &Clients,
+        file_download_client: reqwest::Client,
     ) {
         if self.app_context.is_some() {
             return;
@@ -810,7 +798,7 @@ impl ApplicationContextState {
                     .take()
                     .expect("ApplicationContextState.app_source_mode is not set"),
                 app_config,
-                clients,
+                file_download_client,
             )
             .map_err(Arc::new),
         )

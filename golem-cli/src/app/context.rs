@@ -18,7 +18,6 @@ use crate::app::build::external_command::execute_custom_command;
 use crate::app::error::{format_warns, AppValidationError, CustomCommandError};
 use crate::app::remote_components::RemoteComponents;
 use crate::config::ProfileName;
-use crate::context::Clients;
 use crate::fs::{compile_and_collect_globs, PathExtra};
 use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent, LogOutput, Output};
 use crate::model::app::{
@@ -78,7 +77,7 @@ impl ApplicationContext {
         available_profiles: &BTreeSet<ProfileName>,
         source_mode: ApplicationSourceMode,
         config: ApplicationConfig,
-        clients: &Clients,
+        file_download_client: reqwest::Client,
     ) -> anyhow::Result<Option<ApplicationContext>> {
         let Some(app_and_calling_working_dir) = load_app(available_profiles, source_mode) else {
             return Ok(None);
@@ -100,7 +99,7 @@ impl ApplicationContext {
                         component_generated_base_wit_deps: HashMap::new(),
                         selected_component_names: BTreeSet::new(),
                         remote_components: RemoteComponents::new(
-                            clients.file_download.clone(),
+                            file_download_client,
                             temp_dir,
                             offline,
                         ),

@@ -760,7 +760,7 @@ impl ComponentCommandHandler {
         let ifs_files = {
             if !deploy_properties.files.is_empty() {
                 Some(
-                    IfsFileManager::new(self.ctx.file_download_client().await?)
+                    IfsFileManager::new(self.ctx.file_download_client().clone())
                         .build_files_archive(deploy_properties.files.as_slice())
                         .await?,
                 )
@@ -1457,7 +1457,7 @@ impl ComponentCommandHandler {
         };
 
         let files: BTreeMap<String, DiffableComponentFile> = {
-            IfsFileManager::new(self.ctx.file_download_client().await?)
+            IfsFileManager::new(self.ctx.file_download_client().clone())
                 .collect_file_hashes(component_name.as_str(), properties.files.as_slice())
                 .await?
                 .into_iter()
