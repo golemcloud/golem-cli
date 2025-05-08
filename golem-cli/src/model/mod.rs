@@ -593,8 +593,8 @@ impl ProfileView {
     }
 }
 
-pub struct ProjectNameAndId {
-    pub project_name: ProjectName,
+pub struct ProjectRefAndId {
+    pub project_ref: ProjectReference,
     pub project_id: ProjectId,
 }
 
@@ -622,7 +622,7 @@ impl From<golem_cloud_client::model::Account> for AccountDetails {
 
 pub struct WorkerNameMatch {
     pub account: Option<AccountDetails>,
-    pub project: Option<ProjectNameAndId>,
+    pub project: Option<ProjectRefAndId>,
     pub component_name_match_kind: ComponentNameMatchKind,
     pub component_name: ComponentName,
     pub worker_name: Option<WorkerName>,
@@ -630,7 +630,7 @@ pub struct WorkerNameMatch {
 
 pub struct SelectedComponents {
     pub account: Option<AccountDetails>,
-    pub project: Option<ProjectNameAndId>,
+    pub project: Option<ProjectRefAndId>,
     pub component_names: Vec<ComponentName>,
 }
 

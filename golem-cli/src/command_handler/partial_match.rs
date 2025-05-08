@@ -141,7 +141,7 @@ impl ErrorHandler {
                     let project_formatted = match &worker_name_match.project {
                         Some(project) => format!(
                             " project: {} /",
-                            project.project_name.0.log_color_highlight()
+                            project.project_ref.to_string().log_color_highlight()
                         ),
                         None => "".to_string(),
                     };

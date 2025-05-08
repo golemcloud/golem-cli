@@ -25,9 +25,9 @@ use crate::error::{ContextInitHintError, HintError};
 use crate::log::{set_log_output, LogColorize, LogOutput, Output};
 use crate::model::app::{AppBuildStep, ApplicationSourceMode};
 use crate::model::app::{ApplicationConfig, BuildProfileName as AppBuildProfileName};
-use crate::model::{app_raw, Format, HasFormatConfig};
+use crate::model::{app_raw, Format, HasFormatConfig, ProjectReference};
 use crate::wasm_rpc_stubgen::stub::RustDependencyOverride;
-use anyhow::{anyhow, bail};
+use anyhow::{anyhow, bail, Context as AnyhowContext};
 use futures_util::future::BoxFuture;
 use golem_client::api::ApiDefinitionClientLive as ApiDefinitionClientOss;
 use golem_client::api::ApiDeploymentClientLive as ApiDeploymentClientOss;
@@ -60,6 +60,7 @@ use golem_templates::model::{ComposableAppGroupName, GuestLanguage};
 use golem_templates::ComposableAppTemplate;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::Arc;
 use tracing::debug;
 use url::Url;
@@ -80,6 +81,7 @@ pub struct Context {
     app_context_config: ApplicationContextConfig,
     http_batch_size: u64,
     auth_token_override: Option<Uuid>,
+    project: Option<ProjectReference>,
     client_config: ClientConfig,
     yes: bool,
     #[allow(unused)]
@@ -128,11 +130,12 @@ impl Context {
 
         debug!(profile_name=%profile.name, manifest_profile=?manifest_profile, "Loaded profiles");
 
-        if let Some(manifest_profile) = manifest_profile {
+        if let Some(manifest_profile) = &manifest_profile {
             if app_context_config.build_profile.is_none() {
                 app_context_config.build_profile = manifest_profile
                     .build_profile
-                    .map(|build_profile| build_profile.into())
+                    .as_ref()
+                    .map(|build_profile| build_profile.as_str().into())
             }
 
             if manifest_profile.auto_confirm == Some(true) {
@@ -152,6 +155,20 @@ impl Context {
                 update_or_redeploy.redeploy_all = true;
             }
         }
+
+        let project = match manifest_profile.as_ref().and_then(|m| m.project.as_ref()) {
+            Some(project) => Some(
+                ProjectReference::from_str(project.as_str())
+                    .map_err(|err| anyhow!("{}", err))
+                    .with_context(|| {
+                        anyhow!(
+                            "Failed to parse project for manifest profile {}",
+                            profile.name.0.log_color_highlight()
+                        )
+                    })?,
+            ),
+            None => None,
+        };
 
         let format = format.unwrap_or_else(|| profile.profile.format().unwrap_or(Format::Text));
         let log_output = match format {
@@ -175,6 +192,7 @@ impl Context {
             app_context_config,
             http_batch_size: http_batch_size.unwrap_or(50),
             auth_token_override: auth_token,
+            project,
             yes,
             start_local_server,
             client_config,
@@ -235,6 +253,10 @@ impl Context {
 
     pub fn build_profile(&self) -> Option<&AppBuildProfileName> {
         self.app_context_config.build_profile.as_ref()
+    }
+
+    pub fn profile_project(&self) -> Option<&ProjectReference> {
+        self.project.as_ref()
     }
 
     pub fn http_batch_size(&self) -> u64 {
