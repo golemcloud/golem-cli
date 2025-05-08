@@ -234,7 +234,7 @@ async fn plugin_installation_test1(_tracing: &Tracing) {
 
     let outputs = ctx.cli([cmd::COMPONENT, cmd::PLUGIN, cmd::GET]);
     assert!(outputs.success());
-    check!(outputs.stdout.len() == 6);
+    check!(outputs.stdout.len() == 7);
     check!(outputs.stdout_contains("component-transformer-2"));
     check!(outputs.stdout_contains("0.0.1"));
 }
