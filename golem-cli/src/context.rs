@@ -72,6 +72,7 @@ pub struct Context {
     // Readonly
     config_dir: PathBuf,
     format: Format,
+    local_server_auto_start: bool,
     update_or_redeploy: UpdateOrRedeployArgs,
     profile_name: ProfileName,
     profile_kind: ProfileKind,
@@ -109,6 +110,7 @@ impl Context {
         let auth_token = global_flags.auth_token;
         let config_dir = global_flags.config_dir();
         let custom_cloud_profile_name = global_flags.custom_global_cloud_profile.clone();
+        let local_server_auto_start = global_flags.local_server_auto_start;
 
         let mut yes = global_flags.yes;
         let mut update_or_redeploy = UpdateOrRedeployArgs::none();
@@ -198,6 +200,7 @@ impl Context {
         Ok(Self {
             config_dir,
             format,
+            local_server_auto_start,
             update_or_redeploy,
             profile_name: profile.name,
             profile_kind: profile.profile.kind(),
@@ -301,7 +304,9 @@ impl Context {
                 )
                 .await?;
 
-                self.start_local_server_if_needed(&clients).await?;
+                if self.local_server_auto_start {
+                    self.start_local_server_if_needed(&clients).await?;
+                }
 
                 Ok(clients)
             })

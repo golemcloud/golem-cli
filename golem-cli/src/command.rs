@@ -152,6 +152,9 @@ pub struct GolemCliGlobalFlags {
 
     #[arg(skip)]
     pub custom_global_cloud_profile: Option<ProfileName>,
+
+    #[arg(skip)]
+    pub local_server_auto_start: bool,
 }
 
 impl GolemCliGlobalFlags {
@@ -224,6 +227,13 @@ impl GolemCliGlobalFlags {
 
         if let Ok(default_cloud_profile) = std::env::var("GOLEM_CUSTOM_GLOBAL_CLOUD_PROFILE") {
             self.custom_global_cloud_profile = Some(default_cloud_profile.into());
+        }
+
+        if let Ok(auto_start) = std::env::var("GOLEM_LOCAL_SERVER_AUTO_START") {
+            self.local_server_auto_start = auto_start
+                .parse::<LenientBool>()
+                .map(|b| b.into())
+                .unwrap_or_default()
         }
 
         self
