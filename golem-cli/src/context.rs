@@ -58,6 +58,7 @@ use golem_cloud_client::{Context as ContextCloud, Security};
 use golem_rib_repl::ReplDependencies;
 use golem_templates::model::{ComposableAppGroupName, GuestLanguage};
 use golem_templates::ComposableAppTemplate;
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -391,10 +392,10 @@ impl Context {
 
     pub async fn app_context_lock_mut(
         &self,
-    ) -> tokio::sync::RwLockWriteGuard<'_, ApplicationContextState> {
+    ) -> anyhow::Result<tokio::sync::RwLockWriteGuard<'_, ApplicationContextState>> {
         let mut state = self.app_context_state.write().await;
-        state.init(&self.available_profile_names, &self.app_context_config);
-        state
+        state.init(&self.available_profile_names, &self.app_context_config, self.clients().await?);
+        Ok(state)
     }
 
     pub async fn unload_app_context(&self) {
@@ -778,6 +779,7 @@ impl ApplicationContextState {
         &mut self,
         available_profile_names: &BTreeSet<ProfileName>,
         config: &ApplicationContextConfig,
+        clients: &Clients
     ) {
         if self.app_context.is_some() {
             return;
@@ -804,6 +806,7 @@ impl ApplicationContextState {
                     .take()
                     .expect("ApplicationContextState.app_source_mode is not set"),
                 app_config,
+                clients
             )
             .map_err(Arc::new),
         )
@@ -1054,6 +1057,28 @@ fn load_merged_profiles(
     };
 
     Ok((available_profile_names, profile, manifest_profile))
+}
+
+pub async fn check_http_response_success(
+    response: reqwest::Response,
+) -> anyhow::Result<reqwest::Response> {
+    if !response.status().is_success() {
+        let url = response.url().clone();
+        let status = response.status();
+        let bytes = response.bytes().await.ok();
+        let error_payload = bytes
+            .as_ref()
+            .map(|bytes| String::from_utf8_lossy(bytes.as_ref()))
+            .unwrap_or_else(|| Cow::from(""));
+
+        bail!(
+            "Received unexpected response for {}: {}\n{}",
+            url,
+            status,
+            error_payload
+        );
+    }
+    Ok(response)
 }
 
 #[cfg(test)]
