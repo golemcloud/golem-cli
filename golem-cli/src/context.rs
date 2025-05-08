@@ -76,6 +76,7 @@ pub struct Context {
     profile_kind: ProfileKind,
     profile: Profile,
     available_profile_names: BTreeSet<ProfileName>,
+    custom_cloud_profile_name: Option<ProfileName>,
     app_context_config: ApplicationContextConfig,
     http_batch_size: u64,
     auth_token_override: Option<Uuid>,
@@ -105,6 +106,7 @@ impl Context {
         let http_batch_size = global_flags.http_batch_size;
         let auth_token = global_flags.auth_token;
         let config_dir = global_flags.config_dir();
+        let custom_cloud_profile_name = global_flags.custom_global_cloud_profile.clone();
 
         let mut yes = global_flags.yes;
         let mut update_or_redeploy = UpdateOrRedeployArgs::none();
@@ -119,6 +121,7 @@ impl Context {
 
         let (available_profile_names, profile, manifest_profile) = load_merged_profiles(
             &config_dir,
+            custom_cloud_profile_name.as_ref(),
             app_context_config.requested_profile_name.as_ref(),
             manifest_profiles,
         )?;
@@ -168,6 +171,7 @@ impl Context {
             profile_kind: profile.profile.kind(),
             profile: profile.profile,
             available_profile_names,
+            custom_cloud_profile_name,
             app_context_config,
             http_batch_size: http_batch_size.unwrap_or(50),
             auth_token_override: auth_token,
@@ -242,6 +246,7 @@ impl Context {
             .get_or_try_init(|| async {
                 let clients = Clients::new(
                     self.client_config.clone(),
+                    self.custom_cloud_profile_name.as_ref(),
                     self.auth_token_override,
                     &self.profile_name,
                     match &self.profile {
@@ -420,6 +425,7 @@ pub struct Clients {
 impl Clients {
     pub async fn new(
         config: ClientConfig,
+        custom_cloud_profile_name: Option<&ProfileName>,
         token_override: Option<Uuid>,
         profile_name: &ProfileName,
         auth_config: Option<&CloudAuthenticationConfig>,
@@ -444,7 +450,12 @@ impl Clients {
                 });
 
                 let authentication = auth
-                    .authenticate(token_override, auth_config, config_dir)
+                    .authenticate(
+                        token_override,
+                        auth_config,
+                        config_dir,
+                        custom_cloud_profile_name,
+                    )
                     .await?;
                 let security_token = Security::Bearer(authentication.0.secret.value.to_string());
 
@@ -665,7 +676,9 @@ impl ApplicationContextConfig {
                 if global_flags.local {
                     Some(ProfileName::local())
                 } else if global_flags.cloud {
-                    Some(ProfileName::cloud())
+                    global_flags
+                        .custom_global_cloud_profile
+                        .or_else(|| Some(ProfileName::cloud()))
                 } else {
                     global_flags.profile.clone()
                 }
@@ -835,6 +848,7 @@ fn new_reqwest_client(config: &HttpClientConfig) -> anyhow::Result<reqwest::Clie
 ///       config changes and migration.
 fn load_merged_profiles(
     config_dir: &Path,
+    custom_cloud_profile_name: Option<&ProfileName>,
     profile_name: Option<&ProfileName>,
     manifest_profiles: BTreeMap<ProfileName, app_raw::Profile>,
 ) -> anyhow::Result<(
@@ -842,6 +856,10 @@ fn load_merged_profiles(
     NamedProfile,
     Option<app_raw::Profile>,
 )> {
+    let cloud_profile_name = custom_cloud_profile_name
+        .cloned()
+        .unwrap_or_else(|| ProfileName::cloud());
+
     let mut available_profile_names = BTreeSet::new();
 
     let mut config = Config::from_dir(config_dir)?;
@@ -938,12 +956,12 @@ fn load_merged_profiles(
 
             if manifest_is_cloud {
                 let base_cloud_profile_with_name =
-                    Config::get_profile(config_dir, &ProfileName::cloud())?
+                    Config::get_profile(config_dir, &cloud_profile_name)?
                         .expect("Missing default cloud profile");
 
                 let Profile::GolemCloud(base_cloud_profile) = base_cloud_profile_with_name.profile
                 else {
-                    unreachable!("Missing default cloud profile")
+                    unreachable!("Default cloud profile has wrong kind")
                 };
 
                 let profile = CloudProfile {

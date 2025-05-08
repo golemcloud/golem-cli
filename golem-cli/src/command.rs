@@ -149,6 +149,9 @@ pub struct GolemCliGlobalFlags {
 
     #[arg(skip)]
     pub auth_token: Option<Uuid>,
+
+    #[arg(skip)]
+    pub custom_global_cloud_profile: Option<ProfileName>,
 }
 
 impl GolemCliGlobalFlags {
@@ -217,6 +220,10 @@ impl GolemCliGlobalFlags {
                     .context("Failed to parse GOLEM_AUTH_TOKEN, expected uuid")
                     .unwrap(),
             );
+        }
+
+        if let Ok(default_cloud_profile) = std::env::var("GOLEM_CUSTOM_GLOBAL_CLOUD_PROFILE") {
+            self.custom_global_cloud_profile = Some(default_cloud_profile.into());
         }
 
         self
