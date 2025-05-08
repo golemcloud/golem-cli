@@ -105,12 +105,17 @@ pub struct CommandHandler<Hooks: CommandHandlerHooks> {
 }
 
 impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
-    async fn new(global_flags: GolemCliGlobalFlags, hooks: Arc<Hooks>) -> anyhow::Result<Self> {
+    async fn new(
+        global_flags: GolemCliGlobalFlags,
+        log_output: Option<Output>,
+        hooks: Arc<Hooks>,
+    ) -> anyhow::Result<Self> {
         let start_local_server_yes = Arc::new(tokio::sync::RwLock::new(global_flags.yes));
         Ok(Self {
             ctx: Arc::new(
                 Context::new(
                     global_flags,
+                    log_output,
                     start_local_server_yes.clone(),
                     Self::start_local_server_hook(start_local_server_yes),
                 )
@@ -154,9 +159,10 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
 
     async fn new_with_init_hint_error_handler(
         global_flags: GolemCliGlobalFlags,
+        log_output: Option<Output>,
         hooks: Arc<Hooks>,
     ) -> anyhow::Result<Self> {
-        match Self::new(global_flags.clone(), hooks).await {
+        match Self::new(global_flags.clone(), log_output, hooks).await {
             Ok(ok) => Ok(ok),
             Err(error) => {
                 set_log_output(Output::Stderr);
@@ -197,8 +203,12 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
 
                 init_tracing(verbosity, pretty_mode);
 
-                match Self::new_with_init_hint_error_handler(command.global_flags.clone(), hooks)
-                    .await
+                match Self::new_with_init_hint_error_handler(
+                    command.global_flags.clone(),
+                    None,
+                    hooks,
+                )
+                .await
                 {
                     Ok(handler) => {
                         let result = handler
@@ -238,13 +248,12 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                     false,
                 );
 
-                set_log_output(Output::Stderr);
-
                 debug!(partial_match = ?partial_match, "Partial match");
                 debug_log_parse_error(&error, &fallback_command);
 
                 let handler = Self::new_with_init_hint_error_handler(
                     fallback_command.global_flags.clone(),
+                    Some(Output::Stderr),
                     hooks,
                 )
                 .await;

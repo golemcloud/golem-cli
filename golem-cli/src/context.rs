@@ -105,6 +105,7 @@ pub struct Context {
 impl Context {
     pub async fn new(
         global_flags: GolemCliGlobalFlags,
+        log_output: Option<Output>,
         start_local_server_yes: Arc<tokio::sync::RwLock<bool>>,
         start_local_server: Box<dyn Fn() -> BoxFuture<'static, anyhow::Result<()>> + Send + Sync>,
     ) -> anyhow::Result<Self> {
@@ -176,11 +177,12 @@ impl Context {
         };
 
         let format = format.unwrap_or_else(|| profile.profile.format().unwrap_or(Format::Text));
-        let log_output = match format {
+        let log_output = log_output.unwrap_or(match format {
             Format::Json => Output::Stderr,
             Format::Yaml => Output::Stderr,
             Format::Text => Output::Stdout,
-        };
+        });
+
         set_log_output(log_output);
 
         log_action(
