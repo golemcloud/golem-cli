@@ -306,10 +306,10 @@ impl ApplicationContext {
             stub_interface_name: client_package_name
                 .interface_id(&stub_def.client_interface_name()),
             exported_interfaces_per_stub_resource: BTreeMap::from_iter(
-                stub_def.stubbed_entities().iter().filter_map(|interface| {
-                    interface
+                stub_def.stubbed_entities().iter().filter_map(|entity| {
+                    entity
                         .owner_interface()
-                        .map(|owner| (interface.name().to_string(), owner.to_string()))
+                        .map(|owner| (entity.name().to_string(), owner.to_string()))
                 }),
             ),
         };

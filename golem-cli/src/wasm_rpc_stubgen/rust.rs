@@ -725,7 +725,7 @@ fn get_result_type_source(
 
 fn get_remote_function_name(entity: &StubbedEntity, function_name: &str) -> String {
     match entity {
-        StubbedEntity::World(_) => function_name.to_string(),
+        StubbedEntity::WorldFunctions(_) => function_name.to_string(),
         StubbedEntity::Interface(inner) => format!("{}.{{{}}}", inner.name, function_name),
         StubbedEntity::Resource(inner) => match &inner.owner_interface {
             Some(owner) => format!("{}.{{{}.{}}}", owner, inner.name, function_name),
