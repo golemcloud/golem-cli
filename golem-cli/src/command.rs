@@ -538,7 +538,9 @@ pub enum GolemCliSubcommand {
 pub mod shared_args {
     use crate::cloud::AccountId;
     use crate::model::app::AppBuildStep;
-    use crate::model::{ComponentName, ProjectName, WorkerName, WorkerUpdateMode};
+    use crate::model::{
+        ComponentName, ProjectName, ProjectReference, WorkerName, WorkerUpdateMode,
+    };
     use clap::Args;
     use golem_templates::model::GuestLanguage;
 
@@ -676,10 +678,22 @@ pub mod shared_args {
     }
 
     #[derive(Debug, Args)]
-    pub struct ProjectNameOptionalArg {
-        /// Project Name
+    pub struct ProjectArg {
+        // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
+        /// Project, accepted formats:
+        ///   - <PROJECT_NAME>
+        ///   - <ACCOUNT_EMAIL>/<PROJECT_NAME>
+        pub project: ProjectReference,
+    }
+
+    #[derive(Debug, Args)]
+    pub struct ProjectOptionalFlagArg {
+        // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
+        /// Project, accepted formats:
+        ///   - <PROJECT_NAME>
+        ///   - <ACCOUNT_EMAIL>/<PROJECT_NAME>
         #[arg(long)]
-        pub project: Option<ProjectName>,
+        pub project: Option<ProjectReference>,
     }
 
     #[derive(Debug, Args)]
@@ -1121,7 +1135,7 @@ pub mod api {
     }
 
     pub mod definition {
-        use crate::command::shared_args::{ProjectNameOptionalArg, UpdateOrRedeployArgs};
+        use crate::command::shared_args::{ProjectOptionalFlagArg, UpdateOrRedeployArgs};
         use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion};
         use crate::model::app::HttpApiDefinitionName;
         use crate::model::PathBufOrStdin;
@@ -1141,7 +1155,7 @@ pub mod api {
             #[clap(hide = true)]
             Import {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// The OpenAPI json or yaml file to be used as the api definition
                 ///
                 /// Json format expected unless file name ends up in `.yaml`
@@ -1151,7 +1165,7 @@ pub mod api {
             /// Retrieves metadata about an existing API definition
             Get {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// API definition id
                 #[arg(short, long)]
                 id: ApiDefinitionId,
@@ -1162,7 +1176,7 @@ pub mod api {
             /// Lists all API definitions
             List {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// API definition id to get all versions. Optional.
                 #[arg(short, long)]
                 id: Option<ApiDefinitionId>,
@@ -1170,7 +1184,7 @@ pub mod api {
             /// Deletes an existing API definition
             Delete {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// API definition id
                 #[arg(short, long)]
                 id: ApiDefinitionId,
@@ -1182,7 +1196,7 @@ pub mod api {
     }
 
     pub mod deployment {
-        use crate::command::shared_args::{ProjectNameOptionalArg, UpdateOrRedeployArgs};
+        use crate::command::shared_args::{ProjectOptionalFlagArg, UpdateOrRedeployArgs};
         use crate::model::api::ApiDefinitionId;
         use clap::Subcommand;
 
@@ -1198,7 +1212,7 @@ pub mod api {
             /// Get API deployment
             Get {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// Deployment site
                 #[arg(value_name = "subdomain.host")]
                 site: String,
@@ -1206,14 +1220,14 @@ pub mod api {
             /// List API deployment for API definition
             List {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// API definition id
                 definition: Option<ApiDefinitionId>,
             },
             /// Delete api deployment
             Delete {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// Deployment site
                 #[arg(value_name = "subdomain.host")]
                 site: String,
@@ -1222,7 +1236,7 @@ pub mod api {
     }
 
     pub mod security_scheme {
-        use crate::command::shared_args::ProjectNameOptionalArg;
+        use crate::command::shared_args::ProjectOptionalFlagArg;
         use crate::model::api::IdentityProviderType;
         use clap::Subcommand;
 
@@ -1231,7 +1245,7 @@ pub mod api {
             /// Create API Security Scheme
             Create {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// Security Scheme ID
                 security_scheme_id: String,
                 /// Security Scheme provider (Google, Facebook, Gitlab, Microsoft)
@@ -1254,7 +1268,7 @@ pub mod api {
             /// Get API security
             Get {
                 #[command(flatten)]
-                project: ProjectNameOptionalArg,
+                project: ProjectOptionalFlagArg,
                 /// Security Scheme ID
                 security_scheme_id: String,
             },
@@ -1281,27 +1295,27 @@ pub mod api {
         }
 
         pub mod domain {
-            use crate::model::ProjectName;
+            use crate::command::shared_args::ProjectArg;
             use clap::Subcommand;
 
             #[derive(Debug, Subcommand)]
             pub enum ApiDomainSubcommand {
                 /// Retrieves metadata about an existing domain
                 Get {
-                    /// Project name
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                 },
                 /// Add new domain
                 New {
-                    /// Project name
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /// Domain name
                     domain_name: String,
                 },
                 /// Delete an existing domain
                 Delete {
-                    /// Project name
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /// Domain name
                     domain_name: String,
                 },
@@ -1309,7 +1323,8 @@ pub mod api {
         }
 
         pub mod certificate {
-            use crate::model::{PathBufOrStdin, ProjectName};
+            use crate::command::shared_args::ProjectArg;
+            use crate::model::PathBufOrStdin;
             use clap::Subcommand;
             use uuid::Uuid;
 
@@ -1317,15 +1332,15 @@ pub mod api {
             pub enum ApiCertificateSubcommand {
                 /// Retrieves metadata about an existing certificate
                 Get {
-                    /// Project name
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /// Certificate ID
                     certificate_id: Option<Uuid>,
                 },
                 /// Create new certificate
                 New {
-                    /// Project name
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /// Domain name
                     #[arg(short, long)]
                     domain_name: String,
@@ -1339,8 +1354,8 @@ pub mod api {
                 /// Delete an existing certificate
                 #[command()]
                 Delete {
-                    /// Project name
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /// Certificate ID
                     certificate_id: Uuid,
                 },
@@ -1590,7 +1605,7 @@ pub mod cloud {
         use crate::cloud::AccountId;
         use crate::command::cloud::project::plugin::ProjectPluginSubcommand;
         use crate::command::cloud::project::policy::PolicySubcommand;
-        use crate::model::{ProjectAction, ProjectName, ProjectPolicyId};
+        use crate::model::{ProjectAction, ProjectName, ProjectPolicyId, ProjectReference};
         use clap::Subcommand;
 
         #[derive(clap::Args, Debug)]
@@ -1623,8 +1638,8 @@ pub mod cloud {
             GetDefault,
             /// Share a project with another account
             Grant {
-                /// The project to be shared
-                project_name: ProjectName,
+                /// Project Reference. Either {project_name} or {account_email}/{project_name}
+                project_reference: ProjectReference,
                 /// User account the project will be shared with
                 recipient_account_id: AccountId,
                 #[command(flatten)]
@@ -1666,7 +1681,7 @@ pub mod cloud {
 
         pub mod plugin {
             use crate::command::parse_key_val;
-            use crate::model::ProjectName;
+            use crate::command::shared_args::ProjectArg;
             use clap::Subcommand;
             use golem_common::base_model::PluginInstallationId;
 
@@ -1674,8 +1689,8 @@ pub mod cloud {
             pub enum ProjectPluginSubcommand {
                 /// Install a plugin for a project
                 Install {
-                    /// Target project for plugin installation
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /// The plugin to install
                     #[arg(long)]
                     plugin_name: String,
@@ -1691,8 +1706,8 @@ pub mod cloud {
                 },
                 /// Get the installed plugins for the project
                 Get {
-                    /// Project name
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /* TODO: Missing from HTTP API
                     /// The version of the component
                     version: Option<u64>,
@@ -1700,8 +1715,8 @@ pub mod cloud {
                 },
                 /// Update project plugin
                 Update {
-                    /// Target project
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /// Installation id of the plugin to update
                     plugin_installation_id: PluginInstallationId,
                     /// Updated priority of the plugin - largest priority is applied first
@@ -1713,8 +1728,8 @@ pub mod cloud {
                 },
                 /// Uninstall a plugin for selected component
                 Uninstall {
-                    /// Target project
-                    project_name: ProjectName,
+                    #[clap(flatten)]
+                    project: ProjectArg,
                     /// Installation id of the plugin to uninstall
                     plugin_installation_id: PluginInstallationId,
                 },
