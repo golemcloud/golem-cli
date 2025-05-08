@@ -721,7 +721,7 @@ impl ApiDeploymentCommandHandler {
         Ok(app_ctx
             .application
             .http_api_deployments(&profile)
-            .map(|deployments| deployments.clone())
+            .cloned()
             .unwrap_or_default())
     }
 }

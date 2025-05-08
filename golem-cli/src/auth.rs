@@ -139,7 +139,7 @@ impl Auth {
             let cloud_profile_name = &ProfileName::cloud();
 
             self.oauth2(
-                custom_cloud_profile_name.unwrap_or_else(|| &cloud_profile_name),
+                custom_cloud_profile_name.unwrap_or(cloud_profile_name),
                 config_dir,
             )
             .await

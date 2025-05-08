@@ -858,7 +858,7 @@ fn load_merged_profiles(
 )> {
     let cloud_profile_name = custom_cloud_profile_name
         .cloned()
-        .unwrap_or_else(|| ProfileName::cloud());
+        .unwrap_or_else(ProfileName::cloud);
 
     let mut available_profile_names = BTreeSet::new();
 
