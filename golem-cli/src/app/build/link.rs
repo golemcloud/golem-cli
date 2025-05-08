@@ -46,8 +46,6 @@ pub async fn link(ctx: &ApplicationContext) -> anyhow::Result<()> {
             .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc)
             .collect::<BTreeSet<_>>();
 
-        // TODO: resolve binary wasm sources instead of using `ctx.application.client_wasm` and `ctx.application.component_wasm`
-
         let mut wasms_to_compose_with = Vec::new();
         for static_dep in &static_dependencies {
             let path = ctx.resolve_binary_component_source(static_dep).await?;

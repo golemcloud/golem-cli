@@ -66,6 +66,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
 use tracing::debug;
+use url::Url;
 
 pub mod ifs;
 pub mod plugin;
@@ -106,10 +107,18 @@ impl ComponentCommandHandler {
             ComponentSubcommand::AddDependency {
                 component_name,
                 target_component_name,
+                target_component_path,
+                target_component_url,
                 dependency_type,
             } => {
-                self.cmd_add_dependency(component_name, target_component_name, dependency_type)
-                    .await
+                self.cmd_add_dependency(
+                    component_name,
+                    target_component_name,
+                    target_component_path,
+                    target_component_url,
+                    dependency_type,
+                )
+                .await
             }
             ComponentSubcommand::List { component_name } => {
                 self.cmd_list(component_name.component_name).await
@@ -560,21 +569,25 @@ impl ComponentCommandHandler {
         &self,
         component_name: Option<ComponentName>,
         target_component_name: Option<ComponentName>,
+        target_component_path: Option<PathBuf>,
+        target_component_url: Option<Url>,
         dependency_type: Option<DependencyType>,
     ) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
 
-        let Some((component_name, target_component_name, dependency_type)) = self
+        let Some((component_name, target_component_source, dependency_type)) = self
             .ctx
             .interactive_handler()
             .create_component_dependency(
                 component_name.map(|cn| cn.0.into()),
                 target_component_name.map(|cn| cn.0.into()),
+                target_component_path,
+                target_component_url,
                 dependency_type,
             )
             .await?
         else {
-            log_error("All of COMPONENT_NAME, TARGET_COMPONENT_NAME and DEPENDENCY_TYPE are required in non-interactive mode");
+            log_error("All of COMPONENT_NAME, (TARGET_COMPONENT_NAME/TARGET_COMPONENT_PATH/TARGET_COMPONENT_URL) and DEPENDENCY_TYPE are required in non-interactive mode");
             logln("");
             bail!(HintError::ShowClapHelp(
                 ShowClapHelpTarget::ComponentAddDependency
@@ -588,7 +601,7 @@ impl ComponentCommandHandler {
 
         let inserted = editor.insert_or_update_dependency(
             &component_name,
-            &target_component_name,
+            &target_component_source,
             dependency_type,
         )?;
 

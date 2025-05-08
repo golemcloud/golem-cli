@@ -65,6 +65,7 @@ impl ApplicationContext {
             app_and_calling_working_dir.and_then(|(application, calling_working_dir)| {
                 ResolvedWitApplication::new(&application, config.profile.as_ref()).map(|wit| {
                     let temp_dir = application.temp_dir();
+                    let offline = config.offline;
                     ApplicationContext {
                         config,
                         application,
@@ -77,6 +78,7 @@ impl ApplicationContext {
                         remote_components: RemoteComponents::new(
                             clients.file_download.clone(),
                             temp_dir,
+                            offline,
                         ),
                     }
                 })

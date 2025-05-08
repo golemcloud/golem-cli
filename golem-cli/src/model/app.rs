@@ -1233,6 +1233,7 @@ mod app_builder {
     use std::fmt::Debug;
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
+    use url::Url;
 
     pub fn build_application(
         apps: Vec<app_raw::ApplicationWithSource>,
@@ -1627,31 +1628,65 @@ mod app_builder {
                 for dependency in component_dependencies {
                     let dep_type = DependencyType::from_str(&dependency.type_);
                     if let Ok(dep_type) = dep_type {
-                        match dependency.target {
-                            Some(target_name) => {
-                                // TODO: support other component sources
-                                let dependent_component = DependentComponent {
-                                    source: BinaryComponentSource::AppComponent {
-                                        name: target_name.into(),
-                                    },
-                                    dep_type,
-                                };
-
-                                let unique_key = UniqueSourceCheckedEntityKey::Dependency((
-                                    component_name.clone().into(),
-                                    dependent_component.clone(),
-                                ));
-                                if self.add_entity_source(unique_key, source) {
-                                    self.dependencies
-                                        .entry(component_name.clone().into())
-                                        .or_default()
-                                        .insert(dependent_component);
+                        let binary_component_source = match (dependency.target, dependency.path, dependency.url) {
+                            (Some(target_name), None, None) => {
+                                Some(BinaryComponentSource::AppComponent {
+                                                    name: target_name.into(),
+                                                })
+                            }
+                            (None, Some(path), None) => {
+                                Some(BinaryComponentSource::LocalFile { path: Path::new(&path).to_path_buf() })
+                            }
+                            (None, None, Some(url)) => {
+                                match Url::from_str(&url) {
+                                    Ok(url) => {
+                                        Some(BinaryComponentSource::Url { url })
+                                    }
+                                    Err(_) => {
+                                        validation.add_error(format!(
+                                            "Invalid URL for component dependency: {}",
+                                            url.log_color_highlight()
+                                        ));
+                                        None
+                                    }
                                 }
                             }
-                            None => validation.add_error(format!(
-                                "Missing {} field for component wasm-rpc dependency",
-                                "target".log_color_error_highlight()
-                            )),
+                            (None, None, None) => {
+                                validation.add_error(format!(
+                                    "Missing one of the {}/{}/{} fields for component dependency",
+                                    "target".log_color_error_highlight(),
+                                    "path".log_color_error_highlight(),
+                                    "url".log_color_error_highlight()
+                                ));
+                                None
+                            }
+                            _ => {
+                                validation.add_error(format!(
+                                    "Only one of the {}/{}/{} fields can be specified for a component dependency",
+                                    "target".log_color_error_highlight(),
+                                    "path".log_color_error_highlight(),
+                                    "url".log_color_error_highlight()
+                                ));
+                                None
+                            }
+                        };
+
+                        if let Some(binary_component_source) = binary_component_source {
+                            let dependent_component = DependentComponent {
+                                source: binary_component_source,
+                                dep_type,
+                            };
+
+                            let unique_key = UniqueSourceCheckedEntityKey::Dependency((
+                                component_name.clone().into(),
+                                dependent_component.clone(),
+                            ));
+                            if self.add_entity_source(unique_key, source) {
+                                self.dependencies
+                                    .entry(component_name.clone().into())
+                                    .or_default()
+                                    .insert(dependent_component);
+                            }
                         }
                     } else {
                         validation.add_error(format!(
@@ -1694,10 +1729,26 @@ mod app_builder {
                         }
                         BinaryComponentSource::Url { .. } => false,
                     };
+                    let invalid_target_source = match (&target.dep_type, &target.source) {
+                        (
+                            DependencyType::DynamicWasmRpc,
+                            BinaryComponentSource::AppComponent { .. },
+                        ) => {
+                            false // valid
+                        }
+                        (
+                            DependencyType::StaticWasmRpc,
+                            BinaryComponentSource::AppComponent { .. },
+                        ) => {
+                            false // valid
+                        }
+                        (DependencyType::Wasm, _) => {
+                            false // valid
+                        }
+                        _ => true,
+                    };
 
-                    // TODO: validate that wasm-rpc targets are having app component sources
-
-                    if invalid_source || invalid_target {
+                    if invalid_source || invalid_target || invalid_target_source {
                         let source = self
                             .entity_sources
                             .get(&UniqueSourceCheckedEntityKey::Dependency((
@@ -1729,6 +1780,14 @@ mod app_builder {
                                         target.source.to_string().log_color_highlight(),
                                         target.source.to_string().log_color_error_highlight(),
                                         self.available_components(&target.source.to_string())
+                                    ))
+                                }
+                                if invalid_target_source {
+                                    validation.add_error(format!(
+                                        "{} {} - {}: this dependency type only supports local component targets\n",
+                                        target.dep_type.describe(),
+                                        component.as_str().log_color_highlight(),
+                                        target.source.to_string().log_color_highlight(),
                                     ))
                                 }
                             },
