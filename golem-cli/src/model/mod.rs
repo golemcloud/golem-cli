@@ -33,6 +33,7 @@ use crate::command::shared_args::{ComponentTemplateName, StreamArgs};
 use crate::config::{
     CloudProfile, NamedProfile, OssProfile, Profile, ProfileConfig, ProfileKind, ProfileName,
 };
+use crate::log::LogColorize;
 use crate::model::to_oss::ToOss;
 use anyhow::{anyhow, Context};
 use chrono::{DateTime, Utc};
@@ -61,7 +62,6 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use url::Url;
 use uuid::Uuid;
-
 // TODO: move arg thing into command
 // TODO: move non generic entities into mods
 
@@ -149,7 +149,7 @@ impl FromStr for ProjectReference {
                 let account_email = segments.pop().unwrap().to_string();
                 Ok(Self::WithAccount { account_email, project_name })
             }
-            _ => Err(format!("Unknown format for project: {s}. Expected either <PROJECT_NAME> or <ACCOUNT_EMAIL>/<PROJECT_NAME>"))
+            _ => Err(format!("Unknown format for project: {}. Expected either <PROJECT_NAME> or <ACCOUNT_EMAIL>/<PROJECT_NAME>", s.log_color_highlight()))
         }
     }
 }

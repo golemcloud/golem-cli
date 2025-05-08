@@ -113,12 +113,12 @@ impl ApplicationContext {
                 let all_profiles = self.application.all_build_profiles();
                 if all_profiles.is_empty() {
                     bail!(
-                        "Profile {} not found, no available profiles",
+                        "Build profile {} not found, no available build profiles",
                         profile.as_str().log_color_error_highlight(),
                     );
                 } else if !all_profiles.contains(profile) {
                     bail!(
-                        "Profile {} not found, available profiles: {}",
+                        "Build profile {} not found, available build profiles: {}",
                         profile.as_str().log_color_error_highlight(),
                         all_profiles
                             .into_iter()
@@ -129,13 +129,16 @@ impl ApplicationContext {
                 log_action(
                     "Selecting",
                     format!(
-                        "profiles, requested profile: {}",
+                        "build profiles, requested profile: {}",
                         profile.as_str().log_color_highlight()
                     ),
                 );
             }
             None => {
-                log_action("Selecting", "profiles, no profile was requested");
+                log_action(
+                    "Selecting",
+                    "build profiles, no build profile was requested",
+                );
             }
         }
 
@@ -143,13 +146,13 @@ impl ApplicationContext {
         for component_name in self.application.component_names() {
             let selection = self
                 .application
-                .component_effective_property_source(component_name, self.profile());
+                .component_effective_property_source(component_name, self.build_profile());
 
             // TODO: simplify this
             let message = match (
                 selection.profile,
                 selection.template_name,
-                self.profile().is_some(),
+                self.build_profile().is_some(),
                 selection.is_requested_profile,
             ) {
                 (None, None, false, _) => {
@@ -257,7 +260,7 @@ impl ApplicationContext {
                 }
                 (Some(profile), Some(template), true, true) => {
                     format!(
-                        "build requested profile {} for {} using template {}{}",
+                        "requested build profile {} for {} using template {}{}",
                         profile.as_str().log_color_highlight(),
                         component_name.as_str().log_color_highlight(),
                         template.as_str().log_color_highlight(),
@@ -276,14 +279,14 @@ impl ApplicationContext {
         Ok(())
     }
 
-    pub fn profile(&self) -> Option<&BuildProfileName> {
+    pub fn build_profile(&self) -> Option<&BuildProfileName> {
         self.config.build_profile.as_ref()
     }
 
     pub fn update_wit_context(&mut self) -> anyhow::Result<()> {
         to_anyhow(
             "Failed to update application wit context, see problems above",
-            ResolvedWitApplication::new(&self.application, self.profile()).map(|wit| {
+            ResolvedWitApplication::new(&self.application, self.build_profile()).map(|wit| {
                 self.wit = wit;
             }),
         )
@@ -322,7 +325,7 @@ impl ApplicationContext {
     ) -> anyhow::Result<ComponentStubInterfaces> {
         let is_ephemeral = self
             .application
-            .component_properties(component_name, self.profile())
+            .component_properties(component_name, self.build_profile())
             .is_ephemeral();
         let stub_def = self.component_stub_def(component_name, is_ephemeral)?;
         let client_package_name = stub_def.client_parser_package_name();
@@ -501,7 +504,7 @@ impl ApplicationContext {
         static LABEL_SOURCE: &str = "Source";
         static LABEL_SELECTED: &str = "Selected";
         static LABEL_TEMPLATE: &str = "Template";
-        static LABEL_PROFILES: &str = "Profiles";
+        static LABEL_BUILD_PROFILES: &str = "Build Profiles";
         static LABEL_COMPONENT_TYPE: &str = "Component Type";
         static LABEL_DEPENDENCIES: &str = "Dependencies";
 
@@ -510,7 +513,7 @@ impl ApplicationContext {
                 &LABEL_SOURCE,
                 &LABEL_SELECTED,
                 &LABEL_TEMPLATE,
-                &LABEL_PROFILES,
+                &LABEL_BUILD_PROFILES,
                 &LABEL_COMPONENT_TYPE,
                 &LABEL_DEPENDENCIES,
             ]
@@ -541,7 +544,7 @@ impl ApplicationContext {
                     let selected = self.selected_component_names.contains(component_name);
                     let effective_property_source = self
                         .application
-                        .component_effective_property_source(component_name, self.profile());
+                        .component_effective_property_source(component_name, self.build_profile());
                     logln(format!("  {}", component_name.as_str().bold()));
                     print_field(
                         LABEL_SELECTED,
@@ -564,7 +567,7 @@ impl ApplicationContext {
                     }
                     if let Some(selected_profile) = effective_property_source.profile {
                         print_field(
-                            LABEL_PROFILES,
+                            LABEL_BUILD_PROFILES,
                             self.application
                                 .component_build_profiles(component_name)
                                 .iter()
@@ -695,7 +698,7 @@ impl ApplicationContext {
             }
         }
 
-        // TODO: profiles?
+        // TODO: build profiles?
 
         Ok(())
     }

@@ -26,6 +26,7 @@ use crate::log::{log_action, log_warn_action, LogColorize};
 use crate::model::text::fmt::log_error;
 use crate::model::{Format, ProfileView};
 use anyhow::bail;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use url::Url;
 
@@ -144,8 +145,9 @@ impl ProfileCommandHandler {
         let config = Config::from_dir(self.ctx.config_dir())?;
         let default_profile_name = config.default_profile_name();
 
-        let profiles = config
-            .profiles
+        let sorted_profiles = config.profiles.into_iter().collect::<BTreeMap<_, _>>();
+
+        let profiles = sorted_profiles
             .into_iter()
             .map(|(name, profile)| {
                 ProfileView::from_profile(&default_profile_name, NamedProfile { name, profile })

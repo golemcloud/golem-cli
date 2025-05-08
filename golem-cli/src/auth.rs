@@ -70,7 +70,7 @@ impl Auth {
         token_override: Option<Uuid>,
         auth_config: Option<&CloudAuthenticationConfig>,
         config_dir: &Path,
-        custom_cloud_profile_name: Option<&ProfileName>,
+        profile_name: &ProfileName,
     ) -> anyhow::Result<CloudAuthentication> {
         if let Some(token_override) = token_override {
             let secret = TokenSecret {
@@ -80,7 +80,7 @@ impl Auth {
 
             Ok(CloudAuthentication(UnsafeToken { data, secret }))
         } else {
-            self.profile_authentication(auth_config, config_dir, custom_cloud_profile_name)
+            self.profile_authentication(auth_config, config_dir, profile_name)
                 .await
         }
     }
@@ -131,18 +131,12 @@ impl Auth {
         &self,
         auth_config: Option<&CloudAuthenticationConfig>,
         config_dir: &Path,
-        custom_cloud_profile_name: Option<&ProfileName>,
+        profile_name: &ProfileName,
     ) -> anyhow::Result<CloudAuthentication> {
         if let Some(data) = auth_config {
             Ok(data.into())
         } else {
-            let cloud_profile_name = &ProfileName::cloud();
-
-            self.oauth2(
-                custom_cloud_profile_name.unwrap_or(cloud_profile_name),
-                config_dir,
-            )
-            .await
+            self.oauth2(profile_name, config_dir).await
         }
     }
 

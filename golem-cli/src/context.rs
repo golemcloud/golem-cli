@@ -22,7 +22,7 @@ use crate::config::{
     ProfileConfig, ProfileKind, ProfileName,
 };
 use crate::error::{ContextInitHintError, HintError};
-use crate::log::{set_log_output, LogColorize, LogOutput, Output};
+use crate::log::{log_action, set_log_output, LogColorize, LogOutput, Output};
 use crate::model::app::{AppBuildStep, ApplicationSourceMode};
 use crate::model::app::{ApplicationConfig, BuildProfileName as AppBuildProfileName};
 use crate::model::{app_raw, Format, HasFormatConfig, ProjectReference};
@@ -178,6 +178,21 @@ impl Context {
         };
         set_log_output(log_output);
 
+        log_action(
+            "Selected",
+            format!(
+                "profile: {}{}",
+                profile.name.0.log_color_highlight(),
+                project
+                    .as_ref()
+                    .map(|project| format!(
+                        ", project: {}",
+                        project.to_string().log_color_highlight()
+                    ))
+                    .unwrap_or_else(|| "".to_string())
+            ),
+        );
+
         let client_config = ClientConfig::from(&profile.profile);
 
         Ok(Self {
@@ -268,9 +283,16 @@ impl Context {
             .get_or_try_init(|| async {
                 let clients = Clients::new(
                     self.client_config.clone(),
-                    self.custom_cloud_profile_name.as_ref(),
                     self.auth_token_override,
-                    &self.profile_name,
+                    {
+                        if self.profile_name.is_builtin_cloud() {
+                            self.custom_cloud_profile_name
+                                .as_ref()
+                                .unwrap_or(&self.profile_name)
+                        } else {
+                            &self.profile_name
+                        }
+                    },
                     match &self.profile {
                         Profile::Golem(_) => None,
                         Profile::GolemCloud(profile) => profile.auth.as_ref(),
@@ -447,7 +469,6 @@ pub struct Clients {
 impl Clients {
     pub async fn new(
         config: ClientConfig,
-        custom_cloud_profile_name: Option<&ProfileName>,
         token_override: Option<Uuid>,
         profile_name: &ProfileName,
         auth_config: Option<&CloudAuthenticationConfig>,
@@ -472,12 +493,7 @@ impl Clients {
                 });
 
                 let authentication = auth
-                    .authenticate(
-                        token_override,
-                        auth_config,
-                        config_dir,
-                        custom_cloud_profile_name,
-                    )
+                    .authenticate(token_override, auth_config, config_dir, profile_name)
                     .await?;
                 let security_token = Security::Bearer(authentication.0.secret.value.to_string());
 
@@ -698,9 +714,7 @@ impl ApplicationContextConfig {
                 if global_flags.local {
                     Some(ProfileName::local())
                 } else if global_flags.cloud {
-                    global_flags
-                        .custom_global_cloud_profile
-                        .or_else(|| Some(ProfileName::cloud()))
+                    Some(ProfileName::cloud())
                 } else {
                     global_flags.profile.clone()
                 }
@@ -902,7 +916,13 @@ fn load_merged_profiles(
     let global_profile = match profile_name {
         Some(profile_name) => config
             .profiles
-            .remove(profile_name)
+            .remove({
+                if profile_name.is_builtin_cloud() {
+                    &cloud_profile_name
+                } else {
+                    profile_name
+                }
+            })
             .map(|profile| NamedProfile {
                 name: profile_name.clone(),
                 profile,

@@ -696,6 +696,7 @@ pub mod shared_args {
         /// Project, accepted formats:
         ///   - <PROJECT_NAME>
         ///   - <ACCOUNT_EMAIL>/<PROJECT_NAME>
+        #[arg(verbatim_doc_comment)]
         pub project: ProjectReference,
     }
 
@@ -705,7 +706,7 @@ pub mod shared_args {
         /// Project, accepted formats:
         ///   - <PROJECT_NAME>
         ///   - <ACCOUNT_EMAIL>/<PROJECT_NAME>
-        #[arg(long)]
+        #[arg(verbatim_doc_comment, long)]
         pub project: Option<ProjectReference>,
     }
 
