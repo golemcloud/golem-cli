@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::command::api::deployment::ApiDeploymentSubcommand;
-use crate::command::shared_args::{ProjectNameOptionalArg, UpdateOrRedeployArgs};
+use crate::command::shared_args::{ProjectOptionalFlagArg, UpdateOrRedeployArgs};
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
@@ -130,11 +130,15 @@ impl ApiDeploymentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(&self, project: ProjectNameOptionalArg, site: String) -> anyhow::Result<()> {
+    async fn cmd_get(
+        &self,
+        project: ProjectOptionalFlagArg,
+        site: String,
+    ) -> anyhow::Result<()> {
         let project = self
             .ctx
             .cloud_project_handler()
-            .opt_select_project(None /* TODO: account id */, project.project.as_ref())
+            .opt_select_project(project.project.as_ref())
             .await?;
 
         let Some(result) = self.api_deployment(project.as_ref(), &site).await? else {
@@ -148,7 +152,7 @@ impl ApiDeploymentCommandHandler {
 
     async fn cmd_list(
         &self,
-        project: ProjectNameOptionalArg,
+        project: ProjectOptionalFlagArg,
         definition: Option<ApiDefinitionId>,
     ) -> anyhow::Result<()> {
         let id = definition.as_ref().map(|id| id.0.as_str());
@@ -156,7 +160,7 @@ impl ApiDeploymentCommandHandler {
         let project = self
             .ctx
             .cloud_project_handler()
-            .opt_select_project(None /* TODO: account id */, project.project.as_ref())
+            .opt_select_project(project.project.as_ref())
             .await?;
 
         let result: Vec<ApiDeployment> = match self.ctx.golem_clients().await? {
@@ -202,13 +206,13 @@ impl ApiDeploymentCommandHandler {
 
     async fn cmd_delete(
         &self,
-        project: ProjectNameOptionalArg,
+        project: ProjectOptionalFlagArg,
         site: String,
     ) -> anyhow::Result<()> {
         let project = self
             .ctx
             .cloud_project_handler()
-            .opt_select_project(None /* TODO: account id */, project.project.as_ref())
+            .opt_select_project(project.project.as_ref())
             .await?;
 
         match self.ctx.golem_clients().await? {
