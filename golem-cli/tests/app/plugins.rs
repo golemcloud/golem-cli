@@ -124,7 +124,7 @@ async fn plugin_installation_test1(_tracing: &Tracing) {
 
     let outputs = ctx.cli([cmd::COMPONENT, cmd::PLUGIN, cmd::GET]);
     assert!(outputs.success());
-    check!(outputs.stdout.len() == 4);
+    check!(outputs.stdout.len() == 5);
 
     fs::write_str(
         ctx.cwd_path_join(
