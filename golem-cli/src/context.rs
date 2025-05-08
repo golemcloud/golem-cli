@@ -394,7 +394,11 @@ impl Context {
         &self,
     ) -> anyhow::Result<tokio::sync::RwLockWriteGuard<'_, ApplicationContextState>> {
         let mut state = self.app_context_state.write().await;
-        state.init(&self.available_profile_names, &self.app_context_config, self.clients().await?);
+        state.init(
+            &self.available_profile_names,
+            &self.app_context_config,
+            self.clients().await?,
+        );
         Ok(state)
     }
 
@@ -779,7 +783,7 @@ impl ApplicationContextState {
         &mut self,
         available_profile_names: &BTreeSet<ProfileName>,
         config: &ApplicationContextConfig,
-        clients: &Clients
+        clients: &Clients,
     ) {
         if self.app_context.is_some() {
             return;
@@ -806,7 +810,7 @@ impl ApplicationContextState {
                     .take()
                     .expect("ApplicationContextState.app_source_mode is not set"),
                 app_config,
-                clients
+                clients,
             )
             .map_err(Arc::new),
         )
