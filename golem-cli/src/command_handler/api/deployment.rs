@@ -74,7 +74,11 @@ impl ApiDeploymentCommandHandler {
         host_or_site: Option<String>,
         update_or_redeploy: UpdateOrRedeployArgs,
     ) -> anyhow::Result<()> {
-        let project = self.ctx.cloud_project_handler().opt_select_project(None).await?;
+        let project = self
+            .ctx
+            .cloud_project_handler()
+            .opt_select_project(None)
+            .await?;
 
         let api_deployments = self.manifest_api_deployments().await?;
         let api_deployments = match &host_or_site {
