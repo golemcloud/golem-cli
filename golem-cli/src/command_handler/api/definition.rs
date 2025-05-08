@@ -14,7 +14,7 @@
 
 use crate::app::yaml_edit::AppYamlEditor;
 use crate::command::api::definition::ApiDefinitionSubcommand;
-use crate::command::shared_args::{ProjectReferenceOptionalArg, UpdateOrRedeployArgs};
+use crate::command::shared_args::{ProjectOptionalFlagArg, UpdateOrRedeployArgs};
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
@@ -153,7 +153,7 @@ impl ApiDefinitionCommandHandler {
 
     async fn cmd_get(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         api_def_id: ApiDefinitionId,
         version: ApiDefinitionVersion,
     ) -> anyhow::Result<()> {
@@ -183,7 +183,7 @@ impl ApiDefinitionCommandHandler {
     // TODO: drop or make it a client side feature?
     async fn cmd_import(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         definition: PathBufOrStdin,
     ) -> anyhow::Result<()> {
         let project = self
@@ -222,7 +222,7 @@ impl ApiDefinitionCommandHandler {
 
     async fn cmd_list(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         api_definition_id: Option<ApiDefinitionId>,
     ) -> anyhow::Result<()> {
         let project = self
@@ -259,7 +259,7 @@ impl ApiDefinitionCommandHandler {
 
     async fn cmd_delete(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         api_def_id: ApiDefinitionId,
         version: ApiDefinitionVersion,
     ) -> anyhow::Result<()> {

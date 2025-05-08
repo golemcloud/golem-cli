@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::command::api::security_scheme::ApiSecuritySchemeSubcommand;
-use crate::command::shared_args::ProjectReferenceOptionalArg;
+use crate::command::shared_args::ProjectOptionalFlagArg;
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
@@ -66,7 +66,7 @@ impl ApiSecuritySchemeCommandHandler {
 
     async fn cmd_create(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         scheme_identifier: String,
         provider_type: IdentityProviderType,
         client_id: String,
@@ -134,7 +134,7 @@ impl ApiSecuritySchemeCommandHandler {
 
     async fn cmd_get(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         security_scheme_id: String,
     ) -> anyhow::Result<()> {
         let project = self

@@ -143,7 +143,7 @@ impl FromStr for ProjectReference {
                 let account_email = segments.pop().unwrap().to_string();
                 Ok(Self::WithAccount { account_email, project_name })
             }
-            _ => Err(format!("Unknown format for project: {s}. Expected either {{project_name}} or {{account_email}}/{{project_name}}"))
+            _ => Err(format!("Unknown format for project: {s}. Expected either <PROJECT_NAME> or <ACCOUNT_EMAIL>/<PROJECT_NAME>"))
         }
     }
 }

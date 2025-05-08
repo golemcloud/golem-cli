@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::command::api::deployment::ApiDeploymentSubcommand;
-use crate::command::shared_args::{ProjectReferenceOptionalArg, UpdateOrRedeployArgs};
+use crate::command::shared_args::{ProjectOptionalFlagArg, UpdateOrRedeployArgs};
 use crate::command_handler::Handlers;
 use crate::context::{Context, GolemClients};
 use crate::error::service::AnyhowMapServiceError;
@@ -137,7 +137,7 @@ impl ApiDeploymentCommandHandler {
 
     async fn cmd_get(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         site: String,
     ) -> anyhow::Result<()> {
         let project = self
@@ -157,7 +157,7 @@ impl ApiDeploymentCommandHandler {
 
     async fn cmd_list(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         definition: Option<ApiDefinitionId>,
     ) -> anyhow::Result<()> {
         let id = definition.as_ref().map(|id| id.0.as_str());
@@ -211,7 +211,7 @@ impl ApiDeploymentCommandHandler {
 
     async fn cmd_delete(
         &self,
-        project: ProjectReferenceOptionalArg,
+        project: ProjectOptionalFlagArg,
         site: String,
     ) -> anyhow::Result<()> {
         let project = self

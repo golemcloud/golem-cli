@@ -39,17 +39,17 @@ impl ApiCloudCertificateCommandHandler {
     pub async fn handle_command(&self, command: ApiCertificateSubcommand) -> anyhow::Result<()> {
         match command {
             ApiCertificateSubcommand::Get {
-                project_reference,
+                project,
                 certificate_id,
-            } => self.cmd_get(project_reference, certificate_id).await,
+            } => self.cmd_get(project.project, certificate_id).await,
             ApiCertificateSubcommand::New {
-                project_reference,
+                project,
                 domain_name,
                 certificate_body,
                 certificate_private_key,
             } => {
                 self.cmd_new(
-                    project_reference,
+                    project.project,
                     domain_name,
                     certificate_body,
                     certificate_private_key,
@@ -57,15 +57,15 @@ impl ApiCloudCertificateCommandHandler {
                 .await
             }
             ApiCertificateSubcommand::Delete {
-                project_reference,
+                project,
                 certificate_id,
-            } => self.cmd_delete(project_reference, certificate_id).await,
+            } => self.cmd_delete(project.project, certificate_id).await,
         }
     }
 
     async fn cmd_get(
         &self,
-        project_reference: ProjectReference,
+        project: ProjectReference,
         certificate_id: Option<Uuid>,
     ) -> anyhow::Result<()> {
         let certificates = self
@@ -77,7 +77,7 @@ impl ApiCloudCertificateCommandHandler {
                 &self
                     .ctx
                     .cloud_project_handler()
-                    .select_project(&project_reference)
+                    .select_project(&project)
                     .await?
                     .project_id
                     .0,
@@ -95,7 +95,7 @@ impl ApiCloudCertificateCommandHandler {
 
     async fn cmd_new(
         &self,
-        project_reference: ProjectReference,
+        project: ProjectReference,
         domain_name: String,
         certificate_body: PathBufOrStdin,
         certificate_private_key: PathBufOrStdin,
@@ -114,7 +114,7 @@ impl ApiCloudCertificateCommandHandler {
                 project_id: self
                     .ctx
                     .cloud_project_handler()
-                    .select_project(&project_reference)
+                    .select_project(&project)
                     .await?
                     .project_id
                     .0,
@@ -134,7 +134,7 @@ impl ApiCloudCertificateCommandHandler {
 
     async fn cmd_delete(
         &self,
-        project_reference: ProjectReference,
+        project: ProjectReference,
         certificate_id: Uuid,
     ) -> anyhow::Result<()> {
         self.ctx
@@ -145,7 +145,7 @@ impl ApiCloudCertificateCommandHandler {
                 &self
                     .ctx
                     .cloud_project_handler()
-                    .select_project(&project_reference)
+                    .select_project(&project)
                     .await?
                     .project_id
                     .0,

@@ -35,14 +35,14 @@ impl CloudProjectPluginCommandHandler {
     pub async fn handle_command(&self, subcommand: ProjectPluginSubcommand) -> anyhow::Result<()> {
         match subcommand {
             ProjectPluginSubcommand::Install {
-                project_reference,
+                project,
                 plugin_name,
                 plugin_version,
                 priority,
                 param,
             } => {
                 self.cmd_install(
-                    project_reference,
+                    project.project,
                     plugin_name,
                     plugin_version,
                     priority,
@@ -50,23 +50,21 @@ impl CloudProjectPluginCommandHandler {
                 )
                 .await
             }
-            ProjectPluginSubcommand::Get { project_reference } => {
-                self.cmd_get(project_reference).await
-            }
+            ProjectPluginSubcommand::Get { project } => self.cmd_get(project.project).await,
             ProjectPluginSubcommand::Update {
-                project_reference,
+                project,
                 plugin_installation_id,
                 priority,
                 param,
             } => {
-                self.cmd_update(project_reference, plugin_installation_id, priority, param)
+                self.cmd_update(project.project, plugin_installation_id, priority, param)
                     .await
             }
             ProjectPluginSubcommand::Uninstall {
-                project_reference,
+                project,
                 plugin_installation_id,
             } => {
-                self.cmd_uninstall(project_reference, plugin_installation_id)
+                self.cmd_uninstall(project.project, plugin_installation_id)
                     .await
             }
         }
@@ -115,12 +113,12 @@ impl CloudProjectPluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(&self, project_reference: ProjectReference) -> anyhow::Result<()> {
+    async fn cmd_get(&self, project: ProjectReference) -> anyhow::Result<()> {
         // TODO: account id
         let project = self
             .ctx
             .cloud_project_handler()
-            .select_project(&project_reference)
+            .select_project(&project)
             .await?;
 
         let results = self

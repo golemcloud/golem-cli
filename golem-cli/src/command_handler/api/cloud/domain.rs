@@ -35,15 +35,15 @@ impl ApiCloudDomainCommandHandler {
 
     pub async fn handle_command(&self, command: ApiDomainSubcommand) -> anyhow::Result<()> {
         match command {
-            ApiDomainSubcommand::Get { project_reference } => self.cmd_get(project_reference).await,
+            ApiDomainSubcommand::Get { project } => self.cmd_get(project.project).await,
             ApiDomainSubcommand::New {
-                project_reference,
+                project,
                 domain_name,
-            } => self.cmd_new(project_reference, domain_name).await,
+            } => self.cmd_new(project.project, domain_name).await,
             ApiDomainSubcommand::Delete {
-                project_reference,
+                project,
                 domain_name,
-            } => self.cmd_delete(project_reference, domain_name).await,
+            } => self.cmd_delete(project.project, domain_name).await,
         }
     }
 
