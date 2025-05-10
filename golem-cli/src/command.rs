@@ -130,6 +130,10 @@ pub struct GolemCliGlobalFlags {
     #[arg(long, short, global = true, display_order = 109)]
     pub yes: bool,
 
+    /// Disables filtering of potentially sensitive use values in text mode (e.g. component environment variable values)
+    #[arg(long, global = true, display_order = 110)]
+    pub show_sensitive: bool,
+
     #[command(flatten)]
     pub verbosity: Verbosity,
 
