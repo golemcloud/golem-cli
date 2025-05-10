@@ -107,7 +107,7 @@ pub struct Context {
 impl Context {
     pub async fn new(
         global_flags: GolemCliGlobalFlags,
-        log_output: Option<Output>,
+        log_output_for_help: Option<Output>,
         start_local_server_yes: Arc<tokio::sync::RwLock<bool>>,
         start_local_server: Box<dyn Fn() -> BoxFuture<'static, anyhow::Result<()>> + Send + Sync>,
     ) -> anyhow::Result<Self> {
@@ -128,10 +128,11 @@ impl Context {
             app_context_config.app_source_mode(),
         )?;
 
-        if preloaded_app.loaded_with_warnings && log_output.is_none() {
-            if !InteractiveHandler::confirm_manifest_profile_warning(yes)? {
-                bail!(NonSuccessfulExit);
-            }
+        if preloaded_app.loaded_with_warnings
+            && log_output_for_help.is_none()
+            && !InteractiveHandler::confirm_manifest_profile_warning(yes)?
+        {
+            bail!(NonSuccessfulExit);
         }
 
         let app_source_mode = preloaded_app.source_mode;
@@ -187,7 +188,7 @@ impl Context {
         };
 
         let format = format.unwrap_or_else(|| profile.profile.format().unwrap_or(Format::Text));
-        let log_output = log_output.unwrap_or(match format {
+        let log_output = log_output_for_help.unwrap_or(match format {
             Format::Json => Output::Stderr,
             Format::Yaml => Output::Stderr,
             Format::Text => Output::Stdout,
@@ -825,10 +826,10 @@ impl ApplicationContextState {
 
         if !self.silent_init {
             if let Some(Ok(Some(app_ctx))) = &self.app_context {
-                if app_ctx.loaded_with_warnings {
-                    if !InteractiveHandler::confirm_manifest_app_warning(self.yes)? {
-                        bail!(NonSuccessfulExit)
-                    }
+                if app_ctx.loaded_with_warnings
+                    && !InteractiveHandler::confirm_manifest_app_warning(self.yes)?
+                {
+                    bail!(NonSuccessfulExit)
                 }
             }
         }

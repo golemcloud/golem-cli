@@ -65,12 +65,10 @@ fn format_message_with_level(level: &str, message: &str) -> String {
 fn ensure_ends_with_empty_new_line(str: String) -> String {
     if str.ends_with("\n\n") {
         str
+    } else if str.ends_with('\n') {
+        str + "\n"
     } else {
-        if str.ends_with('\n') {
-            str + "\n"
-        } else {
-            str + "\n\n"
-        }
+        str + "\n\n"
     }
 }
 

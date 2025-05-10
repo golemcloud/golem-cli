@@ -303,12 +303,13 @@ pub fn format_ifs_entry(files: &[InitialComponentFile]) -> String {
 }
 
 pub fn format_env(show_sensitive: bool, env: &BTreeMap<String, String>) -> String {
+    let hidden = "*****".log_color_highlight();
     env.iter()
         .map(|(k, v)| {
             if is_sensitive_env_var_name(show_sensitive, k) {
-                format!("{}=*****", k.log_color_highlight())
+                format!("{}={}", k, hidden)
             } else {
-                format!("{}={}", k.log_color_highlight(), v.log_color_highlight())
+                format!("{}={}", k, v.log_color_highlight())
             }
         })
         .join("\n")

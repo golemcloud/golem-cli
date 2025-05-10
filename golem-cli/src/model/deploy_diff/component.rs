@@ -133,7 +133,7 @@ fn masked_env<'a, I: IntoIterator<Item = (&'a String, &'a String)>>(
             (
                 k.clone(),
                 if is_sensitive_env_var_name(show_sensitive, k) {
-                    format!("hash:{}", blake3::hash(v.as_bytes()).to_hex().to_string())
+                    format!("<hashed-value:{}>", blake3::hash(v.as_bytes()).to_hex())
                 } else {
                     v.clone()
                 },
