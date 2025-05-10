@@ -19,7 +19,7 @@ use crate::app::error::{format_warns, AppValidationError, CustomCommandError};
 use crate::app::remote_components::RemoteComponents;
 use crate::config::ProfileName;
 use crate::fs::{compile_and_collect_globs, PathExtra};
-use crate::log::{log_action, log_warn_action, logln, LogColorize, LogIndent, LogOutput, Output};
+use crate::log::{log_action, logln, LogColorize, LogIndent, LogOutput, Output};
 use crate::model::app::{
     includes_from_yaml_file, AppComponentName, Application, ApplicationComponentSelectMode,
     ApplicationConfig, ApplicationSourceMode, BinaryComponentSource, BuildProfileName,
@@ -40,6 +40,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 pub struct ApplicationContext {
+    pub loaded_with_warnings: bool,
     pub config: ApplicationConfig,
     pub application: Application,
     pub wit: ResolvedWitApplication,
@@ -51,25 +52,32 @@ pub struct ApplicationContext {
     remote_components: RemoteComponents,
 }
 
+pub struct ApplicationPreloadResult {
+    pub source_mode: ApplicationSourceMode,
+    pub loaded_with_warnings: bool,
+    pub profiles: Option<BTreeMap<ProfileName, app_raw::Profile>>,
+}
+
 impl ApplicationContext {
     pub fn preload_sources_and_get_profiles(
         source_mode: ApplicationSourceMode,
-    ) -> anyhow::Result<(
-        Option<BTreeMap<ProfileName, app_raw::Profile>>,
-        ApplicationSourceMode,
-    )> {
+    ) -> anyhow::Result<ApplicationPreloadResult> {
         let _output = LogOutput::new(Output::None);
 
         match load_profiles(source_mode) {
-            Some(profiles_and_new_source_mode) => {
-                let (profiles, new_source_mode) = to_anyhow(
-                    "Failed to load application manifest profiles, see problems above",
-                    profiles_and_new_source_mode,
-                )?;
-
-                Ok((Some(profiles), new_source_mode))
-            }
-            None => Ok((None, ApplicationSourceMode::None)),
+            Some(profiles) => to_anyhow(
+                "Failed to load application manifest profiles, see problems above",
+                profiles,
+                Some(|mut profiles| {
+                    profiles.loaded_with_warnings = true;
+                    profiles
+                }),
+            ),
+            None => Ok(ApplicationPreloadResult {
+                source_mode: ApplicationSourceMode::None,
+                loaded_with_warnings: false,
+                profiles: None,
+            }),
         }
     }
 
@@ -90,6 +98,7 @@ impl ApplicationContext {
                     let temp_dir = application.temp_dir();
                     let offline = config.offline;
                     move |wit| ApplicationContext {
+                        loaded_with_warnings: false,
                         config,
                         application,
                         wit,
@@ -105,6 +114,10 @@ impl ApplicationContext {
                         ),
                     }
                 })
+            }),
+            Some(|mut app_ctx| {
+                app_ctx.loaded_with_warnings = true;
+                app_ctx
             }),
         )?;
 
@@ -299,6 +312,7 @@ impl ApplicationContext {
             ResolvedWitApplication::new(&self.application, self.build_profile()).map(|wit| {
                 self.wit = wit;
             }),
+            None,
         )
     }
 
@@ -456,6 +470,7 @@ impl ApplicationContext {
         let selected_component_names = to_anyhow(
             "Failed to select requested components",
             selected_component_names,
+            None,
         )?;
 
         if self.application.component_names().next().is_none() {
@@ -745,22 +760,18 @@ fn load_app(
 
 fn load_profiles(
     source_mode: ApplicationSourceMode,
-) -> Option<
-    ValidatedResult<(
-        BTreeMap<ProfileName, app_raw::Profile>,
-        ApplicationSourceMode,
-    )>,
-> {
+) -> Option<ValidatedResult<ApplicationPreloadResult>> {
     load_raw_apps(source_mode).map(|raw_apps_and_calling_working_dir| {
         raw_apps_and_calling_working_dir.and_then(|(raw_apps, calling_working_dir)| {
-            Application::profiles_from_raw_apps(raw_apps.as_slice()).map(|app| {
-                (
-                    app,
-                    ApplicationSourceMode::Preloaded {
+            Application::profiles_from_raw_apps(raw_apps.as_slice()).map(|profiles| {
+                ApplicationPreloadResult {
+                    source_mode: ApplicationSourceMode::Preloaded {
                         raw_apps,
                         calling_working_dir,
                     },
-                )
+                    loaded_with_warnings: false,
+                    profiles: Some(profiles),
+                }
             })
         })
     })
@@ -886,12 +897,22 @@ fn find_main_source() -> Option<PathBuf> {
     last_source
 }
 
-fn to_anyhow<T>(message: &str, result: ValidatedResult<T>) -> anyhow::Result<T> {
+fn to_anyhow<T>(
+    message: &str,
+    result: ValidatedResult<T>,
+    mark_had_warns: Option<fn(T) -> T>,
+) -> anyhow::Result<T> {
     match result {
         ValidatedResult::Ok(value) => Ok(value),
-        ValidatedResult::OkWithWarns(components, warns) => {
-            log_warn_action("App validation warnings:\n", format_warns(&warns));
-            Ok(components)
+        ValidatedResult::OkWithWarns(value, warns) => {
+            logln("");
+            for line in format_warns(&warns).lines() {
+                logln(line);
+            }
+            Ok(match mark_had_warns {
+                Some(mark_had_warns) => mark_had_warns(value),
+                None => value,
+            })
         }
         ValidatedResult::WarnsAndErrors(warns, errors) => Err(anyhow!(AppValidationError {
             message: message.to_string(),

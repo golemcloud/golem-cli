@@ -66,7 +66,7 @@ mod api;
 mod app;
 mod cloud;
 mod component;
-mod interactive;
+pub(crate) mod interactive;
 mod log;
 mod partial_match;
 mod plugin;

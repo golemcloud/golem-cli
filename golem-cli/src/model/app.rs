@@ -973,6 +973,7 @@ pub struct ComponentProperties {
     pub component_type: AppComponentType,
     pub files: Vec<InitialComponentFile>,
     pub plugins: Vec<PluginInstallation>,
+    pub env: HashMap<String, String>,
 }
 
 impl ComponentProperties {
@@ -995,6 +996,7 @@ impl ComponentProperties {
             component_type: raw.component_type.unwrap_or_default(),
             files,
             plugins,
+            env: Self::validate_and_normalize_env(validation, raw.env),
         })
     }
 
@@ -1080,6 +1082,11 @@ impl ComponentProperties {
             }
         }
 
+        if !overrides.env.is_empty() {
+            self.env
+                .extend(Self::validate_and_normalize_env(validation, overrides.env));
+        }
+
         Ok((!any_errors).then_some((self, any_overrides)))
     }
 
@@ -1093,6 +1100,33 @@ impl ComponentProperties {
 
     pub fn is_deployable(&self) -> bool {
         self.component_type.as_deployable_component_type().is_some()
+    }
+
+    fn validate_and_normalize_env(
+        validation: &mut ValidationBuilder,
+        env: HashMap<String, String>,
+    ) -> HashMap<String, String> {
+        env.into_iter()
+            .map(|(key, value)| {
+                let upper_case_key = key.to_uppercase();
+                if upper_case_key != key {
+                    validation.add_error(format!(
+                        "Only uppercase environment variable names are allowed, found: {}",
+                        key.log_color_highlight()
+                    ));
+                }
+                if upper_case_key.starts_with("GOLEM_") {
+                    validation.add_warn(format!(
+                        concat!(
+                        "Using environment names starting with 'GOLEM_' ({}) is not recommended, ",
+                        "as those are reserved for variables set by Golem and might be overridden."
+                        ),
+                        key.log_color_highlight()
+                    ));
+                }
+                (upper_case_key, value)
+            })
+            .collect::<HashMap<_, _>>()
     }
 }
 
@@ -1789,8 +1823,8 @@ mod app_builder {
                         let binary_component_source = match (dependency.target, dependency.path, dependency.url) {
                             (Some(target_name), None, None) => {
                                 Some(BinaryComponentSource::AppComponent {
-                                                    name: target_name.into(),
-                                                })
+                                    name: target_name.into(),
+                                })
                             }
                             (None, Some(path), None) => {
                                 Some(BinaryComponentSource::LocalFile { path: Path::new(&path).to_path_buf() })

@@ -223,6 +223,8 @@ pub struct ComponentProperties {
     pub files: Vec<InitialComponentFile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginInstallation>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub env: HashMap<String, String>,
 }
 
 impl ComponentProperties {
@@ -263,6 +265,10 @@ impl ComponentProperties {
 
         if !self.plugins.is_empty() {
             vec.push("plugins");
+        }
+
+        if !self.env.is_empty() {
+            vec.push("env");
         }
 
         vec
