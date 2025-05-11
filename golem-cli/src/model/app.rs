@@ -324,6 +324,7 @@ pub fn includes_from_yaml_file(source: &Path) -> Vec<String> {
 }
 
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum ResolvedComponentProperties {
     NonProfiled {
         template_name: Option<TemplateName>,
