@@ -299,7 +299,7 @@ impl InteractiveHandler {
                 Ok(app_ctx
                     .application
                     .component_properties(component_name, self.ctx.build_profile())
-                    .component_type)
+                    .component_type())
             };
 
         fn validate_component_type_for_dependency_type(
@@ -480,7 +480,7 @@ impl InteractiveHandler {
                                 app_ctx
                                     .application
                                     .component_properties(component_name, self.ctx.build_profile())
-                                    .component_type,
+                                    .component_type(),
                             )
                         })
                         .cloned()

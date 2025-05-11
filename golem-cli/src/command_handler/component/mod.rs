@@ -1733,7 +1733,7 @@ fn component_deploy_properties(
         .application
         .component_properties(component_name, build_profile);
     let component_type = component_properties
-        .component_type
+        .component_type()
         .as_deployable_component_type()
         .ok_or_else(|| anyhow!("Component {component_name} is not deployable"))?;
     let files = component_properties.files.clone();
