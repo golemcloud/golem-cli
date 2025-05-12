@@ -46,7 +46,7 @@ def get_state() -> State:
     return state
 
 
-class GitpulseWhatsNewApi(exports.GitpulseWhatsNewApi):
+class ComponentNameApi(exports.ComponentNameApi):
     def initialize(self, args: InitializeArgs) -> None:
         global state
         state = State(
