@@ -1,0 +1,106 @@
+package pack:name;
+
+// See https://component-model.bytecodealliance.org/design/wit.html for more details about the WIT syntax
+
+interface component-name-api {
+  add: func(value: u64);
+  get: func() -> u64;
+}
+
+world component-name {
+  // Always required due to a limitation of the bindings generation in componentize-py.
+  // This import will fail if removed https://github.com/bytecodealliance/componentize-py/blob/c50822c825b4333ff41a0ea3cd9e0c9bc3df49da/bundled/poll_loop.py#L15
+  import wasi:http/outgoing-handler@0.2.0;
+
+  import wasi:cli/environment@0.2.0;
+
+  export component-name-api;
+}
+
+
+
+package pack:name;
+
+// See https://component-model.bytecodealliance.org/design/wit.html for more details about the WIT syntax
+
+interface component-name-api {
+  enum subject-type {
+    issue,
+    pull-request,
+    check-suite
+  }
+  enum category {
+    action-needed,
+    fyi,
+    releases,
+    ci-cd,
+  }
+  record enhanced-notification {
+    id: notification-id,
+    reason: string,
+    subject: subject,
+    repository: repository,
+    updated-at: string,
+    url: string,
+    category: category,
+    priority: priority,
+    summary: string,
+    action-items: list<string>,
+    key-points: list<string>,
+  }
+  type notification-id = string;
+  enum priority {
+    urgent,
+    high,
+    normal,
+    low,
+  }
+  record repository {
+    owner: string,
+    name: string
+  }
+  record subject {
+    %type: subject-type,
+    title: string,
+    url: option<string>
+  }
+  record whats-new-result {
+    action-needed: list<enhanced-notification>,
+    fyi: list<enhanced-notification>,
+    releases: list<enhanced-notification>,
+    ci-cd: list<enhanced-notification>,
+    last-checked: string,
+  }
+
+  /// Core function that fetches and processes new notifications
+  /// Fetches notifications, applies AI enhancements, and filters out seen ones
+  get-whats-new: func() -> whats-new-result;
+
+  /// Mark all items in a result as seen
+  mark-all-seen: func();
+
+  /// Mark a specific notification as seen
+  mark-notification-seen: func(id: notification-id);
+
+  /// Get the last time notifications were checked
+  get-last-checked: func() -> option<string>;
+
+  /// Check if a notification has been seen before
+  has-seen-notification: func(id: notification-id) -> bool;
+}
+
+world component-name {
+  // Requires the following env vars to be set in the worker:
+  // * OPENAI_API_KEY -- create under https://platform.openai.com/settings/<project>/api-keys
+  // * GITHUB_AUTH_TOKEN -- create under https://github.com/settings/tokens and give at least notifications scope
+  // * GITHUB_USER -- the github handle of the user that will read notifications
+
+  // Always required due to a limitation of the bindings generation in componentize-py.
+  // This import will fail if removed https://github.com/bytecodealliance/componentize-py/blob/c50822c825b4333ff41a0ea3cd9e0c9bc3df49da/bundled/poll_loop.py#L15
+  import wasi:http/outgoing-handler@0.2.0;
+  import wasi:cli/environment@0.2.0;
+
+  import golem:llm/llm@1.0.0;
+
+  export component-name-api;
+}
