@@ -9,6 +9,12 @@ components:
   componentname:
     template: python
 
+dependencies:
+  componentname:
+    - type: wasm
+      url: https://github.com/golemcloud/golem-llm/releases/download/v0.1.2/golem_llm_openai.wasm
+
+
 # Example for adding dependencies for Worker to Worker communication:
 # See https://learn.golem.cloud/docs/app-manifest#fields_dependencies for more information
 #

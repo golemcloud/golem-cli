@@ -3,9 +3,9 @@ from urllib3.contrib.wasi import enable_wasi_backend
 
 enable_wasi_backend("component_name")
 
-from gitpulse_whats_new import exports
-from gitpulse_whats_new.exports.gitpulse_whats_new_api import *
-from gitpulse_whats_new.imports import llm
+from component_name import exports
+from component_name.exports.component_name_api import *
+from component_name.imports import llm
 from typing import Optional, Set
 from dataclasses import dataclass, field
 import os
