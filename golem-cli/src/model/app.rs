@@ -1756,18 +1756,35 @@ mod app_builder {
             validation.with_context(vec![("template", template_name.clone())], |validation| {
                 if template.profiles.is_empty() {
                     if template.default_profile.is_some() {
-                        validation.add_warn(format!(
-                            "Property {} is ignored if no {} are defined",
+                        validation.add_error(format!(
+                            "Property {} is not allowed if no {} are defined",
                             "defaultProfile".log_color_highlight(),
                             "profiles".log_color_highlight(),
                         ));
                     }
-                } else if template.default_profile.is_none() {
-                    validation.add_error(format!(
-                        "Property {} is mandatory when using {}",
-                        "defaultProfile".log_color_highlight(),
-                        "profiles".log_color_highlight(),
-                    ));
+                } else {
+                    match &template.default_profile {
+                        Some(default_profile) => {
+                            if !template.profiles.contains_key(default_profile) {
+                                validation.add_error(format!(
+                                    "Unknown {}: {}\n\n{}",
+                                    "defaultProfile".log_color_highlight(),
+                                    default_profile.log_color_highlight(),
+                                    self.available_profiles(
+                                        template.profiles.keys().map(|s| s.as_str()),
+                                        default_profile
+                                    ),
+                                ))
+                            }
+                        }
+                        None => {
+                            validation.add_error(format!(
+                                "Property {} is mandatory when using {}",
+                                "defaultProfile".log_color_highlight(),
+                                "profiles".log_color_highlight(),
+                            ));
+                        }
+                    }
                 }
             });
 
@@ -2022,8 +2039,8 @@ mod app_builder {
                     let properties = match &component.template {
                         Some(template_name) => {
                             let template_name = TemplateName::from(template_name.clone());
-                            match self.templates.get_mut(&template_name) {
-                                Some(template) => Self::resolve_templated_component_properties(
+                            match self.templates.get(&template_name) {
+                                Some(template) => self.resolve_templated_component_properties(
                                     validation,
                                     &source,
                                     template_env,
@@ -2042,7 +2059,7 @@ mod app_builder {
                                 }
                             }
                         }
-                        None => Self::resolve_directly_defined_component_properties(
+                        None => self.resolve_directly_defined_component_properties(
                             validation, &source, component,
                         ),
                     };
@@ -2055,11 +2072,12 @@ mod app_builder {
         }
 
         fn resolve_templated_component_properties(
+            &self,
             validation: &mut ValidationBuilder,
             source: &Path,
             template_env: &minijinja::Environment,
             template_name: TemplateName,
-            template: &mut app_raw::ComponentTemplate,
+            template: &app_raw::ComponentTemplate,
             component_name: AppComponentName,
             component: app_raw::Component,
         ) -> Option<ResolvedComponentProperties> {
@@ -2067,7 +2085,7 @@ mod app_builder {
                 vec![("template", template_name.to_string())],
                 |validation| {
                     if template.profiles.is_empty() {
-                        Self::resolve_templated_non_profiled_component_properties(
+                        self.resolve_templated_non_profiled_component_properties(
                             validation,
                             source,
                             template_env,
@@ -2077,7 +2095,7 @@ mod app_builder {
                             component.component_properties,
                         )
                     } else {
-                        Self::resolve_templated_profiled_component_properties(
+                        self.resolve_templated_profiled_component_properties(
                             validation,
                             source,
                             template_env,
@@ -2094,6 +2112,7 @@ mod app_builder {
         }
 
         fn resolve_templated_non_profiled_component_properties(
+            &self,
             validation: &mut ValidationBuilder,
             source: &Path,
             template_env: &minijinja::Environment,
@@ -2102,7 +2121,7 @@ mod app_builder {
             component_name: AppComponentName,
             component_properties: app_raw::ComponentProperties,
         ) -> Option<ResolvedComponentProperties> {
-            Self::convert_and_validate_templated_component_properties(
+            self.convert_and_validate_templated_component_properties(
                 validation,
                 source,
                 template_env,
@@ -2118,6 +2137,7 @@ mod app_builder {
         }
 
         fn resolve_templated_profiled_component_properties(
+            &self,
             validation: &mut ValidationBuilder,
             source: &Path,
             template_env: &minijinja::Environment,
@@ -2137,7 +2157,7 @@ mod app_builder {
                         vec![("profile", profile_name.to_string())],
                         |validation| {
                             let component_properties = component.profiles.remove(profile_name);
-                            Self::convert_and_validate_templated_component_properties(
+                            self.convert_and_validate_templated_component_properties(
                                 validation,
                                 source,
                                 template_env,
@@ -2153,6 +2173,22 @@ mod app_builder {
                             });
                         },
                     );
+                }
+
+                if let Some(default_profile) = &component.default_profile {
+                    if !resolved_profiles
+                        .contains_key(&BuildProfileName::from(default_profile.as_str()))
+                    {
+                        validation.add_error(format!(
+                            "Unknown {}: {}\n\n{}",
+                            "defaultProfile".log_color_highlight(),
+                            default_profile.log_color_highlight(),
+                            self.available_profiles(
+                                component.profiles.keys().map(|s| s.as_str()),
+                                default_profile
+                            ),
+                        ))
+                    }
                 }
 
                 resolved_profiles
@@ -2171,22 +2207,24 @@ mod app_builder {
         }
 
         fn resolve_directly_defined_component_properties(
+            &self,
             validation: &mut ValidationBuilder,
             source: &Path,
             component: app_raw::Component,
         ) -> Option<ResolvedComponentProperties> {
             if component.profiles.is_empty() {
-                Self::resolve_directly_defined_non_profiled_component_properties(
+                self.resolve_directly_defined_non_profiled_component_properties(
                     validation, source, component,
                 )
             } else {
-                Self::resolve_directly_defined_profiled_component_properties(
+                self.resolve_directly_defined_profiled_component_properties(
                     validation, source, component,
                 )
             }
         }
 
         fn resolve_directly_defined_profiled_component_properties(
+            &self,
             validation: &mut ValidationBuilder,
             source: &Path,
             component: app_raw::Component,
@@ -2196,21 +2234,21 @@ mod app_builder {
                     Some(default_profile) => {
                         if !component.profiles.contains_key(default_profile) {
                             validation.add_error(format!(
-                                "Default profile {} not found among available profiles: {}",
+                                "Unknown {}: {}\n\n{}",
+                                "defaultProfile".log_color_highlight(),
                                 default_profile.log_color_highlight(),
-                                component
-                                    .profiles
-                                    .keys()
-                                    .map(|s| s.log_color_highlight())
-                                    .join(", ")
-                            ));
+                                self.available_profiles(
+                                    component.profiles.keys().map(|s| s.as_str()),
+                                    default_profile
+                                ),
+                            ))
                         }
                     }
                     None => {
                         validation.add_error(format!(
-                            "When {} is defined then {} is mandatory",
+                            "Property {} is not allowed if no {} are defined",
+                            "defaultProfile".log_color_highlight(),
                             "profiles".log_color_highlight(),
-                            "defaultProfile".log_color_highlight()
                         ));
                     }
                 });
@@ -2229,7 +2267,7 @@ mod app_builder {
                             let (properties, _) = validation.with_context_returning(
                                 vec![("profile", profile_name.to_string())],
                                 |validation| {
-                                    Self::convert_and_validate_component_properties(
+                                    self.convert_and_validate_component_properties(
                                         validation, source, properties,
                                     )
                                 },
@@ -2244,6 +2282,7 @@ mod app_builder {
         }
 
         fn resolve_directly_defined_non_profiled_component_properties(
+            &self,
             validation: &mut ValidationBuilder,
             source: &Path,
             component: app_raw::Component,
@@ -2251,16 +2290,16 @@ mod app_builder {
             let valid = validation.with_context(vec![], |validation| {
                 if component.default_profile.is_some() {
                     validation.add_error(format!(
-                        "When {} is not defined then {} should not be defined",
+                        "Property {} is not allowed if no {} are defined",
+                        "defaultProfile".log_color_highlight(),
                         "profiles".log_color_highlight(),
-                        "defaultProfile".log_color_highlight()
                     ));
                 }
             });
 
             valid
                 .then(|| {
-                    Self::convert_and_validate_component_properties(
+                    self.convert_and_validate_component_properties(
                         validation,
                         source,
                         component.component_properties,
@@ -2274,6 +2313,7 @@ mod app_builder {
         }
 
         fn convert_and_validate_templated_component_properties(
+            &self,
             validation: &mut ValidationBuilder,
             source: &Path,
             template_env: &minijinja::Environment,
@@ -2322,6 +2362,7 @@ mod app_builder {
         }
 
         fn convert_and_validate_component_properties(
+            &self,
             validation: &mut ValidationBuilder,
             source: &Path,
             component_properties: app_raw::ComponentProperties,
@@ -2499,7 +2540,10 @@ mod app_builder {
                     validation.add_warn(format!(
                         "Unknown profile in manifest: {}\n\n{}",
                         profile.0.log_color_highlight(),
-                        self.available_profiles(available_profiles, &profile.0)
+                        self.available_profiles(
+                            available_profiles.iter().map(|p| p.0.as_str()),
+                            &profile.0
+                        )
                     ));
                 }
 
@@ -2565,17 +2609,12 @@ mod app_builder {
             }
         }
 
-        fn available_profiles(
+        fn available_profiles<'a, I: IntoIterator<Item = &'a str>>(
             &self,
-            available_profiles: &BTreeSet<ProfileName>,
+            available_profiles: I,
             unknown: &str,
         ) -> String {
-            self.available_options_help(
-                "profiles",
-                "profile names",
-                unknown,
-                available_profiles.iter().map(|name| name.0.as_str()),
-            )
+            self.available_options_help("profiles", "profile names", unknown, available_profiles)
         }
 
         fn available_templates(&self, unknown: &str) -> String {
@@ -2605,14 +2644,14 @@ mod app_builder {
             )
         }
 
-        fn available_options_help<'a, I: Iterator<Item = &'a str>>(
+        fn available_options_help<'a, I: IntoIterator<Item = &'a str>>(
             &self,
             entity_plural: &str,
             entity_name_plural: &str,
             unknown_option: &str,
             name_options: I,
         ) -> String {
-            let options = name_options.collect::<Vec<_>>();
+            let options = name_options.into_iter().collect::<Vec<_>>();
             if options.is_empty() {
                 return format!("No {} are defined", entity_plural);
             }
