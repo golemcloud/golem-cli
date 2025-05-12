@@ -3,6 +3,14 @@ package pack:name;
 // See https://component-model.bytecodealliance.org/design/wit.html for more details about the WIT syntax
 
 interface component-name-api {
+  type github-auth-token = string;
+
+  record initialize-args {
+    /// the github handle of the user that will read notifications
+    github-username: string,
+    /// create under https://github.com/settings/tokens and give at least notifications scope
+    github-auth-token: github-auth-token,
+  }
   enum subject-type {
     issue,
     pull-request,
@@ -51,6 +59,9 @@ interface component-name-api {
     last-checked: string,
   }
 
+  /// initialized a worker, making it ready to serve requests
+  initialize: func(args: initialize-args);
+
   /// Core function that fetches and processes new notifications
   /// Fetches notifications, applies AI enhancements, and filters out seen ones
   get-whats-new: func() -> whats-new-result;
@@ -69,11 +80,6 @@ interface component-name-api {
 }
 
 world component-name {
-  // Requires the following env vars to be set in the worker:
-  // * OPENAI_API_KEY -- create under https://platform.openai.com/settings/<project>/api-keys
-  // * GITHUB_AUTH_TOKEN -- create under https://github.com/settings/tokens and give at least notifications scope
-  // * GITHUB_USER -- the github handle of the user that will read notifications
-
   // Always required due to a limitation of the bindings generation in componentize-py.
   // This import will fail if removed https://github.com/bytecodealliance/componentize-py/blob/c50822c825b4333ff41a0ea3cd9e0c9bc3df49da/bundled/poll_loop.py#L15
   import wasi:http/outgoing-handler@0.2.0;

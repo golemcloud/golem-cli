@@ -8,6 +8,9 @@
 components:
   componentname:
     template: python
+    env:
+      # create under https://platform.openai.com/settings/<project>/api-keys
+      OPENAI_API_KEY: ""
 
 dependencies:
   componentname:
@@ -22,3 +25,49 @@ dependencies:
 #  componentname:
 #  - target: <target component name to be called>
 #    type: wasm-rpc
+
+httpApi:
+  definitions:
+    componentname:
+      version: '3'
+      routes:
+      - method: POST
+        path: /v1/sessions/{session-id}
+        binding:
+          type: default
+          componentName: "gitpulse:whats-new"
+          response: |
+            let session-id: string = request.path.session-id;
+            let worker = instance("session-${session-id}");
+            worker.initialize({
+              github-username: request.body.github-username,
+              github-auth-token: request.body.github-auth-token
+            });
+            {status: 200}
+      - method: Get
+        path: /v1/sessions/{session-id}/notifications
+        binding:
+          type: default
+          componentName: "gitpulse:whats-new"
+          response: |
+            let session-id: string = request.path.session-id;
+            let worker = instance("session-${session-id}");
+            let result = worker.get-whats-new();
+            {status: 200, body: result}
+      - method: Post
+        path: /v1/sessions/{session-id}/seen-notifications
+        binding:
+          type: default
+          componentName: "gitpulse:whats-new"
+          response: |
+            let session-id: string = request.path.session-id;
+            let notification-id: string = request.body.notification-id;
+            let worker = instance("session-${session-id}");
+            worker.mark-notification-seen(notification-id);
+            {status: 200}
+
+  deployments:
+    local:
+    - host: localhost:9006
+      definitions:
+      - gitpulse-whats-new

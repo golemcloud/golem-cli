@@ -18,12 +18,14 @@ from datetime import datetime, timezone
 
 @dataclass
 class State:
-    last_checked: Optional[str] = None
-    pending_notifications: list[EnhancedNotification] = field(default_factory=list)
-    seen_notifications: Set[str] = field(default_factory=set)
+    last_checked: Optional[str]
+    pending_notifications: list[EnhancedNotification]
+    seen_notifications: Set[str]
+    github_username: str
+    github_auth_token: str
 
 
-state: State = State()
+state: Optional[State] = None
 
 GITHUB_API_HOST = "https://api.github.com"
 
@@ -38,16 +40,32 @@ llm_config = llm.Config(
 )
 
 
-class ComponentNameApi(exports.ComponentNameApi):
+def get_state() -> State:
+    if state is None:
+        raise ValueError("Worker is not initialized")
+    return state
+
+
+class GitpulseWhatsNewApi(exports.GitpulseWhatsNewApi):
+    def initialize(self, args: InitializeArgs) -> None:
+        global state
+        state = State(
+            last_checked=None,
+            pending_notifications=[],
+            seen_notifications=set(),
+            github_username=args.github_username,
+            github_auth_token=args.github_auth_token,
+        )
+
     def get_last_checked(self) -> Optional[str]:
-        return state.last_checked
+        return get_state().last_checked
 
     def get_whats_new(self) -> WhatsNewResult:
         last_checked = update_notifications()
         result = WhatsNewResult(
             action_needed=[], fyi=[], releases=[], ci_cd=[], last_checked=last_checked
         )
-        for notification in state.pending_notifications:
+        for notification in get_state().pending_notifications:
             if notification.category == Category.ACTION_NEEDED:
                 result.action_needed.append(notification)
             elif notification.category == Category.FYI:
@@ -59,14 +77,16 @@ class ComponentNameApi(exports.ComponentNameApi):
         return result
 
     def has_seen_notification(self, id: str) -> bool:
-        return id in state.seen_notifications
+        return id in get_state().seen_notifications
 
     def mark_all_seen(self) -> None:
+        state = get_state()
         for notification in state.pending_notifications:
             state.seen_notifications.add(notification.id)
         state.pending_notifications.clear()
 
     def mark_notification_seen(self, id: str) -> None:
+        state = get_state()
         state.seen_notifications.add(id)
         filtered_notifications = list(
             filter(lambda n: n.id != id, state.pending_notifications)
@@ -74,21 +94,8 @@ class ComponentNameApi(exports.ComponentNameApi):
         state.pending_notifications = filtered_notifications
 
 
-def github_auth_token() -> str:
-    value = os.getenv("GITHUB_AUTH_TOKEN")
-    if value is None:
-        raise ValueError("GITHUB_AUTH_TOKEN not specified")
-    return value
-
-
-def github_user() -> str:
-    value = os.getenv("GITHUB_USER")
-    if value is None:
-        raise ValueError("GITHUB_USER not specified")
-    return value
-
-
 def update_notifications() -> str:
+    state = get_state()
     since = state.last_checked
     before = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -111,6 +118,14 @@ def update_notifications() -> str:
     state.pending_notifications.extend(results)
 
     return before
+
+
+def github_user() -> str:
+    return get_state().github_username
+
+
+def github_auth_token() -> str:
+    return get_state().github_auth_token
 
 
 def get_notifications(since: Optional[str], before: str) -> Any:
@@ -146,6 +161,8 @@ def process_pull_request_notification(
                                 ```
                                 {model_response_format}
                                 ```
+                                Your entire response should be valid json. Do not include any headers / trailers like ``` that would prevent
+                                the response from being parsed as json.
 
                                 The GitHub handle of the user reading the notifications is `{github_user()}`
 
@@ -216,6 +233,8 @@ def process_issue_notification(
                                 ```
                                 {model_response_format}
                                 ```
+                                Your entire response should be valid json. Do not include any headers / trailers like ``` that would prevent
+                                the response from being parsed as json.
 
                                 The GitHub handle of the user reading the notifications is `{github_user()}`
 
@@ -358,7 +377,7 @@ def parse_llm_response(response: llm.ChatEvent):
 
     try:
         return model_response_schema.validate(json.loads(content.value))
-    except Exception:
+    except:
         raise ValueError(f"Failed parsing model response: {content.value}")
 
 
