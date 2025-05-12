@@ -35,7 +35,7 @@ httpApi:
         path: /v1/sessions/{session-id}
         binding:
           type: default
-          componentName: "componentname"
+          __cn__: "componentname"
           response: |
             let session-id: string = request.path.session-id;
             let worker = instance("session-${session-id}");
@@ -48,7 +48,7 @@ httpApi:
         path: /v1/sessions/{session-id}/notifications
         binding:
           type: default
-          componentName: "componentname"
+          __cn__: "componentname"
           response: |
             let session-id: string = request.path.session-id;
             let worker = instance("session-${session-id}");
@@ -58,7 +58,7 @@ httpApi:
         path: /v1/sessions/{session-id}/seen-notifications
         binding:
           type: default
-          componentName: "componentname"
+          __cn__: "componentname"
           response: |
             let session-id: string = request.path.session-id;
             let notification-id: string = request.body.notification-id;
@@ -66,8 +66,9 @@ httpApi:
             worker.mark-notification-seen(notification-id);
             {status: 200}
 
-  deployments:
-    local:
-    - host: localhost:9006
-      definitions:
-      - componentname
+  # Uncomment if you want to deploy your api
+  # deployments:
+  #   local:
+  #   - host: localhost:9006
+  #     definitions:
+  #     - componentname
