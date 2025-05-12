@@ -111,7 +111,7 @@ def update_notifications() -> str:
         elif notification_subject == "CheckSuite":
             results.append(process_check_suite_notification(notification))
         else:
-            # TODO: implement other notification types
+            # Optionally add support for other notification types here
             print(f"Ignoring notification for subject {notification_subject}")
 
     state.last_checked = before
@@ -129,7 +129,7 @@ def github_auth_token() -> str:
 
 
 def get_notifications(since: Optional[str], before: str) -> Any:
-    # TODO: pagination
+    # Add support for pagination here if you have a lot of notifications
     query = f"all=true&before={before}"
     if since is not None:
         query += f"&since={since}"
@@ -327,7 +327,7 @@ def get_notification_subject_comments(
     if "comments_url" not in subject:
         return []
 
-    # TODO: pagination
+    # Add support for pagination here if you need to support repos with a lot of comments
     if since is not None:
         comments_url = f"{subject['comments_url']}?since={since}"
     else:
