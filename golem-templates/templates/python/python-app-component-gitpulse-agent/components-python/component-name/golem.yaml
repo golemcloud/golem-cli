@@ -35,7 +35,7 @@ httpApi:
         path: /v1/sessions/{session-id}
         binding:
           type: default
-          componentName: "gitpulse:whats-new"
+          componentName: "componentname"
           response: |
             let session-id: string = request.path.session-id;
             let worker = instance("session-${session-id}");
@@ -48,7 +48,7 @@ httpApi:
         path: /v1/sessions/{session-id}/notifications
         binding:
           type: default
-          componentName: "gitpulse:whats-new"
+          componentName: "componentname"
           response: |
             let session-id: string = request.path.session-id;
             let worker = instance("session-${session-id}");
@@ -58,7 +58,7 @@ httpApi:
         path: /v1/sessions/{session-id}/seen-notifications
         binding:
           type: default
-          componentName: "gitpulse:whats-new"
+          componentName: "componentname"
           response: |
             let session-id: string = request.path.session-id;
             let notification-id: string = request.body.notification-id;
@@ -70,4 +70,4 @@ httpApi:
     local:
     - host: localhost:9006
       definitions:
-      - gitpulse-whats-new
+      - componentname
