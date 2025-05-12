@@ -18,7 +18,9 @@ use crate::app::context::ApplicationContext;
 use crate::fs;
 use crate::fs::PathExtra;
 use crate::log::{log_action, log_skipping_up_to_date, LogColorize, LogIndent};
-use crate::model::app::{AppComponentName, DependencyType, DependentAppComponent};
+use crate::model::app::{
+    AppComponentName, BinaryComponentSource, DependencyType, DependentAppComponent,
+};
 use crate::wasm_rpc_stubgen::cargo::regenerate_cargo_package_component;
 use crate::wasm_rpc_stubgen::commands;
 use crate::wasm_rpc_stubgen::wit_generate::{
@@ -143,19 +145,25 @@ async fn create_generated_base_wit(
                         );
                         let _indent = LogIndent::new();
                         for library_dep in &library_dependencies {
-                            let path = ctx.resolve_binary_component_source(library_dep).await?;
-                            let packages = extract_wasm_interface_as_wit_dep(
-                                &library_dep.source.to_string(),
-                                &path,
-                                &component_generated_base_wit,
-                            )
-                            .with_context(|| {
-                                format!(
-                                    "Failed to extract WIT interface of library dependency {}",
-                                    library_dep.source.to_string().log_color_highlight()
+                            // TODO: adding WIT packages from AppComponent wasm dependencies is not supported yet (we don't have a compiled WASM for them at this point)
+                            if !matches!(
+                                library_dep.source,
+                                BinaryComponentSource::AppComponent { .. }
+                            ) {
+                                let path = ctx.resolve_binary_component_source(library_dep).await?;
+                                let packages = extract_wasm_interface_as_wit_dep(
+                                    &library_dep.source.to_string(),
+                                    &path,
+                                    &component_generated_base_wit,
                                 )
-                            })?;
-                            packages_from_lib_deps.extend(packages);
+                                .with_context(|| {
+                                    format!(
+                                        "Failed to extract WIT interface of library dependency {}",
+                                        library_dep.source.to_string().log_color_highlight()
+                                    )
+                                })?;
+                                packages_from_lib_deps.extend(packages);
+                            }
                         }
                     }
                 }
