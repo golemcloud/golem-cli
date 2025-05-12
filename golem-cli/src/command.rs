@@ -1166,7 +1166,6 @@ pub mod api {
         use crate::command::shared_args::{ProjectOptionalFlagArg, UpdateOrRedeployArgs};
         use crate::model::api::{ApiDefinitionId, ApiDefinitionVersion};
         use crate::model::app::HttpApiDefinitionName;
-        use crate::model::PathBufOrStdin;
         use clap::Subcommand;
 
         #[derive(Debug, Subcommand)]
@@ -1177,18 +1176,6 @@ pub mod api {
                 http_api_definition_name: Option<HttpApiDefinitionName>,
                 #[command(flatten)]
                 update_or_redeploy: UpdateOrRedeployArgs,
-            },
-            // TODO: decide if we drop it from cli for now, or move the import logic into the CLI, hidden for now
-            /// Import OpenAPI file as api definition
-            #[clap(hide = true)]
-            Import {
-                #[command(flatten)]
-                project: ProjectOptionalFlagArg,
-                /// The OpenAPI json or yaml file to be used as the api definition
-                ///
-                /// Json format expected unless file name ends up in `.yaml`
-                #[arg(value_hint = clap::ValueHint::FilePath)]
-                definition: PathBufOrStdin,
             },
             /// Retrieves metadata about an existing API definition
             Get {
