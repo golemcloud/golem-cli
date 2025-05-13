@@ -147,8 +147,8 @@ export const PluginStatus: React.FC<PluginStatusProps> = ({
         </CardHeader>
         <CardContent className="grid gap-4">
           {updates.length > 0 ? (
-            updates.map((update, index) => (
-              <UpdateLog key={index} update={update} />
+            updates.map(update => (
+              <UpdateLog key={update.details} update={update} />
             ))
           ) : (
             <div className="text-center text-gray-500 py-6">

@@ -5,7 +5,9 @@ import { ENDPOINT } from "@/service/endpoints.ts";
 import { parseErrorResponse } from "@/service/error-handler.ts";
 import type { Api } from "@/types/api.ts";
 import type { Component, ComponentList } from "@/types/component.ts";
+import type { Deployment } from "@/types/deployments";
 import type { Plugin } from "@/types/plugin";
+import type { OplogEntry, Worker } from "@/types/worker";
 
 export class Service {
   public baseUrl: string;
@@ -110,7 +112,10 @@ export class Service {
     );
   };
 
-  public addPluginToComponent = async (id: string, form: Record<string, unknown>) => {
+  public addPluginToComponent = async (
+    id: string,
+    form: Record<string, unknown>,
+  ) => {
     return await this.callApi(
       ENDPOINT.addPluginToComponent(id),
       "POST",
@@ -146,7 +151,7 @@ export class Service {
       "POST",
       JSON.stringify(param),
     );
-    return r;
+    return r as { workers: Worker[] } | null;
   };
 
   public deleteWorker = async (componentId: string, workName: string) => {
@@ -157,7 +162,10 @@ export class Service {
     return r;
   };
 
-  public createWorker = async (componentID: string, params: Record<string, unknown>) => {
+  public createWorker = async (
+    componentID: string,
+    params: Record<string, unknown>,
+  ) => {
     const r = await this.callApi(
       ENDPOINT.createWorker(componentID),
       "POST",
@@ -215,7 +223,7 @@ export class Service {
     const r = await this.callApi(
       ENDPOINT.getParticularWorker(componentId, workerName),
     );
-    return r;
+    return r as Worker;
   };
 
   public interruptWorker = async (componentId: string, workerName: string) => {
@@ -247,7 +255,7 @@ export class Service {
       "POST",
       JSON.stringify(payload),
     );
-    return r;
+    return r as { result: { value: string } } | null;
   };
 
   public invokeEphemeralAwait = async (
@@ -260,12 +268,14 @@ export class Service {
       "POST",
       JSON.stringify(payload),
     );
-    return r;
+    return r as { result: { value: string } } | null;
   };
 
-  public getDeploymentApi = async (versionId: string) => {
+  public getDeploymentApi = async (
+    versionId: string,
+  ): Promise<Deployment | null> => {
     const r = await this.callApi(ENDPOINT.getDeploymentApi(versionId));
-    return r;
+    return r as Deployment | null;
   };
 
   public deleteDeployment = async (deploymentId: string) => {
@@ -295,7 +305,7 @@ export class Service {
       ENDPOINT.getOplog(componentId, workerName, count, searchQuery),
       "GET",
     );
-    return r;
+    return r as { entries: OplogEntry[] };
   };
 
   public getComponentByIdAsKey = async (): Promise<
@@ -346,7 +356,9 @@ export class Service {
   };
 
   public getPluginByName = async (name: string): Promise<Plugin[] | null> => {
-    return (await this.callApi(ENDPOINT.getPluginName(name))) as Plugin[] | null;
+    return (await this.callApi(ENDPOINT.getPluginName(name))) as
+      | Plugin[]
+      | null;
   };
 
   public downloadComponent = async (
@@ -382,7 +394,7 @@ export class Service {
       });
 
       if (!response.ok) {
-        if (response.status === 504)  return null;
+        if (response.status === 504) return null;
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }

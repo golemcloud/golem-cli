@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card.tsx";
 import { useNavigate, useParams } from "react-router-dom";
-import { Worker } from "@/types/worker.ts";
+import type { Worker } from "@/types/worker.ts";
 import { API } from "@/service";
 
 const WORKER_COLOR_MAPPER = {
@@ -29,14 +29,19 @@ export default function WorkerList() {
   const { componentId } = useParams();
 
   useEffect(() => {
-    API.findWorker(componentId!).then(res => {
-      const sortedData = res.workers.sort(
-        (a: Worker, b: Worker) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      );
-      setWorkerList(sortedData);
-      setFilteredWorkers(sortedData);
-    });
+    const fetchWorkers = async () => {
+      if (!componentId) return;
+      const worker = await API.findWorker(componentId);
+      if (worker) {
+        const sortedData = worker.workers.sort(
+          (a: Worker, b: Worker) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+        setWorkerList(sortedData);
+        setFilteredWorkers(sortedData);
+      }
+    };
+    fetchWorkers();
   }, [componentId]);
 
   useEffect(() => {
@@ -88,9 +93,9 @@ export default function WorkerList() {
             </div>
           ) : (
             <div className="overflow-auto max-h-[70vh] space-y-4">
-              {filteredWorkers.map((worker, index) => (
+              {filteredWorkers.map(worker => (
                 <Card
-                  key={index}
+                  key={worker.workerId.componentId}
                   className="rounded-lg border border-border bg-muted hover:bg-muted/80 hover:shadow-lg transition cursor-pointer"
                   onClick={() =>
                     navigate(

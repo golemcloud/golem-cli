@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API } from "@/service";
-import {
+import type {
   ComponentExportFunction,
   ComponentList,
   Export,
@@ -405,7 +405,7 @@ function SectionCard({
       throw new Error("No function details loaded.");
     }
     functionDetails.parameters.forEach((field, index) => {
-      let value = parsedValue[index];
+      const value = parsedValue[index];
       if (nonStringPrimitives.includes(field.typ.type) && value === undefined) {
         validationErrors[field.name] = `${field.name} is required`;
       } else {
@@ -473,7 +473,7 @@ function SectionCard({
             <ReactJson
               src={JSON.parse(value || "{}")}
               name={null}
-              theme={theme == "dark" ? "brewer" : "bright:inverted"}
+              theme={theme === "dark" ? "brewer" : "bright:inverted"}
               collapsed={false}
               enableClipboard={false}
               displayDataTypes={false}
