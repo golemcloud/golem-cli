@@ -34,6 +34,7 @@ test_r::enable!();
 static TEMPLATES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 static ADAPTERS: Dir<'_> = include_dir!("$OUT_DIR/golem-wit/adapters");
 static WIT: Dir<'_> = include_dir!("$OUT_DIR/golem-wit/wit/deps");
+static RDBMS_WIT: Dir<'_> = include_dir!("$OUT_DIR/golem-rdbms/wit");
 
 static APP_MANIFEST_HEADER: &str = indoc! {"
 # Schema for IDEA:
@@ -193,8 +194,13 @@ pub fn instantiate_template(
     };
     for wit_dep in &template.wit_deps {
         for target_wit_deps in &wit_deps_targets {
-            let target = target_wit_deps.join(wit_dep.file_name().unwrap().to_str().unwrap());
-            copy_all(&WIT, wit_dep, &target, TargetExistsResolveMode::MergeOrSkip)?;
+            let name = wit_dep.file_name().unwrap().to_str().unwrap();
+            let target = target_wit_deps.join(name);
+            if name == "golem-rdbms" {
+                copy_all_root(&RDBMS_WIT, &target, TargetExistsResolveMode::MergeOrSkip)?;
+            } else {
+                copy_all(&WIT, wit_dep, &target, TargetExistsResolveMode::MergeOrSkip)?;
+            }
         }
     }
     Ok(render_template_instructions(template, parameters))
@@ -399,6 +405,25 @@ fn copy_all(
     Ok(())
 }
 
+fn copy_all_root(
+    catalog: &Dir<'_>,
+    target_path: &Path,
+    resolve_mode: TargetExistsResolveMode,
+) -> io::Result<()> {
+    fs::create_dir_all(target_path)?;
+
+    for file in catalog.files() {
+        copy(
+            catalog,
+            file.path(),
+            &target_path.join(file.path().file_name().unwrap().to_str().unwrap()),
+            resolve_mode,
+        )?;
+    }
+
+    Ok(())
+}
+
 enum TransformMode {
     All,
     PackageAndComponentOnly,
@@ -430,6 +455,7 @@ fn transform(str: impl AsRef<str>, parameters: &TemplateParameters, mode: Transf
         .replace("PackNs", &parameters.package_name.namespace_title_case())
         .replace("__pack__", &parameters.package_name.namespace_snake_case())
         .replace("__name__", &parameters.package_name.name_snake_case())
+        .replace("__cn__", "componentName")
     };
 
     let transform_manifest_hints = |str: &str| -> String {
@@ -633,6 +659,7 @@ fn parse_template(
 
         wit_deps.push(PathBuf::from("golem-1.x"));
         wit_deps.push(PathBuf::from("golem-rpc"));
+        wit_deps.push(PathBuf::from("golem-rdbms"));
     }
     if metadata.requires_wasi.unwrap_or(false) {
         wit_deps.push(PathBuf::from("blobstore"));
