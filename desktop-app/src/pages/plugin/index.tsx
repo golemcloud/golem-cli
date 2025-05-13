@@ -21,10 +21,10 @@ export default function PluginList() {
 
   useEffect(() => {
     const fetchPlugins = async () => {
-      const res = await API.getPlugins();
-      if (res) {
-        setPluginsApi(res);
-        setPlugins(res);
+      const plugins = await API.getPlugins();
+      if (plugins) {
+        setPluginsApi(plugins);
+        setPlugins(plugins);
       }
     };
     fetchPlugins();
