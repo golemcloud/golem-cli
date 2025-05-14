@@ -110,7 +110,7 @@ export function parseErrorResponse(response: any): ErrorResponse {
     description: parsedError.description,
     variant: "destructive",
     duration: parsedError.description.includes("Rib compilation error")
-      ? Infinity
+      ? Number.POSITIVE_INFINITY
       : 5000,
   });
 

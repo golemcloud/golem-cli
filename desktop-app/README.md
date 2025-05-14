@@ -1,10 +1,20 @@
-#### Golem GUI Development
+# Golem GUI Development
 
 ## Overview
 
 Golem GUI is a web application that allows users to interact with the Golem network.
 
+
 ## Getting Started
+
+### Prerequisites
+
+- [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+- [Cargo-make](https://github.com/sagiegurari/cargo-make)
+- [Node.js](https://nodejs.org/en/download/) (version 18.x or 20.x LTS recommended)
+- [npm](https://www.npmjs.com/get-npm) (included with Node.js)
+
+### Installation
 
 To get started with Golem GUI, follow these steps:
 
@@ -14,7 +24,13 @@ To get started with Golem GUI, follow these steps:
 git clone https://github.com/golemcloud/golem-cli.git
 ```
 
-2. Start the development application:
+2. Install dependencies:
+
+```bash
+cargo make npm-install
+```
+
+3. Start the development application (from the root directory):
 
 ```bash
 cargo make dev-desktop

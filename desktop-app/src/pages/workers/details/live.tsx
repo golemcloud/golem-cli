@@ -11,7 +11,12 @@ import { useDebounce } from "@/hooks/debounce"; // Import the debounce hook
 import { formatTimestampInDateTimeFormat } from "@/lib/utils";
 import { API } from "@/service";
 import { WSS } from "@/service/wss";
-import { Invocation, OplogEntry, Terminal, WsMessage } from "@/types/worker.ts";
+import type {
+  Invocation,
+  OplogEntry,
+  Terminal,
+  WsMessage,
+} from "@/types/worker.ts";
 import { RotateCw, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -44,7 +49,7 @@ export default function WorkerLive() {
 
           ws.onMessage((data: unknown) => {
             const message = data as WsMessage;
-            if (message["InvocationStart"]) {
+            if (message.InvocationStart) {
               setInvocationData(prev => [
                 ...prev,
                 {
@@ -52,7 +57,7 @@ export default function WorkerLive() {
                   function: message.InvocationStart.function,
                 },
               ]);
-            } else if (message["StdOut"]) {
+            } else if (message.StdOut) {
               const bytes = message.StdOut.bytes || [];
               setTerminal(prev => [
                 ...prev,
@@ -93,7 +98,7 @@ export default function WorkerLive() {
     ).then(response => {
       const terminalData = [] as Terminal[];
       const invocationList = [] as Invocation[];
-      response.entries.forEach((item: OplogEntry) => {
+      for (const item of response.entries) {
         if (item.entry.type === "Log") {
           terminalData.push({
             timestamp: item.entry.timestamp,
@@ -105,7 +110,7 @@ export default function WorkerLive() {
             function: item.entry.function_name,
           });
         }
-      });
+      }
       setInvocationData(invocationList);
       setTerminal(terminalData);
     });

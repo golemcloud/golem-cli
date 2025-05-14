@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Plugin } from "@/types/plugin";
+import type { Plugin } from "@/types/plugin";
 import { useEffect, useState } from "react";
 import { API } from "@/service";
 import { ArrowLeft, Component, Globe, Trash2 } from "lucide-react";
@@ -41,16 +41,21 @@ export function PluginView() {
   const [currentVersion, setCurrentVersion] = useState<Plugin | null>(null);
 
   useEffect(() => {
-    API.getPluginByName(pluginId!).then(res => {
-      setPlugin(res);
-      const selectedVersion = version
-        ? res.find(p => p.version === version)
-        : res[0];
-      if (selectedVersion) {
-        setCurrentVersion(selectedVersion);
-        setVer(selectedVersion.version);
+    const loadPlugins = async () => {
+      if (!pluginId) return;
+      const plugins = await API.getPluginByName(pluginId);
+      if (plugins) {
+        setPlugin(plugins);
+        const selectedVersion = version
+          ? plugins.find(p => p.version === version)
+          : plugins[0];
+        if (selectedVersion) {
+          setCurrentVersion(selectedVersion);
+          setVer(selectedVersion.version);
+        }
       }
-    });
+    };
+    loadPlugins();
   }, [pluginId, version]);
 
   const handleVersionChange = (version: string) => {

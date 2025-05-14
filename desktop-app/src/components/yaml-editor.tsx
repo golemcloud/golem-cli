@@ -11,19 +11,19 @@ interface YamlEditorProps {
   onChange: (value: string) => void;
 }
 
+interface Marker {
+  severity: string;
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+  message: string;
+}
+
 export function YamlEditor({ value, onChange }: YamlEditorProps) {
   const monacoRef = useRef<Monaco | null>(null);
   const editorRef = useRef<any>(null);
-  const [markers, setMarkers] = useState<
-    {
-      severity: string;
-      startLineNumber: number;
-      startColumn: number;
-      endLineNumber: number;
-      endColumn: number;
-      message: string;
-    }[]
-  >([]);
+  const [markers, setMarkers] = useState<Marker[]>([]);
   const { theme } = useTheme();
 
   const validateYaml = (content: string, monaco: Monaco) => {
@@ -32,7 +32,7 @@ export function YamlEditor({ value, onChange }: YamlEditorProps) {
     const model = editorRef.current.getModel();
     if (!model) return;
 
-    const markers: any[] = [];
+    const markers: Marker[] = [];
 
     try {
       yaml.loadAll(
@@ -145,7 +145,7 @@ export function YamlEditor({ value, onChange }: YamlEditorProps) {
       <Editor
         defaultLanguage="yaml"
         value={value}
-        theme={theme == "dark" ? "vs-dark" : "vs-light"}
+        theme={theme === "dark" ? "vs-dark" : "vs-light"}
         onChange={handleEditorChange}
         onMount={handleEditorDidMount}
         options={{

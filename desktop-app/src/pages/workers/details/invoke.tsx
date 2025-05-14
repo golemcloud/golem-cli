@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API } from "@/service";
-import {
+import type {
   ComponentExportFunction,
   ComponentList,
   Export,
@@ -13,7 +13,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CodeBlock, dracula } from "react-code-blocks";
 import {
   ClipboardCopy,
   Play,
@@ -24,7 +23,7 @@ import {
   Check,
 } from "lucide-react";
 import { cn, sanitizeInput } from "@/lib/utils";
-import ReactJson from "react-json-view";
+import ReactJson from "@microlink/react-json-view";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,6 +38,7 @@ import {
   DynamicForm,
   nonStringPrimitives,
 } from "@/pages/workers/details/dynamic-form.tsx";
+import { CodeBlock } from "@/components/ui/code-block";
 
 export default function WorkerInvoke() {
   const { componentId = "", workerName = "" } = useParams();
@@ -405,7 +405,7 @@ function SectionCard({
       throw new Error("No function details loaded.");
     }
     functionDetails.parameters.forEach((field, index) => {
-      let value = parsedValue[index];
+      const value = parsedValue[index];
       if (nonStringPrimitives.includes(field.typ.type) && value === undefined) {
         validationErrors[field.name] = `${field.name} is required`;
       } else {
@@ -443,8 +443,7 @@ function SectionCard({
                           null,
                           2,
                         )}
-                        language="json"
-                        theme={dracula}
+                        lang="json"
                       />
                     </PopoverContent>
                   </Popover>
@@ -474,7 +473,7 @@ function SectionCard({
             <ReactJson
               src={JSON.parse(value || "{}")}
               name={null}
-              theme={theme == "dark" ? "brewer" : "bright:inverted"}
+              theme={theme === "dark" ? "brewer" : "bright:inverted"}
               collapsed={false}
               enableClipboard={false}
               displayDataTypes={false}
