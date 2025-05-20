@@ -492,8 +492,8 @@ impl Context {
 }
 
 pub enum GolemClients {
-    Oss(GolemClientsOss),
-    Cloud(GolemClientsCloud),
+    Oss(Box<GolemClientsOss>),
+    Cloud(Box<GolemClientsCloud>),
 }
 
 impl GolemClients {
@@ -555,7 +555,7 @@ impl GolemClients {
                     security_token: security_token.clone(),
                 };
 
-                Ok(GolemClients::Cloud(GolemClientsCloud {
+                Ok(GolemClients::Cloud(Box::new(GolemClientsCloud {
                     authentication,
                     account: AccountClientCloud {
                         context: cloud_context(),
@@ -611,7 +611,7 @@ impl GolemClients {
                     worker_invoke: WorkerClientCloud {
                         context: worker_invoke_context(),
                     },
-                }))
+                })))
             }
             None => {
                 let component_context = || ContextOss {
@@ -640,7 +640,7 @@ impl GolemClients {
                     base_url: config.worker_url.clone(),
                 };
 
-                Ok(GolemClients::Oss(GolemClientsOss {
+                Ok(GolemClients::Oss(Box::new(GolemClientsOss {
                     api_definition: ApiDefinitionClientOss {
                         context: worker_context(),
                     },
@@ -665,7 +665,7 @@ impl GolemClients {
                     worker_invoke: WorkerClientOss {
                         context: worker_invoke_context(),
                     },
-                }))
+                })))
             }
         }
     }
