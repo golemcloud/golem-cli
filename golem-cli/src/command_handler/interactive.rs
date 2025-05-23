@@ -296,7 +296,7 @@ impl InteractiveHandler {
             component_type: AppComponentType,
         ) -> bool {
             match dependency_type {
-                DependencyType::DynamicWasmRpc | DependencyType::StaticWasmRpc => {
+                DependencyType::DynamicWasmRpc | DependencyType::StaticWasmRpc | DependencyType::Grpc => {
                     match component_type {
                         AppComponentType::Durable | AppComponentType::Ephemeral => true,
                         AppComponentType::Library => false,

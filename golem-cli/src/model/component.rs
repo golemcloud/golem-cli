@@ -195,6 +195,13 @@ impl ComponentView {
                                     (resource.clone(), target.interface_name.clone())
                                 })
                                 .collect::<BTreeMap<String, String>>(),
+                            DynamicLinkedInstance::Grpc(links) => links
+                                .targets
+                                .iter()
+                                .map(|(resource, target)| {
+                                    (resource.clone(), target.interface_name.clone())
+                                })
+                                .collect::<BTreeMap<String, String>>(),
                         },
                     )
                 })

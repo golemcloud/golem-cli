@@ -23,6 +23,8 @@ use strum_macros::EnumIter;
 use url::Url;
 use wit_parser::PackageName;
 
+use super::app_raw::ProtoConfig;
+
 pub const DEFAULT_CONFIG_FILE_NAME: &str = "golem.yaml";
 
 #[derive(Clone, Debug)]
@@ -372,18 +374,22 @@ pub enum DependencyType {
     StaticWasmRpc,
     /// Composes the two WASM components together
     Wasm,
+    /// Grpc
+    Grpc
 }
 
 impl DependencyType {
     pub const STATIC_WASM_RPC: &'static str = "static-wasm-rpc";
     pub const WASM_RPC: &'static str = "wasm-rpc";
     pub const WASM: &'static str = "wasm";
+    pub const GRPC: &'static str = "grpc";
 
     pub fn as_str(&self) -> &'static str {
         match self {
             DependencyType::DynamicWasmRpc => Self::WASM_RPC,
             DependencyType::StaticWasmRpc => Self::STATIC_WASM_RPC,
             DependencyType::Wasm => Self::WASM,
+            DependencyType::Grpc => Self::GRPC,
         }
     }
 
@@ -392,6 +398,7 @@ impl DependencyType {
             DependencyType::DynamicWasmRpc => "WASM RPC dependency",
             DependencyType::StaticWasmRpc => "Statically composed WASM RPC dependency",
             DependencyType::Wasm => "WASM component dependency",
+            DependencyType::Grpc => "GRPC dependency",
         }
     }
 
@@ -399,6 +406,13 @@ impl DependencyType {
         matches!(
             self,
             DependencyType::DynamicWasmRpc | DependencyType::StaticWasmRpc
+        )
+    }
+
+    pub fn is_grpc(&self) -> bool {
+        matches!(
+            self,
+            DependencyType::Grpc
         )
     }
 
@@ -417,6 +431,7 @@ impl FromStr for DependencyType {
             Self::WASM_RPC => Ok(Self::DynamicWasmRpc),
             Self::STATIC_WASM_RPC => Ok(Self::StaticWasmRpc),
             Self::WASM => Ok(Self::Wasm),
+            Self::GRPC => Ok(Self::Grpc),
             _ => {
                 let all = DependencyType::iter()
                     .map(|dt| format!("\"{dt}\""))
@@ -457,6 +472,7 @@ impl Display for BinaryComponentSource {
 pub struct DependentComponent {
     pub source: BinaryComponentSource,
     pub dep_type: DependencyType,
+    pub proto_config: Option<ProtoConfig>,
 }
 
 impl DependentComponent {
@@ -465,6 +481,7 @@ impl DependentComponent {
             BinaryComponentSource::AppComponent { name } => Some(DependentAppComponent {
                 name: name.clone(),
                 dep_type: self.dep_type,
+                proto_config: self.proto_config.clone(),
             }),
             _ => None,
         }
@@ -487,6 +504,7 @@ impl Ord for DependentComponent {
 pub struct DependentAppComponent {
     pub name: AppComponentName,
     pub dep_type: DependencyType,
+    pub proto_config: Option<ProtoConfig>
 }
 
 impl PartialOrd for DependentAppComponent {
@@ -567,8 +585,8 @@ impl Application {
             .collect()
     }
 
-    pub fn all_dependencies(&self) -> BTreeSet<DependentComponent> {
-        self.dependencies.values().flatten().cloned().collect()
+    pub fn all_dependencies(&self) -> Vec<(AppComponentName, BTreeSet<DependentComponent>)> {
+        self.dependencies.iter().map(|dep| (dep.0.clone(),dep.1.clone()) ).collect()
     }
 
     pub fn all_build_profiles(&self) -> BTreeSet<BuildProfileName> {
@@ -841,8 +859,8 @@ impl Application {
             .join("temp-linked-wasm")
             .join(format!("{}.wasm", component_name.as_str()))
     }
-
-    fn client_build_dir(&self) -> PathBuf {
+    
+    pub fn client_build_dir(&self) -> PathBuf {
         self.temp_dir().join("client")
     }
 
@@ -1849,21 +1867,63 @@ mod app_builder {
                         };
 
                         if let Some(binary_component_source) = binary_component_source {
-                            let dependent_component = DependentComponent {
-                                source: binary_component_source,
-                                dep_type,
-                            };
+                            match dep_type {
+                                DependencyType::Grpc => {
+                                    if let Some(proto_config) = dependency.proto {
+                                        if !proto_config.root.exists() {
+                                            // panic
+                                            validation.add_error(format!(
+                                                "Unable to find proto root path {} for {} dependency",
+                                                proto_config.root.display(),
+                                                dep_type.as_str()
+                                            ));
+                                        } else if proto_config.root.is_dir() {
+                                            // look for index.proto
+                                            let index = proto_config.root.join("index.proto");
+                                            if !index.exists() {
+                                                validation.add_error(format!(
+                                                    "Missing index proto file {} for {} dependency",
+                                                    index.display(),
+                                                    dep_type.as_str()
+                                                ));
+                                            }
+                                        }
 
-                            let unique_key = UniqueSourceCheckedEntityKey::Dependency((
-                                component_name.clone().into(),
-                                dependent_component.clone(),
-                            ));
-                            if self.add_entity_source(unique_key, source) {
-                                self.dependencies
-                                    .entry(component_name.clone().into())
-                                    .or_default()
-                                    .insert(dependent_component);
-                            }
+                                        let dependent_component = DependentComponent {
+                                            source: binary_component_source,
+                                            dep_type,
+                                            proto_config: Some(proto_config),
+                                        };
+                                        self.dependencies
+                                                .entry(component_name.clone().into())
+                                                .or_default()
+                                                .insert(dependent_component);
+                                    } else {
+                                        validation.add_error(format!(
+                                            "Missing the proto config in manifest file for {} dependency",
+                                            dep_type.as_str()
+                                        ));
+                                    };
+                                },
+                                _ => {
+                                    let dependent_component = DependentComponent {
+                                        source: binary_component_source,
+                                        dep_type,
+                                        proto_config: None
+                                    };
+        
+                                    let unique_key = UniqueSourceCheckedEntityKey::Dependency((
+                                        component_name.clone().into(),
+                                        dependent_component.clone(),
+                                    ));
+                                    if self.add_entity_source(unique_key, source) {
+                                        self.dependencies
+                                            .entry(component_name.clone().into())
+                                            .or_default()
+                                            .insert(dependent_component);
+                                    }
+                                }
+                            };
                         }
                     } else {
                         validation.add_error(format!(
@@ -1922,10 +1982,16 @@ mod app_builder {
                         (DependencyType::Wasm, _) => {
                             false // valid
                         }
+                        (
+                            DependencyType::Grpc,
+                            BinaryComponentSource::AppComponent { .. },
+                        ) => {
+                            false // valid
+                        }
                         _ => true,
                     };
 
-                    if invalid_source || invalid_target || invalid_target_source {
+                    if !target.as_dependent_app_component().unwrap().dep_type.is_grpc() && (invalid_source || invalid_target || invalid_target_source) {
                         let source = self
                             .entity_sources
                             .get(&UniqueSourceCheckedEntityKey::Dependency((

@@ -22,15 +22,17 @@ use crate::model::app::{
     AppComponentName, BinaryComponentSource, DependencyType, DependentAppComponent,
 };
 use crate::wasm_rpc_stubgen::cargo::regenerate_cargo_package_component;
-use crate::wasm_rpc_stubgen::commands;
+use crate::wasm_rpc_stubgen::{commands, naming};
 use crate::wasm_rpc_stubgen::wit_generate::{
-    add_client_as_dependency_to_wit_dir, extract_exports_as_wit_dep,
-    extract_wasm_interface_as_wit_dep, AddClientAsDepConfig, UpdateCargoToml,
+    add_client_as_dependency_to_wit_dir, extract_exports_as_wit_dep, extract_wasm_interface_as_wit_dep, generate_grpc_client_package_from_stub_def, AddClientAsDepConfig, UpdateCargoToml
 };
 use anyhow::{anyhow, Context, Error};
+use golem_client::model::GrpcMetadata;
 use itertools::Itertools;
 use std::collections::BTreeSet;
+use std::fs::File;
 use std::path::{Path, PathBuf};
+use wit_carpenter::WitUtils;
 
 // TODO: this step is not selected_component_names aware yet, for that we have to build / filter
 //         - based on wit deps and / or
@@ -45,10 +47,16 @@ pub async fn gen_rpc(ctx: &mut ApplicationContext) -> anyhow::Result<()> {
             create_generated_base_wit(ctx, &component_name).await?;
         }
 
-        for dep in &ctx.application.all_dependencies() {
-            if dep.dep_type.is_wasm_rpc() {
-                if let Some(dep) = dep.as_dependent_app_component() {
-                    build_client(ctx, &dep).await?;
+        for (app_component_name, deps) in ctx.application.all_dependencies() {
+            for dep in deps {
+                if dep.dep_type.is_wasm_rpc() {
+                    if let Some(dep) = dep.as_dependent_app_component() {
+                        build_client(ctx, &dep).await?;
+                    }
+                } else if dep.dep_type.is_grpc() {
+                    if let Some(dep) = dep.as_dependent_app_component() {
+                        generate_grpc_client(ctx, &app_component_name, &dep)?;
+                    }
                 }
             }
         }
@@ -72,6 +80,59 @@ pub async fn gen_rpc(ctx: &mut ApplicationContext) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn generate_grpc_client(
+    ctx: &mut ApplicationContext,
+    _component_name: &AppComponentName,
+    dep: &DependentAppComponent,
+) -> anyhow::Result<bool> {
+    // 1. generate wit file from proto file
+    let (wit, package_name, file_descriptor_set) = wit_carpenter::from_grpc(
+        dep.proto_config.as_ref().unwrap().root.as_path(), // safely unwrap, validation is done at building deps form manifest
+        None,
+    );
+
+    let client_directory = ctx
+        .application
+        .client_build_dir()
+        .join(dep.name.as_str().replace(":", "_"));
+
+    fs::create_dir_all(client_directory.join(naming::wit::WIT_DIR))?;
+
+    // 1.1 store package_name, fds, other stuff in grpc-metadata.json directory inside the component
+    let grpc_metadata = GrpcMetadata {
+        file_descriptor_set,
+        package_name,
+    };
+
+    let grpc_metadata_json_file = File::create(
+        client_directory.join(format!("{}.json", dep.name.as_str().replace(":", "_"))),
+    )?;
+    serde_json::to_writer(grpc_metadata_json_file, &grpc_metadata)?;
+
+    // 2. store wit package
+    fs::write(
+        client_directory
+            .join(naming::wit::WIT_DIR)
+            .join(naming::wit::DEPS_DIR)
+            .join(format!("{}/grpc.wit", dep.name.as_str().replace(":", "_"))),
+        wit.to_string_format(),
+    )?;
+
+    // 3. stub interfaces
+    let stub_def = ctx.component_stub_def(&dep.dep_type, &dep.name, false)?;
+
+    fs::create_dir_all(stub_def.client_wit_root())?;
+    fs::write(
+        stub_def.client_wit_path(),
+        generate_grpc_client_package_from_stub_def(stub_def)?.to_string(),
+    )?;
+
+    let interfaces = ctx.component_stub_interfaces(&dep.dep_type, &dep.name, Some(false))?;
+    println!("{:?}", interfaces);
+
+    Ok(true)
 }
 
 async fn create_generated_base_wit(
@@ -343,6 +404,7 @@ async fn build_client(
     component: &DependentAppComponent,
 ) -> anyhow::Result<bool> {
     let stub_def = ctx.component_stub_def(
+        &component.dep_type,
         &component.name,
         ctx.application
             .component_properties(&component.name, ctx.build_profile())
@@ -422,6 +484,7 @@ async fn build_client(
                         let offline = ctx.config.offline;
                         commands::generate::build(
                             ctx.component_stub_def(
+                                &component.dep_type,
                                 &component.name,
                                 ctx.application
                                     .component_properties(&component.name, ctx.build_profile())
@@ -461,6 +524,7 @@ async fn build_client(
                         fs::create_dir_all(&client_wit_root)?;
 
                         let stub_def = ctx.component_stub_def(
+                            &component.dep_type,
                             &component.name,
                             ctx.application
                                 .component_properties(&component.name, ctx.build_profile())
@@ -471,7 +535,8 @@ async fn build_client(
                     DependencyType::Wasm => {
                         // No need to generate RPC clients for this dependency type
                         Ok(())
-                    }
+                    },
+                    DependencyType::Grpc => Ok(()),
                 }
             }
             .await,
@@ -514,6 +579,30 @@ fn add_client_deps(
 
                     add_client_as_dependency_to_wit_dir(AddClientAsDepConfig {
                         client_wit_root: ctx.application.client_wit(&dep_component.name),
+                        dest_wit_root: ctx
+                            .application
+                            .component_generated_wit(component_name, ctx.build_profile()),
+                        update_cargo_toml: UpdateCargoToml::NoUpdate,
+                    })?
+                }
+            } else if dep_component.dep_type.is_grpc() {
+                if let Some(dep_component) = dep_component.as_dependent_app_component() {
+                    let client_wit_directory = ctx
+                        .application
+                        .client_build_dir()
+                        .join(dep_component.name.as_str().replace(":", "_"));
+                    
+                    log_action(
+                        "Adding",
+                        format!(
+                            "{} client wit dependency to {}",
+                            dep_component.name.as_str().log_color_highlight(),
+                            component_name.as_str().log_color_highlight()
+                        ),
+                    );
+
+                    add_client_as_dependency_to_wit_dir(AddClientAsDepConfig {
+                        client_wit_root: client_wit_directory.join(naming::wit::WIT_DIR),
                         dest_wit_root: ctx
                             .application
                             .component_generated_wit(component_name, ctx.build_profile()),

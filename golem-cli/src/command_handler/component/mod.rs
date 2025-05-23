@@ -46,7 +46,7 @@ use crate::model::{
 };
 use anyhow::{anyhow, bail, Context as AnyhowContext};
 use golem_client::api::ComponentClient;
-use golem_client::model::ComponentEnv as ComponentEnvCloud;
+use golem_client::model::{ComponentEnv as ComponentEnvCloud, DynamicLinkedGrpc, GrpcMetadata, GrpcTarget};
 use golem_client::model::ComponentQuery;
 use golem_client::model::ComponentSearch as ComponentSearchCloud;
 use golem_client::model::ComponentSearchParameters as ComponentSearchParametersCloud;
@@ -59,6 +59,7 @@ use golem_templates::add_component_by_template;
 use golem_templates::model::{GuestLanguage, PackageName};
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::File;
@@ -1607,52 +1608,99 @@ fn app_component_dynamic_linking(
     app_ctx: &mut ApplicationContext,
     component_name: &AppComponentName,
 ) -> anyhow::Result<Option<DynamicLinkingOss>> {
-    let mut mapping = Vec::new();
+    let mut links = Vec::new();
 
-    let wasm_rpc_deps = app_ctx
+    let rpc_deps = app_ctx
         .application
         .component_dependencies(component_name)
         .iter()
-        .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc)
+        .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc || dep.dep_type == DependencyType::Grpc)
         .filter_map(|dep| dep.as_dependent_app_component())
         .collect::<Vec<_>>();
 
-    for wasm_rpc_dep in wasm_rpc_deps {
-        mapping.push(app_ctx.component_stub_interfaces(&wasm_rpc_dep.name)?);
+    for rpc_dep in rpc_deps {
+        let dep_type = rpc_dep.dep_type.clone();
+        links.push((dep_type, app_ctx.component_stub_interfaces(&dep_type, &rpc_dep.name, None)?));
     }
 
-    if mapping.is_empty() {
+    if links.is_empty() {
         Ok(None)
     } else {
         Ok(Some(DynamicLinkingOss {
-            dynamic_linking: HashMap::from_iter(mapping.into_iter().map(|stub_interfaces| {
-                (
-                    stub_interfaces.stub_interface_name,
-                    DynamicLinkedInstanceOss::WasmRpc(DynamicLinkedWasmRpcOss {
-                        targets: HashMap::from_iter(
-                            stub_interfaces
-                                .exported_interfaces_per_stub_resource
-                                .into_iter()
-                                .map(|(resource_name, interface_name)| {
-                                    (
-                                        resource_name,
-                                        WasmRpcTarget {
-                                            interface_name,
-                                            component_name: stub_interfaces
-                                                .component_name
-                                                .as_str()
-                                                .to_string(),
-                                            component_type: if stub_interfaces.is_ephemeral {
-                                                ComponentType::Ephemeral
-                                            } else {
-                                                ComponentType::Durable
+            dynamic_linking: HashMap::from_iter(links.into_iter().filter_map(|(dep_type, stub_interfaces)| {
+                if dep_type.is_wasm_rpc() {
+                    Some((
+                        stub_interfaces.stub_interface_name,
+                        DynamicLinkedInstanceOss::WasmRpc(DynamicLinkedWasmRpcOss {
+                            targets: HashMap::from_iter(
+                                stub_interfaces
+                                    .exported_interfaces_per_stub_resource
+                                    .into_iter()
+                                    .map(|(resource_name, interface_name)| {
+                                        (
+                                            resource_name,
+                                            WasmRpcTarget {
+                                                interface_name,
+                                                component_name: stub_interfaces
+                                                    .component_name
+                                                    .as_str()
+                                                    .to_string(),
+                                                component_type: if stub_interfaces.is_ephemeral {
+                                                    ComponentType::Ephemeral
+                                                } else {
+                                                    ComponentType::Durable
+                                                },
                                             },
-                                        },
-                                    )
-                                }),
-                        ),
-                    }),
-                )
+                                        )
+                                    }),
+                            ),
+                        }),
+                    ))
+                } else if dep_type.is_grpc() {
+                    
+                    let client_directory = app_ctx
+                        .application
+                        .client_build_dir()
+                        .join(stub_interfaces.component_name.as_str().replace(":", "_"));
+
+                    let grpc_metadata_json_file_path =
+                        client_directory.join(format!("{}.json", stub_interfaces.component_name.as_str().replace(":", "_")));
+                    let file = fs::read_to_string(grpc_metadata_json_file_path).expect("properly read file content");
+                    let grpc_metadata: GrpcMetadata = serde_json::from_str(&file).expect("properly parse to GrpcMetadata");
+                    
+
+                    Some((
+                        stub_interfaces.stub_interface_name.clone(),
+                        DynamicLinkedInstanceOss::Grpc(DynamicLinkedGrpc {
+                            targets: HashMap::from_iter(
+                                stub_interfaces
+                                    .exported_interfaces_per_stub_resource
+                                    .clone()
+                                    .into_iter()
+                                    .map(|(resource_name, interface_name)| {
+                                        (
+                                            resource_name,
+                                            GrpcTarget {
+                                                interface_name,
+                                                component_name: stub_interfaces
+                                                    .component_name
+                                                    .as_str()
+                                                    .to_string(),
+                                                component_type: if stub_interfaces.is_ephemeral {
+                                                    ComponentType::Ephemeral
+                                                } else {
+                                                    ComponentType::Durable
+                                                },
+                                            },
+                                        )
+                                    }),
+                            ),
+                            metadata: grpc_metadata,
+                        }),
+                    ))
+                } else {
+                    None
+                }
             })),
         }))
     }

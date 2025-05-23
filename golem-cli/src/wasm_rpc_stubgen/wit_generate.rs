@@ -234,6 +234,73 @@ pub fn generate_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Re
     Ok(package)
 }
 
+pub fn generate_grpc_client_package_from_stub_def(def: &StubDefinition) -> anyhow::Result<Package> {
+    let mut package = Package::new(def.client_encoder_package_name());
+
+    let interface_identifier = def.client_interface_name();
+
+    // Stub interface
+    {
+        let mut stub_interface = Interface::new(interface_identifier.clone());
+
+        // Used or inlined type defs
+        for type_def in def.stub_used_type_defs() {
+            stub_interface.use_type(
+                type_def.interface_identifier.clone(),
+                type_def.type_name.clone(),
+                type_def.type_name_alias.clone().map(Ident::from),
+            );
+        }
+
+        // Function definitions
+        for entity in def.stubbed_entities() {
+            let mut stub_functions = Vec::<ResourceFunc>::new();
+
+            // Constructors
+            {
+                let mut constructor = ResourceFunc::constructor();
+                let params = entity.constructor_params().to_encoder(def)?;
+
+                constructor.set_params(params);
+                stub_functions.push(constructor);
+            }
+
+            // Functions
+            for (function, is_static) in entity.all_functions() {
+                // Blocking
+                {
+                    let mut blocking_function = {
+                        let function_name = naming::wit::blocking_function_name(function);
+                        if is_static {
+                            ResourceFunc::static_(function_name, false)
+                        } else {
+                            ResourceFunc::method(function_name, false)
+                        }
+                    };
+                    blocking_function.set_params(function.params.to_encoder(def)?);
+                    if !function.results.is_empty() {
+                        blocking_function.set_result(function.results.to_encoder(def)?);
+                    }
+                    stub_functions.push(blocking_function);
+                }
+            }
+
+            stub_interface.type_def(TypeDef::resource(entity.name().to_string(), stub_functions));
+        }
+
+        package.interface(stub_interface);
+    }
+
+    // Stub world
+    {
+        let mut stub_world = World::new(def.client_world_name());
+        stub_world.named_interface_export(interface_identifier);
+        package.world(stub_world);
+    }
+
+    Ok(package)
+}
+
 fn add_async_return_type(
     def: &StubDefinition,
     stub_interface: &mut Interface,

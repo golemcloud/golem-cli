@@ -388,6 +388,14 @@ pub struct Dependency {
     pub path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proto: Option<ProtoConfig>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProtoConfig {
+    pub root: PathBuf,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

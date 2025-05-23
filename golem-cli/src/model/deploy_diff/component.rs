@@ -70,6 +70,13 @@ impl DiffableComponent {
                                     (resource.clone(), target.interface_name.clone())
                                 })
                                 .collect::<BTreeMap<String, String>>(),
+                            golem_common::model::component_metadata::DynamicLinkedInstance::Grpc(links) => links
+                                .targets
+                                .iter()
+                                .map(|(resource, target)| {
+                                    (resource.clone(), target.interface_name.clone())
+                                })
+                                .collect::<BTreeMap<String, String>>(),
                         },
                     )
                 })
@@ -100,6 +107,13 @@ impl DiffableComponent {
                             name.clone(),
                             match instance {
                                 DynamicLinkedInstance::WasmRpc(links) => links
+                                    .targets
+                                    .iter()
+                                    .map(|(resource, target)| {
+                                        (resource.clone(), target.interface_name.clone())
+                                    })
+                                    .collect::<BTreeMap<_, _>>(),
+                                DynamicLinkedInstance::Grpc(links) => links
                                     .targets
                                     .iter()
                                     .map(|(resource, target)| {
