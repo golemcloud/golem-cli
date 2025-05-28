@@ -1620,7 +1620,7 @@ pub mod cloud {
 
         use crate::command::cloud::project::plugin::ProjectPluginSubcommand;
         use crate::command::cloud::project::policy::PolicySubcommand;
-        use crate::model::{ProjectPermission, ProjectName, ProjectPolicyId, ProjectReference};
+        use crate::model::{ProjectName, ProjectPermission, ProjectPolicyId, ProjectReference};
         use clap::Subcommand;
 
         #[derive(clap::Args, Debug)]
