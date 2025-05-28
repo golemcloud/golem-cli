@@ -24,7 +24,7 @@ golem-wasm-ast = { version = "=1.3.0-dev.6", default-features = false, features 
 golem-wasm-rpc = { version = "=1.3.0-dev.6", default-features = false, features = [
     "host",
 ] }
-golem-wit = "=1.3.0-dev.1"
+golem-wit = "=1.3.0-dev.2"
 
 # Golem cloud deps
 golem-cloud-client = "=1.3.0-dev.6"

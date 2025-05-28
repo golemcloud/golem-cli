@@ -25,10 +25,12 @@ use golem_cli::wasm_rpc_stubgen::wit_generate::{
     add_client_as_dependency_to_wit_dir, AddClientAsDepConfig, UpdateCargoToml,
 };
 use golem_cli::wasm_rpc_stubgen::wit_resolve::ResolvedWitDir;
+use golem_cli::wasm_rpc_stubgen::{GOLEM_RPC_WIT_VERSION, WASI_WIT_VERSION};
 use golem_wit::{WASI_CLOCKS, WASI_IO, WASM_RPC_WIT};
 use itertools::Itertools;
 use semver::Version;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use tempfile::TempDir;
 use wit_encoder::{packages_from_parsed, Package, PackageName};
 use wit_parser::Resolve;
@@ -558,7 +560,7 @@ fn self_circular() {
 
 fn init_stub(name: &str) -> (TempDir, TempDir) {
     let source = tempfile::Builder::new()
-        .disable_cleanup(false)
+        .disable_cleanup(true)
         .tempdir()
         .unwrap();
     let canonical_source = source.path().canonicalize().unwrap();
@@ -571,7 +573,7 @@ fn init_stub(name: &str) -> (TempDir, TempDir) {
     .unwrap();
 
     let target = tempfile::Builder::new()
-        .disable_cleanup(false)
+        .disable_cleanup(true)
         .tempdir()
         .unwrap();
     let canonical_target = target.path().canonicalize().unwrap();
@@ -610,7 +612,7 @@ fn regenerate_stub(stub_dir: &Path, source_wit_root: &Path) {
 
 fn init_caller(name: &str) -> TempDir {
     let temp_dir = tempfile::Builder::new()
-        .disable_cleanup(false)
+        .disable_cleanup(true)
         .tempdir()
         .unwrap();
     let source = Path::new("test-data/wit").join(name);
@@ -738,17 +740,29 @@ fn assert_has_wasm_rpc_wit_deps(wit_dir: &Path) {
     ];
 
     assert_has_same_wit_package(
-        &PackageName::new("wasi", "io", Some(Version::new(0, 2, 0))),
+        &PackageName::new(
+            "wasi",
+            "io",
+            Some(Version::from_str(WASI_WIT_VERSION).unwrap()),
+        ),
         wit_dir,
         deps.as_slice(),
     );
     assert_has_same_wit_package(
-        &PackageName::new("wasi", "clocks", Some(Version::new(0, 2, 0))),
+        &PackageName::new(
+            "wasi",
+            "clocks",
+            Some(Version::from_str(WASI_WIT_VERSION).unwrap()),
+        ),
         wit_dir,
         deps.as_slice(),
     );
     assert_has_same_wit_package(
-        &PackageName::new("golem", "rpc", Some(Version::new(0, 2, 0))),
+        &PackageName::new(
+            "golem",
+            "rpc",
+            Some(Version::from_str(GOLEM_RPC_WIT_VERSION).unwrap()),
+        ),
         wit_dir,
         deps.as_slice(),
     );
