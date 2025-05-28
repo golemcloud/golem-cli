@@ -29,16 +29,14 @@ pub fn add_metadata(
     let wasm = fs::read(source)
         .with_context(|| format!("Reading linked WASM from {:?}", source.as_ref()))?;
 
-    let metadata = AddMetadata {
-        name: Some(format!(
-            "{}:{}",
-            root_package_name.namespace, root_package_name.name
-        )),
-        version: root_package_name
-            .version
-            .map(|v| wasm_metadata::Version::new(v.to_string())),
-        ..Default::default()
-    };
+    let mut metadata = AddMetadata::default();
+    metadata.name = Some(format!(
+        "{}:{}",
+        root_package_name.namespace, root_package_name.name
+    ));
+    metadata.version = root_package_name
+        .version
+        .map(|v| wasm_metadata::Version::new(v.to_string()));
 
     let updated_wasm = metadata
         .to_wasm(&wasm)

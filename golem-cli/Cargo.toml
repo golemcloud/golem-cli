@@ -5,6 +5,8 @@ edition = "2021"
 homepage = "https://golem.cloud/"
 repository = "https://github.com/golemcloud/golem-cli"
 description = "Command line interface for Golem."
+license-file = "../LICENSE"
+
 autotests = false
 build = "build.rs"
 
