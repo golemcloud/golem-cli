@@ -12,7 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { API } from "@/service";
-import { Plugin } from "@/types/plugin";
+import type { Plugin } from "@/types/plugin";
 
 export default function PluginList() {
   const navigate = useNavigate();
@@ -21,9 +21,11 @@ export default function PluginList() {
 
   useEffect(() => {
     const fetchPlugins = async () => {
-      const res = await API.getPlugins();
-      setPluginsApi(res);
-      setPlugins(res);
+      const plugins = await API.getPlugins();
+      if (plugins) {
+        setPluginsApi(plugins);
+        setPlugins(plugins);
+      }
     };
     fetchPlugins();
   }, []);
