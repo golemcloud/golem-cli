@@ -1,44 +1,45 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { API } from "@/service";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Check,
+  ClipboardCopy,
+  Info,
+  Play,
+  Presentation,
+  TableIcon,
+  TimerReset,
+} from "lucide-react";
+import { CodeBlock, dracula } from "react-code-blocks";
 import {
   ComponentExportFunction,
   ComponentList,
   Export,
 } from "@/types/component.ts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  DynamicForm,
+  nonStringPrimitives,
+} from "@/pages/workers/details/dynamic-form.tsx";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CodeBlock, dracula } from "react-code-blocks";
-import {
-  ClipboardCopy,
-  Play,
-  Presentation,
-  TableIcon,
-  TimerReset,
-  Info,
-  Check,
-} from "lucide-react";
 import { cn, sanitizeInput } from "@/lib/utils";
-import ReactJson from "react-json-view";
-import { useTheme } from "@/components/theme-provider.tsx";
-import { Textarea } from "@/components/ui/textarea";
 import {
   parseToJsonEditor,
+  parseTooltipTypesData,
   parseTypesData,
   safeFormatJSON,
-  parseTooltipTypesData,
   validateJsonStructure,
 } from "@/lib/worker";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+
+import { API } from "@/service";
+import { Button } from "@/components/ui/button";
+import ReactJson from "@microlink/react-json-view";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import {
-  DynamicForm,
-  nonStringPrimitives,
-} from "@/pages/workers/details/dynamic-form.tsx";
+import { useTheme } from "@/components/theme-provider.tsx";
 
 export default function ComponentInvoke() {
   const { componentId = "" } = useParams();

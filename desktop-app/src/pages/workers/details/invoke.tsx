@@ -24,7 +24,7 @@ import {
   Check,
 } from "lucide-react";
 import { cn, sanitizeInput } from "@/lib/utils";
-import ReactJson from "react-json-view";
+import ReactJson from "@microlink/react-json-view";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { Textarea } from "@/components/ui/textarea";
 import {

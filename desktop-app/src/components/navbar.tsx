@@ -3,8 +3,15 @@ import { ModeToggle } from "@/components/mode-toggle.tsx";
 import NavLink from "@/components/navLink.tsx";
 import { BackendEndpointInput } from "./backend-endpoint";
 import { ServerStatus } from "./server-status";
+import { useParams } from "react-router-dom";
 
-const Navbar = () => {
+interface NavbarProps {
+  showNav?: boolean;
+}
+
+const Navbar = ({ showNav = true }: NavbarProps) => {
+  const { id } = useParams();
+
   return (
     <nav className="border-b">
       <div className="flex items-center justify-between px-4 py-2">
@@ -14,13 +21,15 @@ const Navbar = () => {
               <Logo />
             </a>
           </div>
-          <div className="flex space-x-6">
-            <NavLink to="/">Dashboard</NavLink>
-            <NavLink to="/components">Components</NavLink>
-            <NavLink to="/apis">APIs</NavLink>
-            <NavLink to="/deployments">Deployments</NavLink>
-            <NavLink to="/plugins">Plugins</NavLink>
-          </div>
+          {showNav && id && (
+            <div className="flex space-x-6">
+              <NavLink to={`/app/${id}/dashboard`}>Dashboard</NavLink>
+              <NavLink to={`/app/${id}/components`}>Components</NavLink>
+              <NavLink to={`/app/${id}/apis`}>APIs</NavLink>
+              <NavLink to={`/app/${id}/deployments`}>Deployments</NavLink>
+              <NavLink to={`/app/${id}/plugins`}>Plugins</NavLink>
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-8">
           <div className="flex items-center space-x-2">

@@ -5,6 +5,8 @@ import { RouteObject } from "react-router-dom";
 import WorkerInfo from "@/pages/workers/details/info.tsx";
 import WorkerInvoke from "@/pages/workers/details/invoke.tsx";
 import { lazy } from "react";
+import { Home } from "@/pages/home";
+import AppLayout from "@/layouts/app-layout";
 
 // Lazy load route components for code splitting and performance improvement
 // Lazy-loading improves initial load times by loading components only when needed.
@@ -70,105 +72,127 @@ const WorkerLayout = lazy(() =>
 
 // Route configuration constants for ease of maintenance
 export const ROUTES = {
-    DASHBOARD: "/",
-    COMPONENTS: "/components",
-    COMPONENTS_CREATE: "/components/create",
-    COMPONENTS_DETAIL: "/components/:componentId",
-    APIS: "/apis",
-    APIS_CREATE: "/apis/create",
-    APIS_DETAIL: "/apis/:apiName/version/:version",
-    DEPLOYMENTS: "/deployments",
-    DEPLOYMENTS_CREATE: "/deployments/create",
-    PLUGINS: "/plugins",
-    PLUGINS_CREATE: "/plugins/create",
-    PLUGINS_DETAIL: "/plugins/:pluginId",
-    PLUGINS_VERSION: "/plugins/:pluginId/:version",
+    HOME: "/",
+    APP: "/app/:id",
+    DASHBOARD: "/app/:id/dashboard",
+    COMPONENTS: "/app/:id/components",
+    COMPONENTS_CREATE: "/app/:id/components/create",
+    COMPONENTS_DETAIL: "/app/:id/components/:componentId",
+    APIS: "/app/:id/apis",
+    APIS_CREATE: "/app/:id/apis/create",
+    APIS_DETAIL: "/app/:id/apis/:apiName/version/:version",
+    DEPLOYMENTS: "/app/:id/deployments",
+    DEPLOYMENTS_CREATE: "/app/:id/deployments/create",
+    PLUGINS: "/app/:id/plugins",
+    PLUGINS_CREATE: "/app/:id/plugins/create",
+    PLUGINS_DETAIL: "/app/:id/plugins/:pluginId",
+    PLUGINS_VERSION: "/app/:id/plugins/:pluginId/:version",
 };
 
 // Define the application routes using React Router's object-based route definition
 export const appRoutes: RouteObject[] = [
     {
-        path: ROUTES.DASHBOARD,
-        element: <Dashboard />
-    },
-    {
-        path: ROUTES.COMPONENTS,
-        element: <Components />
-    },
-    {
-        path: ROUTES.COMPONENTS_CREATE,
-        element: <CreateComponent />
-    },
-    {
-        path: ROUTES.COMPONENTS_DETAIL,
-        element: <ComponentLayout />,
+        path: ROUTES.HOME,
+        element: <AppLayout />,
         children: [
-            { path: "", element: <ComponentDetails /> },
-            { path: "settings", element: <ComponentSettings /> },
-            { path: "update", element: <ComponentUpdate /> },
-            { path: "info", element: <ComponentInfo /> },
-            { path: "exports", element: <Exports /> },
-            { path: "plugins", element: <Plugins /> },
-            { path: "files", element: <FileManager /> },
-            { path: "invoke", element: <ComponentInvoke /> },
-            { path: "workers", element: <WorkerList /> },
-            { path: "workers/create", element: <CreateWorker /> }
+            {
+                path: "",
+                element: <Home />
+            },
         ]
     },
     {
-        path: ROUTES.COMPONENTS_DETAIL + "/workers/:workerName",
-        element: <WorkerLayout />,
+        path: ROUTES.APP,
+        element: <AppLayout />,
         children: [
-            { path: "", element: <WorkerDetails /> },
-            { path: "environments", element: <WorkerEnvironments /> },
-            { path: "info", element: <WorkerInfo /> },
-            { path: "manage", element: <WorkerManage /> },
-            { path: "invoke", element: <WorkerInvoke /> },
-            { path: "live", element: <WorkerLive /> }
+        {
+                path: "",
+                element: <Home />
+            },
+            {
+                path: "dashboard",
+                element: <Dashboard />
+            },
+            {
+                path: "components",
+                element: <Components />
+            },
+            {
+                path: "components/create",
+                element: <CreateComponent />
+            },
+            {
+                path: "components/:componentId",
+                element: <ComponentLayout />,
+                children: [
+                    { path: "", element: <ComponentDetails /> },
+                    { path: "settings", element: <ComponentSettings /> },
+                    { path: "update", element: <ComponentUpdate /> },
+                    { path: "info", element: <ComponentInfo /> },
+                    { path: "exports", element: <Exports /> },
+                    { path: "plugins", element: <Plugins /> },
+                    { path: "files", element: <FileManager /> },
+                    { path: "invoke", element: <ComponentInvoke /> },
+                    { path: "workers", element: <WorkerList /> },
+                    { path: "workers/create", element: <CreateWorker /> }
+                ]
+            },
+            {
+                path: "components/:componentId/workers/:workerName",
+                element: <WorkerLayout />,
+                children: [
+                    { path: "", element: <WorkerDetails /> },
+                    { path: "environments", element: <WorkerEnvironments /> },
+                    { path: "info", element: <WorkerInfo /> },
+                    { path: "manage", element: <WorkerManage /> },
+                    { path: "invoke", element: <WorkerInvoke /> },
+                    { path: "live", element: <WorkerLive /> }
+                ]
+            },
+            {
+                path: "apis",
+                element: <APIs />
+            },
+            {
+                path: "apis/create",
+                element: <CreateAPI />
+            },
+            {
+                path: "apis/:apiName/version/:version",
+                element: <ApiLayout />,
+                children: [
+                    { path: "", element: <APIDetails /> },
+                    { path: "settings", element: <APISettings /> },
+                    { path: "routes/add", element: <CreateRoute key="create" /> },
+                    { path: "routes/edit", element: <CreateRoute key="edit" /> },
+                    { path: "newversion", element: <APINewVersion /> },
+                    { path: "routes", element: <ApiRoute /> }
+                ]
+            },
+            {
+                path: "deployments",
+                element: <Deployments />
+            },
+            {
+                path: "deployments/create",
+                element: <CreateDeployment />
+            },
+            {
+                path: "plugins",
+                element: <PluginList />
+            },
+            {
+                path: "plugins/create",
+                element: <CreatePlugin />
+            },
+            {
+                path: "plugins/:pluginId",
+                element: <PluginView />
+            },
+            {
+                path: "plugins/:pluginId/:version",
+                element: <PluginView />
+            }
         ]
-    },
-    {
-        path: ROUTES.APIS,
-        element: <APIs />
-    },
-    {
-        path: ROUTES.APIS_CREATE,
-        element: <CreateAPI />
-    },
-    {
-        path: ROUTES.APIS_DETAIL,
-        element: <ApiLayout />,
-        children: [
-            { path: "", element: <APIDetails /> },
-            { path: "settings", element: <APISettings /> },
-            { path: "routes/add", element: <CreateRoute key="create" /> },
-            { path: "routes/edit", element: <CreateRoute key="edit" /> },
-            { path: "newversion", element: <APINewVersion /> },
-            { path: "routes", element: <ApiRoute /> }
-        ]
-    },
-    {
-        path: ROUTES.DEPLOYMENTS,
-        element: <Deployments />
-    },
-    {
-        path: ROUTES.DEPLOYMENTS_CREATE,
-        element: <CreateDeployment />
-    },
-    {
-        path: ROUTES.PLUGINS,
-        element: <PluginList />
-    },
-    {
-        path: ROUTES.PLUGINS_CREATE,
-        element: <CreatePlugin />
-    },
-    {
-        path: ROUTES.PLUGINS_DETAIL,
-        element: <PluginView />
-    },
-    {
-        path: ROUTES.PLUGINS_VERSION,
-        element: <PluginView />
     }
 ];

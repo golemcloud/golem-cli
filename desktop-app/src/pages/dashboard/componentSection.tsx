@@ -10,11 +10,12 @@ import { API } from "@/service";
 import { ComponentList } from "@/types/component.ts";
 import { ArrowRight, LayoutGrid, PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ComponentCard } from "../components";
 
 export const ComponentsSection = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [components, setComponents] = useState<{
     [key: string]: ComponentList;
   }>({});
@@ -30,7 +31,7 @@ export const ComponentsSection = () => {
             <CardTitle className="text-2xl font-bold text-primary">
               Components
             </CardTitle>
-            <Button variant="ghost" onClick={() => navigate("/components")}>
+            <Button variant="ghost" onClick={() => navigate(`/app/${id}/components`)}>
               View All
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
@@ -44,7 +45,7 @@ export const ComponentsSection = () => {
                   key={data.componentId}
                   data={data}
                   onCardClick={() =>
-                    navigate(`/components/${data.componentId}`)
+                    navigate(`/app/${id}/components/${data.componentId}`)
                   }
                 />
               ))}
@@ -60,7 +61,7 @@ export const ComponentsSection = () => {
               <p className="text-gray-500 mb-6 text-center">
                 Create your first component to get started.
               </p>
-              <Button onClick={() => navigate("/components/create")}>
+              <Button onClick={() => navigate(`/app/${id}/components/create`)}>
                 <PlusCircle className="mr-2 size-4" />
                 Create Component
               </Button>
