@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Logo } from "@/components/logo.tsx";
 import { Folder, FolderOpen, Plus, ChevronRight, Clock, ArrowRight } from "lucide-react";
 
 // Helper function to format relative time (e.g., "2 days ago")
@@ -40,7 +39,6 @@ interface App {
 
 export const Home = () => {
     const navigate = useNavigate();
-    const [isCreatingApp, setIsCreatingApp] = useState(false);
     const [isOpeningApp, setIsOpeningApp] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [recentApps, setRecentApps] = useState<App[]>([]);
@@ -85,18 +83,9 @@ export const Home = () => {
         fetchApps();
     }, []);
 
-    const handleCreateApp = async () => {
-        setIsCreatingApp(true);
-        try {
-            // Here you would typically make an API call to create a new app
-            // For now, we'll just navigate to a new app with a mock ID
-            const newAppId = `app-${Date.now()}`;
-            navigate(`/app/${newAppId}`);
-        } catch (error) {
-            console.error("Failed to create app:", error);
-        } finally {
-            setIsCreatingApp(false);
-        }
+    const handleCreateApp = () => {
+        // Navigate to the app creation page
+        navigate('/app-create');
     };
 
     const handleOpenApp = async () => {
@@ -132,6 +121,14 @@ export const Home = () => {
                         {/* <Logo /> */}
                         <h1 className="text-3xl font-bold">Golem Desktop</h1>
                     </div>
+                    <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        onClick={() => navigate('/app-create')}
+                    >
+                        <Plus size={16} />
+                        New Application
+                    </Button>
                 </div>
 
                 {/* Action cards - horizontal layout */}
@@ -149,12 +146,9 @@ export const Home = () => {
                                 size="lg"
                                 className="w-full flex items-center justify-center gap-2 py-8"
                                 onClick={handleCreateApp}
-                                disabled={isCreatingApp}
                             >
                                 <Plus size={24} />
-                                <span className="text-lg">
-                                    {isCreatingApp ? "Creating..." : "Create New Application"}
-                                </span>
+                                <span className="text-lg">Create New Application</span>
                             </Button>
                         </CardContent>
                     </Card>

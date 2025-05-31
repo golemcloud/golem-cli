@@ -1,3 +1,4 @@
+use std::process::Command;
 use std::sync::Mutex;
 use tauri::State;
 
@@ -19,48 +20,55 @@ fn get_backend_ip(store: State<Storage>) -> Result<String, String> {
     Ok(store.backend_url.lock().unwrap().to_string())
 }
 
-// #[tauri::command]
-// fn update_ip(url: &str) -> Result<(), String> {
-//     let config_path = Path::new("config.json");
-//
-//     // Load existing config or create a new one
-//     let mut config = match fs::read_to_string(&config_path) {
-//         Ok(content) => serde_json::from_str::<serde_json::Value>(&content).unwrap_or_default(),
-//         Err(_) => serde_json::json!({}),
-//     };
-//
-//     // Update the IP address
-//     config["ip_address"] = serde_json::json!(url);
-//
-//     // Save back to file
-//     fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
-//         .map_err(|err| err.to_string())?;
-//
-//     Ok(())
-// }
-//
-// fn load_ip() -> String {
-//     let config_path = Path::new("config.json");
-//     if let Ok(content) = fs::read_to_string(config_path) {
-//         if let Ok(config) = serde_json::from_str::<serde_json::Value>(&content) {
-//             if let Some(ip) = config["ip_address"].as_str() {
-//                 return ip.to_string();
-//             }
-//         }
-//     }
-//     "http://localhost:9881".to_string() // Default IP
-// }
+// New function to create application using golem-cli
+#[tauri::command]
+fn create_golem_app(
+    folder_path: String,
+    app_name: String,
+    language: String,
+) -> Result<String, String> {
+    // Determine the golem-cli path (use the one in PATH or a user-provided one)
+    let golem_cli = "golem-cli"; // Can be extended to support a custom path
+
+    println!("Creating a new {language} application named '{app_name}' in folder: {folder_path}");
+
+    // Change to the selected directory and run the command
+    let output = Command::new(golem_cli)
+        .current_dir(&folder_path)
+        .arg("app")
+        .arg("new")
+        .arg(&app_name)
+        .arg(&language)
+        .output()
+        .map_err(|e| format!("Failed to execute golem-cli: {}", e))?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        Ok(format!(
+            "Successfully created application: {}\n{}",
+            app_name, stdout
+        ))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        Err(format!("Failed to create application: {}", stderr))
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Create an instance of the store.
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(Storage {
             backend_url: Mutex::from("http://localhost:9881".to_string()),
         })
         .plugin(tauri_plugin_store::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![update_backend_ip, get_backend_ip])
+        .invoke_handler(tauri::generate_handler![
+            update_backend_ip,
+            get_backend_ip,
+            create_golem_app
+        ])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_websocket::init())

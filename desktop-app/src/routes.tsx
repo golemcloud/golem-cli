@@ -7,6 +7,7 @@ import WorkerInvoke from "@/pages/workers/details/invoke.tsx";
 import { lazy } from "react";
 import { Home } from "@/pages/home";
 import AppLayout from "@/layouts/app-layout";
+import CreateApplication from "@/pages/app-create";
 
 // Lazy load route components for code splitting and performance improvement
 // Lazy-loading improves initial load times by loading components only when needed.
@@ -73,6 +74,7 @@ const WorkerLayout = lazy(() =>
 // Route configuration constants for ease of maintenance
 export const ROUTES = {
     HOME: "/",
+    APP_CREATE: "/app-create",
     APP: "/app/:id",
     DASHBOARD: "/app/:id/dashboard",
     COMPONENTS: "/app/:id/components",
@@ -89,7 +91,8 @@ export const ROUTES = {
     PLUGINS_VERSION: "/app/:id/plugins/:pluginId/:version",
 };
 
-// Define the application routes using React Router's object-based route definition
+
+
 export const appRoutes: RouteObject[] = [
     {
         path: ROUTES.HOME,
@@ -99,13 +102,17 @@ export const appRoutes: RouteObject[] = [
                 path: "",
                 element: <Home />
             },
+            {
+                path: "app-create",
+                element: <CreateApplication />
+            },
         ]
     },
     {
         path: ROUTES.APP,
         element: <AppLayout />,
         children: [
-        {
+            {
                 path: "",
                 element: <Home />
             },
