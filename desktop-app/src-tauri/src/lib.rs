@@ -55,6 +55,7 @@ fn get_backend_ip(store: State<Storage>) -> Result<String, String> {
 pub fn run() {
     // Create an instance of the store.
     tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::new().build())
         .manage(Storage {
             backend_url: Mutex::from("http://localhost:9881".to_string()),
         })
