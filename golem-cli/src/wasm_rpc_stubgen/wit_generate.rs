@@ -293,7 +293,7 @@ pub fn generate_grpc_client_package_from_stub_def(def: &StubDefinition) -> anyho
 
     // Stub world
     {
-        let mut stub_world = World::new(def.client_world_name());
+        let mut stub_world = World::new(def.config.component_name.as_str().replace(":", "-"));
         stub_world.named_interface_export(interface_identifier);
         package.world(stub_world);
     }

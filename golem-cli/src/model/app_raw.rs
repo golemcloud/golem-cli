@@ -395,7 +395,8 @@ pub struct Dependency {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProtoConfig {
-    pub root: PathBuf,
+    pub protos: Vec<PathBuf>,
+    pub includes: Vec<PathBuf>
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

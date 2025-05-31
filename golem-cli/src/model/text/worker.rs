@@ -26,7 +26,7 @@ use cli_table::{format::Justify, Table};
 use colored::Colorize;
 use golem_client::model::{PublicOplogEntry, UpdateRecord};
 use golem_common::model::public_oplog::{
-    PluginInstallationDescription, PublicAttribute, PublicAttributeValue, PublicUpdateDescription, PublicWorkerInvocation, StringAttributeValue
+    PluginInstallationDescription, PublicAttributeValue, PublicUpdateDescription, PublicWorkerInvocation, StringAttributeValue
 };
 use golem_wasm_rpc::protobuf::type_annotated_value::TypeAnnotatedValue;
 use golem_wasm_rpc::{print_type_annotated_value, ValueAndType};

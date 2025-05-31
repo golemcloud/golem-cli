@@ -178,7 +178,7 @@ cwd = "./desktop-app"
 [tasks.npm-install]
 description = "Install npm dependencies"
 command = "npm"
-args = ["install"]
+args = ["install", "--legacy-peer-deps"]
 cwd = "./desktop-app"
 
 ## Publishing

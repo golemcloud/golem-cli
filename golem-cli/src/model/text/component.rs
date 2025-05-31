@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::model::component::ComponentView;
+use std::str::FromStr;
+
 use crate::model::text::fmt::*;
 use crate::model::ComponentName;
+use crate::model::{app::DependencyType, component::ComponentView};
 use cli_table::{format::Justify, Table};
 
 use serde::{Deserialize, Serialize};
@@ -50,6 +52,19 @@ impl TextView for Vec<ComponentView> {
 
 fn component_view_fields(view: &ComponentView) -> Vec<(String, String)> {
     let mut fields = FieldsBuilder::new();
+    let dynamic_wasm_rpc_links: &std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = &view.dynamic_linking.iter().filter(
+                |link: &(
+                    &(String, String),
+                    &std::collections::BTreeMap<String, String>,
+                )| DependencyType::from_str(&link.0.0).unwrap().is_wasm_rpc(),
+            ).map(|link| (link.0.1.clone(), link.1.clone())).collect();
+    let dynamic_grpc_links: &std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = &view.dynamic_linking.iter().filter(
+                |link: &(
+                    &(String, String),
+                    &std::collections::BTreeMap<String, String>,
+                )| DependencyType::from_str(&link.0.0).unwrap().is_grpc(),
+            ).map(|link| (link.0.1.clone(), link.1.clone())).collect();
+    
 
     fields
         .fmt_field("Component name", &view.component_name, format_main_id)
@@ -65,8 +80,14 @@ fn component_view_fields(view: &ComponentView) -> Vec<(String, String)> {
         .fmt_field("Exports", &view.exports, |e| format_exports(e.as_slice()))
         .fmt_field_optional(
             "Dynamic WASM RPC links",
-            &view.dynamic_linking,
-            !view.dynamic_linking.is_empty(),
+            dynamic_wasm_rpc_links,
+            !dynamic_wasm_rpc_links.is_empty(),
+            format_dynamic_links,
+        )
+        .fmt_field_optional(
+            "Dynamic GRPC links",
+            dynamic_grpc_links,
+            !dynamic_grpc_links.is_empty(),
             format_dynamic_links,
         )
         .fmt_field_optional(

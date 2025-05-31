@@ -1620,14 +1620,13 @@ fn app_component_dynamic_linking(
 
     for rpc_dep in rpc_deps {
         let dep_type = rpc_dep.dep_type.clone();
-        links.push((dep_type, app_ctx.component_stub_interfaces(&dep_type, &rpc_dep.name, None)?));
+        links.push((dep_type, app_ctx.component_stub_interfaces(&dep_type, &rpc_dep.name, Some(false))?));
     }
 
     if links.is_empty() {
         Ok(None)
     } else {
-        Ok(Some(DynamicLinkingOss {
-            dynamic_linking: HashMap::from_iter(links.into_iter().filter_map(|(dep_type, stub_interfaces)| {
+        let dynamic_linking = HashMap::from_iter(links.into_iter().filter_map(|(dep_type, stub_interfaces)| {
                 if dep_type.is_wasm_rpc() {
                     Some((
                         stub_interfaces.stub_interface_name,
@@ -1701,7 +1700,10 @@ fn app_component_dynamic_linking(
                 } else {
                     None
                 }
-            })),
+            }));
+            println!("dynamic linking: {:?}", dynamic_linking.clone());
+        Ok(Some(DynamicLinkingOss {
+            dynamic_linking,
         }))
     }
 }

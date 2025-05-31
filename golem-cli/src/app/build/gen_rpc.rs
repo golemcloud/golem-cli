@@ -87,9 +87,16 @@ fn generate_grpc_client(
     _component_name: &AppComponentName,
     dep: &DependentAppComponent,
 ) -> anyhow::Result<bool> {
-    // 1. generate wit file from proto file
+
+    let proto_config = dep.proto_config.as_ref().unwrap(); // safe unwrap, validated earlier
+
+    // Convert Vec<PathBuf> to Vec<&Path>
+    let protos: Vec<&Path> = proto_config.protos.iter().map(|p| p.as_path()).collect();
+    let includes: Vec<&Path> = proto_config.includes.iter().map(|p| p.as_path()).collect();
+
     let (wit, package_name, file_descriptor_set) = wit_carpenter::from_grpc(
-        dep.proto_config.as_ref().unwrap().root.as_path(), // safely unwrap, validation is done at building deps form manifest
+        &protos,
+        &includes,
         None,
     );
 
@@ -100,7 +107,7 @@ fn generate_grpc_client(
 
     fs::create_dir_all(client_directory.join(naming::wit::WIT_DIR))?;
 
-    // 1.1 store package_name, fds, other stuff in grpc-metadata.json directory inside the component
+    // 1.1 store package_name, fds, other stuff in grpc-metadata.json directory inside the components temp build dir
     let grpc_metadata = GrpcMetadata {
         file_descriptor_set,
         package_name,

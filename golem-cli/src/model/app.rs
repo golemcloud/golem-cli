@@ -365,7 +365,7 @@ impl<T: Default> Default for WithSource<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default, EnumIter)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default, EnumIter, Deserialize)]
 pub enum DependencyType {
     #[default]
     /// Dynamic ("stubless") wasm-rpc
@@ -1870,24 +1870,36 @@ mod app_builder {
                             match dep_type {
                                 DependencyType::Grpc => {
                                     if let Some(proto_config) = dependency.proto {
-                                        if !proto_config.root.exists() {
-                                            // panic
+
+                                        // atleast should pass 1 path
+                                        if proto_config.protos.len() == 0 {
                                             validation.add_error(format!(
-                                                "Unable to find proto root path {} for {} dependency",
-                                                proto_config.root.display(),
+                                                "Atleast 1 protos path should be passed for {} dependency",
                                                 dep_type.as_str()
-                                            ));
-                                        } else if proto_config.root.is_dir() {
-                                            // look for index.proto
-                                            let index = proto_config.root.join("index.proto");
-                                            if !index.exists() {
+                                            ));      
+                                        };
+
+                                        proto_config.protos.iter().for_each(|proto|{
+                                            if !proto.exists() {
+                                                
                                                 validation.add_error(format!(
-                                                    "Missing index proto file {} for {} dependency",
-                                                    index.display(),
+                                                    "Unable to find protos path {} for {} dependency",
+                                                    proto.display(),
                                                     dep_type.as_str()
                                                 ));
-                                            }
-                                        }
+                                            };
+                                        });
+
+                                        proto_config.includes.iter().for_each(|proto_include|{
+                                            if !proto_include.exists() {
+                                                // panic
+                                                validation.add_error(format!(
+                                                    "Unable to find protos include path {} for {} dependency",
+                                                    proto_include.display(),
+                                                    dep_type.as_str()
+                                                ));
+                                            };
+                                        });
 
                                         let dependent_component = DependentComponent {
                                             source: binary_component_source,
