@@ -1,9 +1,10 @@
 import { Logo } from "@/components/logo.tsx";
 import { ModeToggle } from "@/components/mode-toggle.tsx";
 import NavLink from "@/components/navLink.tsx";
-import { BackendEndpointInput } from "./backend-endpoint";
 import { ServerStatus } from "./server-status";
 import { useParams } from "react-router-dom";
+import { Settings } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface NavbarProps {
   showNav?: boolean;
@@ -35,7 +36,11 @@ const Navbar = ({ showNav = true }: NavbarProps) => {
           <div className="flex items-center space-x-2">
             <ServerStatus />
             <ModeToggle />
-            <BackendEndpointInput />
+            <NavLink to="/settings">
+              <Button variant="outline" size="icon">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </NavLink>
           </div>
         </div>
       </div>

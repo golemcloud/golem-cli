@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toast } from "@/hooks/use-toast";
-import { fetchData, updateIP } from "@/lib/tauri&web.ts";
+import { fetchData } from "@/lib/tauri&web.ts";
 import { ENDPOINT } from "@/service/endpoints.ts";
 import { parseErrorResponse } from "@/service/error-handler.ts";
 import { Api } from "@/types/api.ts";
@@ -15,7 +15,7 @@ export class Service {
   }
 
   public updateBackendEndpoint = async (url: string) => {
-    await updateIP(url);
+    // await updateIP(url);
     this.baseUrl = url;
   };
 

@@ -206,6 +206,8 @@ export const CreateApplication = () => {
                                     onChange={(e) => setFormData({ ...formData, folderPath: e.target.value })}
                                     className={`flex-1 ${folderError ? 'border-red-500' : ''}`}
                                     readOnly
+                                    // foward click to the button
+                                    onClick={handleSelectFolder}
                                 />
                                 <Button
                                     variant="outline"

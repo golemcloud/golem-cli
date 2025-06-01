@@ -8,6 +8,7 @@ import { lazy } from "react";
 import { Home } from "@/pages/home";
 import AppLayout from "@/layouts/app-layout";
 import CreateApplication from "@/pages/app-create";
+import SettingsPage from "@/pages/settings";
 
 // Lazy load route components for code splitting and performance improvement
 // Lazy-loading improves initial load times by loading components only when needed.
@@ -105,6 +106,10 @@ export const appRoutes: RouteObject[] = [
             {
                 path: "app-create",
                 element: <CreateApplication />
+            },
+            {
+                path: "settings",
+                element: <SettingsPage />
             },
         ]
     },

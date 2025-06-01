@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Folder, FolderOpen, Plus, ChevronRight, Clock, ArrowRight } from "lucide-react";
-
+import { load } from '@tauri-apps/plugin-store';
 // Helper function to format relative time (e.g., "2 days ago")
 const formatRelativeTime = (date: Date): string => {
     const now = new Date();
@@ -43,38 +43,15 @@ export const Home = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [recentApps, setRecentApps] = useState<App[]>([]);
     const [showAllApps, setShowAllApps] = useState(false);
+    // appDataDir().then(d => alert(d));
 
     // Mock function to fetch apps - in a real app this would use API
     useEffect(() => {
         const fetchApps = async () => {
             try {
-                // This would be replaced with an actual API call
-                // For demonstration, we're using the schema.json structure
-                const mockApps: App[] = [
-                    {
-                        id: "app-1",
-                        name: "Tauri App",
-                        folderLocation: "~/workspace/tauri-apps/tauri-apps",
-                        golemYamlLocation: "~/workspace/tauri-apps/tauri-apps/golem.yaml",
-                        lastOpened: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-                    },
-                    {
-                        id: "app-2",
-                        name: "React Project",
-                        folderLocation: "~/workspace/react-projects/my-app",
-                        golemYamlLocation: "~/workspace/react-projects/my-app/golem.yaml",
-                        lastOpened: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-                    },
-                    {
-                        id: "app-3",
-                        name: "Next.js App",
-                        folderLocation: "~/Documents/next-apps/dashboard",
-                        golemYamlLocation: "~/Documents/next-apps/dashboard/golem.yaml",
-                        lastOpened: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-                    }
-                ];
-
-                setRecentApps(mockApps);
+                let store = await load("settings.json");
+                let recentApps = await store.get("apps") as unknown as App[]
+                setRecentApps(recentApps || []);
             } catch (error) {
                 console.error("Failed to fetch apps:", error);
             }

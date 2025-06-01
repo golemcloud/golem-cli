@@ -1,13 +1,20 @@
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 // BrowserRouter is used for client-side routing
 import { BrowserRouter as Router, useRoutes } from "react-router-dom";
 // ThemeProvider provides theming support
 import { ThemeProvider } from "@/components/theme-provider.tsx";
 import { appRoutes } from "./routes";
+import { settingsService } from "@/lib/settings";
 
 // AppRoutes component to render routes using useRoutes hook
 const AppRoutes = () => {
   const routes = useRoutes(appRoutes);
+
+  useEffect(() => {
+    // Initialize app settings
+    settingsService.initialize().catch(console.error);
+  }, []);
+
   return routes;
 };
 
