@@ -203,15 +203,15 @@ const Components = () => {
   );
   const [workerList, setWorkerList] = useState<WorkerStatusMap>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const p = useParams<{ id: string }>();
-  console.log(p);
+  const {id} = useParams<{ id: string }>();
+
 
   /**
    * Fetch all components, then fetch worker status for each component in parallel
    */
   const fetchComponentsAndMetrics = useCallback(async () => {
     try {
-      const response = await API.getComponentByIdAsKey(p.id!);
+      const response = await API.getComponentByIdAsKey(id!);
       setComponentList(response);
       setFilteredComponents(response);
 
@@ -251,8 +251,7 @@ const Components = () => {
    * On mount, fetch components and their worker statuses
    */
   useEffect(() => {
-    console.log(p);
-    // fetchComponentsAndMetrics()
+    fetchComponentsAndMetrics()
   }, []);
 
   /**

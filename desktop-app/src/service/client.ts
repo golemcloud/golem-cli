@@ -37,7 +37,7 @@ export class Service {
    * @returns {Promise<Component[]>}
    */
   public getComponents = async (appId: string): Promise<Component[]> => {
-    const r = await this.callCLI("component list", appId);
+    const r = await this.callCLI(appId, "component", "list");
     return r as Component[];
   };
 
@@ -408,18 +408,24 @@ export class Service {
     }
   };
 
-  private callCLI = async (command: string, appId: string): Promise<any> => {
+  private callCLI = async (
+    appId: string,
+    command: string,
+    subcommand: string,
+  ): Promise<any> => {
     // find folder location
     const app = await settingsService.getAppById(appId);
-    console.log(appId);
     if (!app) {
       throw new Error("App not found");
     }
     //  we use invoke here to call a special command that calls golem CLI for us
-    return await invoke("golem_cli", {
+    let result: string = await invoke("call_golem_command", {
       command,
-      folderLocation: app.folderLocation,
+      subcommand,
+      folderPath: app.folderLocation,
     });
+
+    return JSON.parse(result);
   };
 
   private downloadApi = async (
