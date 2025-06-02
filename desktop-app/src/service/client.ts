@@ -6,6 +6,8 @@ import { parseErrorResponse } from "@/service/error-handler.ts";
 import { Api } from "@/types/api.ts";
 import { Component, ComponentList } from "@/types/component.ts";
 import { Plugin } from "@/types/plugin";
+import { invoke } from "@tauri-apps/api/core";
+import { settingsService } from "@/lib/settings.ts";
 
 export class Service {
   public baseUrl: string;
@@ -34,8 +36,8 @@ export class Service {
    * Note: Sample Endpoint https://release.api.golem.cloud/v1/components
    * @returns {Promise<Component[]>}
    */
-  public getComponents = async (): Promise<Component[]> => {
-    const r = await this.callApi(ENDPOINT.getComponents());
+  public getComponents = async (appId: string): Promise<Component[]> => {
+    const r = await this.callCLI("component list", appId);
     return r as Component[];
   };
 
@@ -298,13 +300,13 @@ export class Service {
     return r;
   };
 
-  public getComponentByIdAsKey = async (): Promise<
-    Record<string, ComponentList>
-  > => {
+  public getComponentByIdAsKey = async (
+    appId: string,
+  ): Promise<Record<string, ComponentList>> => {
     // Assume getComponents returns a Promise<RawComponent[]>
-    const components = await this.getComponents();
+    const components = await this.getComponents(appId);
 
-    const componentList = components.reduce<Record<string, ComponentList>>(
+    return components.reduce<Record<string, ComponentList>>(
       (acc, component) => {
         const {
           componentName,
@@ -338,7 +340,6 @@ export class Service {
       },
       {},
     );
-    return componentList;
   };
 
   public getPlugins = async (): Promise<Plugin[]> => {
@@ -405,6 +406,20 @@ export class Service {
         throw result;
       }
     }
+  };
+
+  private callCLI = async (command: string, appId: string): Promise<any> => {
+    // find folder location
+    const app = await settingsService.getAppById(appId);
+    console.log(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+    //  we use invoke here to call a special command that calls golem CLI for us
+    return await invoke("golem_cli", {
+      command,
+      folderLocation: app.folderLocation,
+    });
   };
 
   private downloadApi = async (

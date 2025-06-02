@@ -15,7 +15,7 @@ import { ComponentList } from "@/types/component";
 import { Worker } from "@/types/worker";
 import { LayoutGrid, PlusCircle } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 /**
  * Worker status metrics used to categorize workers
@@ -203,13 +203,15 @@ const Components = () => {
   );
   const [workerList, setWorkerList] = useState<WorkerStatusMap>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const p = useParams<{ id: string }>();
+  console.log(p);
 
   /**
    * Fetch all components, then fetch worker status for each component in parallel
    */
   const fetchComponentsAndMetrics = useCallback(async () => {
     try {
-      const response = await API.getComponentByIdAsKey();
+      const response = await API.getComponentByIdAsKey(p.id!);
       setComponentList(response);
       setFilteredComponents(response);
 
@@ -249,8 +251,9 @@ const Components = () => {
    * On mount, fetch components and their worker statuses
    */
   useEffect(() => {
-    fetchComponentsAndMetrics();
-  }, [fetchComponentsAndMetrics]);
+    console.log(p);
+    // fetchComponentsAndMetrics()
+  }, []);
 
   /**
    * Debounce-based search filter for components by name

@@ -119,7 +119,7 @@ export const appRoutes: RouteObject[] = [
         children: [
             {
                 path: "",
-                element: <Home />
+                element: <Dashboard />
             },
             {
                 path: "dashboard",

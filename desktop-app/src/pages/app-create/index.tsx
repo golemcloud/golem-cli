@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from "@/hooks/use-toast";
+import { settingsService } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -105,6 +106,18 @@ export const CreateApplication = () => {
                 folderPath: formData.folderPath,
                 appName: formData.appName,
                 language: formData.language
+            });
+
+            // Create app object to save to store
+            const appPath = `${formData.folderPath}/${formData.appName}`;
+            const appId = `app-${Date.now()}`;
+
+            // Save the new application to store
+            await settingsService.addApp({
+                id: appId,
+                folderLocation: appPath,
+                golemYamlLocation: `${appPath}/golem.yaml`,
+                lastOpened: new Date().toISOString()
             });
 
             toast({
