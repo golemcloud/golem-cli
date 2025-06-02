@@ -33,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -105,7 +105,8 @@ export default function CreatePlugin() {
   });
 
   useEffect(() => {
-    API.getComponentByIdAsKey().then(async response => {
+    const { id } = useParams<{ id: string }>();
+    API.getComponentByIdAsKey(id!).then(async response => {
       setComponentApiList(response);
     });
   }, []);
@@ -157,7 +158,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.name &&
-                              "border-red-500 focus-visible:ring-red-500",
+                            "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -182,7 +183,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.version &&
-                              "border-red-500 focus-visible:ring-red-500",
+                            "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -208,7 +209,7 @@ export default function CreatePlugin() {
                         {...field}
                         className={cn(
                           form.formState.errors.description &&
-                            "border-red-500 focus-visible:ring-red-500",
+                          "border-red-500 focus-visible:ring-red-500",
                         )}
                       />
                     </FormControl>
@@ -240,7 +241,7 @@ export default function CreatePlugin() {
                           }}
                           className={cn(
                             form.formState.errors.icon &&
-                              "border-red-500 focus-visible:ring-red-500",
+                            "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -265,7 +266,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.homepage &&
-                              "border-red-500 focus-visible:ring-red-500",
+                            "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -318,7 +319,7 @@ export default function CreatePlugin() {
                                           componentId: string;
                                         }
                                       )?.componentId &&
-                                        "border-red-500 focus-visible:ring-red-500",
+                                      "border-red-500 focus-visible:ring-red-500",
                                     )}
                                   >
                                     <SelectValue placeholder="Select a Component" />
@@ -364,7 +365,7 @@ export default function CreatePlugin() {
                                           componentVersion: string;
                                         }
                                       )?.componentVersion &&
-                                        "border-red-500 focus-visible:ring-red-500",
+                                      "border-red-500 focus-visible:ring-red-500",
                                     )}
                                   >
                                     <SelectValue placeholder="Select a version">
@@ -409,7 +410,7 @@ export default function CreatePlugin() {
                                         validateUrl: string;
                                       }
                                     )?.validateUrl &&
-                                      "border-red-500 focus-visible:ring-red-500",
+                                    "border-red-500 focus-visible:ring-red-500",
                                   )}
                                 />
                               </FormControl>
@@ -439,7 +440,7 @@ export default function CreatePlugin() {
                                         transformUrl: string;
                                       }
                                     )?.transformUrl &&
-                                      "border-red-500 focus-visible:ring-red-500",
+                                    "border-red-500 focus-visible:ring-red-500",
                                   )}
                                 />
                               </FormControl>
@@ -466,7 +467,7 @@ export default function CreatePlugin() {
                                         jsonSchema: string;
                                       }
                                     )?.jsonSchema &&
-                                      "border-red-500 focus-visible:ring-red-500",
+                                    "border-red-500 focus-visible:ring-red-500",
                                   )}
                                 />
                               </FormControl>
@@ -502,7 +503,7 @@ export default function CreatePlugin() {
                               <SelectTrigger
                                 className={cn(
                                   form.formState.errors.scope?.type &&
-                                    "border-red-500 focus-visible:ring-red-500",
+                                  "border-red-500 focus-visible:ring-red-500",
                                 )}
                               >
                                 <SelectValue placeholder="Select a scope type" />
@@ -542,7 +543,7 @@ export default function CreatePlugin() {
                                       componentId: string;
                                     }
                                   )?.componentId &&
-                                    "border-red-500 focus-visible:ring-red-500",
+                                  "border-red-500 focus-visible:ring-red-500",
                                 )}
                               >
                                 <SelectValue placeholder="Select a Component" />

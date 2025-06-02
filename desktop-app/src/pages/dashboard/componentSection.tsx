@@ -21,7 +21,10 @@ export const ComponentsSection = () => {
   }>({});
 
   useEffect(() => {
-    API.getComponentByIdAsKey().then(response => setComponents(response));
+    (async () => {
+      let response = await API.getComponentByIdAsKey(id!);
+      setComponents(response);
+    })();
   }, []);
   return (
     <ErrorBoundary>
@@ -31,7 +34,10 @@ export const ComponentsSection = () => {
             <CardTitle className="text-2xl font-bold text-primary">
               Components
             </CardTitle>
-            <Button variant="ghost" onClick={() => navigate(`/app/${id}/components`)}>
+            <Button
+              variant="ghost"
+              onClick={() => navigate(`/app/${id}/components`)}
+            >
               View All
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>

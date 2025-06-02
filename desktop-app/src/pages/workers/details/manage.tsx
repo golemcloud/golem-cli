@@ -45,7 +45,8 @@ export default function WorkerManage() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getComponentByIdAsKey().then(response => {
+      const { id } = useParams<{ id: string }>();
+      API.getComponentByIdAsKey(id!).then(response => {
         setComponentList(response[componentId]);
       });
       API.getParticularWorker(componentId, workerName).then(response => {

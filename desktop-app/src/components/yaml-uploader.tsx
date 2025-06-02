@@ -24,7 +24,7 @@ import { YamlEditor } from "./yaml-editor";
 // import { parse } from "path";
 
 export default function YamlUploader() {
-  const { apiName, version } = useParams();
+  const { apiName, version, id } = useParams();
   const navigate = useNavigate();
   const [queryParams] = useSearchParams();
   const path = queryParams.get("path");
@@ -45,7 +45,7 @@ export default function YamlUploader() {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
           API.getApi(apiName),
-          API.getComponentByIdAsKey(),
+          API.getComponentByIdAsKey(id!),
         ]);
         const selectedApi = apiResponse.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);

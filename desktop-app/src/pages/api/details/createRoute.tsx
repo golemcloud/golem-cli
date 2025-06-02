@@ -174,7 +174,7 @@ const CreateRoute = () => {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
           API.getApi(apiName),
-          API.getComponentByIdAsKey(),
+          API.getComponentByIdAsKey(id!),
         ]);
         const selectedApi = apiResponse.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);

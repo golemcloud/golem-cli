@@ -18,7 +18,8 @@ export const ComponentDetails = () => {
     if (!componentId) return;
 
     // Fetch component info and worker status in parallel
-    Promise.all([API.getComponentByIdAsKey(), API.findWorker(componentId)])
+    const { id } = useParams<{ id: string }>();
+    Promise.all([API.getComponentByIdAsKey(id!), API.findWorker(componentId)])
       .then(([componentMap, workerResponse]) => {
         // 1. Set the component data
         const foundComponent = componentMap[componentId] || null;
@@ -104,9 +105,8 @@ export const ComponentDetails = () => {
 
             {/* Exports & Worker Status */}
             <div
-              className={`grid gap-4 ${
-                component.componentType === "Durable" ? "md:grid-cols-2" : ""
-              }`}
+              className={`grid gap-4 ${component.componentType === "Durable" ? "md:grid-cols-2" : ""
+                }`}
             >
               <ExportsList
                 exports={

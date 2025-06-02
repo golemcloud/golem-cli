@@ -38,55 +38,55 @@ const createMenuItems = (
   componentId: string,
   componentType: string,
 ): SidebarMenuProps[] => [
-  {
-    title: "Overview",
-    url: `/components/${componentId}`,
-    icon: Home,
-  },
-  {
-    title: "Workers",
-    url: `/components/${componentId}/workers`,
-    icon: Pickaxe,
-    isHidden: componentType === "Ephemeral",
-  },
-  {
-    title: "Invoke",
-    url: `/components/${componentId}/invoke`,
-    icon: Workflow,
-    isHidden: componentType === "Durable",
-  },
-  {
-    title: "Exports",
-    url: `/components/${componentId}/exports`,
-    icon: ArrowRightFromLine,
-  },
-  {
-    title: "Update",
-    url: `/components/${componentId}/update`,
-    icon: Pencil,
-  },
-  {
-    title: "Files",
-    url: `/components/${componentId}/files`,
-    icon: Folder,
-  },
-  {
-    title: "Plugins",
-    url: `/components/${componentId}/plugins`,
-    icon: ToyBrick,
-  },
-  {
-    title: "Info",
-    url: `/components/${componentId}/info`,
-    icon: Info,
-  },
-  {
-    title: "Settings",
-    url: `/components/${componentId}/settings`,
-    icon: Settings,
-    isHidden: componentType === "Ephemeral",
-  },
-];
+    {
+      title: "Overview",
+      url: `/components/${componentId}`,
+      icon: Home,
+    },
+    {
+      title: "Workers",
+      url: `/components/${componentId}/workers`,
+      icon: Pickaxe,
+      isHidden: componentType === "Ephemeral",
+    },
+    {
+      title: "Invoke",
+      url: `/components/${componentId}/invoke`,
+      icon: Workflow,
+      isHidden: componentType === "Durable",
+    },
+    {
+      title: "Exports",
+      url: `/components/${componentId}/exports`,
+      icon: ArrowRightFromLine,
+    },
+    {
+      title: "Update",
+      url: `/components/${componentId}/update`,
+      icon: Pencil,
+    },
+    {
+      title: "Files",
+      url: `/components/${componentId}/files`,
+      icon: Folder,
+    },
+    {
+      title: "Plugins",
+      url: `/components/${componentId}/plugins`,
+      icon: ToyBrick,
+    },
+    {
+      title: "Info",
+      url: `/components/${componentId}/info`,
+      icon: Info,
+    },
+    {
+      title: "Settings",
+      url: `/components/${componentId}/settings`,
+      icon: Settings,
+      isHidden: componentType === "Ephemeral",
+    },
+  ];
 
 /**
  * Layout component for the component details page
@@ -103,7 +103,8 @@ export const ComponentLayout = () => {
   const fetchComponent = useCallback(async () => {
     if (componentId) {
       try {
-        const response = await API.getComponentByIdAsKey();
+        const { id } = useParams<{ id: string }>();
+        const response = await API.getComponentByIdAsKey(id!);
         setCurrentComponent(response[componentId]);
       } catch (error) {
         console.error("Error fetching component:", error);

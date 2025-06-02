@@ -147,7 +147,8 @@ export default function Exports() {
     if (!componentId) return;
 
     // Fetch entire list of components by ID
-    API.getComponentByIdAsKey().then(response => {
+    const { id } = useParams<{ id: string }>();
+    API.getComponentByIdAsKey(id!).then(response => {
       const fetched = response[componentId];
       if (!fetched) return;
 
@@ -254,7 +255,7 @@ export default function Exports() {
                     result.map((fn: ExportResult) => (
                       <TableRow
                         key={`${fn.package}-${fn.function_name}`}
-                        /* Combined key to reduce chance of collision */
+                      /* Combined key to reduce chance of collision */
                       >
                         <TableCell className="font-mono text-sm">
                           {/* Example: functionName(paramName: type, ...) => returnType */}

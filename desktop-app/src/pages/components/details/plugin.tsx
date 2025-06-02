@@ -82,7 +82,8 @@ export default function Plugins() {
   }, []);
 
   const refreshComponent = () => {
-    API.getComponentByIdAsKey().then(response => {
+    const { id } = useParams<{ id: string }>();
+    API.getComponentByIdAsKey(id!).then(response => {
       setComponent(response[componentId]);
       const data = response[componentId];
       const versionList = data.versionList || [];

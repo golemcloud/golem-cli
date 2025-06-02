@@ -62,7 +62,8 @@ export const WorkerLayout = () => {
 
   useEffect(() => {
     if (componentId) {
-      API.getComponentByIdAsKey().then(response => {
+      const { id } = useParams<{ id: string }>();
+      API.getComponentByIdAsKey(id!).then(response => {
         setCurrentComponent(response[componentId]);
       });
     }
