@@ -193,6 +193,7 @@ impl IfsFileManager {
         file_processor: &dyn FileProcessor<R>,
         component_file: &InitialComponentFile,
     ) -> anyhow::Result<Vec<R>> {
+        // if it's a directory, we need to recursively load all files and combine them with their target paths and permissions.
         let source_path = if component_file.source.as_url().scheme() == "file" {
             let url = component_file.source.as_url();
             let path = url.to_file_path().map_err(|_| {
