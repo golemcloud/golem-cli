@@ -6,7 +6,7 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Api } from "@/types/api";
 import { API } from "@/service";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,10 @@ export const APIs = () => {
   const navigate = useNavigate();
   const [apis, setApis] = useState([] as Api[]);
   const [searchedApi, setSearchedApi] = useState([] as Api[]);
+  const { id } = useParams<{ id: string }>();
 
   useEffect(() => {
-    API.getApiList().then(response => {
+    API.getApiList(id!).then(response => {
       const newData = removeDuplicateApis(response);
       setApis(newData);
       setSearchedApi(newData);
@@ -50,7 +51,7 @@ export const APIs = () => {
               className="pl-10 text-white"
             />
           </div>
-          <Button onClick={() => navigate("/apis/create")} variant="default">
+          <Button onClick={() => navigate(`/app/${id}/apis/create`)} variant="default">
             <Plus className="h-5 w-5" />
             <span>New</span>
           </Button>
@@ -91,10 +92,11 @@ interface APICardProps {
 
 const APICard = ({ name, version, routes, count }: APICardProps) => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   return (
     <Card
       className="from-background to-muted bg-gradient-to-br border-border w-full cursor-pointer hover:shadow-lg"
-      onClick={() => navigate(`/apis/${name}/version/${version}`)}
+      onClick={() => navigate(`/app/${id}/apis/${name}/version/${version}`)}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base font-semibold text-emerald-400">

@@ -42,7 +42,7 @@ import { toast } from "@/hooks/use-toast";
 import { useTheme } from "@/components/theme-provider.tsx";
 
 export default function ComponentInvoke() {
-  const { componentId = "" } = useParams();
+  const { componentId = "", id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -61,7 +61,6 @@ export default function ComponentInvoke() {
   /** Fetch function details based on URL params. */
   const fetchFunctionDetails = useCallback(async () => {
     try {
-      const { id } = useParams<{ id: string }>();
       const data = await API.getComponentByIdAsKey(id!);
       setComponentList(data);
       const matchingComponent =
@@ -93,7 +92,7 @@ export default function ComponentInvoke() {
         matchingComponent?.metadata?.exports?.[0]?.functions?.[0]
       ) {
         navigate(
-          `/components/${componentId}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
+          `/app/${id}/components/${componentId}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
         );
       }
     } catch (error: unknown) {
@@ -204,7 +203,7 @@ export default function ComponentInvoke() {
                               variant="ghost"
                               onClick={() =>
                                 navigate(
-                                  `/components/${componentId}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
+                                  `/app/${id}/components/${componentId}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
                                 )
                               }
                               className={cn(

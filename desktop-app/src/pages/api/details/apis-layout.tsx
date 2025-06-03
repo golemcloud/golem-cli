@@ -56,7 +56,7 @@ const MenuItems = (apiName: string, version: string) => [
 ];
 
 export const ApiLayout = () => {
-  const { apiName, version } = useParams();
+  const { apiName, version,id } = useParams();
   const [queryParams] = useSearchParams();
   const navigate = useNavigate();
   const [apiDetails, setApiDetails] = useState([] as Api[]);
@@ -95,7 +95,7 @@ export const ApiLayout = () => {
   }, [apiName, version, path, method, reload]);
 
   const handleNavigateHome = useCallback(() => {
-    navigate(`/apis/${apiName}/version/${version}`);
+    navigate(`/app/${id}/apis/${apiName}/version/${version}`);
     setCurrentMenu("Overview");
   }, [navigate, apiName, version]);
 
@@ -153,7 +153,7 @@ export const ApiLayout = () => {
                     );
                     if (selectedApi) {
                       navigate(
-                        `/apis/${apiName}/version/${version}${basePath}`,
+                        `/app/${id}/apis/${apiName}/version/${version}${basePath}`,
                       );
                     }
                   }}
@@ -196,7 +196,7 @@ export const ApiLayout = () => {
               <Button
                 variant="default"
                 onClick={() => {
-                  navigate(`/apis/${apiName}/version/${version}/routes/add?`);
+                  navigate(`/app/${id}/apis/${apiName}/version/${version}/routes/add?`);
                   setCurrentMenu("Add New Route");
                 }}
               >

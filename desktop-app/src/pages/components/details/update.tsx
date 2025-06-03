@@ -38,7 +38,7 @@ const formSchema = z.object({
 });
 
 export default function ComponentUpdate() {
-  const { componentId } = useParams();
+  const { componentId, id } = useParams();
   const navigate = useNavigate();
   const [fileSystem, setFileSystem] = useState<FileItem[] | []>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -113,7 +113,7 @@ export default function ComponentUpdate() {
       setFileSystem([]);
 
       toast({ title: "Component updated successfully", duration: 3000 });
-      navigate(`/components/${componentId}`);
+      navigate(`/app/${id}/components/${componentId}`);
     } catch (err) {
       console.error("Error updating component:", err);
       toast({

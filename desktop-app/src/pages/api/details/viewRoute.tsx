@@ -131,7 +131,7 @@ function PathParameters({ url }: { url: string }) {
 
 export const ApiRoute = () => {
   const navigate = useNavigate();
-  const { apiName, version } = useParams();
+  const { apiName, version, id } = useParams();
   const [currentRoute, setCurrentRoute] = useState({} as RouteRequestData);
   const [apiResponse, setApiResponse] = useState({} as Api);
   const [queryParams] = useSearchParams();
@@ -151,10 +151,10 @@ export const ApiRoute = () => {
           );
           setCurrentRoute(route || ({} as RouteRequestData));
         } else {
-          navigate(`/apis/${apiName}/version/${version}`);
+          navigate(`/app/${id}/apis/${apiName}/version/${version}`);
         }
       } else {
-        navigate(`/apis/${apiName}/version/${version}`);
+        navigate(`/app/${id}/apis/${apiName}/version/${version}`);
       }
     };
     fetchData();
@@ -162,7 +162,7 @@ export const ApiRoute = () => {
 
   const routeToQuery = () => {
     navigate(
-      `/apis/${apiName}/version/${version}/routes/edit?path=${path}&method=${method}`,
+      `/app/${id}/apis/${apiName}/version/${version}/routes/edit?path=${path}&method=${method}`,
     );
   };
 
@@ -175,7 +175,7 @@ export const ApiRoute = () => {
             route => !(route.path === path && route.method === method),
           );
           API.putApi(apiName, version!, currentApi).then(() => {
-            navigate(`/apis/${apiName}/version/${version}`);
+            navigate(`/app/${id}/apis/${apiName}/version/${version}`);
           });
         }
       });

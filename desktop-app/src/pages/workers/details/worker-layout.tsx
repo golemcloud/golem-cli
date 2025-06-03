@@ -104,7 +104,7 @@ export const WorkerLayout = () => {
                   <BreadcrumbItem className="hidden md:block cursor-pointer">
                     <BreadcrumbLink asChild>
                       <span
-                        onClick={() => navigate(`/components/${componentId}`)}
+                        onClick={() => navigate(`/app/${id}/components/${componentId}`)}
                       >
                         <span className="text-gray-500">Component:</span>{" "}
                         {currentComponent.componentName}

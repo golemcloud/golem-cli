@@ -50,7 +50,7 @@ type NewVersionFormValues = z.infer<typeof newVersionSchema>;
 
 export default function APINewVersion() {
   const navigate = useNavigate();
-  const { apiName, version } = useParams();
+  const { apiName, version, id } = useParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiDetails, setApiDetails] = useState<Api[]>([]);
@@ -149,7 +149,7 @@ export default function APINewVersion() {
         createdAt: new Date().toISOString(),
       };
       await API.postApi(payload).then(() => {
-        navigate(`/apis/${apiName}/version/${values.version}`);
+        navigate(`/app/${id}/apis/${apiName}/version/${values.version}`);
       });
     } catch (error) {
       console.error("Failed to create new version:", error);

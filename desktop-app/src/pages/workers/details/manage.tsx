@@ -34,7 +34,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function WorkerManage() {
-  const { componentId = "", workerName = "" } = useParams();
+  const {id, componentId = "", workerName = "" } = useParams();
   const navigate = useNavigate();
   const [workerDetails, setWorkerDetails] = useState({} as Worker);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -45,11 +45,10 @@ export default function WorkerManage() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      const { id } = useParams<{ id: string }>();
       API.getComponentByIdAsKey(id!).then(response => {
         setComponentList(response[componentId]);
       });
-      API.getParticularWorker(componentId, workerName).then(response => {
+      API.getParticularWorker(id!,componentId, workerName).then(response => {
         setWorkerDetails(response);
         setUpgradeTo(`${response?.componentVersion}`);
       });
@@ -71,13 +70,13 @@ export default function WorkerManage() {
   };
 
   const handleDelete = () => {
-    API.deleteWorker(componentId, workerName).then(() => {
+    API.deleteWorker(id!, componentId, workerName).then(() => {
       toast({
         title: "Worker deleted successfully",
         duration: 3000,
         variant: "destructive",
       });
-      navigate(`/components/${componentId}`);
+      navigate(`/app/${id}/components/${componentId}`);
     });
   };
 

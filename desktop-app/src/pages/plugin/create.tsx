@@ -83,6 +83,7 @@ const formSchema = z.object({
 
 export default function CreatePlugin() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [componentApiList, setComponentApiList] = useState<{
     [key: string]: ComponentList;
   }>({});
@@ -133,9 +134,9 @@ export default function CreatePlugin() {
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(async data => {
-                const values = { ...data, icon: [] };
-                await API.createPlugin(values);
-                navigate(`/plugins`);
+                // const values = { ...data, icon: [] };
+                await API.createPlugin(id!, "values")
+                navigate(`/app/${id}plugins`);
                 toast({
                   title: "Plugin created successfully",
                   duration: 3000,

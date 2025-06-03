@@ -66,7 +66,7 @@ export default function WorkerList() {
             <Button
               variant="default"
               onClick={() =>
-                navigate(`/components/${componentId}/workers/create`)
+                navigate(`/app/${id}/components/${componentId}/workers/create`)
               }
             >
               <Plus className="h-4 w-4" />
@@ -94,7 +94,7 @@ export default function WorkerList() {
                   className="rounded-lg border border-border bg-muted hover:bg-muted/80 hover:shadow-lg transition cursor-pointer"
                   onClick={() =>
                     navigate(
-                      `/components/${componentId}/workers/${worker.workerId.workerName}`,
+                      `/app/${id}/components/${componentId}/workers/${worker.workerId.workerName}`,
                     )
                   }
                 >

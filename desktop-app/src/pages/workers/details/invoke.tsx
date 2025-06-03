@@ -56,11 +56,11 @@ export default function WorkerInvoke() {
     [key: string]: ComponentList;
   }>({});
   const [viewMode, setViewMode] = useState("form");
+  const { id } = useParams<{ id: string }>();
 
   /** Fetch function details based on URL params. */
   const fetchFunctionDetails = useCallback(async () => {
     try {
-      const { id } = useParams<{ id: string }>();
       const data = await API.getComponentByIdAsKey(id!);
       setComponentList(data);
       const matchingComponent =
@@ -92,7 +92,7 @@ export default function WorkerInvoke() {
         matchingComponent?.metadata?.exports?.[0]?.functions?.[0]
       ) {
         navigate(
-          `/components/${componentId}/workers/${workerName}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
+          `/app/${id}/components/${componentId}/workers/${workerName}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
         );
       }
     } catch (error: unknown) {
@@ -204,7 +204,7 @@ export default function WorkerInvoke() {
                               variant="ghost"
                               onClick={() =>
                                 navigate(
-                                  `/components/${componentId}/workers/${workerName}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
+                                  `/app/${id}/components/${componentId}/workers/${workerName}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
                                 )
                               }
                               className={cn(

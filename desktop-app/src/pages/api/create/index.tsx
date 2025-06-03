@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { PlusCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ type CreateApiFormValues = z.infer<typeof createApiSchema>;
 const CreateAPI = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { id } = useParams<{ id: string }>();
 
   const form = useForm<CreateApiFormValues>({
     resolver: zodResolver(createApiSchema),
@@ -57,7 +58,7 @@ const CreateAPI = () => {
         routes: [],
         draft: true,
       });
-      navigate(`/apis/${values.apiName}/version/${values.version}`);
+      navigate(`/app/${id}/apis/${values.apiName}/version/${values.version}`);
     } catch (error) {
       console.error("Failed to create API:", error);
       form.setError("apiName", {

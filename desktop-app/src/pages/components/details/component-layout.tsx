@@ -136,7 +136,7 @@ export const ComponentLayout = () => {
   }, [componentId, currentComponent?.componentType]);
 
   const handleNavigateHome = useCallback(() => {
-    navigate(`/components/${componentId}`);
+    navigate(`/app/${id}/components/${componentId}`);
     setCurrentMenu("Overview");
   }, [navigate, componentId]);
 

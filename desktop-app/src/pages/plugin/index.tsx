@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { API } from "@/service";
 import { Plugin } from "@/types/plugin";
@@ -18,10 +18,10 @@ export default function PluginList() {
   const navigate = useNavigate();
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [pluginsApi, setPluginsApi] = useState<Plugin[]>([]);
-
+  const { id } = useParams<{ id: string }>();
   useEffect(() => {
     const fetchPlugins = async () => {
-      const res = await API.getPlugins();
+      const res = await API.getPlugins(id!);
       setPluginsApi(res);
       setPlugins(res);
     };
@@ -50,7 +50,7 @@ export default function PluginList() {
         <Button
           variant="default"
           className="ml-4"
-          onClick={() => navigate("/plugins/create")}
+          onClick={() => navigate(`/app/${id}/plugins/create`)}
         >
           <Plus className="mr-2 h-5 w-5" />
           Create Plugin
@@ -63,9 +63,9 @@ export default function PluginList() {
           {plugins.map(plugin => (
             <Card
               key={plugin.name}
-              className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow from-background to-muted border-border cursor-pointer bg-gradient-to-br"
+              className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow from-background to-muted border-border bg-gradient-to-br"
               onClick={() =>
-                navigate(`/plugins/${plugin.name}/${plugin.version}`)
+                navigate(`/app/${id}/plugins/${plugin.name}/${plugin.version}`)
               }
             >
               <CardHeader>

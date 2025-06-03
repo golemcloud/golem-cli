@@ -12,7 +12,7 @@ import ErrorBoundary from "@/components/errorBoundary.tsx";
 import { HTTP_METHOD_COLOR } from "@/components/nav-route.tsx";
 
 const APIDetails = () => {
-  const { apiName, version } = useParams();
+  const { apiName, version, id } = useParams();
   const [queryParams] = useSearchParams();
   const reload = queryParams.get("reload");
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ const APIDetails = () => {
         const selectedApi = response.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);
       });
-      API.getDeploymentApi(apiName).then(response => {
+      API.getDeploymentApi(id,apiName).then(response => {
         const result = [] as Deployment[];
         response.forEach((deployment: Deployment) => {
           if (deployment.apiDefinitions.length > 0) {
@@ -44,7 +44,7 @@ const APIDetails = () => {
 
   const routeToQuery = (route: RouteRequestData) => {
     navigate(
-      `/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
+      `/app/${id}/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
     );
   };
   return (
@@ -58,7 +58,7 @@ const APIDetails = () => {
                 <Button
                   variant="outline"
                   onClick={() =>
-                    navigate(`/apis/${apiName}/version/${version}/routes/add?`)
+                    navigate(`/app/${id}/apis/${apiName}/version/${version}/routes/add?`)
                   }
                   className="flex items-center gap-2"
                 >
@@ -118,7 +118,7 @@ const APIDetails = () => {
                 <Button
                   variant="ghost"
                   className="text-primary"
-                  onClick={() => navigate(`/deployments`)}
+                  onClick={() => navigate(`/app/${id}/deployments`)}
                 >
                   View All
                 </Button>
@@ -131,7 +131,7 @@ const APIDetails = () => {
                     <div
                       key={deployment.createdAt + deployment.site.host}
                       className="flex items-center justify-between rounded-lg border p-4 cursor-pointer"
-                      onClick={() => navigate(`/deployments/`)}
+                      onClick={() => navigate(`/app/${id}/deployments`)}
                     >
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">

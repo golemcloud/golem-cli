@@ -25,7 +25,7 @@ import { Trash2 } from "lucide-react";
 export default function APISettings() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { apiName, version } = useParams();
+  const { apiName, version,id  } = useParams();
   const [queryParams] = useSearchParams();
   const reload = queryParams.get("reload");
 
@@ -61,8 +61,8 @@ export default function APISettings() {
         );
         navigate(
           newVersion
-            ? `/apis/${apiName}/version/${newVersion.version}`
-            : `/apis`,
+            ? `/app/${id}/apis/${apiName}/version/${newVersion.version}`
+            : `/app/${id}/apis`,
         );
         setShowConfirmDialog(false);
       } else if (type === "all") {
@@ -74,7 +74,7 @@ export default function APISettings() {
           description: "All API versions have been deleted successfully.",
           duration: 3000,
         });
-        navigate(`/apis`);
+        navigate(`/app/${id}/apis`);
         setShowConfirmAllDialog(false);
       } else {
         await API.putApi(activeApiDetails.id, activeApiDetails.version, {
@@ -86,7 +86,7 @@ export default function APISettings() {
           description: "All routes have been deleted successfully.",
           duration: 3000,
         });
-        navigate(`/apis/${apiName}/version/${version}?reload=${!reload}`);
+        navigate(`/app/${id}/apis/${apiName}/version/${version}?reload=${!reload}`);
         setShowConfirmAllRoutes(false);
       }
     } finally {

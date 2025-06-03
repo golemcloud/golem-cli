@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/form";
 import ErrorBoundary from "@/components/errorBoundary";
 import { API } from "@/service";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 
 // Define API definition type
@@ -91,6 +91,7 @@ export default function CreateDeployment() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { id } = useParams<{ id: string }>();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -111,7 +112,7 @@ export default function CreateDeployment() {
       try {
         setIsLoading(true);
         setFetchError(null);
-        const response = await API.getApiList();
+        const response = await API.getApiList(id!);
         const transformedData = Object.values(
           response.reduce(
             (acc, api) => {
@@ -162,12 +163,12 @@ export default function CreateDeployment() {
         },
         apiDefinitions: data.definitions,
       };
-      await API.createDeployment(payload);
+      await API.createDeployment(id!, payload.site.host);
       toast({
         title: "Deployment was successful",
         duration: 3000,
       });
-      navigate("/deployments");
+      navigate(`/app/${id}deployments`);
     } catch (error) {
       console.error("Failed to create deployment:", error);
       form.setError("root", {

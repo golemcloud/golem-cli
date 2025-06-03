@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Deployment } from "@/types/deployments";
 import ErrorBoundary from "@/components/errorBoundary";
 import { HTTP_METHOD_COLOR } from "@/components/nav-route";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 const RoutesCard = ({
   apiId,
@@ -46,7 +46,7 @@ const RoutesCard = ({
   --header "Content-Type: application/json" \
   --header "Accept: application/json" \
   --data '{}'`;
-    
+
     navigator.clipboard
       .writeText(curlCommand)
       .then(() => {
@@ -77,7 +77,7 @@ const RoutesCard = ({
                   variant="secondary"
                   className={cn(
                     HTTP_METHOD_COLOR[
-                    endpoint.method as keyof typeof HTTP_METHOD_COLOR
+                      endpoint.method as keyof typeof HTTP_METHOD_COLOR
                     ],
                     "w-16 text-center justify-center",
                   )}
@@ -116,6 +116,7 @@ export default function Deployments() {
   const [apiList, setApiList] = useState<Api[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { id } = useParams<{ id: string }>();
   const [selectedDeploymentHost, setSelectedDeploymentHost] = useState<
     string | null
   >(null);
@@ -123,12 +124,12 @@ export default function Deployments() {
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        const response = await API.getApiList();
+        const response = await API.getApiList(id!);
         setApiList(response);
 
         const uniqueApis = removeDuplicateApis(response);
         const allDeployments = await Promise.all(
-          uniqueApis.map(api => API.getDeploymentApi(api.id)),
+          uniqueApis.map(api => API.getDeploymentApi(id!, api.subdomain)),
         );
 
         setDeployments(allDeployments.flat().filter(Boolean));
@@ -144,7 +145,7 @@ export default function Deployments() {
     if (!selectedDeploymentHost) return;
 
     try {
-      await API.deleteDeployment(selectedDeploymentHost);
+      await API.deleteDeployment(id, selectedDeploymentHost);
       setDeployments(prev =>
         prev.filter(d => d.site.host !== selectedDeploymentHost),
       );
@@ -248,39 +249,40 @@ export default function Deployments() {
                                 a =>
                                   a.id === api.id && a.version === api.version,
                               )?.routes?.length || 0) > 0 && (
-                                  <button
-                                    onClick={() =>
-                                      toggleExpanded(
-                                        deployment.site.host,
-                                        api.id,
-                                        api.version,
-                                      )
-                                    }
-                                    className="p-1 hover:bg-accent rounded-md"
-                                  >
-                                    <ChevronRight
-                                      className={`w-4 h-4 text-muted-foreground transition-transform ${expandedDeployment.includes(
+                                <button
+                                  onClick={() =>
+                                    toggleExpanded(
+                                      deployment.site.host,
+                                      api.id,
+                                      api.version,
+                                    )
+                                  }
+                                  className="p-1 hover:bg-accent rounded-md"
+                                >
+                                  <ChevronRight
+                                    className={`w-4 h-4 text-muted-foreground transition-transform ${
+                                      expandedDeployment.includes(
                                         `${deployment.site.host}.${api.id}.${api.version}`,
                                       )
-                                          ? "rotate-90"
-                                          : ""
-                                        }`}
-                                    />
-                                  </button>
-                                )}
+                                        ? "rotate-90"
+                                        : ""
+                                    }`}
+                                  />
+                                </button>
+                              )}
                             </div>
                           </div>
 
                           {expandedDeployment.includes(
                             `${deployment.site.host}.${api.id}.${api.version}`,
                           ) && (
-                              <RoutesCard
-                                apiId={api.id}
-                                version={api.version}
-                                apiList={apiList}
-                                host={deployment.site.host}
-                              />
-                            )}
+                            <RoutesCard
+                              apiId={api.id}
+                              version={api.version}
+                              apiList={apiList}
+                              host={deployment.site.host}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>

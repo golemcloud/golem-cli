@@ -104,7 +104,7 @@ const interpolations = [
 ];
 
 const CreateRoute = () => {
-  const { apiName, version } = useParams();
+  const { apiName, version, id } = useParams();
   const navigate = useNavigate();
   const [componentList, setComponentList] = useState<{
     [key: string]: ComponentList;
@@ -272,7 +272,7 @@ const CreateRoute = () => {
         selectedApi,
       ).then(() => {
         navigate(
-          `/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
+          `/app/${id}/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
         );
       });
     } catch (error) {
