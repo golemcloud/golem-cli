@@ -12,7 +12,7 @@ pub struct ComponentNames<'a> {
     names: Vec<wasmparser::ComponentName<'a>>,
 }
 
-impl<'a> Debug for ComponentNames<'a> {
+impl Debug for ComponentNames<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ComponentNames")
             .field("component_name", &self.component_name)

@@ -204,8 +204,8 @@ impl IfsFileManager {
 
             if cfg!(windows) {
                 let path_str = path.to_string_lossy().to_string();
-                if path_str.starts_with('/') {
-                    PathBuf::from(&path_str[1..])
+                if let Some(stripped) = path_str.strip_prefix('/') {
+                    PathBuf::from(stripped)
                 } else {
                     path
                 }
