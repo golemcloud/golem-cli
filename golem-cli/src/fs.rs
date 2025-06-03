@@ -48,10 +48,15 @@ pub fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> anyhow::Result<u6
 
     let bytes = std::fs::copy(&from, &to).with_context(context)?;
 
-    std::fs::File::open(&to)
-        .and_then(|to| to.set_modified(SystemTime::now()))
-        .context("Failed to update target modification time")
-        .with_context(context)?;
+    if let Err(err) = OpenOptions::new()
+        .write(true)
+        .open(&to)
+        .and_then(|file| file.set_modified(SystemTime::now()))
+    {
+        return Err(err)
+            .context("Failed to update target modification time")
+            .with_context(context);
+    }
 
     Ok(bytes)
 }
