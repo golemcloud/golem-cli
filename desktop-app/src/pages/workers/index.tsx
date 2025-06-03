@@ -26,10 +26,10 @@ export default function WorkerList() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const navigate = useNavigate();
-  const { componentId } = useParams();
+  const { id,componentId } = useParams();
 
   useEffect(() => {
-    API.findWorker(componentId!).then(res => {
+    API.findWorker(id!,componentId!).then(res => {
       const sortedData = res.workers.sort(
         (a: Worker, b: Worker) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),

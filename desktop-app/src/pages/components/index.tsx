@@ -219,7 +219,7 @@ const Components = () => {
       // Map over each component to fetch worker info
       const workerPromises = Object.values(response).map(async comp => {
         if (comp.componentId) {
-          const worker = await API.findWorker(comp.componentId, {
+          const worker = await API.findWorker(id!, comp.componentId, {
             count: 100,
             precise: true,
           });

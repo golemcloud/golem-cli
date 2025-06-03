@@ -42,7 +42,7 @@ export class Service {
   };
 
   public getComponentById = async (appId: string, componentId: string) => {
-    const r = (await this.callCLI(appId, "component", ["get"])) as Component[];
+    const r = (await this.callCLI(appId, "component", ["list"])) as Component[];
     return r.find(c => c.componentId === componentId);
   };
 
@@ -126,12 +126,15 @@ export class Service {
       appId,
       componentId,
     )) as Component;
-    return await this.callCLI(appId, "worker", [
+    const params = [
       "list",
       component.componentName!,
       `--max-count=${param.count}`,
-      `--precise=${param.precise}`,
-    ]);
+    ];
+    if (param.precise) {
+      params.push(`--precise`);
+    }
+    return await this.callCLI(appId, "worker", params);
   };
 
   public deleteWorker = async (
@@ -439,10 +442,13 @@ export class Service {
     }
 
     let parsedResult;
-    try {
-      parsedResult = JSON.parse(result);
-    } catch (e) {
-      // some actions do not return json
+    const match = result.match(/(\[.*\]|\{.*\})/s);
+    if (match) {
+      try {
+        parsedResult = JSON.parse(match[0]);
+      } catch (e) {
+        // some actions do not return json
+      }
     }
     return parsedResult || true;
   };

@@ -90,6 +90,7 @@ export enum ComponentType {
 }
 
 export interface Component {
+  componentVersion?: number;
   componentName?: string;
   componentSize?: number;
   componentType?: ComponentType;

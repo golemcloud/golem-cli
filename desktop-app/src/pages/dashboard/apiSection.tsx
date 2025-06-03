@@ -15,7 +15,7 @@ export function APISection() {
   const [apis, setApis] = useState([] as Api[]);
 
   useEffect(() => {
-    API.getApiList().then(response => {
+    API.getApiList(id!).then(response => {
       const newData = removeDuplicateApis(response);
       setApis(newData);
     });

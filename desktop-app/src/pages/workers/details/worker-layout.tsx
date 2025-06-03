@@ -19,36 +19,37 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb.tsx";
+const { id } = useParams<{ id: string }>();
 
 const MenuItems = (componentId: string, workerName: string) => [
   {
     title: "Overview",
-    url: `/components/${componentId}/workers/${workerName}`,
+    url: `/app/${id}/components/${componentId}/workers/${workerName}`,
     icon: Home,
   },
   {
     title: "Live",
-    url: `/components/${componentId}/workers/${workerName}/live`,
+    url: `/app/${id}/components/${componentId}/workers/${workerName}/live`,
     icon: Tv,
   },
   {
     title: "Environment",
-    url: `/components/${componentId}/workers/${workerName}/environments`,
+    url: `/app/${id}/components/${componentId}/workers/${workerName}/environments`,
     icon: Container,
   },
   {
     title: "Invoke",
-    url: `/components/${componentId}/workers/${workerName}/invoke`,
+    url: `/app/${id}/components/${componentId}/workers/${workerName}/invoke`,
     icon: Workflow,
   },
   {
     title: "Info",
-    url: `/components/${componentId}/workers/${workerName}/info`,
+    url: `/app/${id}/components/${componentId}/workers/${workerName}/info`,
     icon: Info,
   },
   {
     title: "Manage",
-    url: `/components/${componentId}/workers/${workerName}/manage`,
+    url: `/app/${id}/components/${componentId}/workers/${workerName}/manage`,
     icon: Settings,
   },
 ];
@@ -79,7 +80,7 @@ export const WorkerLayout = () => {
   }, [location.pathname]);
 
   const navigateHome = () => {
-    navigate(`/components/${componentId}/workers/${workerName}`);
+    navigate(`/app/${id}/components/${componentId}/workers/${workerName}`);
     setCurrentMenu("Overview");
   };
 

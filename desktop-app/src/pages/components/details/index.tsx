@@ -13,12 +13,12 @@ export const ComponentDetails = () => {
   const [component, setComponent] = useState<ComponentList | null>(null);
   const [workerStatus, setWorkerStatus] = useState<IWorkerStatus>({});
   const [error, setError] = useState<Error | null>(null);
+  const { id } = useParams<{ id: string }>();
 
   useEffect(() => {
     if (!componentId) return;
 
     // Fetch component info and worker status in parallel
-    const { id } = useParams<{ id: string }>();
     Promise.all([
       API.getComponentByIdAsKey(id!),
       API.findWorker(id, componentId),

@@ -16,10 +16,10 @@ export function DeploymentSection() {
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        const response = await API.getApiList();
+        const response = await API.getApiList(id!);
         const newData = removeDuplicateApis(response);
         const deploymentPromises = newData.map(api =>
-          API.getDeploymentApi(api.id),
+          API.getDeploymentApi(id, api.subdomain),
         );
         const allDeployments = await Promise.all(deploymentPromises);
         const combinedDeployments = allDeployments.flat().filter(Boolean);

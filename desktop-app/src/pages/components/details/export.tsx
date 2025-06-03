@@ -109,34 +109,34 @@ function buildParameterNodes(params: Parameter[]): React.ReactNode {
 function generateFunctionInterfacesV1(data: Export[]): ExportResult[] {
   const interfaces: ExportResult[] = [];
 
-  data.forEach(exp => {
-    exp.functions.forEach(func => {
-      // Convert kebab-case to camelCase
-      const functionName = func.name.replace(/-([a-z])/g, (_, letter: string) =>
-        letter.toUpperCase(),
-      );
-      const paramNodes = buildParameterNodes(func.parameters);
-
-      const returnNode = func.results?.[0]?.typ ? (
-        <TypeWithPopover typ={func.results[0].typ} />
-      ) : (
-        <>void</>
-      );
-
-      interfaces.push({
-        package: exp.name,
-        function_name: functionName,
-        parameter: paramNodes,
-        return: returnNode,
-      });
-    });
-  });
+  // data.forEach(exp => {
+  //   exp.functions.forEach(func => {
+  //     // Convert kebab-case to camelCase
+  //     const functionName = func.name.replace(/-([a-z])/g, (_, letter: string) =>
+  //       letter.toUpperCase(),
+  //     );
+  //     const paramNodes = buildParameterNodes(func.parameters);
+  //
+  //     const returnNode = func.results?.[0]?.typ ? (
+  //       <TypeWithPopover typ={func.results[0].typ} />
+  //     ) : (
+  //       <>void</>
+  //     );
+  //
+  //     interfaces.push({
+  //       package: exp.name,
+  //       function_name: functionName,
+  //       parameter: paramNodes,
+  //       return: returnNode,
+  //     });
+  //   });
+  // });
 
   return interfaces;
 }
 
 export default function Exports() {
-  const { componentId = "" } = useParams();
+  const { componentId = "", id } = useParams();
   const [component, setComponent] = useState<ComponentList>({});
   const [versionList, setVersionList] = useState<number[]>([]);
   const [versionChange, setVersionChange] = useState<number>(0);
@@ -145,9 +145,6 @@ export default function Exports() {
 
   useEffect(() => {
     if (!componentId) return;
-
-    // Fetch entire list of components by ID
-    const { id } = useParams<{ id: string }>();
     API.getComponentByIdAsKey(id!).then(response => {
       const fetched = response[componentId];
       if (!fetched) return;
@@ -166,7 +163,7 @@ export default function Exports() {
   useEffect(() => {
     if (!component.versions?.length) return;
     const componentDetails = component.versions.find(
-      data => data.versionedComponentId?.version === versionChange,
+      data => data.componentVersion === versionChange,
     );
     if (!componentDetails) {
       setResult([]);
@@ -177,7 +174,7 @@ export default function Exports() {
     // Convert exports to the final interface format,
     // using our new "tooltip" parse logic
     const exportsResult: ExportResult[] = generateFunctionInterfacesV1(
-      componentDetails.metadata?.exports || [],
+      componentDetails.exports || [],
     );
     setResult(exportsResult);
     setFunctions(exportsResult);
@@ -255,7 +252,7 @@ export default function Exports() {
                     result.map((fn: ExportResult) => (
                       <TableRow
                         key={`${fn.package}-${fn.function_name}`}
-                      /* Combined key to reduce chance of collision */
+                        /* Combined key to reduce chance of collision */
                       >
                         <TableCell className="font-mono text-sm">
                           {/* Example: functionName(paramName: type, ...) => returnType */}
