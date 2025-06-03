@@ -37,20 +37,18 @@ export class Service {
    * @returns {Promise<Component[]>}
    */
   public getComponents = async (appId: string): Promise<Component[]> => {
-    const r = await this.callCLI(appId, "component", "list");
+    const r = await this.callCLI(appId, "component", ["list"]);
     return r as Component[];
   };
 
-  public getComponentById = async (id: string) => {
-    const r = await this.callApi(ENDPOINT.getComponentById(id));
-    return r as Component[];
-  };
+  // public getComponentById = async (appId:string,componentId: string) => {
+  //   const r = await this.callCLI(appId, "component", ["get"]) as Component[];
+  //   return r.filter((c) => c.componentId === componentId);
+  // };
 
-  public getComponentByIdAndVersion = async (id: string, version: number) => {
-    const r = await this.callApi(
-      ENDPOINT.getComponentByIdAndVersion(id, version),
-    );
-    return r as Component;
+  public getComponentByIdAndVersion = async (appId:string,componentId: string, version: number) => {
+    const r = await this.callCLI(appId, "component", ["get"]) as Component[];
+    return r.find((c) => c.componentId === componentId && c.version === version);
   };
 
   public createComponent = async (form: FormData) => {
@@ -300,7 +298,7 @@ export class Service {
     return r;
   };
 
-  public getComponentByIdAsKey = async (
+public getComponentByIdAsKey = async (
     appId: string,
   ): Promise<Record<string, ComponentList>> => {
     // Assume getComponents returns a Promise<RawComponent[]>
@@ -310,12 +308,10 @@ export class Service {
       (acc, component) => {
         const {
           componentName,
-          versionedComponentId = {},
+          componentId,
           componentType,
+          componentVersion
         } = component;
-
-        // Use type assertion to help TS with the optional fields in versionedComponentId
-        const { componentId = "", version = 0 } = versionedComponentId;
 
         // Use componentId as the key. If not available, you might want to skip or handle differently.
         const key = componentId || "";
@@ -331,7 +327,7 @@ export class Service {
           };
         }
         if (acc[key].versionList) {
-          acc[key].versionList.push(version);
+          acc[key].versionList.push(componentVersion);
         }
         if (acc[key].versions) {
           acc[key].versions.push(component);
@@ -411,7 +407,7 @@ export class Service {
   private callCLI = async (
     appId: string,
     command: string,
-    subcommand: string,
+    subcommands: string[],
   ): Promise<any> => {
     // find folder location
     const app = await settingsService.getAppById(appId);
@@ -421,7 +417,7 @@ export class Service {
     //  we use invoke here to call a special command that calls golem CLI for us
     let result: string = await invoke("call_golem_command", {
       command,
-      subcommand,
+      subcommands,
       folderPath: app.folderLocation,
     });
 
