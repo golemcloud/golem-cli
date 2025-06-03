@@ -100,7 +100,7 @@ export interface Component {
   projectId?: string;
   componentId?: string;
   exports?: Export[];
-  versionedComponentId?: VersionedComponentId;
+  // versionedComponentId?: VersionedComponentId;
 }
 
 export interface FileStructure {
