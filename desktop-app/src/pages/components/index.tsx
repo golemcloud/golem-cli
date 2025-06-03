@@ -331,7 +331,7 @@ const Components = () => {
               />
             </div>
             {/* Create Component Button */}
-            <Button onClick={() => navigate("/components/create")}>
+            <Button onClick={() => navigate(`/app/${id}/components/create`)}>
               <PlusCircle className="h-4 w-4 mr-2" />
               Create Component
             </Button>
