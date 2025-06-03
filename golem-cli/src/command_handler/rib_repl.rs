@@ -86,13 +86,19 @@ impl RibReplHandler {
             })
             .await;
 
+        let prompt = if cfg!(windows) {
+            Some(">>> ".to_string())
+        } else {
+            None
+        };
+
         let mut repl = RibRepl::bootstrap(RibReplConfig {
             history_file: Some(self.ctx.rib_repl_history_file().await?),
             dependency_manager: Arc::new(self.clone()),
             worker_function_invoke: Arc::new(self.clone()),
             printer: None,
             component_source: None,
-            prompt: None,
+            prompt,
         })
         .await?;
 
