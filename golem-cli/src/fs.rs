@@ -521,8 +521,6 @@ pub fn resolve_relative_glob<P: AsRef<Path>, S: AsRef<str>>(
         }
     }
 
-    // Return the prefix path as-is for file system operations
-    // and the resolved path with normalized separators for glob pattern matching
     Ok((
         base_dir.as_ref().join(prefix_path),
         PathExtra::new(resolved_path)
