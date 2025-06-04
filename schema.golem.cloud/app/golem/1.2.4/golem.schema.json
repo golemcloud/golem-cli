@@ -100,7 +100,7 @@
             "description": "Marks the profile as Cloud Profile customization, implicitly ture if project is set for the profile"
           },
           "project": {
-            "type": "boolean",
+            "type": "string",
             "description": "Default project to be used with the profile, implicitly sets 'cloud'"
           },
           "url": {
