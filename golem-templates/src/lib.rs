@@ -1,10 +1,10 @@
 // Copyright 2024-2025 Golem Cloud
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
+// Licensed under the Golem Source License v1.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://license.golem.cloud/LICENSE
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,9 +38,9 @@ static RDBMS_WIT: Dir<'_> = include_dir!("$OUT_DIR/golem-rdbms/wit");
 
 static APP_MANIFEST_HEADER: &str = indoc! {"
 # Schema for IDEA:
-# $schema: https://schema.golem.cloud/app/golem/1.2.2/golem.schema.json
+# $schema: https://schema.golem.cloud/app/golem/1.2.4/golem.schema.json
 # Schema for vscode-yaml
-# yaml-language-server: $schema=https://schema.golem.cloud/app/golem/1.2.2/golem.schema.json
+# yaml-language-server: $schema=https://schema.golem.cloud/app/golem/1.2.4/golem.schema.json
 
 # See https://learn.golem.cloud/docs/app-manifest#field-reference for field reference
 # For creating APIs see https://learn.golem.cloud/invoke/making-custom-apis
