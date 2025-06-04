@@ -37,17 +37,23 @@ impl InvokeResultView {
         component: &Component,
         function: &str,
     ) -> Self {
-        let wave = match Self::try_parse_wave(&result.result, component, function) {
-            Ok(wave) => Some(wave),
-            Err(err) => {
-                log_error(format!("{}", err));
-                None
-            }
-        };
+        let wave = result
+            .result
+            .as_ref()
+            .map(
+                |result| match Self::try_parse_wave(result, component, function) {
+                    Ok(wave) => Some(wave),
+                    Err(err) => {
+                        log_error(format!("{}", err));
+                        None
+                    }
+                },
+            )
+            .unwrap_or(Some(vec![]));
 
         Self {
             idempotency_key: idempotency_key.0,
-            result_json: Some(result.result),
+            result_json: result.result,
             result_wave: wave,
         }
     }
