@@ -194,7 +194,28 @@ impl IfsFileManager {
         component_file: &InitialComponentFile,
     ) -> anyhow::Result<Vec<R>> {
         // if it's a directory, we need to recursively load all files and combine them with their target paths and permissions.
-        let source_path = PathBuf::from(component_file.source.as_url().path());
+        let source_path = if component_file.source.as_url().scheme() == "file" {
+            let url = component_file.source.as_url();
+            let path = url.to_file_path().map_err(|_| {
+                anyhow!(
+                    "Failed to convert file URL to path: {}",
+                    component_file.source.as_url()
+                )
+            })?;
+
+            if cfg!(windows) {
+                let path_str = path.to_string_lossy().to_string();
+                if let Some(stripped) = path_str.strip_prefix('/') {
+                    PathBuf::from(stripped)
+                } else {
+                    path
+                }
+            } else {
+                path
+            }
+        } else {
+            PathBuf::from(component_file.source.as_url().path())
+        };
 
         let mut results: Vec<R> = vec![];
         let mut queue: VecDeque<(PathBuf, ComponentFilePathWithPermissions)> =

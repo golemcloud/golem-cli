@@ -102,7 +102,7 @@ impl Producers {
     }
 
     /// Iterate through all fields
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a String, ProducersField<'a>)> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = (&String, ProducersField<'_>)> + '_ {
         self.0
             .iter()
             .map(|(name, field)| (name, ProducersField(field)))
