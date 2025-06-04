@@ -730,8 +730,8 @@ fn assert_has_stub(
 
         assert_valid_polling_resource(exported_interface, async_result_resource_id, return_type);
     } else {
-        assert!(async_fun.result.is_some());
-        assert!(blocking_fun.result.is_some());
+        assert!(async_fun.result.is_none());
+        assert!(blocking_fun.result.is_none());
     }
 
     assert!(scheduled_fun.result.is_some());
