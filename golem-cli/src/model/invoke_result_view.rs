@@ -37,19 +37,13 @@ impl InvokeResultView {
         component: &Component,
         function: &str,
     ) -> Self {
-        let wave = result
-            .result
-            .as_ref()
-            .map(
-                |result| match Self::try_parse_wave(result, component, function) {
-                    Ok(wave) => Some(wave),
-                    Err(err) => {
-                        log_error(format!("{}", err));
-                        None
-                    }
-                },
-            )
-            .unwrap_or(Some(vec![]));
+        let wave = match Self::try_parse_wave(&result.result, component, function) {
+            Ok(wave) => Some(wave),
+            Err(err) => {
+                log_error(format!("{}", err));
+                None
+            }
+        };
 
         Self {
             idempotency_key: idempotency_key.0,
@@ -67,23 +61,11 @@ impl InvokeResultView {
     }
 
     fn try_parse_wave(
-        result: &TypeAnnotatedValue,
+        result: &Option<TypeAnnotatedValue>,
         component: &Component,
         function: &str,
     ) -> anyhow::Result<Vec<String>> {
-        let results = match result {
-            TypeAnnotatedValue::Tuple(tuple) => tuple
-                .value
-                .iter()
-                .map(|t| t.clone().type_annotated_value.unwrap())
-                .collect::<Vec<_>>(),
-            // TODO: need to support multi-result case when it's a Record
-            _ => {
-                bail!("Can't parse InvokeResult - tuple expected.");
-            }
-        };
-
-        // TODO: we don't need this, as the result is always a TypeAnnotatedValue
+        let results: Vec<_> = result.iter().cloned().collect();
         let result_types = function_result_types(component, function)?;
 
         if results.len() != result_types.len() {
