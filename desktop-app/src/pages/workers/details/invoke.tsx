@@ -24,7 +24,8 @@ import {
   Check,
 } from "lucide-react";
 import { cn, sanitizeInput } from "@/lib/utils";
-import ReactJson from "react-json-view";
+import JsonView from "react18-json-view";
+import "react18-json-view/src/style.css";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -471,13 +472,12 @@ function SectionCard({
         </CardHeader>
         <CardContent>
           {readOnly ? (
-            <ReactJson
+            <JsonView
               src={JSON.parse(value || "{}")}
-              name={null}
-              theme={theme == "dark" ? "brewer" : "bright:inverted"}
+              dark={theme == "dark"}
               collapsed={false}
               enableClipboard={false}
-              displayDataTypes={false}
+              displaySize={false}
               style={{ fontSize: "14px", lineHeight: "1.6" }}
             />
           ) : (
