@@ -27,8 +27,8 @@ import {
 } from "@/components/ui/select.tsx";
 import { toast } from "@/hooks/use-toast";
 import { API } from "@/service";
-import { ComponentList } from "@/types/component.ts";
-import { Worker } from "@/types/worker.ts";
+import type { ComponentList } from "@/types/component.ts";
+import type { Worker } from "@/types/worker.ts";
 import { CircleFadingArrowUp, Pause, Play, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -44,15 +44,18 @@ export default function WorkerManage() {
   const [componentList, setComponentList] = useState<ComponentList>({});
 
   useEffect(() => {
-    if (componentId && workerName) {
-      API.getComponentByIdAsKey().then(response => {
-        setComponentList(response[componentId]);
-      });
-      API.getParticularWorker(componentId, workerName).then(response => {
-        setWorkerDetails(response);
-        setUpgradeTo(`${response?.componentVersion}`);
-      });
-    }
+    const loadComponentsAndWorkers = async () => {
+      if (componentId && workerName) {
+        const components = await API.getComponentByIdAsKey();
+        setComponentList(components[componentId]);
+
+        const worker = await API.getParticularWorker(componentId, workerName);
+
+        setWorkerDetails(worker);
+        setUpgradeTo(`${worker?.componentVersion}`);
+      }
+    };
+    loadComponentsAndWorkers();
   }, [componentId, workerName]);
 
   const handleUpgrade = () => {

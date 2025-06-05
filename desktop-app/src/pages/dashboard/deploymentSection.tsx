@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { API } from "@/service";
 import ErrorBoundary from "@/components/errorBoundary";
 import { removeDuplicateApis } from "@/lib/utils";
-import { Deployment } from "@/types/deployments";
+import type { Deployment } from "@/types/deployments";
 
 export function DeploymentSection() {
   const navigate = useNavigate();
@@ -21,7 +21,9 @@ export function DeploymentSection() {
           API.getDeploymentApi(api.id),
         );
         const allDeployments = await Promise.all(deploymentPromises);
-        const combinedDeployments = allDeployments.flat().filter(Boolean);
+        const combinedDeployments = allDeployments
+          .flat()
+          .filter((dep): dep is Deployment => Boolean(dep));
         setDeployments(combinedDeployments);
       } catch (error) {
         console.error("Error fetching deployments:", error);
