@@ -99,22 +99,19 @@ export class Service {
   };
 
   public upgradeWorker = async (
-    componentId: string,
+    appId:string,
+    componentName: string,
     workerName: string,
     version: number,
     upgradeType: string,
   ) => {
-    return await this.callApi(
-      ENDPOINT.updateWorker(componentId, workerName),
-      "POST",
-      JSON.stringify({
-        mode: upgradeType,
-        targetVersion: version,
-      }),
-      {
-        "Content-Type": "application/json; charset=utf-8",
-      },
-    );
+
+    return await this.callCLI(appId, "worker", [
+      "update",
+      `${componentName}/${workerName}`,
+      upgradeType,
+      `${version}`,
+    ]);
   };
 
   public findWorker = async (
@@ -140,12 +137,12 @@ export class Service {
   public deleteWorker = async (
     appId: string,
     componentId: string,
-    workName: string,
+    workerName: string,
   ) => {
+    let component = await this.getComponentById(appId,componentId);
     return await this.callCLI(appId, "worker", [
       "delete",
-      componentId,
-      workName,
+      `${component?.componentName}/${workerName}`,
     ]);
   };
 
@@ -218,7 +215,11 @@ export class Service {
     componentId: string,
     workerName: string,
   ) => {
-    const r = await this.callCLI(appId, "worker", ["get", workerName]);
+    const component = await this.getComponentById(appId, componentId);
+    const r = await this.callCLI(appId, "worker", [
+      "get",
+      `${component?.componentName}/${workerName}`,
+    ]);
     return r;
   };
 
@@ -290,16 +291,19 @@ export class Service {
 
   public getOplog = async (
     appId: string,
+    componentId: string,
     workerName: string,
     count: number,
     searchQuery: string,
   ) => {
+    const component = await this.getComponentById(appId, componentId);
     const r = await this.callCLI(appId, "worker", [
       "oplog",
-      workerName,
-      `--count=${count}`,
+      `${component?.componentName}/${workerName}`,
+      // `--count=${count}`,
       `--query=${searchQuery}`,
     ]);
+    console.log(r);
 
     return r;
   };
@@ -374,45 +378,6 @@ export class Service {
     return await this.callCLI(appId, "plugin", ["unregister", name, version]);
   };
 
-  // private callApi = async (
-  //   url: string,
-  //   method: string = "GET",
-  //   data: FormData | string | null = null,
-  //   headers = { "Content-Type": "application/json" },
-  // ): Promise<any> => {
-  //   try {
-  //     const response = await fetchData(`${this.baseUrl}${url}`, {
-  //       method: method,
-  //       body: data,
-  //       headers: headers,
-  //     });
-  //
-  //     const contentType = response.headers.get("Content-Type");
-  //     let responseData: any;
-  //
-  //     if (contentType && contentType.includes("application/json")) {
-  //       responseData = await response.json();
-  //     } else {
-  //       responseData = await response.text();
-  //     }
-  //
-  //     if (response.ok) {
-  //       return responseData;
-  //     } else {
-  //       if (response.status === 504) {
-  //         return;
-  //       }
-  //
-  //       throw responseData;
-  //     }
-  //   } catch (response: any) {
-  //     const result = parseErrorResponse(response);
-  //     if (response?.status !== 504) {
-  //       throw result;
-  //     }
-  //   }
-  // };
-
   private callCLI = async (
     appId: string,
     command: string,
@@ -438,7 +403,7 @@ export class Service {
         variant: "destructive",
         duration: 5000,
       });
-      throw e;
+      throw new Error("Error in calling golem CLI")
     }
 
     let parsedResult;

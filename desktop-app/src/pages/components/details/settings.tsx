@@ -38,18 +38,19 @@ export default function ComponentSettings() {
 
       await Promise.allSettled(
         response?.workers.map((worker: Worker) =>
-          API.deleteWorker(id!,componentId!, worker.workerId.workerName),
+          API.deleteWorker(id!,componentId!, worker.workerName),
         ),
       );
 
       toast({
-        title: "All versions deleted",
-        description: "All API versions have been deleted successfully.",
+        title: "All workers deleted",
+        description: `All workers for component ${componentId} have been deleted`,
         duration: 3000,
       });
 
       navigate(`/app/${id}/components/${componentId}`);
     } catch (error) {
+      console.error(error)
       toast({
         title: "Error",
         description: "Failed to delete some or all workers.",

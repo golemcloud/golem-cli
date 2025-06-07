@@ -61,11 +61,11 @@ const createMenuItems = (
     url: `/app/${appId}/components/${componentId}/exports`,
     icon: ArrowRightFromLine,
   },
-  {
-    title: "Update",
-    url: `/app/${appId}/components/${componentId}/update`,
-    icon: Pencil,
-  },
+  // {
+  //   title: "Update",
+  //   url: `/app/${appId}/components/${componentId}/update`,
+  //   icon: Pencil,
+  // },
   {
     title: "Files",
     url: `/app/${appId}/components/${componentId}/files`,

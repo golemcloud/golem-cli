@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 export default function WorkerLive() {
-  const { componentId = "", workerName = "" } = useParams();
+  const { componentId = "", workerName = "", id } = useParams();
   const wsRef = useRef<WSS | null>(null);
   const [invocationData, setInvocationData] = useState<Invocation[]>([]);
   const [terminal, setTerminal] = useState<Terminal[]>([]);
@@ -84,6 +84,7 @@ export default function WorkerLive() {
 
   const getopLog = async (count: string, search: string) => {
     API.getOplog(
+      id!,
       componentId,
       workerName,
       Number(count),

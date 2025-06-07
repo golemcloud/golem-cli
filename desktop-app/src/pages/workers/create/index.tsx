@@ -42,7 +42,7 @@ const formSchema = z.object({
 
 export default function CreateWorker() {
   const navigate = useNavigate();
-  const { componentId,id } = useParams();
+  const { componentId, id } = useParams();
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -83,11 +83,13 @@ export default function CreateWorker() {
     }, {});
     rest.args = rest.args.filter(x => x.trim().length > 0);
 
-    API.createWorker(id, componentID, values.name).then(response => {
-      navigate(
-        `/app/${id}/components/${componentId}/workers/${response.workerId.workerName}`,
-      );
-    });
+    API.createWorker(id, componentID, values.name).then(
+      (response: { component_name: string; worker_name: string }) => {
+        navigate(
+          `/app/${id}/components/${componentId}/workers/${response.worker_name}`,
+        );
+      },
+    );
   }
 
   return (

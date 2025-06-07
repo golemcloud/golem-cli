@@ -15,7 +15,7 @@ import { useParams } from "react-router-dom";
 import { InvocationsChart } from "./widgets/invocationCharts";
 
 export default function WorkerDetails() {
-  const { componentId = "", workerName = "" } = useParams();
+  const { componentId = "", workerName = "", id } = useParams();
   const [workerDetails, setWorkerDetails] = useState({} as Worker);
   const wsRef = useRef<WSS | null>(null);
   const [invocationData, setInvocationData] = useState<Invocation[]>([]);
@@ -23,7 +23,7 @@ export default function WorkerDetails() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getParticularWorker(componentId, workerName).then(response => {
+      API.getParticularWorker(id!, componentId, workerName).then(response => {
         setWorkerDetails(response);
       });
     }
@@ -68,6 +68,7 @@ export default function WorkerDetails() {
 
       initWebSocket();
     }
+
     fetchData();
 
     return () => {
@@ -78,19 +79,20 @@ export default function WorkerDetails() {
   }, []);
 
   const getopLog = async () => {
-    API.getOplog(componentId, workerName, 100, "").then(response => {
+    API.getOplog(id!, componentId, workerName, 100, "").then(response => {
       const terminalData = [] as Terminal[];
       const invocationList = [] as Invocation[];
-      response.entries.forEach((item: OplogEntry) => {
-        if (item.entry.type === "Log") {
+      response.forEach((item: OplogEntry | number) => {
+        if (typeof item === "number") return;
+        if (item.type) {
           terminalData.push({
-            timestamp: item.entry.timestamp,
-            message: item.entry.message,
+            timestamp: item.timestamp,
+            message: item.message,
           });
-        } else if (item.entry.type === "ExportedFunctionInvoked") {
+        } else if (item.type === "ExportedFunctionInvoked") {
           invocationList.push({
-            timestamp: item.entry.timestamp,
-            function: item.entry.function_name,
+            timestamp: item.timestamp,
+            function: item.function_name,
           });
         }
       });

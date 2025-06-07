@@ -100,7 +100,7 @@ export interface Component {
   metadata?: Metadata;
   projectId?: string;
   componentId?: string;
-  exports?: Export[];
+  exports?: string[];
   // versionedComponentId?: VersionedComponentId;
 }
 

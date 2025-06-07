@@ -33,7 +33,7 @@ const ComponentSettings = lazy(
 );
 const ComponentInfo = lazy(() => import("@/pages/components/details/info"));
 const Exports = lazy(() => import("@/pages/components/details/export"));
-const ComponentUpdate = lazy(() => import("@/pages/components/details/update"));
+// const ComponentUpdate = lazy(() => import("@/pages/components/details/update"));
 const WorkerList = lazy(() => import("@/pages/workers"));
 const APINewVersion = lazy(() => import("@/pages/api/details/newVersion"));
 const CreateWorker = lazy(() => import("@/pages/workers/create"));
@@ -139,7 +139,7 @@ export const appRoutes: RouteObject[] = [
                 children: [
                     { path: "", element: <ComponentDetails /> },
                     { path: "settings", element: <ComponentSettings /> },
-                    { path: "update", element: <ComponentUpdate /> },
+                    // { path: "update", element: <ComponentUpdate /> },
                     { path: "info", element: <ComponentInfo /> },
                     { path: "exports", element: <Exports /> },
                     { path: "plugins", element: <Plugins /> },

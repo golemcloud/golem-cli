@@ -26,10 +26,10 @@ export default function WorkerList() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const navigate = useNavigate();
-  const { id,componentId } = useParams();
+  const { id, componentId } = useParams();
 
   useEffect(() => {
-    API.findWorker(id!,componentId!).then(res => {
+    API.findWorker(id!, componentId!).then(res => {
       const sortedData = res.workers.sort(
         (a: Worker, b: Worker) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -43,7 +43,7 @@ export default function WorkerList() {
     const lowerCaseQuery = searchQuery.toLowerCase();
     const filtered = workerList.filter(
       worker =>
-        worker.workerId.workerName.toLowerCase().includes(lowerCaseQuery) ||
+        worker.workerName.toLowerCase().includes(lowerCaseQuery) ||
         worker.status.toLowerCase().includes(lowerCaseQuery),
     );
     setFilteredWorkers(filtered);
@@ -94,13 +94,13 @@ export default function WorkerList() {
                   className="rounded-lg border border-border bg-muted hover:bg-muted/80 hover:shadow-lg transition cursor-pointer"
                   onClick={() =>
                     navigate(
-                      `/app/${id}/components/${componentId}/workers/${worker.workerId.workerName}`,
+                      `/app/${id}/components/${componentId}/workers/${worker.workerName}`,
                     )
                   }
                 >
                   <CardHeader>
                     <CardTitle className="text-foreground font-mono">
-                      {worker.workerId.workerName}
+                      {worker.workerName}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="py-2">

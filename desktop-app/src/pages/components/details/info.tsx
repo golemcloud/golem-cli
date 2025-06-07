@@ -24,7 +24,7 @@ import { formatRelativeTime } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 export default function ComponentInfo() {
-  const { componentId = "" } = useParams();
+  const { componentId = "", id } = useParams();
   const [componentList, setComponentList] = useState<{
     [key: string]: ComponentList;
   }>({});
@@ -33,7 +33,6 @@ export default function ComponentInfo() {
 
   useEffect(() => {
     if (componentId) {
-      const { id } = useParams<{ id: string }>();
       API.getComponentByIdAsKey(id!).then(response => {
         const componentData = response[componentId];
         const versionList = componentData?.versionList || [];
@@ -116,10 +115,7 @@ export default function ComponentInfo() {
         <CardContent>
           <div className="space-y-4 text-sm">
             {[
-              [
-                "Component ID",
-                componentDetails.versionedComponentId?.componentId,
-              ],
+              ["Component ID", componentDetails.componentId],
               ["Version", versionChange],
               ["Name", componentDetails.componentName],
               [
@@ -135,8 +131,9 @@ export default function ComponentInfo() {
             ].map(([label, value], index) => (
               <div
                 key={label}
-                className={`grid grid-cols-[180px,1fr] items-center gap-4 py-3 ${index !== 4 ? "border-b" : ""
-                  }`}
+                className={`grid grid-cols-[180px,1fr] items-center gap-4 py-3 ${
+                  index !== 4 ? "border-b" : ""
+                }`}
               >
                 <div className="font-medium text-muted-foreground">{label}</div>
                 <div className="font-mono">{value}</div>

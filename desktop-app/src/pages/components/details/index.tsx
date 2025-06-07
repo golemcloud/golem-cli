@@ -21,7 +21,7 @@ export const ComponentDetails = () => {
     // Fetch component info and worker status in parallel
     Promise.all([
       API.getComponentByIdAsKey(id!),
-      API.findWorker(id, componentId),
+      API.findWorker(id!, componentId),
     ])
       .then(([componentMap, workerResponse]) => {
         // 1. Set the component data
@@ -114,8 +114,7 @@ export const ComponentDetails = () => {
             >
               <ExportsList
                 exports={
-                  component.versions?.[component.versions.length - 1]?.metadata
-                    ?.exports || []
+                  component.versions?.[component.versions.length - 1]?.exports || []
                 }
               />
               {component.componentType === "Durable" && (

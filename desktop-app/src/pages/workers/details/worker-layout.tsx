@@ -19,9 +19,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb.tsx";
-const { id } = useParams<{ id: string }>();
 
-const MenuItems = (componentId: string, workerName: string) => [
+const MenuItems = (id: string, componentId: string, workerName: string) => [
   {
     title: "Overview",
     url: `/app/${id}/components/${componentId}/workers/${workerName}`,
@@ -57,13 +56,12 @@ const MenuItems = (componentId: string, workerName: string) => [
 export const WorkerLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { componentId = "", workerName = "" } = useParams();
+  const { componentId = "", workerName = "", id } = useParams();
   const [currentComponent, setCurrentComponent] = useState({} as ComponentList);
   const [currentMenu, setCurrentMenu] = useState("Overview");
 
   useEffect(() => {
     if (componentId) {
-      const { id } = useParams<{ id: string }>();
       API.getComponentByIdAsKey(id!).then(response => {
         setCurrentComponent(response[componentId]);
       });
@@ -88,7 +86,7 @@ export const WorkerLayout = () => {
     <ErrorBoundary>
       <SidebarProvider>
         <SidebarMenu
-          menus={MenuItems(componentId, workerName)}
+          menus={MenuItems(id!, componentId, workerName)}
           activeItem={currentMenu}
           setActiveItem={setCurrentMenu}
           title={"Worker"}
@@ -104,7 +102,9 @@ export const WorkerLayout = () => {
                   <BreadcrumbItem className="hidden md:block cursor-pointer">
                     <BreadcrumbLink asChild>
                       <span
-                        onClick={() => navigate(`/app/${id}/components/${componentId}`)}
+                        onClick={() =>
+                          navigate(`/app/${id}/components/${componentId}`)
+                        }
                       >
                         <span className="text-gray-500">Component:</span>{" "}
                         {currentComponent.componentName}

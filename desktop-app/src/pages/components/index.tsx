@@ -308,7 +308,7 @@ const Components = () => {
    */
   const handleCardClick = useCallback(
     (componentId: string) => {
-      navigate(`/components/${componentId}`);
+      navigate(`/app/${id}/components/${componentId}`);
     },
     [navigate],
   );

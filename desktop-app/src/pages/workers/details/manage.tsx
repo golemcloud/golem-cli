@@ -57,8 +57,9 @@ export default function WorkerManage() {
 
   const handleUpgrade = () => {
     API.upgradeWorker(
-      workerDetails?.workerId?.componentId,
-      workerDetails?.workerId?.workerName,
+      id!,
+      componentList.componentName!,
+      workerDetails?.workerName,
       Number(upgradeTo),
       upgradeType,
     ).then(() => {

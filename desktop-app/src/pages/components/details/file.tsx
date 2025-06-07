@@ -12,7 +12,7 @@ import {
 import { ComponentList } from "@/types/component.ts";
 
 export default function FileManager() {
-  const { componentId = "" } = useParams();
+  const { componentId = "", id } = useParams();
   const [componentList, setComponentList] = useState<{
     [key: string]: ComponentList;
   }>({});
@@ -21,7 +21,6 @@ export default function FileManager() {
 
   useEffect(() => {
     if (componentId) {
-      const { id } = useParams<{ id: string }>();
       API.getComponentByIdAsKey(id!).then(response => {
         const componentData = response[componentId];
         const versionList = componentData?.versionList || [];
