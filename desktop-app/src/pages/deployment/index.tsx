@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Deployment } from "@/types/deployments";
 import ErrorBoundary from "@/components/errorBoundary";
 import { HTTP_METHOD_COLOR } from "@/components/nav-route";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 const RoutesCard = ({
   apiId,
@@ -46,7 +46,7 @@ const RoutesCard = ({
   --header "Content-Type: application/json" \
   --header "Accept: application/json" \
   --data '{}'`;
-    
+
     navigator.clipboard
       .writeText(curlCommand)
       .then(() => {
@@ -116,6 +116,7 @@ export default function Deployments() {
   const [apiList, setApiList] = useState<Api[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { appId } = useParams<{ appId: string }>();
   const [selectedDeploymentHost, setSelectedDeploymentHost] = useState<
     string | null
   >(null);
@@ -123,12 +124,12 @@ export default function Deployments() {
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        const response = await API.getApiList();
+        const response = await API.getApiList(appId!);
         setApiList(response);
 
         const uniqueApis = removeDuplicateApis(response);
         const allDeployments = await Promise.all(
-          uniqueApis.map(api => API.getDeploymentApi(api.id)),
+          uniqueApis.map(api => API.getDeploymentApi(appId!, api.subdomain)),
         );
 
         setDeployments(allDeployments.flat().filter(Boolean));
@@ -144,7 +145,7 @@ export default function Deployments() {
     if (!selectedDeploymentHost) return;
 
     try {
-      await API.deleteDeployment(selectedDeploymentHost);
+      await API.deleteDeployment(appId, selectedDeploymentHost);
       setDeployments(prev =>
         prev.filter(d => d.site.host !== selectedDeploymentHost),
       );
@@ -169,7 +170,10 @@ export default function Deployments() {
       <div className="p-6 mx-auto max-w-7xl">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold">API Deployments</h1>
-          <Button size="sm" onClick={() => navigate("/deployments/create")}>
+          <Button
+            size="sm"
+            onClick={() => navigate(`/app/${appId}/deployments/create`)}
+          >
             <Plus className="w-4 h-4 mr-2" />
             New
           </Button>

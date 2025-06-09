@@ -90,6 +90,7 @@ export enum ComponentType {
 }
 
 export interface Component {
+  componentVersion?: number;
   componentName?: string;
   componentSize?: number;
   componentType?: ComponentType;
@@ -99,8 +100,8 @@ export interface Component {
   metadata?: Metadata;
   projectId?: string;
   componentId?: string;
-  exports?: Export[];
-  versionedComponentId?: VersionedComponentId;
+  exports?: string[];
+  // versionedComponentId?: VersionedComponentId;
 }
 
 export interface FileStructure {

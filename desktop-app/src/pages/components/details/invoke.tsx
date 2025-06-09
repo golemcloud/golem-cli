@@ -1,47 +1,48 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { API } from "@/service";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Check,
+  ClipboardCopy,
+  Info,
+  Play,
+  Presentation,
+  TableIcon,
+  TimerReset,
+} from "lucide-react";
+import { CodeBlock, dracula } from "react-code-blocks";
 import {
   ComponentExportFunction,
   ComponentList,
   Export,
 } from "@/types/component.ts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  DynamicForm,
+  nonStringPrimitives,
+} from "@/pages/workers/details/dynamic-form.tsx";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CodeBlock, dracula } from "react-code-blocks";
-import {
-  ClipboardCopy,
-  Play,
-  Presentation,
-  TableIcon,
-  TimerReset,
-  Info,
-  Check,
-} from "lucide-react";
 import { cn, sanitizeInput } from "@/lib/utils";
-import ReactJson from "react-json-view";
-import { useTheme } from "@/components/theme-provider.tsx";
-import { Textarea } from "@/components/ui/textarea";
 import {
   parseToJsonEditor,
+  parseTooltipTypesData,
   parseTypesData,
   safeFormatJSON,
-  parseTooltipTypesData,
   validateJsonStructure,
 } from "@/lib/worker";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+
+import { API } from "@/service";
+import { Button } from "@/components/ui/button";
+import ReactJson from "@microlink/react-json-view";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import {
-  DynamicForm,
-  nonStringPrimitives,
-} from "@/pages/workers/details/dynamic-form.tsx";
+import { useTheme } from "@/components/theme-provider.tsx";
 
 export default function ComponentInvoke() {
-  const { componentId = "" } = useParams();
+  const { componentId = "", appId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -60,7 +61,7 @@ export default function ComponentInvoke() {
   /** Fetch function details based on URL params. */
   const fetchFunctionDetails = useCallback(async () => {
     try {
-      const data = await API.getComponentByIdAsKey();
+      const data = await API.getComponentByIdAsKey(appId!);
       setComponentList(data);
       const matchingComponent =
         data?.[componentId].versions?.[data?.[componentId].versions.length - 1];
@@ -91,7 +92,7 @@ export default function ComponentInvoke() {
         matchingComponent?.metadata?.exports?.[0]?.functions?.[0]
       ) {
         navigate(
-          `/components/${componentId}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
+          `/app/${appId}/components/${componentId}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
         );
       }
     } catch (error: unknown) {
@@ -177,7 +178,7 @@ export default function ComponentInvoke() {
 
   const componentDetails =
     componentList[componentId]?.versions?.[
-      componentList[componentId]?.versions.length - 1
+    componentList[componentId]?.versions.length - 1
     ] || {};
 
   return (
@@ -202,7 +203,7 @@ export default function ComponentInvoke() {
                               variant="ghost"
                               onClick={() =>
                                 navigate(
-                                  `/components/${componentId}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
+                                  `/app/${appId}/components/${componentId}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
                                 )
                               }
                               className={cn(
@@ -239,11 +240,10 @@ export default function ComponentInvoke() {
                         setResultValue("");
                         setViewMode("form");
                       }}
-                      className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "form"
+                      className={`text-primary hover:bg-primary/10 hover:text-primary ${viewMode === "form"
                           ? "bg-primary/20 hover:text-primary "
                           : ""
-                      }`}
+                        }`}
                     >
                       <ClipboardCopy className="h-4 w-4 mr-1" />
                       Form Layout
@@ -254,11 +254,10 @@ export default function ComponentInvoke() {
                         setResultValue("");
                         setViewMode("preview");
                       }}
-                      className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "preview"
+                      className={`text-primary hover:bg-primary/10 hover:text-primary ${viewMode === "preview"
                           ? "bg-primary/20 hover:text-primary "
                           : ""
-                      }`}
+                        }`}
                     >
                       <Presentation className="h-4 w-4 mr-1" />
                       Json Layout
@@ -268,11 +267,10 @@ export default function ComponentInvoke() {
                     <Button
                       variant="outline"
                       onClick={() => setViewMode("types")}
-                      className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "types"
+                      className={`text-primary hover:bg-primary/10 hover:text-primary ${viewMode === "types"
                           ? "bg-primary/20 hover:text-primary "
                           : ""
-                      }`}
+                        }`}
                     >
                       <TableIcon className="h-4 w-4 mr-1" />
                       Types
@@ -368,8 +366,8 @@ function SectionCard({
   copyToClipboard,
   functionDetails,
   readOnly = false,
-  onInvoke = () => {},
-  onReset = () => {},
+  onInvoke = () => { },
+  onReset = () => { },
 }: SectionCardProps) {
   const { theme } = useTheme();
   const [copied, setCopied] = useState(false);

@@ -131,7 +131,7 @@ function PathParameters({ url }: { url: string }) {
 
 export const ApiRoute = () => {
   const navigate = useNavigate();
-  const { apiName, version } = useParams();
+  const { apiName, version, appId } = useParams();
   const [currentRoute, setCurrentRoute] = useState({} as RouteRequestData);
   const [apiResponse, setApiResponse] = useState({} as Api);
   const [queryParams] = useSearchParams();
@@ -141,8 +141,8 @@ export const ApiRoute = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (apiName && version && method && path!== null) {
-        const apiResponse= await API.getApi(apiName);
+      if (apiName && version && method && path !== null) {
+        const apiResponse = await API.getApi(appId!, apiName);
         const selectedApi = apiResponse.find(api => api.version === version);
         if (selectedApi) {
           setApiResponse(selectedApi);
@@ -151,10 +151,10 @@ export const ApiRoute = () => {
           );
           setCurrentRoute(route || ({} as RouteRequestData));
         } else {
-          navigate(`/apis/${apiName}/version/${version}`);
+          navigate(`/app/${appId}/apis/${apiName}/version/${version}`);
         }
       } else {
-        navigate(`/apis/${apiName}/version/${version}`);
+        navigate(`/app/${appId}/apis/${apiName}/version/${version}`);
       }
     };
     fetchData();
@@ -162,7 +162,7 @@ export const ApiRoute = () => {
 
   const routeToQuery = () => {
     navigate(
-      `/apis/${apiName}/version/${version}/routes/edit?path=${path}&method=${method}`,
+      `/app/${appId}/apis/${apiName}/version/${version}/routes/edit?path=${path}&method=${method}`,
     );
   };
 
@@ -175,7 +175,7 @@ export const ApiRoute = () => {
             route => !(route.path === path && route.method === method),
           );
           API.putApi(apiName, version!, currentApi).then(() => {
-            navigate(`/apis/${apiName}/version/${version}`);
+            navigate(`/app/${appId}/apis/${apiName}/version/${version}`);
           });
         }
       });
@@ -235,7 +235,7 @@ export const ApiRoute = () => {
                 </h2>
                 <CodeBlock
                   code={`${
-                      currentRoute?.binding?.component?.name
+                    currentRoute?.binding?.component?.name
                   } / v${currentRoute?.binding?.component?.version}`}
                   label="component name"
                   allowCopy={false}
