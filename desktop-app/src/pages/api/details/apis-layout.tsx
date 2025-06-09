@@ -24,7 +24,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb.tsx";
-import { Api } from "@/types/api.ts";
 import {
   Select,
   SelectContent,
@@ -36,32 +35,35 @@ import { SelectValue } from "@radix-ui/react-select";
 import YamlUploader from "@/components/yaml-uploader.tsx";
 import { NavRoutes } from "@/components/nav-route.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { HttpApiDefinition } from "@/types/golemManifest.ts";
 
-const MenuItems = (apiName: string, version: string) => [
+const MenuItems = (id: string, apiName: string, version: string) => [
   {
     title: "Overview",
-    url: `/apis/${apiName}/version/${version}`,
+    url: `/app/${id}/apis/${apiName}/version/${version}`,
     icon: Home,
   },
   {
     title: "Settings",
-    url: `/apis/${apiName}/version/${version}/settings`,
+    url: `/app/${id}/apis/${apiName}/version/${version}/settings`,
     icon: Settings,
   },
   {
     title: "New Version",
-    url: `/apis/${apiName}/version/${version}/newversion`,
+    url: `/app/${id}/apis/${apiName}/version/${version}/newversion`,
     icon: CircleFadingPlusIcon,
   },
 ];
 
 export const ApiLayout = () => {
-  const { apiName, version,id } = useParams();
+  const { apiName, version, id } = useParams();
   const [queryParams] = useSearchParams();
   const navigate = useNavigate();
-  const [apiDetails, setApiDetails] = useState([] as Api[]);
+  const [apiDetails, setApiDetails] = useState<HttpApiDefinition>();
 
-  const [currentApiDetails, setCurrentApiDetails] = useState({} as Api);
+  const [currentApiDetails, setCurrentApiDetails] = useState(
+    {} as HttpApiDefinition,
+  );
   const [currentMenu, setCurrentMenu] = useState("Overview");
 
   const basePath = useLocation().pathname.replace(
@@ -72,17 +74,18 @@ export const ApiLayout = () => {
   const method = queryParams.get("method");
   const reload = queryParams.get("reload");
   const sortedVersions = useMemo(() => {
-    return [...apiDetails].sort((a, b) =>
-      b.version.localeCompare(a.version, undefined, { numeric: true }),
-    );
+    if (apiDetails) {
+      return [apiDetails];
+    }
+    return [];
   }, [apiDetails]);
 
   useEffect(() => {
-    API.getApi(apiName!).then(async response => {
-      setApiDetails(response);
-      const selectedApi = response.find(api => api.version === version);
-      if (selectedApi) {
-        setCurrentApiDetails(selectedApi);
+    API.getApi(id!, apiName!).then(async response => {
+      let detail = response.find(r => r.version == version);
+      setApiDetails(detail);
+      if (response) {
+        setCurrentApiDetails(detail!);
       }
     });
     if (location.pathname.includes("settings")) setCurrentMenu("Settings");
@@ -103,7 +106,7 @@ export const ApiLayout = () => {
     <ErrorBoundary>
       <SidebarProvider>
         <SidebarMenu
-          menus={MenuItems(apiName!, version!)}
+          menus={MenuItems(id!, apiName!, version!)}
           activeItem={currentMenu}
           setActiveItem={setCurrentMenu}
           title={"Worker"}
@@ -114,7 +117,7 @@ export const ApiLayout = () => {
                 return {
                   method: route.method,
                   name: route.path,
-                  url: `/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
+                  url: `/app/${id}/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
                 };
               })}
               setActiveItem={value => setCurrentMenu(value)}
@@ -196,7 +199,9 @@ export const ApiLayout = () => {
               <Button
                 variant="default"
                 onClick={() => {
-                  navigate(`/app/${id}/apis/${apiName}/version/${version}/routes/add?`);
+                  navigate(
+                    `/app/${id}/apis/${apiName}/version/${version}/routes/add?`,
+                  );
                   setCurrentMenu("Add New Route");
                 }}
               >

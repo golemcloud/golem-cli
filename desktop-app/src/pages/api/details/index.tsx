@@ -22,11 +22,11 @@ const APIDetails = () => {
 
   useEffect(() => {
     if (apiName) {
-      API.getApi(apiName).then(response => {
-        const selectedApi = response.find(api => api.version === version);
+      API.getApi(id!, apiName).then(response => {
+        const selectedApi = response.find(r => r.version == version);
         setActiveApiDetails(selectedApi!);
       });
-      API.getDeploymentApi(id,apiName).then(response => {
+      API.getDeploymentApi(id!).then(response => {
         const result = [] as Deployment[];
         response.forEach((deployment: Deployment) => {
           if (deployment.apiDefinitions.length > 0) {
@@ -58,7 +58,9 @@ const APIDetails = () => {
                 <Button
                   variant="outline"
                   onClick={() =>
-                    navigate(`/app/${id}/apis/${apiName}/version/${version}/routes/add?`)
+                    navigate(
+                      `/app/${id}/apis/${apiName}/version/${version}/routes/add?`,
+                    )
                   }
                   className="flex items-center gap-2"
                 >
@@ -94,7 +96,7 @@ const APIDetails = () => {
                             variant="secondary"
                             className={
                               HTTP_METHOD_COLOR[
-                              route.method as keyof typeof HTTP_METHOD_COLOR
+                                route.method as keyof typeof HTTP_METHOD_COLOR
                               ]
                             }
                           >

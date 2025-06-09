@@ -170,7 +170,10 @@ export default function Deployments() {
       <div className="p-6 mx-auto max-w-7xl">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold">API Deployments</h1>
-          <Button size="sm" onClick={() => navigate("/deployments/create")}>
+          <Button
+            size="sm"
+            onClick={() => navigate(`/app/${id}/deployments/create`)}
+          >
             <Plus className="w-4 h-4 mr-2" />
             New
           </Button>

@@ -18,14 +18,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { API } from "@/service";
-import { Api } from "@/types/api";
 import ErrorBoundary from "@/components/errorBoundary";
 import { Trash2 } from "lucide-react";
 
 export default function APISettings() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { apiName, version,id  } = useParams();
+  const { apiName, version, id } = useParams();
   const [queryParams] = useSearchParams();
   const reload = queryParams.get("reload");
 
@@ -33,12 +32,14 @@ export default function APISettings() {
   const [showConfirmAllDialog, setShowConfirmAllDialog] = useState(false);
   const [showConfirmAllRoutes, setShowConfirmAllRoutes] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [apiDetails, setApiDetails] = useState<Api[]>([]);
-  const [activeApiDetails, setActiveApiDetails] = useState<Api>({} as Api);
+  const [apiDetails, setApiDetails] = useState<HttpApiDefinition[]>([]);
+  const [activeApiDetails, setActiveApiDetails] = useState<HttpApiDefinition>(
+    {} as HttpApiDefinition,
+  );
 
   useEffect(() => {
     if (apiName) {
-      API.getApi(apiName).then(response => {
+      API.getApi(id!, apiName).then(response => {
         setApiDetails(response);
         const selectedApi = response.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);
@@ -86,7 +87,9 @@ export default function APISettings() {
           description: "All routes have been deleted successfully.",
           duration: 3000,
         });
-        navigate(`/app/${id}/apis/${apiName}/version/${version}?reload=${!reload}`);
+        navigate(
+          `/app/${id}/apis/${apiName}/version/${version}?reload=${!reload}`,
+        );
         setShowConfirmAllRoutes(false);
       }
     } finally {

@@ -33,7 +33,7 @@ export default function WorkerDetails() {
     async function fetchData() {
       setInvocationData([]);
       setTerminal([]);
-      await getopLog();
+      await getOpLog();
       const initWebSocket = async () => {
         try {
           const url = `/v1/components/${componentId}/workers/${workerName}/connect`;
@@ -78,8 +78,8 @@ export default function WorkerDetails() {
     };
   }, []);
 
-  const getopLog = async () => {
-    API.getOplog(id!, componentId, workerName, 100, "").then(response => {
+  const getOpLog = async () => {
+    API.getOplog(id!, componentId, workerName, "").then(response => {
       const terminalData = [] as Terminal[];
       const invocationList = [] as Invocation[];
       response.forEach((item: OplogEntry | number) => {

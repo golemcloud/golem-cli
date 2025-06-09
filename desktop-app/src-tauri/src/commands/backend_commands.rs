@@ -23,3 +23,4 @@ pub fn set_golem_cli_path(path: String, app_handle: AppHandle) -> Result<(), Str
 pub fn get_golem_cli_path( app_handle: AppHandle) -> Result<String, String> {
     Ok(GolemCommandExecutor::with_app_handle(app_handle).get_golem_cli_path())
 }
+

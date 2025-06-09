@@ -141,8 +141,8 @@ export const ApiRoute = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (apiName && version && method && path!== null) {
-        const apiResponse= await API.getApi(apiName);
+      if (apiName && version && method && path !== null) {
+        const apiResponse = await API.getApi(id!, apiName);
         const selectedApi = apiResponse.find(api => api.version === version);
         if (selectedApi) {
           setApiResponse(selectedApi);
@@ -235,7 +235,7 @@ export const ApiRoute = () => {
                 </h2>
                 <CodeBlock
                   code={`${
-                      currentRoute?.binding?.component?.name
+                    currentRoute?.binding?.component?.name
                   } / v${currentRoute?.binding?.component?.version}`}
                   label="component name"
                   allowCopy={false}

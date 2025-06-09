@@ -44,11 +44,10 @@ export default function YamlUploader() {
       try {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
-          API.getApi(apiName),
+          API.getApi(id, apiName),
           API.getComponentByIdAsKey(id!),
         ]);
-        const selectedApi = apiResponse.find(api => api.version === version);
-        setActiveApiDetails(selectedApi!);
+        setActiveApiDetails(apiResponse!);
       } catch (error) {
         console.error("Failed to fetch data:", error);
         setFetchError("Failed to load required data. Please try again.");
@@ -80,7 +79,7 @@ export default function YamlUploader() {
   const onSubmit = async (payload: any) => {
     try {
       setIsSubmitting(true);
-      console.log(activeApiDetails)
+      console.log(activeApiDetails);
 
       // const apiResponse = await API.getApi(apiName!);
       // const selectedApi = apiResponse.find(api => api.version === version);
@@ -173,14 +172,9 @@ export default function YamlUploader() {
 
           if (bindingType === "cors-preflight") {
             if (!component || typeof component !== "object") {
-              errors.push(
-                "Missing 'component' for 'cors-preflight' binding.",
-              );
+              errors.push("Missing 'component' for 'cors-preflight' binding.");
             } else {
-              if (
-                !component.name ||
-                typeof component.name !== "string"
-              ) {
+              if (!component.name || typeof component.name !== "string") {
                 errors.push("Invalid 'component.name'.");
               }
 

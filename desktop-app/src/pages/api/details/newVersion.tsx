@@ -16,8 +16,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { API } from "@/service";
-import { Api } from "@/types/api";
 import ErrorBoundary from "@/components/errorBoundary";
+import { HttpApiDefinition } from "@/types/golemManifest.ts";
 
 const newVersionSchema = z.object({
   version: z
@@ -53,8 +53,9 @@ export default function APINewVersion() {
   const { apiName, version, id } = useParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiDetails, setApiDetails] = useState<Api[]>([]);
-  const [activeApiDetails, setActiveApiDetails] = useState<Api | null>(null);
+  const [apiDetails, setApiDetails] = useState<HttpApiDefinition[]>([]);
+  const [activeApiDetails, setActiveApiDetails] =
+    useState<HttpApiDefinition | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const form = useForm<NewVersionFormValues>({
@@ -91,7 +92,7 @@ export default function APINewVersion() {
       try {
         setIsLoading(true);
         setFetchError(null);
-        const response = await API.getApi(apiName);
+        const response = await API.getApi(id!, apiName);
         setApiDetails(response);
         setActiveApiDetails(response[response.length - 1]);
       } catch (error) {

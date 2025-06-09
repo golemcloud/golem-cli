@@ -18,9 +18,7 @@ export function DeploymentSection() {
       try {
         const response = await API.getApiList(id!);
         const newData = removeDuplicateApis(response);
-        const deploymentPromises = newData.map(api =>
-          API.getDeploymentApi(id, api.subdomain),
-        );
+        const deploymentPromises = newData.map(api => API.getDeploymentApi(id));
         const allDeployments = await Promise.all(deploymentPromises);
         const combinedDeployments = allDeployments.flat().filter(Boolean);
         setDeployments(combinedDeployments);

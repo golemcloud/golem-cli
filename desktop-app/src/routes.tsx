@@ -15,7 +15,7 @@ import SettingsPage from "@/pages/settings";
 const Components = lazy(() => import("@/pages/components"));
 const CreateComponent = lazy(() => import("@/pages/components/create"));
 const APIs = lazy(() =>
-    import("@/pages/api").then(module => ({ default: module.APIs })),
+  import("@/pages/api").then(module => ({ default: module.APIs })),
 );
 const CreateAPI = lazy(() => import("@/pages/api/create"));
 const APIDetails = lazy(() => import("@/pages/api/details"));
@@ -23,13 +23,13 @@ const APISettings = lazy(() => import("@/pages/api/details/settings"));
 const CreateRoute = lazy(() => import("@/pages/api/details/createRoute.tsx"));
 const Deployments = lazy(() => import("@/pages/deployment"));
 const ComponentDetails = lazy(() =>
-    import("@/pages/components/details").then(module => ({
-        default: module.ComponentDetails,
-    })),
+  import("@/pages/components/details").then(module => ({
+    default: module.ComponentDetails,
+  })),
 );
 const PluginList = lazy(() => import("@/pages/plugin"));
 const ComponentSettings = lazy(
-    () => import("@/pages/components/details/settings"),
+  () => import("@/pages/components/details/settings"),
 );
 const ComponentInfo = lazy(() => import("@/pages/components/details/info"));
 const Exports = lazy(() => import("@/pages/components/details/export"));
@@ -39,172 +39,170 @@ const APINewVersion = lazy(() => import("@/pages/api/details/newVersion"));
 const CreateWorker = lazy(() => import("@/pages/workers/create"));
 const WorkerDetails = lazy(() => import("@/pages/workers/details"));
 const WorkerEnvironments = lazy(
-    () => import("@/pages/workers/details/environments"),
+  () => import("@/pages/workers/details/environments"),
 );
 const WorkerManage = lazy(() => import("@/pages/workers/details/manage"));
 const WorkerLive = lazy(() => import("@/pages/workers/details/live"));
 const CreatePlugin = lazy(() => import("@/pages/plugin/create"));
 const PluginView = lazy(() =>
-    import("@/pages/plugin/view").then(module => ({
-        default: module.PluginView,
-    })),
+  import("@/pages/plugin/view").then(module => ({
+    default: module.PluginView,
+  })),
 );
 const ApiRoute = lazy(() =>
-    import("@/pages/api/details/viewRoute").then(module => ({
-        default: module.ApiRoute,
-    })),
+  import("@/pages/api/details/viewRoute").then(module => ({
+    default: module.ApiRoute,
+  })),
 );
 const CreateDeployment = lazy(() => import("@/pages/deployment/create"));
 const ApiLayout = lazy(() =>
-    import("@/pages/api/details/apis-layout").then(module => ({
-        default: module.ApiLayout,
-    })),
+  import("@/pages/api/details/apis-layout").then(module => ({
+    default: module.ApiLayout,
+  })),
 );
 const Plugins = lazy(() => import("@/pages/components/details/plugin"));
 const ComponentLayout = lazy(() =>
-    import("@/pages/components/details/component-layout").then(module => ({
-        default: module.ComponentLayout,
-    })),
+  import("@/pages/components/details/component-layout").then(module => ({
+    default: module.ComponentLayout,
+  })),
 );
 const WorkerLayout = lazy(() =>
-    import("@/pages/workers/details/worker-layout").then(module => ({
-        default: module.WorkerLayout,
-    })),
+  import("@/pages/workers/details/worker-layout").then(module => ({
+    default: module.WorkerLayout,
+  })),
 );
 
 // Route configuration constants for ease of maintenance
 export const ROUTES = {
-    HOME: "/",
-    APP_CREATE: "/app-create",
-    APP: "/app/:id",
-    DASHBOARD: "/app/:id/dashboard",
-    COMPONENTS: "/app/:id/components",
-    COMPONENTS_CREATE: "/app/:id/components/create",
-    COMPONENTS_DETAIL: "/app/:id/components/:componentId",
-    APIS: "/app/:id/apis",
-    APIS_CREATE: "/app/:id/apis/create",
-    APIS_DETAIL: "/app/:id/apis/:apiName/version/:version",
-    DEPLOYMENTS: "/app/:id/deployments",
-    DEPLOYMENTS_CREATE: "/app/:id/deployments/create",
-    PLUGINS: "/app/:id/plugins",
-    PLUGINS_CREATE: "/app/:id/plugins/create",
-    PLUGINS_DETAIL: "/app/:id/plugins/:pluginId",
-    PLUGINS_VERSION: "/app/:id/plugins/:pluginId/:version",
+  HOME: "",
+  APP_CREATE: "/app-create",
+  APP: "/app/:id",
+  DASHBOARD: "/app/:id/dashboard",
+  COMPONENTS: "/app/:id/components",
+  COMPONENTS_CREATE: "/app/:id/components/create",
+  COMPONENTS_DETAIL: "/app/:id/components/:componentId",
+  APIS: "/app/:id/apis",
+  APIS_CREATE: "/app/:id/apis/create",
+  APIS_DETAIL: "/app/:id/apis/:apiName/version/:version",
+  DEPLOYMENTS: "/app/:id/deployments",
+  DEPLOYMENTS_CREATE: "/app/:id/deployments/create",
+  PLUGINS: "/app/:id/plugins",
+  PLUGINS_CREATE: "/app/:id/plugins/create",
+  PLUGINS_DETAIL: "/app/:id/plugins/:pluginId",
+  PLUGINS_VERSION: "/app/:id/plugins/:pluginId/:version",
 };
 
-
-
 export const appRoutes: RouteObject[] = [
-    {
-        path: ROUTES.HOME,
-        element: <AppLayout />,
+  {
+    path: ROUTES.HOME,
+    element: <AppLayout />,
+    children: [
+      {
+        path: "/",
+        element: <Home />,
+      },
+      {
+        path: "app-create",
+        element: <CreateApplication />,
+      },
+      {
+        path: "settings",
+        element: <SettingsPage />,
+      },
+    ],
+  },
+  {
+    path: ROUTES.APP,
+    element: <AppLayout />,
+    children: [
+      {
+        path: "",
+        element: <Dashboard />,
+      },
+      {
+        path: "dashboard",
+        element: <Dashboard />,
+      },
+      {
+        path: "components",
+        element: <Components />,
+      },
+      {
+        path: "components/create",
+        element: <CreateComponent />,
+      },
+      {
+        path: "components/:componentId",
+        element: <ComponentLayout />,
         children: [
-            {
-                path: "",
-                element: <Home />
-            },
-            {
-                path: "app-create",
-                element: <CreateApplication />
-            },
-            {
-                path: "settings",
-                element: <SettingsPage />
-            },
-        ]
-    },
-    {
-        path: ROUTES.APP,
-        element: <AppLayout />,
+          { path: "", element: <ComponentDetails /> },
+          { path: "settings", element: <ComponentSettings /> },
+          // { path: "update", element: <ComponentUpdate /> },
+          { path: "info", element: <ComponentInfo /> },
+          { path: "exports", element: <Exports /> },
+          { path: "plugins", element: <Plugins /> },
+          { path: "files", element: <FileManager /> },
+          { path: "invoke", element: <ComponentInvoke /> },
+          { path: "workers", element: <WorkerList /> },
+          { path: "workers/create", element: <CreateWorker /> },
+        ],
+      },
+      {
+        path: "components/:componentId/workers/:workerName",
+        element: <WorkerLayout />,
         children: [
-            {
-                path: "",
-                element: <Dashboard />
-            },
-            {
-                path: "dashboard",
-                element: <Dashboard />
-            },
-            {
-                path: "components",
-                element: <Components />
-            },
-            {
-                path: "components/create",
-                element: <CreateComponent />
-            },
-            {
-                path: "components/:componentId",
-                element: <ComponentLayout />,
-                children: [
-                    { path: "", element: <ComponentDetails /> },
-                    { path: "settings", element: <ComponentSettings /> },
-                    // { path: "update", element: <ComponentUpdate /> },
-                    { path: "info", element: <ComponentInfo /> },
-                    { path: "exports", element: <Exports /> },
-                    { path: "plugins", element: <Plugins /> },
-                    { path: "files", element: <FileManager /> },
-                    { path: "invoke", element: <ComponentInvoke /> },
-                    { path: "workers", element: <WorkerList /> },
-                    { path: "workers/create", element: <CreateWorker /> }
-                ]
-            },
-            {
-                path: "components/:componentId/workers/:workerName",
-                element: <WorkerLayout />,
-                children: [
-                    { path: "", element: <WorkerDetails /> },
-                    { path: "environments", element: <WorkerEnvironments /> },
-                    { path: "info", element: <WorkerInfo /> },
-                    { path: "manage", element: <WorkerManage /> },
-                    { path: "invoke", element: <WorkerInvoke /> },
-                    { path: "live", element: <WorkerLive /> }
-                ]
-            },
-            {
-                path: "apis",
-                element: <APIs />
-            },
-            {
-                path: "apis/create",
-                element: <CreateAPI />
-            },
-            {
-                path: "apis/:apiName/version/:version",
-                element: <ApiLayout />,
-                children: [
-                    { path: "", element: <APIDetails /> },
-                    { path: "settings", element: <APISettings /> },
-                    { path: "routes/add", element: <CreateRoute key="create" /> },
-                    { path: "routes/edit", element: <CreateRoute key="edit" /> },
-                    { path: "newversion", element: <APINewVersion /> },
-                    { path: "routes", element: <ApiRoute /> }
-                ]
-            },
-            {
-                path: "deployments",
-                element: <Deployments />
-            },
-            {
-                path: "deployments/create",
-                element: <CreateDeployment />
-            },
-            {
-                path: "plugins",
-                element: <PluginList />
-            },
-            {
-                path: "plugins/create",
-                element: <CreatePlugin />
-            },
-            {
-                path: "plugins/:pluginId",
-                element: <PluginView />
-            },
-            {
-                path: "plugins/:pluginId/:version",
-                element: <PluginView />
-            }
-        ]
-    }
+          { path: "", element: <WorkerDetails /> },
+          { path: "environments", element: <WorkerEnvironments /> },
+          { path: "info", element: <WorkerInfo /> },
+          { path: "manage", element: <WorkerManage /> },
+          { path: "invoke", element: <WorkerInvoke /> },
+          { path: "live", element: <WorkerLive /> },
+        ],
+      },
+      {
+        path: "apis",
+        element: <APIs />,
+      },
+      {
+        path: "apis/create",
+        element: <CreateAPI />,
+      },
+      {
+        path: "apis/:apiName/version/:version",
+        element: <ApiLayout />,
+        children: [
+          { path: "", element: <APIDetails /> },
+          { path: "settings", element: <APISettings /> },
+          { path: "routes/add", element: <CreateRoute key="create" /> },
+          { path: "routes/edit", element: <CreateRoute key="edit" /> },
+          { path: "newversion", element: <APINewVersion /> },
+          { path: "routes", element: <ApiRoute /> },
+        ],
+      },
+      {
+        path: "deployments",
+        element: <Deployments />,
+      },
+      {
+        path: "deployments/create",
+        element: <CreateDeployment />,
+      },
+      {
+        path: "plugins",
+        element: <PluginList />,
+      },
+      {
+        path: "plugins/create",
+        element: <CreatePlugin />,
+      },
+      {
+        path: "plugins/:pluginId",
+        element: <PluginView />,
+      },
+      {
+        path: "plugins/:pluginId/:version",
+        element: <PluginView />,
+      },
+    ],
+  },
 ];

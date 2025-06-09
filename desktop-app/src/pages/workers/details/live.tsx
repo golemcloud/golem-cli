@@ -1,13 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+// } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDebounce } from "@/hooks/debounce"; // Import the debounce hook
+import { useDebounce } from "@/hooks/debounce"; // Import the "debounce" hook
 import { formatTimestampInDateTimeFormat } from "@/lib/utils";
 import { API } from "@/service";
 import { WSS } from "@/service/wss";
@@ -22,7 +22,7 @@ export default function WorkerLive() {
   const [invocationData, setInvocationData] = useState<Invocation[]>([]);
   const [terminal, setTerminal] = useState<Terminal[]>([]);
   const [activeTab, setActiveTab] = useState("log");
-  const [count, setCount] = useState("100");
+  // const [count, setCount] = useState("100");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Debounced values to prevent rapid API calls
@@ -33,7 +33,7 @@ export default function WorkerLive() {
     async function fetchData() {
       setInvocationData([]);
       setTerminal([]);
-      await getopLog(count, debouncedSearchQuery);
+      await getOpLog(debouncedSearchQuery);
 
       const initWebSocket = async () => {
         try {
@@ -79,15 +79,14 @@ export default function WorkerLive() {
   }, []);
 
   useEffect(() => {
-    getopLog(count, debouncedSearchQuery);
-  }, [debouncedActiveTab, debouncedSearchQuery, count]);
+    getOpLog(debouncedSearchQuery);
+  }, [debouncedActiveTab, debouncedSearchQuery]);
 
-  const getopLog = async (count: string, search: string) => {
+  const getOpLog = async (search: string) => {
     API.getOplog(
       id!,
       componentId,
       workerName,
-      Number(count),
       `${
         debouncedActiveTab === "log" ? "log" : "ExportedFunctionInvoked"
       } ${search}`,
@@ -154,16 +153,16 @@ export default function WorkerLive() {
                     </button>
                   )}
                 </div>
-                <Select defaultValue={count} onValueChange={e => setCount(e)}>
-                  <SelectTrigger className="w-[80px]">{count}</SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={"10"}>10</SelectItem>
-                    <SelectItem value={"25"}>25</SelectItem>
-                    <SelectItem value={"50"}>50</SelectItem>
-                    <SelectItem value={"75"}>75</SelectItem>
-                    <SelectItem value={"100"}>100</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/*<Select defaultValue={count} onValueChange={e => setCount(e)}>*/}
+                {/*  <SelectTrigger className="w-[80px]">{count}</SelectTrigger>*/}
+                {/*  <SelectContent>*/}
+                {/*    <SelectItem value={"10"}>10</SelectItem>*/}
+                {/*    <SelectItem value={"25"}>25</SelectItem>*/}
+                {/*    <SelectItem value={"50"}>50</SelectItem>*/}
+                {/*    <SelectItem value={"75"}>75</SelectItem>*/}
+                {/*    <SelectItem value={"100"}>100</SelectItem>*/}
+                {/*  </SelectContent>*/}
+                {/*</Select>*/}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -180,7 +179,7 @@ export default function WorkerLive() {
                   variant="ghost"
                   size="sm"
                   className="h-8 text-primary hover:bg-primary/10 hover:text-primary"
-                  onClick={() => getopLog(count, searchQuery)}
+                  onClick={() => getOpLog(searchQuery)}
                 >
                   <RotateCw className="h-4 w-4 mr-1.5" />
                   Reload

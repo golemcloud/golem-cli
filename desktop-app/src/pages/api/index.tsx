@@ -51,7 +51,10 @@ export const APIs = () => {
               className="pl-10 text-white"
             />
           </div>
-          <Button onClick={() => navigate(`/app/${id}/apis/create`)} variant="default">
+          <Button
+            onClick={() => navigate(`/app/${id}/apis/create`)}
+            variant="default"
+          >
             <Plus className="h-5 w-5" />
             <span>New</span>
           </Button>

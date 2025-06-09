@@ -27,6 +27,7 @@ export const ComponentDetails = () => {
         // 1. Set the component data
         const foundComponent = componentMap[componentId] || null;
         setComponent(foundComponent);
+        API.getComponentYamlPath(id!, foundComponent.componentName!).then((yamlPath) => console.log("Component YAML Path:", yamlPath));
 
         // 2. Build a worker status map
         const status: IWorkerStatus = {
@@ -108,9 +109,8 @@ export const ComponentDetails = () => {
 
             {/* Exports & Worker Status */}
             <div
-              className={`grid gap-4 ${
-                component.componentType === "Durable" ? "md:grid-cols-2" : ""
-              }`}
+              className={`grid gap-4 ${component.componentType === "Durable" ? "md:grid-cols-2" : ""
+                }`}
             >
               <ExportsList
                 exports={

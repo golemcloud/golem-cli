@@ -1,13 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toast } from "@/hooks/use-toast";
-import { fetchData } from "@/lib/tauri&web.ts";
-import { ENDPOINT } from "@/service/endpoints.ts";
+// import { fetchData } from "@/lib/tauri&web.ts";
+// import { ENDPOINT } from "@/service/endpoints.ts";
 import { parseErrorResponse } from "@/service/error-handler.ts";
 import { Api } from "@/types/api.ts";
 import { Component, ComponentList } from "@/types/component.ts";
 import { Plugin } from "@/types/plugin";
 import { invoke } from "@tauri-apps/api/core";
 import { settingsService } from "@/lib/settings.ts";
+import {
+  exists,
+  readDir,
+  readTextFile,
+  writeTextFile,
+} from "@tauri-apps/plugin-fs";
+import { join } from "@tauri-apps/api/path";
+import {
+  GolemApplicationManifest,
+  HttpApiDefinition,
+} from "@/types/golemManifest.ts";
+import { parse, stringify } from "yaml";
 
 export class Service {
   public baseUrl: string;
@@ -16,19 +28,13 @@ export class Service {
     this.baseUrl = baseUrl;
   }
 
-  public updateBackendEndpoint = async (url: string) => {
-    // await updateIP(url);
-    this.baseUrl = url;
-  };
-
   /**
    * getComponents: Get the list of all components
    * Note: Sample Endpoint https://release.api.golem.cloud/v1/components
-   * @returns {Promise<Component[]>}
+   * @returns {Promise<Boolean>}
    */
-  public checkHealth = async () => {
-    const r = await this.callApi("/healthcheck");
-    return r;
+  public checkHealth = async (): Promise<Boolean> => {
+    return Promise.resolve(true);
   };
 
   /**
@@ -43,8 +49,144 @@ export class Service {
 
   public getComponentById = async (appId: string, componentId: string) => {
     const r = (await this.callCLI(appId, "component", ["list"])) as Component[];
-    return r.find(c => c.componentId === componentId);
+    const c = r.find(c => c.componentId === componentId);
+    if (!c) {
+      throw new Error("Could not find component");
+    }
+    return c;
   };
+
+  /**
+   * getComponentYamlPath: Get the path to the YAML file of a component
+   * @param appId - The ID of the application
+   * @param componentName - The name of the component
+   * @returns {Promise<string | null>} - The path to the YAML file or null if not found
+   */
+  public async getComponentYamlPath(
+    appId: string,
+    componentName: string,
+  ): Promise<string> {
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+
+    // Replace: with - in component name
+    let folderName = componentName.replace(/:/g, "-").toLowerCase();
+
+    try {
+      // Get all folders in app.folderLocation
+      const appEntries = await readDir(app.folderLocation);
+      const appFolders = appEntries
+        .filter(entry => entry.isDirectory)
+        .map(entry => entry.name);
+
+      // Find all folders starting with "components-"
+      const componentsFolders = appFolders.filter(folder =>
+        folder.startsWith("components-"),
+      );
+
+      // Search through each component-* folder for the component
+      for (const componentsFolder of componentsFolders) {
+        const componentsFolderPath = await join(
+          app.folderLocation,
+          componentsFolder,
+        );
+
+        try {
+          const subEntries = await readDir(componentsFolderPath);
+          const subFolders = subEntries
+            .filter(entry => entry.isDirectory)
+            .map(entry => entry.name.toLowerCase());
+
+          // Check if our target folder exists
+          if (subFolders.includes(folderName)) {
+            const componentPath = await join(componentsFolderPath, folderName);
+
+            // Check if the component path exists
+            if (await exists(componentPath)) {
+              // Look for the golem YAML file in the component folder
+              const files = await readDir(componentPath);
+              const yamlFile = files
+                .filter(entry => !entry.isDirectory)
+                .map(entry => entry.name)
+                .find(file => file === "golem.yaml" || file === "golem.yml");
+
+              if (yamlFile) {
+                return await join(componentPath, yamlFile);
+              }
+            }
+          }
+        } catch (error) {
+          // Continue to the next components folder if this one fails
+          console.warn(
+            `Failed to read components folder ${componentsFolder}:`,
+            error,
+          );
+        }
+      }
+
+      // Component folder isn't found in any components-* directory
+      toast({
+        title: "Error finding Component Manifest",
+        description:
+          "Could not find component golem.yaml for matched component in this app",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } catch (error) {
+      throw new Error(`Failed to scan app folder: ${error}`);
+    }
+
+    throw new Error(`Error finding Component Manifest`);
+  }
+
+  public async getComponentManifest(
+    appId: string,
+    componentId: string,
+  ): Promise<GolemApplicationManifest> {
+    const component = await this.getComponentById(appId, componentId);
+    let componentYamlPath = await this.getComponentYamlPath(
+      appId,
+      component.componentName!,
+    );
+    let rawYaml = await readTextFile(componentYamlPath);
+
+    return parse(rawYaml) as GolemApplicationManifest;
+  }
+
+  public async saveComponentManifest(
+    appId: string,
+    componentId: string,
+    manifest: GolemApplicationManifest,
+  ): Promise<boolean> {
+    const component = await this.getComponentById(appId, componentId);
+    let componentYamlPath = await this.getComponentYamlPath(
+      appId,
+      component.componentName!,
+    );
+    let rawYaml = stringify(manifest);
+    // Write the YAML string to the file
+    await writeTextFile(componentYamlPath, rawYaml);
+
+    return true;
+  }
+
+  public async saveAppManifest(
+    appId: string,
+    manifest: GolemApplicationManifest,
+  ): Promise<boolean> {
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+    let appManifestPath = await join(app.folderLocation, "golem.yaml");
+    let rawYaml = stringify(manifest);
+    // Write the YAML string to the file
+    await writeTextFile(appManifestPath, rawYaml);
+
+    return true;
+  }
 
   public getComponentByIdAndVersion = async (
     appId: string,
@@ -52,7 +194,9 @@ export class Service {
     version: number,
   ) => {
     const r = (await this.callCLI(appId, "component", ["get"])) as Component[];
-    return r.find(c => c.componentId === componentId && c.version === version);
+    return r.find(
+      c => c.componentId === componentId && c.componentVersion === version,
+    );
   };
 
   public createComponent = async (
@@ -76,36 +220,33 @@ export class Service {
     return r as Component;
   };
 
-  public updateComponent = async (componenetId: string, form: FormData) => {
-    //
+  public updateComponent = async (componentId: string, form: FormData) => {
+    console.log(componentId, form);
   };
 
   public deletePluginToComponent = async (
     id: string,
     installation_id: string,
   ) => {
-    return await this.callApi(
-      ENDPOINT.deletePluginToComponent(id, installation_id),
-      "DELETE",
-    );
+    console.log(id, installation_id);
   };
 
   public addPluginToComponent = async (id: string, form: any) => {
-    return await this.callApi(
-      ENDPOINT.addPluginToComponent(id),
-      "POST",
-      JSON.stringify(form),
-    );
+    // return await this.callApi(
+    //   ENDPOINT.addPluginToComponent(id),
+    //   "POST",
+    //   JSON.stringify(form),
+    // );
+    console.log(id, form);
   };
 
   public upgradeWorker = async (
-    appId:string,
+    appId: string,
     componentName: string,
     workerName: string,
     version: number,
     upgradeType: string,
   ) => {
-
     return await this.callCLI(appId, "worker", [
       "update",
       `${componentName}/${workerName}`,
@@ -139,7 +280,7 @@ export class Service {
     componentId: string,
     workerName: string,
   ) => {
-    let component = await this.getComponentById(appId,componentId);
+    let component = await this.getComponentById(appId, componentId);
     return await this.callCLI(appId, "worker", [
       "delete",
       `${component?.componentName}/${workerName}`,
@@ -159,46 +300,75 @@ export class Service {
     ]);
   };
 
-  public getApiList = async (appId: string): Promise<Api[]> => {
-    // should use yaml
-    const r = await this.callCLI(appId, "api", ["definition", "list"]);
-    return r as Api[];
+  public getApiList = async (appId: string): Promise<HttpApiDefinition[]> => {
+    let result: HttpApiDefinition[] = [];
+    // we get it on a per-component basis
+    let components = await this.getComponents(appId);
+    for (const component of components) {
+      try {
+        let manifest = await this.getComponentManifest(
+          appId,
+          component.componentId!,
+        );
+        let APIList = manifest.httpApi;
+        if (APIList) {
+          for (const apiListKey in APIList.definitions) {
+            let data = APIList.definitions[apiListKey];
+            data.id = apiListKey;
+            result.push(data);
+          }
+        }
+      } catch (e) {
+        console.error(e, component.componentName);
+      }
+    }
+
+    return result;
   };
 
-  public getApi = async (id: string): Promise<Api[]> => {
-    // should use yaml
-    // const r = await this.callApi(ENDPOINT.getApi(id));
-    // return r as Api[];
+  public getApi = async (
+    appId: string,
+    name: string,
+  ): Promise<HttpApiDefinition[]> => {
+    const ApiList = await this.getApiList(appId);
+    const Api = ApiList.filter(a => a.id == name);
+    if (!Api) {
+      throw new Error("Api not found");
+    }
+    return Api;
   };
 
-  public createApi = async (payload: Api) => {
-    // should use yaml
+  public createApi = async (payload: HttpApiDefinition) => {
+    // should use a YAML file
     // const r = await this.callApi(
     //   ENDPOINT.createApi(),
     //   "POST",
     //   JSON.stringify(payload),
     // );
     // return r;
+
+    console.log(payload);
   };
 
   public deleteApi = async (appId: string, id: string, version: string) => {
-    const r = await this.callCLI(appId, "api", [
+    return await this.callCLI(appId, "api", [
       "definition",
       "delete",
       `--id=${id}`,
       `--version=${version}`,
     ]);
-    return r;
   };
 
   public putApi = async (id: string, version: string, payload: Api) => {
-    // should use yaml
+    // should use YAML
     // const r = await this.callApi(
     //   ENDPOINT.putApi(id, version),
     //   "PUT",
     //   JSON.stringify(payload),
     // );
     // return r;
+
+    console.log(id, payload, version);
   };
 
   public postApi = async (payload: Api) => {
@@ -208,6 +378,8 @@ export class Service {
     //   JSON.stringify(payload),
     // );
     // return r;
+
+    console.log(payload);
   };
 
   public getParticularWorker = async (
@@ -216,21 +388,18 @@ export class Service {
     workerName: string,
   ) => {
     const component = await this.getComponentById(appId, componentId);
-    const r = await this.callCLI(appId, "worker", [
+    return await this.callCLI(appId, "worker", [
       "get",
       `${component?.componentName}/${workerName}`,
     ]);
-    return r;
   };
 
   public interruptWorker = async (appId: string, workerName: string) => {
-    const r = await this.callCLI(appId, "worker", ["interrupt", workerName]);
-    return r;
+    return await this.callCLI(appId, "worker", ["interrupt", workerName]);
   };
 
   public resumeWorker = async (appId: string, workerName: string) => {
-    const r = await this.callCLI(appId, "worker", ["resume", workerName]);
-    return r;
+    return await this.callCLI(appId, "worker", ["resume", workerName]);
   };
 
   public invokeWorkerAwait = async (
@@ -239,13 +408,12 @@ export class Service {
     functionName: string,
     payload: any,
   ) => {
-    const r = await this.callCLI(appId, "worker", [
+    return await this.callCLI(appId, "worker", [
       "invoke",
       workerName,
       functionName,
       JSON.stringify(payload),
     ]);
-    return r;
   };
 
   public invokeEphemeralAwait = async (
@@ -253,31 +421,24 @@ export class Service {
     functionName: string,
     payload: any,
   ) => {
-    const r = await this.callCLI(appId, "worker", [
+    return await this.callCLI(appId, "worker", [
       "invoke",
       "-",
       functionName,
       JSON.stringify(payload),
     ]);
-    return r;
   };
 
-  public getDeploymentApi = async (appId, subdomain: string) => {
-    const r = await this.callCLI(appId, "api", [
-      "deployment",
-      "get",
-      subdomain,
-    ]);
-    return r;
+  public getDeploymentApi = async (appId: string) => {
+    return await this.callCLI(appId, "api", ["deployment", "list"]);
   };
 
   public deleteDeployment = async (appId: string, subdomain: string) => {
-    const r = await this.callCLI(appId, "api", [
+    return await this.callCLI(appId, "api", [
       "deployment",
       "delete",
       subdomain,
     ]);
-    return r;
   };
 
   public createDeployment = async (appId: string, subdomain?: string) => {
@@ -285,23 +446,21 @@ export class Service {
     if (subdomain) {
       params.push(subdomain);
     }
-    const r = await this.callCLI(appId, "api", params);
-    return r;
+    return await this.callCLI(appId, "api", params);
   };
 
   public getOplog = async (
     appId: string,
     componentId: string,
     workerName: string,
-    count: number,
     searchQuery: string,
   ) => {
     const component = await this.getComponentById(appId, componentId);
     const r = await this.callCLI(appId, "worker", [
       "oplog",
       `${component?.componentName}/${workerName}`,
-      // `--count=${count}`,
       `--query=${searchQuery}`,
+      // `--count=${count}`,
     ]);
     console.log(r);
 
@@ -333,7 +492,7 @@ export class Service {
           };
         }
         if (acc[key].versionList) {
-          acc[key].versionList.push(componentVersion);
+          acc[key].versionList.push(componentVersion!);
         }
         if (acc[key].versions) {
           acc[key].versions.push(component);
@@ -388,7 +547,7 @@ export class Service {
     if (!app) {
       throw new Error("App not found");
     }
-    //  we use invoke here to call a special command that calls golem CLI for us
+    //  we use the "invoke" here to call a special command that calls golem CLI for us
     let result: string;
     try {
       result = await invoke("call_golem_command", {
@@ -403,16 +562,16 @@ export class Service {
         variant: "destructive",
         duration: 5000,
       });
-      throw new Error("Error in calling golem CLI")
+      throw new Error("Error in calling golem CLI");
     }
 
     let parsedResult;
-    const match = result.match(/(\[.*\]|\{.*\})/s);
+    const match = result.match(/(\[.*]|\{.*})/s);
     if (match) {
       try {
         parsedResult = JSON.parse(match[0]);
       } catch (e) {
-        // some actions do not return json
+        // some actions do not return JSON
       }
     }
     return parsedResult || true;
