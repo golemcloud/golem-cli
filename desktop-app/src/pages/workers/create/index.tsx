@@ -42,7 +42,7 @@ const formSchema = z.object({
 
 export default function CreateWorker() {
   const navigate = useNavigate();
-  const { componentId, id } = useParams();
+  const { componentId, appId } = useParams();
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -83,10 +83,10 @@ export default function CreateWorker() {
     }, {});
     rest.args = rest.args.filter(x => x.trim().length > 0);
 
-    API.createWorker(id, componentID, values.name).then(
+    API.createWorker(appId, componentID, values.name).then(
       (response: { component_name: string; worker_name: string }) => {
         navigate(
-          `/app/${id}/components/${componentId}/workers/${response.worker_name}`,
+          `/app/${appId}/components/${componentId}/workers/${response.worker_name}`,
         );
       },
     );
@@ -132,7 +132,7 @@ export default function CreateWorker() {
                 <FormLabel>Environment Variables</FormLabel>
                 <div className="space-y-2 pt-2">
                   {envFields.map((field, index) => (
-                    <div key={field.id} className="flex gap-2">
+                    <div key={field.appId} className="flex gap-2">
                       <Input
                         placeholder="Key"
                         {...form.register(`env.${index}.key`)}
@@ -167,7 +167,7 @@ export default function CreateWorker() {
                 <FormLabel>Arguments</FormLabel>
                 <div className="space-y-2 pt-2">
                   {argFields.map((field, index) => (
-                    <div key={field.id} className="flex gap-2">
+                    <div key={field.appId} className="flex gap-2">
                       <Input {...form.register(`args.${index}`)} />
                       <Button
                         type="button"

@@ -24,7 +24,7 @@ import { formatRelativeTime } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 export default function ComponentInfo() {
-  const { componentId = "", id } = useParams();
+  const { componentId = "", appId } = useParams();
   const [componentList, setComponentList] = useState<{
     [key: string]: ComponentList;
   }>({});
@@ -33,7 +33,7 @@ export default function ComponentInfo() {
 
   useEffect(() => {
     if (componentId) {
-      API.getComponentByIdAsKey(id!).then(response => {
+      API.getComponentByIdAsKey(appId!).then(response => {
         const componentData = response[componentId];
         const versionList = componentData?.versionList || [];
         setVersionList(versionList);

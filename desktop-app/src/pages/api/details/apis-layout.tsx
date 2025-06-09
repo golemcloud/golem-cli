@@ -37,26 +37,26 @@ import { NavRoutes } from "@/components/nav-route.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { HttpApiDefinition } from "@/types/golemManifest.ts";
 
-const MenuItems = (id: string, apiName: string, version: string) => [
+const MenuItems = (appId: string, apiName: string, version: string) => [
   {
     title: "Overview",
-    url: `/app/${id}/apis/${apiName}/version/${version}`,
+    url: `/app/${appId}/apis/${apiName}/version/${version}`,
     icon: Home,
   },
   {
     title: "Settings",
-    url: `/app/${id}/apis/${apiName}/version/${version}/settings`,
+    url: `/app/${appId}/apis/${apiName}/version/${version}/settings`,
     icon: Settings,
   },
   {
     title: "New Version",
-    url: `/app/${id}/apis/${apiName}/version/${version}/newversion`,
+    url: `/app/${appId}/apis/${apiName}/version/${version}/newversion`,
     icon: CircleFadingPlusIcon,
   },
 ];
 
 export const ApiLayout = () => {
-  const { apiName, version, id } = useParams();
+  const { apiName, version, appId } = useParams();
   const [queryParams] = useSearchParams();
   const navigate = useNavigate();
   const [apiDetails, setApiDetails] = useState<HttpApiDefinition>();
@@ -81,7 +81,7 @@ export const ApiLayout = () => {
   }, [apiDetails]);
 
   useEffect(() => {
-    API.getApi(id!, apiName!).then(async response => {
+    API.getApi(appId!, apiName!).then(async response => {
       let detail = response.find(r => r.version == version);
       setApiDetails(detail);
       if (response) {
@@ -98,7 +98,7 @@ export const ApiLayout = () => {
   }, [apiName, version, path, method, reload]);
 
   const handleNavigateHome = useCallback(() => {
-    navigate(`/app/${id}/apis/${apiName}/version/${version}`);
+    navigate(`/app/${appId}/apis/${apiName}/version/${version}`);
     setCurrentMenu("Overview");
   }, [navigate, apiName, version]);
 
@@ -106,7 +106,7 @@ export const ApiLayout = () => {
     <ErrorBoundary>
       <SidebarProvider>
         <SidebarMenu
-          menus={MenuItems(id!, apiName!, version!)}
+          menus={MenuItems(appId!, apiName!, version!)}
           activeItem={currentMenu}
           setActiveItem={setCurrentMenu}
           title={"Worker"}
@@ -117,7 +117,7 @@ export const ApiLayout = () => {
                 return {
                   method: route.method,
                   name: route.path,
-                  url: `/app/${id}/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
+                  url: `/app/${appId}/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
                 };
               })}
               setActiveItem={value => setCurrentMenu(value)}
@@ -156,7 +156,7 @@ export const ApiLayout = () => {
                     );
                     if (selectedApi) {
                       navigate(
-                        `/app/${id}/apis/${apiName}/version/${version}${basePath}`,
+                        `/app/${appId}/apis/${apiName}/version/${version}${basePath}`,
                       );
                     }
                   }}
@@ -200,7 +200,7 @@ export const ApiLayout = () => {
                 variant="default"
                 onClick={() => {
                   navigate(
-                    `/app/${id}/apis/${apiName}/version/${version}/routes/add?`,
+                    `/app/${appId}/apis/${apiName}/version/${version}/routes/add?`,
                   );
                   setCurrentMenu("Add New Route");
                 }}

@@ -122,7 +122,7 @@ export const ComponentCard = React.memo(
           >
             {formatRelativeTime(
               data.versions?.[data.versions?.length - 1].createdAt ||
-                new Date(),
+              new Date(),
             )}
           </CardDescription>
         </CardHeader>
@@ -203,14 +203,14 @@ const Components = () => {
   );
   const [workerList, setWorkerList] = useState<WorkerStatusMap>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
 
   /**
    * Fetch all components, then fetch worker status for each component in parallel
    */
   const fetchComponentsAndMetrics = useCallback(async () => {
     try {
-      const response = await API.getComponentByIdAsKey(id!);
+      const response = await API.getComponentByIdAsKey(appId!);
       setComponentList(response);
       setFilteredComponents(response);
 
@@ -219,7 +219,7 @@ const Components = () => {
       // Map over each component to fetch worker info
       const workerPromises = Object.values(response).map(async comp => {
         if (comp.componentId) {
-          const worker = await API.findWorker(id!, comp.componentId, {
+          const worker = await API.findWorker(appId!, comp.componentId, {
             count: 100,
             precise: true,
           });
@@ -308,7 +308,7 @@ const Components = () => {
    */
   const handleCardClick = useCallback(
     (componentId: string) => {
-      navigate(`/app/${id}/components/${componentId}`);
+      navigate(`/app/${appId}/components/${componentId}`);
     },
     [navigate],
   );
@@ -331,7 +331,7 @@ const Components = () => {
               />
             </div>
             {/* Create Component Button */}
-            <Button onClick={() => navigate(`/app/${id}/components/create`)}>
+            <Button onClick={() => navigate(`/app/${appId}/components/create`)}>
               <PlusCircle className="h-4 w-4 mr-2" />
               Create Component
             </Button>

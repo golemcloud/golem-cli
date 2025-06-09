@@ -131,7 +131,7 @@ function PathParameters({ url }: { url: string }) {
 
 export const ApiRoute = () => {
   const navigate = useNavigate();
-  const { apiName, version, id } = useParams();
+  const { apiName, version, appId } = useParams();
   const [currentRoute, setCurrentRoute] = useState({} as RouteRequestData);
   const [apiResponse, setApiResponse] = useState({} as Api);
   const [queryParams] = useSearchParams();
@@ -142,7 +142,7 @@ export const ApiRoute = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (apiName && version && method && path !== null) {
-        const apiResponse = await API.getApi(id!, apiName);
+        const apiResponse = await API.getApi(appId!, apiName);
         const selectedApi = apiResponse.find(api => api.version === version);
         if (selectedApi) {
           setApiResponse(selectedApi);
@@ -151,10 +151,10 @@ export const ApiRoute = () => {
           );
           setCurrentRoute(route || ({} as RouteRequestData));
         } else {
-          navigate(`/app/${id}/apis/${apiName}/version/${version}`);
+          navigate(`/app/${appId}/apis/${apiName}/version/${version}`);
         }
       } else {
-        navigate(`/app/${id}/apis/${apiName}/version/${version}`);
+        navigate(`/app/${appId}/apis/${apiName}/version/${version}`);
       }
     };
     fetchData();
@@ -162,7 +162,7 @@ export const ApiRoute = () => {
 
   const routeToQuery = () => {
     navigate(
-      `/app/${id}/apis/${apiName}/version/${version}/routes/edit?path=${path}&method=${method}`,
+      `/app/${appId}/apis/${apiName}/version/${version}/routes/edit?path=${path}&method=${method}`,
     );
   };
 
@@ -175,7 +175,7 @@ export const ApiRoute = () => {
             route => !(route.path === path && route.method === method),
           );
           API.putApi(apiName, version!, currentApi).then(() => {
-            navigate(`/app/${id}/apis/${apiName}/version/${version}`);
+            navigate(`/app/${appId}/apis/${apiName}/version/${version}`);
           });
         }
       });

@@ -7,26 +7,26 @@ import { Button } from "@/components/ui/button";
 import { storeService } from "@/lib/settings.ts";
 
 export const Dashboard = () => {
-  const { id } = useParams();
+  const { appId } = useParams();
   const navigate = useNavigate();
   const [appName, setAppName] = useState<string>("");
 
   useEffect(() => {
     // If no app ID is in the URL, redirect to home
-    if (!id) {
+    if (!appId) {
       navigate("/");
     } else {
       // Get app name from storeService
-      storeService.getAppById(id).then(app => {
+      storeService.getAppById(appId).then(app => {
         if (app && app.name) {
           setAppName(app.name);
         }
       });
       (async () => {
-        await storeService.updateAppLastOpened(id);
+        await storeService.updateAppLastOpened(appId);
       })();
     }
-  }, [id, navigate]);
+  }, [appId, navigate]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -38,7 +38,7 @@ export const Dashboard = () => {
       </div>
       <div className="p-4 border rounded-lg mb-6 bg-muted/20">
         <p className="text-sm text-muted-foreground">
-          App ID: <span className="font-mono">{id}</span>
+          App ID: <span className="font-mono">{appId}</span>
         </p>
       </div>
 

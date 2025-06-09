@@ -50,7 +50,7 @@ type NewVersionFormValues = z.infer<typeof newVersionSchema>;
 
 export default function APINewVersion() {
   const navigate = useNavigate();
-  const { apiName, version, id } = useParams();
+  const { apiName, version, appId } = useParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiDetails, setApiDetails] = useState<HttpApiDefinition[]>([]);
@@ -92,7 +92,7 @@ export default function APINewVersion() {
       try {
         setIsLoading(true);
         setFetchError(null);
-        const response = await API.getApi(id!, apiName);
+        const response = await API.getApi(appId!, apiName);
         setApiDetails(response);
         setActiveApiDetails(response[response.length - 1]);
       } catch (error) {
@@ -149,9 +149,12 @@ export default function APINewVersion() {
         draft: true,
         createdAt: new Date().toISOString(),
       };
-      await API.postApi(payload).then(() => {
-        navigate(`/app/${id}/apis/${apiName}/version/${values.version}`);
-      });
+      console.log(payload);
+      await API.createApiVersion(appId!, payload);
+      // .then(() => {
+      navigate(`/app/${appId}/apis/${apiName}/version/${values.version}`);
+      // });
+      // throw new Error("yes o");
     } catch (error) {
       console.error("Failed to create new version:", error);
       form.setError("version", {

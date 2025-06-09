@@ -11,11 +11,11 @@ import { useNavigate, useParams } from "react-router-dom";
 
 export function APISection() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
   const [apis, setApis] = useState([] as Api[]);
 
   useEffect(() => {
-    API.getApiList(id!).then(response => {
+    API.getApiList(appId!).then(response => {
       const newData = removeDuplicateApis(response);
       setApis(newData);
     });
@@ -29,7 +29,7 @@ export function APISection() {
             <Server className="w-5 h-5 text-muted-foreground" />
             APIs
           </CardTitle>
-          <Button variant="ghost" onClick={() => navigate(`/app/${id}/apis`)}>
+          <Button variant="ghost" onClick={() => navigate(`/app/${appId}/apis`)}>
             View All
             <ArrowRight className="w-4 h-4 ml-1" />
           </Button>
@@ -41,7 +41,7 @@ export function APISection() {
                 key={api.id}
                 className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/50 transition-colors cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
                 onClick={() => {
-                  navigate(`/app/${id}/apis/${api.id}/version/${api.version}`);
+                  navigate(`/app/${appId}/apis/${api.id}/version/${api.version}`);
                 }}
               >
                 <p className="text-sm font-medium">{api.id}</p>
@@ -59,7 +59,7 @@ export function APISection() {
               <p className="text-gray-500 mb-6 text-center">
                 Create your first API to get started.
               </p>
-              <Button onClick={() => navigate(`/app/${id}/apis/create`)}>
+              <Button onClick={() => navigate(`/app/${appId}/apis/create`)}>
                 <PlusCircle className="mr-2 size-4" />
                 Create API
               </Button>

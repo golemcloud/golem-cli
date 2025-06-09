@@ -39,55 +39,55 @@ const createMenuItems = (
   componentId: string,
   componentType: string,
 ): SidebarMenuProps[] => [
-  {
-    title: "Overview",
-    url: `/app/${appId}/components/${componentId}`,
-    icon: Home,
-  },
-  {
-    title: "Workers",
-    url: `/app/${appId}/components/${componentId}/workers`,
-    icon: Pickaxe,
-    isHidden: componentType === "Ephemeral",
-  },
-  {
-    title: "Invoke",
-    url: `/app/${appId}/components/${componentId}/invoke`,
-    icon: Workflow,
-    isHidden: componentType === "Durable",
-  },
-  {
-    title: "Exports",
-    url: `/app/${appId}/components/${componentId}/exports`,
-    icon: ArrowRightFromLine,
-  },
-  // {
-  //   title: "Update",
-  //   url: `/app/${appId}/components/${componentId}/update`,
-  //   icon: Pencil,
-  // },
-  {
-    title: "Files",
-    url: `/app/${appId}/components/${componentId}/files`,
-    icon: Folder,
-  },
-  {
-    title: "Plugins",
-    url: `/app/${appId}/components/${componentId}/plugins`,
-    icon: ToyBrick,
-  },
-  {
-    title: "Info",
-    url: `/app/${appId}/components/${componentId}/info`,
-    icon: Info,
-  },
-  {
-    title: "Settings",
-    url: `/app/${appId}/components/${componentId}/settings`,
-    icon: Settings,
-    isHidden: componentType === "Ephemeral",
-  },
-];
+    {
+      title: "Overview",
+      url: `/app/${appId}/components/${componentId}`,
+      icon: Home,
+    },
+    {
+      title: "Workers",
+      url: `/app/${appId}/components/${componentId}/workers`,
+      icon: Pickaxe,
+      isHidden: componentType === "Ephemeral",
+    },
+    {
+      title: "Invoke",
+      url: `/app/${appId}/components/${componentId}/invoke`,
+      icon: Workflow,
+      isHidden: componentType === "Durable",
+    },
+    {
+      title: "Exports",
+      url: `/app/${appId}/components/${componentId}/exports`,
+      icon: ArrowRightFromLine,
+    },
+    // {
+    //   title: "Update",
+    //   url: `/app/${appId}/components/${componentId}/update`,
+    //   icon: Pencil,
+    // },
+    {
+      title: "Files",
+      url: `/app/${appId}/components/${componentId}/files`,
+      icon: Folder,
+    },
+    {
+      title: "Plugins",
+      url: `/app/${appId}/components/${componentId}/plugins`,
+      icon: ToyBrick,
+    },
+    {
+      title: "Info",
+      url: `/app/${appId}/components/${componentId}/info`,
+      icon: Info,
+    },
+    {
+      title: "Settings",
+      url: `/app/${appId}/components/${componentId}/settings`,
+      icon: Settings,
+      isHidden: componentType === "Ephemeral",
+    },
+  ];
 
 /**
  * Layout component for the component details page
@@ -95,23 +95,22 @@ const createMenuItems = (
 export const ComponentLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { componentId = "" } = useParams();
+  const { componentId = "", appId } = useParams();
   const [currentComponent, setCurrentComponent] =
     useState<ComponentList | null>(null);
   const [currentMenu, setCurrentMenu] = useState("Overview");
-  const { id } = useParams<{ id: string }>();
 
   // Fetch component data
   const fetchComponent = useCallback(async () => {
     if (componentId) {
       try {
-        const response = await API.getComponentByIdAsKey(id!);
+        const response = await API.getComponentByIdAsKey(appId!);
         setCurrentComponent(response[componentId]);
       } catch (error) {
         console.error("Error fetching component:", error);
       }
     }
-  }, [componentId]);
+  }, [componentId, appId]);
 
   useEffect(() => {
     fetchComponent();
@@ -132,13 +131,13 @@ export const ComponentLayout = () => {
 
   // Memoize menu items
   const menuItems = useMemo(() => {
-    return createMenuItems(id!,componentId, currentComponent?.componentType || "");
-  }, [componentId, currentComponent?.componentType]);
+    return createMenuItems(appId!, componentId, currentComponent?.componentType || "");
+  }, [componentId, currentComponent?.componentType, appId]);
 
   const handleNavigateHome = useCallback(() => {
-    navigate(`/app/${id}/components/${componentId}`);
+    navigate(`/app/${appId}/components/${componentId}`);
     setCurrentMenu("Overview");
-  }, [navigate, componentId]);
+  }, [navigate, componentId, appId]);
 
   // Memoize header component
   const Header = useMemo(

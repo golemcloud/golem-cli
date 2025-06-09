@@ -15,7 +15,7 @@ import { useParams } from "react-router-dom";
 import { InvocationsChart } from "./widgets/invocationCharts";
 
 export default function WorkerDetails() {
-  const { componentId = "", workerName = "", id } = useParams();
+  const { componentId = "", workerName = "", appId } = useParams();
   const [workerDetails, setWorkerDetails] = useState({} as Worker);
   const wsRef = useRef<WSS | null>(null);
   const [invocationData, setInvocationData] = useState<Invocation[]>([]);
@@ -23,7 +23,7 @@ export default function WorkerDetails() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getParticularWorker(id!, componentId, workerName).then(response => {
+      API.getParticularWorker(appId!, componentId, workerName).then(response => {
         setWorkerDetails(response);
       });
     }
@@ -79,7 +79,7 @@ export default function WorkerDetails() {
   }, []);
 
   const getOpLog = async () => {
-    API.getOplog(id!, componentId, workerName, "").then(response => {
+    API.getOplog(appId!, componentId, workerName, "").then(response => {
       const terminalData = [] as Terminal[];
       const invocationList = [] as Invocation[];
       response.forEach((item: OplogEntry | number) => {

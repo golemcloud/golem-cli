@@ -104,7 +104,7 @@ const interpolations = [
 ];
 
 const CreateRoute = () => {
-  const { apiName, version, id } = useParams();
+  const { apiName, version, appId } = useParams();
   const navigate = useNavigate();
   const [componentList, setComponentList] = useState<{
     [key: string]: ComponentList;
@@ -174,7 +174,7 @@ const CreateRoute = () => {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
           API.getApi(apiName),
-          API.getComponentByIdAsKey(id!),
+          API.getComponentByIdAsKey(appId!),
         ]);
         const selectedApi = apiResponse.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);
@@ -267,12 +267,12 @@ const CreateRoute = () => {
       );
       selectedApi.routes.push(values);
       await API.putApi(
-        activeApiDetails.id,
+        activeApiDetails.appId,
         activeApiDetails.version,
         selectedApi,
       ).then(() => {
         navigate(
-          `/app/${id}/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
+          `/app/${appId}/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
         );
       });
     } catch (error) {

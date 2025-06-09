@@ -91,7 +91,7 @@ export default function CreateDeployment() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -112,7 +112,7 @@ export default function CreateDeployment() {
       try {
         setIsLoading(true);
         setFetchError(null);
-        const response = await API.getApiList(id!);
+        const response = await API.getApiList(appId!);
         const transformedData = Object.values(
           response.reduce(
             (acc, api) => {
@@ -163,12 +163,12 @@ export default function CreateDeployment() {
         },
         apiDefinitions: data.definitions,
       };
-      await API.createDeployment(id!, payload.site.host);
+      await API.createDeployment(appId!, payload.site.host);
       toast({
         title: "Deployment was successful",
         duration: 3000,
       });
-      navigate(`/app/${id}deployments`);
+      navigate(`/app/${appId}/deployments`);
     } catch (error) {
       console.error("Failed to create deployment:", error);
       form.setError("root", {

@@ -10,15 +10,15 @@ import { Deployment } from "@/types/deployments";
 
 export function DeploymentSection() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
   const [deployments, setDeployments] = useState([] as Deployment[]);
 
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        const response = await API.getApiList(id!);
+        const response = await API.getApiList(appId!);
         const newData = removeDuplicateApis(response);
-        const deploymentPromises = newData.map(api => API.getDeploymentApi(id));
+        const deploymentPromises = newData.map(_ => API.getDeploymentApi(appId!));
         const allDeployments = await Promise.all(deploymentPromises);
         const combinedDeployments = allDeployments.flat().filter(Boolean);
         setDeployments(combinedDeployments);
@@ -42,7 +42,7 @@ export function DeploymentSection() {
             variant="ghost"
             className="text-sm font-medium"
             size="sm"
-            onClick={() => navigate(`/app/${id}/deployments`)}
+            onClick={() => navigate(`/app/${appId}/deployments`)}
           >
             View All
             <ArrowRight className="w-4 h-4 ml-1" />
@@ -55,7 +55,7 @@ export function DeploymentSection() {
                 key={index}
                 className="border rounded-lg p-3 hover:bg-muted/50 transition-colors cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
                 onClick={() => {
-                  navigate(`/app/${id}/deployments`);
+                  navigate(`/app/${appId}/deployments`);
                 }}
               >
                 <p className="text-sm font-medium">{deployment.site.host}</p>
@@ -72,7 +72,7 @@ export function DeploymentSection() {
               <p className="text-gray-500 mb-6 text-center">
                 Create your first deployment to get started.
               </p>
-              <Button onClick={() => navigate(`/app/${id}/deployments/create`)}>
+              <Button onClick={() => navigate(`/app/${appId}/deployments/create`)}>
                 <PlusCircle className="mr-2 size-4" />
                 Create Deployment
               </Button>

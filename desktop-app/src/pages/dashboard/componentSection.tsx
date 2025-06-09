@@ -15,14 +15,14 @@ import { ComponentCard } from "../components";
 
 export const ComponentsSection = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
   const [components, setComponents] = useState<{
     [key: string]: ComponentList;
   }>({});
 
   useEffect(() => {
     (async () => {
-      let response = await API.getComponentByIdAsKey(id!);
+      let response = await API.getComponentByIdAsKey(appId!);
       setComponents(response);
     })();
   }, []);
@@ -36,7 +36,7 @@ export const ComponentsSection = () => {
             </CardTitle>
             <Button
               variant="ghost"
-              onClick={() => navigate(`/app/${id}/components`)}
+              onClick={() => navigate(`/app/${appId}/components`)}
             >
               View All
               <ArrowRight className="w-4 h-4 ml-1" />
@@ -51,7 +51,7 @@ export const ComponentsSection = () => {
                   key={data.componentId}
                   data={data}
                   onCardClick={() =>
-                    navigate(`/app/${id}/components/${data.componentId}`)
+                    navigate(`/app/${appId}/components/${data.componentId}`)
                   }
                 />
               ))}
@@ -67,7 +67,7 @@ export const ComponentsSection = () => {
               <p className="text-gray-500 mb-6 text-center">
                 Create your first component to get started.
               </p>
-              <Button onClick={() => navigate(`/app/${id}/components/create`)}>
+              <Button onClick={() => navigate(`/app/${appId}/components/create`)}>
                 <PlusCircle className="mr-2 size-4" />
                 Create Component
               </Button>

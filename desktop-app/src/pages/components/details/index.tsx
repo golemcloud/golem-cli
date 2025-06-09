@@ -9,25 +9,24 @@ import { ComponentList } from "@/types/component";
 import { Worker, WorkerStatus as IWorkerStatus } from "@/types/worker";
 
 export const ComponentDetails = () => {
-  const { componentId = "" } = useParams();
+  const { componentId = "", appId } = useParams();
   const [component, setComponent] = useState<ComponentList | null>(null);
   const [workerStatus, setWorkerStatus] = useState<IWorkerStatus>({});
   const [error, setError] = useState<Error | null>(null);
-  const { id } = useParams<{ id: string }>();
 
   useEffect(() => {
     if (!componentId) return;
 
     // Fetch component info and worker status in parallel
     Promise.all([
-      API.getComponentByIdAsKey(id!),
-      API.findWorker(id!, componentId),
+      API.getComponentByIdAsKey(appId!),
+      API.findWorker(appId!, componentId),
     ])
       .then(([componentMap, workerResponse]) => {
         // 1. Set the component data
         const foundComponent = componentMap[componentId] || null;
         setComponent(foundComponent);
-        API.getComponentYamlPath(id!, foundComponent.componentName!).then((yamlPath) => console.log("Component YAML Path:", yamlPath));
+        API.getComponentYamlPath(appId!, foundComponent.componentName!).then((yamlPath) => console.log("Component YAML Path:", yamlPath));
 
         // 2. Build a worker status map
         const status: IWorkerStatus = {

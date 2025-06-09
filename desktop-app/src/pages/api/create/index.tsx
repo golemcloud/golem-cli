@@ -39,7 +39,7 @@ type CreateApiFormValues = z.infer<typeof createApiSchema>;
 const CreateAPI = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
 
   const form = useForm<CreateApiFormValues>({
     resolver: zodResolver(createApiSchema),
@@ -58,7 +58,7 @@ const CreateAPI = () => {
         routes: [],
         draft: true,
       });
-      navigate(`/app/${id}/apis/${values.apiName}/version/${values.version}`);
+      navigate(`/app/${appId}/apis/${values.apiName}/version/${values.version}`);
     } catch (error) {
       console.error("Failed to create API:", error);
       form.setError("apiName", {

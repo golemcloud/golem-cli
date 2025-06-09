@@ -11,7 +11,7 @@ interface NavbarProps {
 }
 
 const Navbar = ({ showNav = true }: NavbarProps) => {
-  const { id } = useParams();
+  const { appId } = useParams();
 
   return (
     <nav className="border-b">
@@ -22,13 +22,13 @@ const Navbar = ({ showNav = true }: NavbarProps) => {
               <Logo />
             </a>
           </div>
-          {showNav && id && (
+          {showNav && appId && (
             <div className="flex space-x-6">
-              <NavLink to={`/app/${id}/dashboard`}>Dashboard</NavLink>
-              <NavLink to={`/app/${id}/components`}>Components</NavLink>
-              <NavLink to={`/app/${id}/apis`}>APIs</NavLink>
-              <NavLink to={`/app/${id}/deployments`}>Deployments</NavLink>
-              <NavLink to={`/app/${id}/plugins`}>Plugins</NavLink>
+              <NavLink to={`/app/${appId}/dashboard`}>Dashboard</NavLink>
+              <NavLink to={`/app/${appId}/components`}>Components</NavLink>
+              <NavLink to={`/app/${appId}/apis`}>APIs</NavLink>
+              <NavLink to={`/app/${appId}/deployments`}>Deployments</NavLink>
+              <NavLink to={`/app/${appId}/plugins`}>Plugins</NavLink>
             </div>
           )}
         </div>

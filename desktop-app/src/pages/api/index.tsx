@@ -20,10 +20,10 @@ export const APIs = () => {
   const navigate = useNavigate();
   const [apis, setApis] = useState([] as Api[]);
   const [searchedApi, setSearchedApi] = useState([] as Api[]);
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
 
   useEffect(() => {
-    API.getApiList(id!).then(response => {
+    API.getApiList(appId!).then(response => {
       const newData = removeDuplicateApis(response);
       setApis(newData);
       setSearchedApi(newData);
@@ -52,7 +52,7 @@ export const APIs = () => {
             />
           </div>
           <Button
-            onClick={() => navigate(`/app/${id}/apis/create`)}
+            onClick={() => navigate(`/app/${appId}/apis/create`)}
             variant="default"
           >
             <Plus className="h-5 w-5" />
@@ -95,11 +95,11 @@ interface APICardProps {
 
 const APICard = ({ name, version, routes, count }: APICardProps) => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
   return (
     <Card
       className="from-background to-muted bg-gradient-to-br border-border w-full cursor-pointer hover:shadow-lg"
-      onClick={() => navigate(`/app/${id}/apis/${name}/version/${version}`)}
+      onClick={() => navigate(`/app/${appId}/apis/${name}/version/${version}`)}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base font-semibold text-emerald-400">

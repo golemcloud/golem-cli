@@ -79,7 +79,7 @@ function FunctionDisplay({ funcStr }: { funcStr: string }) {
 }
 
 export default function Exports() {
-  const { componentId = "", id } = useParams();
+  const { componentId = "", appId } = useParams();
   const [component, setComponent] = useState<ComponentList>({});
   const [versionList, setVersionList] = useState<number[]>([]);
   const [versionChange, setVersionChange] = useState<number>(0);
@@ -88,7 +88,7 @@ export default function Exports() {
 
   useEffect(() => {
     if (!componentId) return;
-    API.getComponentByIdAsKey(id!).then(response => {
+    API.getComponentByIdAsKey(appId!).then(response => {
       const fetched = response[componentId];
       if (!fetched) return;
 

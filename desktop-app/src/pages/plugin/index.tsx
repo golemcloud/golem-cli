@@ -18,10 +18,10 @@ export default function PluginList() {
   const navigate = useNavigate();
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [pluginsApi, setPluginsApi] = useState<Plugin[]>([]);
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
   useEffect(() => {
     const fetchPlugins = async () => {
-      const res = await API.getPlugins(id!);
+      const res = await API.getPlugins(appId!);
       setPluginsApi(res);
       setPlugins(res);
     };
@@ -50,7 +50,7 @@ export default function PluginList() {
         <Button
           variant="default"
           className="ml-4"
-          onClick={() => navigate(`/app/${id}/plugins/create`)}
+          onClick={() => navigate(`/app/${appId}/plugins/create`)}
         >
           <Plus className="mr-2 h-5 w-5" />
           Create Plugin
@@ -65,7 +65,7 @@ export default function PluginList() {
               key={plugin.name}
               className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow from-background to-muted border-border bg-gradient-to-br"
               onClick={() =>
-                navigate(`/app/${id}/plugins/${plugin.name}/${plugin.version}`)
+                navigate(`/app/${appId}/plugins/${plugin.name}/${plugin.version}`)
               }
             >
               <CardHeader>

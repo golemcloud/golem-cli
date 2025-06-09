@@ -12,7 +12,7 @@ import ErrorBoundary from "@/components/errorBoundary.tsx";
 import { HTTP_METHOD_COLOR } from "@/components/nav-route.tsx";
 
 const APIDetails = () => {
-  const { apiName, version, id } = useParams();
+  const { apiName, version, appId } = useParams();
   const [queryParams] = useSearchParams();
   const reload = queryParams.get("reload");
   const navigate = useNavigate();
@@ -22,11 +22,11 @@ const APIDetails = () => {
 
   useEffect(() => {
     if (apiName) {
-      API.getApi(id!, apiName).then(response => {
+      API.getApi(appId!, apiName).then(response => {
         const selectedApi = response.find(r => r.version == version);
         setActiveApiDetails(selectedApi!);
       });
-      API.getDeploymentApi(id!).then(response => {
+      API.getDeploymentApi(appId!).then(response => {
         const result = [] as Deployment[];
         response.forEach((deployment: Deployment) => {
           if (deployment.apiDefinitions.length > 0) {
@@ -44,7 +44,7 @@ const APIDetails = () => {
 
   const routeToQuery = (route: RouteRequestData) => {
     navigate(
-      `/app/${id}/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
+      `/app/${appId}/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
     );
   };
   return (
@@ -59,7 +59,7 @@ const APIDetails = () => {
                   variant="outline"
                   onClick={() =>
                     navigate(
-                      `/app/${id}/apis/${apiName}/version/${version}/routes/add?`,
+                      `/app/${appId}/apis/${apiName}/version/${version}/routes/add?`,
                     )
                   }
                   className="flex items-center gap-2"
@@ -120,7 +120,7 @@ const APIDetails = () => {
                 <Button
                   variant="ghost"
                   className="text-primary"
-                  onClick={() => navigate(`/app/${id}/deployments`)}
+                  onClick={() => navigate(`/app/${appId}/deployments`)}
                 >
                   View All
                 </Button>
@@ -133,7 +133,7 @@ const APIDetails = () => {
                     <div
                       key={deployment.createdAt + deployment.site.host}
                       className="flex items-center justify-between rounded-lg border p-4 cursor-pointer"
-                      onClick={() => navigate(`/app/${id}/deployments`)}
+                      onClick={() => navigate(`/app/${appId}/deployments`)}
                     >
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">

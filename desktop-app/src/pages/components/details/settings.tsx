@@ -25,20 +25,20 @@ export default function ComponentSettings() {
   const { toast } = useToast();
   const [showConfirmAllDialog, setShowConfirmAllDialog] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const { componentId, id } = useParams();
+  const { componentId, appId } = useParams();
   const navigate = useNavigate();
 
   const handleDeleteAll = async () => {
     setIsDeleting(true);
     try {
-      const response = await API.findWorker(id!,componentId!, {
+      const response = await API.findWorker(appId!,componentId!, {
         count: 100,
         precise: true,
       });
 
       await Promise.allSettled(
         response?.workers.map((worker: Worker) =>
-          API.deleteWorker(id!,componentId!, worker.workerName),
+          API.deleteWorker(appId!,componentId!, worker.workerName),
         ),
       );
 
@@ -48,7 +48,7 @@ export default function ComponentSettings() {
         duration: 3000,
       });
 
-      navigate(`/app/${id}/components/${componentId}`);
+      navigate(`/app/${appId}/components/${componentId}`);
     } catch (error) {
       console.error(error)
       toast({

@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 export default function Plugins() {
-  const { componentId = "", id } = useParams();
+  const { componentId = "", appId } = useParams();
   const [component, setComponent] = useState<ComponentList>(
     {} as ComponentList,
   );
@@ -57,7 +57,7 @@ export default function Plugins() {
   useEffect(() => {
     const fetchPlugins = async () => {
       try {
-        const plugins = await API.getPlugins(id!);
+        const plugins = await API.getPlugins(appId!);
         const pluginMap: Record<string, string[]> = {};
         plugins.forEach(({ name, version }) => {
           if (!pluginMap[name]) {
@@ -82,7 +82,7 @@ export default function Plugins() {
   }, []);
 
   const refreshComponent = () => {
-    API.getComponentByIdAsKey(id!).then(response => {
+    API.getComponentByIdAsKey(appId!).then(response => {
       setComponent(response[componentId]);
       const data = response[componentId];
       const versionList = data.versionList || [];

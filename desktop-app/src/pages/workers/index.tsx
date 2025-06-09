@@ -26,10 +26,10 @@ export default function WorkerList() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const navigate = useNavigate();
-  const { id, componentId } = useParams();
+  const { appId, componentId } = useParams();
 
   useEffect(() => {
-    API.findWorker(id!, componentId!).then(res => {
+    API.findWorker(appId!, componentId!).then(res => {
       const sortedData = res.workers.sort(
         (a: Worker, b: Worker) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -66,7 +66,7 @@ export default function WorkerList() {
             <Button
               variant="default"
               onClick={() =>
-                navigate(`/app/${id}/components/${componentId}/workers/create`)
+                navigate(`/app/${appId}/components/${componentId}/workers/create`)
               }
             >
               <Plus className="h-4 w-4" />
@@ -94,7 +94,7 @@ export default function WorkerList() {
                   className="rounded-lg border border-border bg-muted hover:bg-muted/80 hover:shadow-lg transition cursor-pointer"
                   onClick={() =>
                     navigate(
-                      `/app/${id}/components/${componentId}/workers/${worker.workerName}`,
+                      `/app/${appId}/components/${componentId}/workers/${worker.workerName}`,
                     )
                   }
                 >

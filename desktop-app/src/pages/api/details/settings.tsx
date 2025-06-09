@@ -24,7 +24,7 @@ import { Trash2 } from "lucide-react";
 export default function APISettings() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { apiName, version, id } = useParams();
+  const { apiName, version, appId } = useParams();
   const [queryParams] = useSearchParams();
   const reload = queryParams.get("reload");
 
@@ -39,7 +39,7 @@ export default function APISettings() {
 
   useEffect(() => {
     if (apiName) {
-      API.getApi(id!, apiName).then(response => {
+      API.getApi(appId!, apiName).then(response => {
         setApiDetails(response);
         const selectedApi = response.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);
@@ -51,7 +51,7 @@ export default function APISettings() {
     setIsDeleting(true);
     try {
       if (type === "version") {
-        await API.deleteApi(activeApiDetails.id, activeApiDetails.version);
+        await API.deleteApi(activeApiDetails.appId, activeApiDetails.version);
         toast({
           title: "Version deleted",
           description: `API version ${activeApiDetails.version} has been deleted successfully.`,
@@ -62,23 +62,23 @@ export default function APISettings() {
         );
         navigate(
           newVersion
-            ? `/app/${id}/apis/${apiName}/version/${newVersion.version}`
-            : `/app/${id}/apis`,
+            ? `/app/${appId}/apis/${apiName}/version/${newVersion.version}`
+            : `/app/${appId}/apis`,
         );
         setShowConfirmDialog(false);
       } else if (type === "all") {
         await Promise.all(
-          apiDetails.map(api => API.deleteApi(api.id, api.version)),
+          apiDetails.map(api => API.deleteApi(api.appId, api.version)),
         );
         toast({
           title: "All versions deleted",
           description: "All API versions have been deleted successfully.",
           duration: 3000,
         });
-        navigate(`/app/${id}/apis`);
+        navigate(`/app/${appId}/apis`);
         setShowConfirmAllDialog(false);
       } else {
-        await API.putApi(activeApiDetails.id, activeApiDetails.version, {
+        await API.putApi(activeApiDetails.appId, activeApiDetails.version, {
           ...activeApiDetails,
           routes: [],
         });
@@ -88,7 +88,7 @@ export default function APISettings() {
           duration: 3000,
         });
         navigate(
-          `/app/${id}/apis/${apiName}/version/${version}?reload=${!reload}`,
+          `/app/${appId}/apis/${apiName}/version/${version}?reload=${!reload}`,
         );
         setShowConfirmAllRoutes(false);
       }

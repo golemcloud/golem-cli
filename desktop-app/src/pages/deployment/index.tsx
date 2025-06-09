@@ -77,7 +77,7 @@ const RoutesCard = ({
                   variant="secondary"
                   className={cn(
                     HTTP_METHOD_COLOR[
-                      endpoint.method as keyof typeof HTTP_METHOD_COLOR
+                    endpoint.method as keyof typeof HTTP_METHOD_COLOR
                     ],
                     "w-16 text-center justify-center",
                   )}
@@ -116,7 +116,7 @@ export default function Deployments() {
   const [apiList, setApiList] = useState<Api[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { id } = useParams<{ id: string }>();
+  const { appId } = useParams<{ appId: string }>();
   const [selectedDeploymentHost, setSelectedDeploymentHost] = useState<
     string | null
   >(null);
@@ -124,12 +124,12 @@ export default function Deployments() {
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        const response = await API.getApiList(id!);
+        const response = await API.getApiList(appId!);
         setApiList(response);
 
         const uniqueApis = removeDuplicateApis(response);
         const allDeployments = await Promise.all(
-          uniqueApis.map(api => API.getDeploymentApi(id!, api.subdomain)),
+          uniqueApis.map(api => API.getDeploymentApi(appId!, api.subdomain)),
         );
 
         setDeployments(allDeployments.flat().filter(Boolean));
@@ -145,7 +145,7 @@ export default function Deployments() {
     if (!selectedDeploymentHost) return;
 
     try {
-      await API.deleteDeployment(id, selectedDeploymentHost);
+      await API.deleteDeployment(appId, selectedDeploymentHost);
       setDeployments(prev =>
         prev.filter(d => d.site.host !== selectedDeploymentHost),
       );
@@ -172,7 +172,7 @@ export default function Deployments() {
           <h1 className="text-xl font-semibold">API Deployments</h1>
           <Button
             size="sm"
-            onClick={() => navigate(`/app/${id}/deployments/create`)}
+            onClick={() => navigate(`/app/${appId}/deployments/create`)}
           >
             <Plus className="w-4 h-4 mr-2" />
             New
@@ -252,40 +252,39 @@ export default function Deployments() {
                                 a =>
                                   a.id === api.id && a.version === api.version,
                               )?.routes?.length || 0) > 0 && (
-                                <button
-                                  onClick={() =>
-                                    toggleExpanded(
-                                      deployment.site.host,
-                                      api.id,
-                                      api.version,
-                                    )
-                                  }
-                                  className="p-1 hover:bg-accent rounded-md"
-                                >
-                                  <ChevronRight
-                                    className={`w-4 h-4 text-muted-foreground transition-transform ${
-                                      expandedDeployment.includes(
+                                  <button
+                                    onClick={() =>
+                                      toggleExpanded(
+                                        deployment.site.host,
+                                        api.id,
+                                        api.version,
+                                      )
+                                    }
+                                    className="p-1 hover:bg-accent rounded-md"
+                                  >
+                                    <ChevronRight
+                                      className={`w-4 h-4 text-muted-foreground transition-transform ${expandedDeployment.includes(
                                         `${deployment.site.host}.${api.id}.${api.version}`,
                                       )
-                                        ? "rotate-90"
-                                        : ""
-                                    }`}
-                                  />
-                                </button>
-                              )}
+                                          ? "rotate-90"
+                                          : ""
+                                        }`}
+                                    />
+                                  </button>
+                                )}
                             </div>
                           </div>
 
                           {expandedDeployment.includes(
                             `${deployment.site.host}.${api.id}.${api.version}`,
                           ) && (
-                            <RoutesCard
-                              apiId={api.id}
-                              version={api.version}
-                              apiList={apiList}
-                              host={deployment.site.host}
-                            />
-                          )}
+                              <RoutesCard
+                                apiId={api.id}
+                                version={api.version}
+                                apiList={apiList}
+                                host={deployment.site.host}
+                              />
+                            )}
                         </div>
                       ))}
                     </div>
