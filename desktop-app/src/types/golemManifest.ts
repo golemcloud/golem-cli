@@ -88,7 +88,21 @@ export interface HttpApiDefinition {
   version: string;
   project?: string;
   routes?: HttpApiDefinitionRoute[];
+
+  // id and componentId not part of YAML
   id?: string;
+  componentId?: string;
+}
+
+export function serializeHttpApiDefinition(
+  definition: HttpApiDefinition,
+): HttpApiDefinition {
+  //   remove added attributes
+  return {
+    version: definition.version,
+    project: definition.project,
+    routes: definition.routes,
+  };
 }
 
 export interface HttpApiDefinitionRoute {

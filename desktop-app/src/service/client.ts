@@ -18,8 +18,9 @@ import { join } from "@tauri-apps/api/path";
 import {
   GolemApplicationManifest,
   HttpApiDefinition,
+  serializeHttpApiDefinition,
 } from "@/types/golemManifest.ts";
-import { parse, stringify } from "yaml";
+import { parse, parseDocument, Document, stringify } from "yaml";
 
 export class Service {
   public baseUrl: string;
@@ -158,32 +159,29 @@ export class Service {
   public async saveComponentManifest(
     appId: string,
     componentId: string,
-    manifest: GolemApplicationManifest,
+    manifest: string,
   ): Promise<boolean> {
     const component = await this.getComponentById(appId, componentId);
     let componentYamlPath = await this.getComponentYamlPath(
       appId,
       component.componentName!,
     );
-    let rawYaml = stringify(manifest);
     // Write the YAML string to the file
-    await writeTextFile(componentYamlPath, rawYaml);
+    await writeTextFile(componentYamlPath, manifest);
 
     return true;
   }
 
   public async saveAppManifest(
     appId: string,
-    manifest: GolemApplicationManifest,
+    manifest: string,
   ): Promise<boolean> {
     const app = await settingsService.getAppById(appId);
     if (!app) {
       throw new Error("App not found");
     }
     let appManifestPath = await join(app.folderLocation, "golem.yaml");
-    let rawYaml = stringify(manifest);
-    // Write the YAML string to the file
-    await writeTextFile(appManifestPath, rawYaml);
+    await writeTextFile(appManifestPath, manifest);
 
     return true;
   }
@@ -315,6 +313,7 @@ export class Service {
           for (const apiListKey in APIList.definitions) {
             let data = APIList.definitions[apiListKey];
             data.id = apiListKey;
+            data.componentId = component.componentId;
             result.push(data);
           }
         }
@@ -322,6 +321,7 @@ export class Service {
         console.error(e, component.componentName);
       }
     }
+    // find in app's golem.yaml
 
     return result;
   };
@@ -603,4 +603,57 @@ export class Service {
   //     });
   //   return resp;
   // };
+
+  public async createApiVersion(appId: string, payload: HttpApiDefinition) {
+    // We need to know if the definition came from a component and store it there
+    const app = await settingsService.getAppById(appId);
+    let yamlToUpdate = app!.golemYamlLocation;
+
+    if (payload.componentId) {
+      const component = await this.getComponentById(appId, payload.componentId);
+      yamlToUpdate = await this.getComponentYamlPath(
+        appId,
+        component.componentName!,
+      );
+    }
+
+    // Now load the YAML into memory, update and save
+    const rawYaml = await readTextFile(yamlToUpdate);
+
+    // Parse as Document to preserve comments and formatting
+    const manifest: Document = parseDocument(rawYaml);
+
+    // Type-safe access to the parsed content
+    // const manifestData = manifest.toJS() as GolemApplicationManifest;
+
+    // Get or create httpApi section
+    let httpApi = manifest.get("httpApi") as YAMLMap | undefined;
+    if (!httpApi) {
+      // Create new httpApi section if it doesn't exist
+      manifest.set("httpApi", {});
+      httpApi = manifest.get("httpApi") as YAMLMap;
+    }
+
+    // Get or create definitions section
+    let definitions = httpApi.get("definitions") as YAMLMap | undefined;
+    if (!definitions) {
+      // Create new definitions section if it doesn't exist
+      httpApi.set("definitions", {});
+      definitions = httpApi.get("definitions") as YAMLMap;
+    }
+
+    // Add or update the API definition
+    definitions.set(payload.id!, serializeHttpApiDefinition(payload));
+
+    // Save config back
+    if (payload.componentId) {
+      await this.saveComponentManifest(
+        appId,
+        payload.componentId,
+        manifest.toString(),
+      );
+    } else {
+      await this.saveAppManifest(appId, manifest.toString());
+    }
+  }
 }
