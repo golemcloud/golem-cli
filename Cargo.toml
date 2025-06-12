@@ -107,6 +107,7 @@ tempfile = "3.18.0"
 test-r = "2.1.0"
 terminal_size = "0.4.2"
 textwrap = "0.16.1"
+thiserror = "2.0.12"
 tokio = "1.43.0"
 tokio-stream = { version = "0.1.17", features = ["fs"] }
 tokio-tungstenite = { version = "0.26.2", features = ["native-tls"] }
