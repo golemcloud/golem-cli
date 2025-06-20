@@ -20,25 +20,14 @@ use cloud_service::CloudService;
 use golem_common::config::DbConfig;
 use golem_common::config::DbSqliteConfig;
 use golem_common::model::RetryConfig;
-use golem_component_compilation_service::config::DynamicComponentServiceConfig;
-use golem_component_service::config::ComponentCompilationEnabledConfig;
 use golem_component_service::config::ComponentServiceConfig;
 use golem_component_service::ComponentService;
 use golem_service_base::clients::RemoteCloudServiceConfig;
 use golem_service_base::config::BlobStorageConfig;
 use golem_service_base::config::LocalFileSystemBlobStorageConfig;
 use golem_service_base::service::routing_table::RoutingTableConfig;
-use golem_shard_manager::shard_manager_config::{
-    FileSystemPersistenceConfig, HealthCheckConfig, PersistenceConfig, ShardManagerConfig,
-};
-use golem_worker_executor::services::golem_config::CompiledComponentServiceEnabledConfig;
-use golem_worker_executor::services::golem_config::{
-    CompiledComponentServiceConfig, IndexedStorageKVStoreSqliteConfig,
-};
-use golem_worker_executor::services::golem_config::{
-    GolemConfig, IndexedStorageConfig, KeyValueStorageConfig,
-};
-use golem_worker_executor::services::golem_config::{PluginServiceConfig, PluginServiceGrpcConfig};
+use golem_shard_manager::shard_manager_config::ShardManagerConfig;
+use golem_worker_executor::services::golem_config::GolemConfig as WorkerExecutorConfig;
 use golem_worker_service::config::WorkerServiceConfig;
 use golem_worker_service::WorkerService;
 use opentelemetry::global;
@@ -146,7 +135,6 @@ fn blob_storage_config(args: &LaunchArgs) -> BlobStorageConfig {
 
 fn cloud_service_config(args: &LaunchArgs) -> CloudServiceConfig {
     use cloud_service::config::{AccountConfig, AccountsConfig};
-
     use golem_common::model::auth::Role;
 
     let mut accounts = HashMap::new();
@@ -165,11 +153,7 @@ fn cloud_service_config(args: &LaunchArgs) -> CloudServiceConfig {
         grpc_port: 0,
         http_port: 0,
         db: DbConfig::Sqlite(DbSqliteConfig {
-            database: args
-                .data_dir
-                .join("components.db")
-                .to_string_lossy()
-                .to_string(),
+            database: args.data_dir.join("cloud.db").to_string_lossy().to_string(),
             max_connections: 4,
         }),
         accounts: AccountsConfig { accounts },
@@ -178,6 +162,10 @@ fn cloud_service_config(args: &LaunchArgs) -> CloudServiceConfig {
 }
 
 fn shard_manager_config(args: &LaunchArgs) -> ShardManagerConfig {
+    use golem_shard_manager::shard_manager_config::{
+        FileSystemPersistenceConfig, HealthCheckConfig, PersistenceConfig,
+    };
+
     ShardManagerConfig {
         grpc_port: 0,
         http_port: 0,
@@ -195,6 +183,11 @@ fn shard_manager_config(args: &LaunchArgs) -> ShardManagerConfig {
 fn component_compilation_service_config(
     args: &LaunchArgs,
 ) -> golem_component_compilation_service::config::ServerConfig {
+    use golem_component_compilation_service::config::DynamicComponentServiceConfig;
+    use golem_worker_executor::services::golem_config::{
+        CompiledComponentServiceConfig, CompiledComponentServiceEnabledConfig,
+    };
+
     golem_component_compilation_service::config::ServerConfig {
         component_service:
             golem_component_compilation_service::config::ComponentServiceConfig::Dynamic(
@@ -215,6 +208,8 @@ fn component_service_config(
     component_compilation_service: &golem_component_compilation_service::RunDetails,
     cloud_service: &cloud_service::TrafficReadyEndpoints,
 ) -> golem_component_service::config::ComponentServiceConfig {
+    use golem_component_service::config::ComponentCompilationEnabledConfig;
+
     ComponentServiceConfig {
         http_port: 0,
         grpc_port: 0,
@@ -250,15 +245,24 @@ fn worker_executor_config(
     shard_manager_run_details: &golem_shard_manager::RunDetails,
     component_service_run_details: &golem_component_service::TrafficReadyEndpoints,
     cloud_service_run_details: &cloud_service::TrafficReadyEndpoints,
-) -> GolemConfig {
+) -> WorkerExecutorConfig {
+    use golem_worker_executor::services::golem_config::CompiledComponentServiceEnabledConfig;
     use golem_worker_executor::services::golem_config::ComponentServiceConfig;
     use golem_worker_executor::services::golem_config::{
-        CompiledComponentServiceConfig, CompiledComponentServiceEnabledConfig,
-        ComponentServiceGrpcConfig, GolemConfig, ResourceLimitsConfig, ResourceLimitsGrpcConfig,
+        CompiledComponentServiceConfig, IndexedStorageKVStoreSqliteConfig,
+    };
+    use golem_worker_executor::services::golem_config::{
+        ComponentServiceGrpcConfig, ResourceLimitsConfig, ResourceLimitsGrpcConfig,
         ShardManagerServiceConfig, ShardManagerServiceGrpcConfig,
     };
+    use golem_worker_executor::services::golem_config::{
+        IndexedStorageConfig, KeyValueStorageConfig,
+    };
+    use golem_worker_executor::services::golem_config::{
+        PluginServiceConfig, PluginServiceGrpcConfig,
+    };
 
-    let mut config = GolemConfig {
+    let mut config = WorkerExecutorConfig {
         port: 0,
         http_port: 0,
         key_value_storage: KeyValueStorageConfig::Sqlite(DbSqliteConfig {
@@ -406,7 +410,7 @@ async fn run_component_service(
 }
 
 async fn run_worker_executor(
-    config: GolemConfig,
+    config: WorkerExecutorConfig,
     join_set: &mut JoinSet<anyhow::Result<()>>,
 ) -> Result<golem_worker_executor::RunDetails, anyhow::Error> {
     let prometheus_registry = golem_worker_executor::metrics::register_all();
