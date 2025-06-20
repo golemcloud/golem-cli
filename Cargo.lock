@@ -3685,11 +3685,11 @@ dependencies = [
  "reqwest 0.12.17",
  "rustls 0.23.27",
  "serde",
- "sqlx",
  "tempfile",
  "test-r",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

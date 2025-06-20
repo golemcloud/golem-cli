@@ -46,7 +46,7 @@ use golem_client::api::TokenClientLive as TokenClientCloud;
 use golem_client::api::WorkerClientLive as WorkerClientCloud;
 use golem_client::api::{AccountClientLive as AccountClientCloud, LoginClientLive};
 use golem_client::{Context as ContextCloud, Security};
-use golem_rib_repl::{ReplComponentDependencies};
+use golem_rib_repl::ReplComponentDependencies;
 use golem_templates::model::{ComposableAppGroupName, GuestLanguage};
 use golem_templates::ComposableAppTemplate;
 use std::borrow::Cow;

@@ -23,15 +23,15 @@ use crate::model::{ComponentName, ComponentNameMatchKind, IdempotencyKey, Worker
 use anyhow::{anyhow, bail};
 use async_trait::async_trait;
 use golem_rib_repl::{
-    ReplComponentDependencies, RibDependencyManager, RibRepl, RibReplConfig, WorkerFunctionInvoke
+    ReplComponentDependencies, RibDependencyManager, RibRepl, RibReplConfig, WorkerFunctionInvoke,
 };
+use golem_wasm_ast::analysis::AnalysedType;
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::ValueAndType;
+use rib::ComponentDependency;
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
-use golem_wasm_ast::analysis::AnalysedType;
-use rib::ComponentDependency;
 
 #[derive(Clone)]
 pub struct RibReplHandler {

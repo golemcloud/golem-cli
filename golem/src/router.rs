@@ -14,7 +14,7 @@
 
 use crate::StartedComponents;
 use anyhow::Context;
-use poem::middleware::{OpenTelemetryMetrics, Tracing};
+use poem::middleware::{CookieJarManager, Cors, OpenTelemetryMetrics, Tracing};
 use poem::EndpointExt;
 use poem::{Route, Server};
 use std::net::Ipv4Addr;
@@ -125,6 +125,8 @@ pub fn start_router(
         .at("/v1/projects/*", cloud_service_api.clone())
         .at("/metrics", metrics)
         .at("/healthcheck", component_service_api)
+        .with(CookieJarManager::new())
+        .with(Cors::new().allow_origin_regex(".*").allow_credentials(true))
         .with(OpenTelemetryMetrics::new())
         .with(Tracing);
 
