@@ -46,7 +46,7 @@ use golem_client::api::TokenClientLive as TokenClientCloud;
 use golem_client::api::WorkerClientLive as WorkerClientCloud;
 use golem_client::api::{AccountClientLive as AccountClientCloud, LoginClientLive};
 use golem_client::{Context as ContextCloud, Security};
-use golem_rib_repl::ReplDependencies;
+use golem_rib_repl::{ReplComponentDependencies};
 use golem_templates::model::{ComposableAppGroupName, GuestLanguage};
 use golem_templates::ComposableAppTemplate;
 use std::borrow::Cow;
@@ -427,14 +427,14 @@ impl Context {
         Ok(app_ctx.application.task_result_marker_dir())
     }
 
-    pub async fn set_rib_repl_dependencies(&self, dependencies: ReplDependencies) {
+    pub async fn set_rib_repl_dependencies(&self, dependencies: ReplComponentDependencies) {
         let mut rib_repl_state = self.rib_repl_state.write().await;
         rib_repl_state.dependencies = dependencies;
     }
 
-    pub async fn get_rib_repl_dependencies(&self) -> ReplDependencies {
+    pub async fn get_rib_repl_dependencies(&self) -> ReplComponentDependencies {
         let rib_repl_state = self.rib_repl_state.read().await;
-        ReplDependencies {
+        ReplComponentDependencies {
             component_dependencies: rib_repl_state.dependencies.component_dependencies.clone(),
         }
     }
@@ -765,13 +765,13 @@ impl ApplicationContextState {
 }
 
 pub struct RibReplState {
-    dependencies: ReplDependencies,
+    dependencies: ReplComponentDependencies,
 }
 
 impl Default for RibReplState {
     fn default() -> Self {
         Self {
-            dependencies: ReplDependencies {
+            dependencies: ReplComponentDependencies {
                 component_dependencies: vec![],
             },
         }

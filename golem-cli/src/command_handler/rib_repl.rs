@@ -23,14 +23,15 @@ use crate::model::{ComponentName, ComponentNameMatchKind, IdempotencyKey, Worker
 use anyhow::{anyhow, bail};
 use async_trait::async_trait;
 use golem_rib_repl::{
-    ReplDependencies, RibComponentMetadata, RibDependencyManager, RibRepl, RibReplConfig,
-    WorkerFunctionInvoke,
+    ReplComponentDependencies, RibDependencyManager, RibRepl, RibReplConfig, WorkerFunctionInvoke
 };
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::ValueAndType;
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
+use golem_wasm_ast::analysis::AnalysedType;
+use rib::ComponentDependency;
 
 #[derive(Clone)]
 pub struct RibReplHandler {
@@ -76,15 +77,16 @@ impl RibReplHandler {
             )
             .await?;
 
-        self.ctx
-            .set_rib_repl_dependencies(ReplDependencies {
-                component_dependencies: vec![RibComponentMetadata {
-                    component_id: component.versioned_component_id.component_id,
-                    component_name: component.component_name.0.clone(),
-                    metadata: component.metadata.exports.clone(),
-                }],
-            })
-            .await;
+        // TODO: Ask Afsal
+        // self.ctx
+        //     .set_rib_repl_dependencies(ReplComponentDependencies {
+        //         component_dependencies: vec![RibComponentMetadata {
+        //             component_id: component.versioned_component_id.component_id,
+        //             component_name: component.component_name.0.clone(),
+        //             metadata: component.metadata.exports.clone(),
+        //         }],
+        //     })
+        //     .await;
 
         let mut repl = RibRepl::bootstrap(RibReplConfig {
             history_file: Some(self.ctx.rib_repl_history_file().await?),
@@ -115,7 +117,7 @@ impl RibReplHandler {
 
 #[async_trait]
 impl RibDependencyManager for RibReplHandler {
-    async fn get_dependencies(&self) -> anyhow::Result<ReplDependencies> {
+    async fn get_dependencies(&self) -> anyhow::Result<ReplComponentDependencies> {
         Ok(self.ctx.get_rib_repl_dependencies().await)
     }
 
@@ -123,7 +125,7 @@ impl RibDependencyManager for RibReplHandler {
         &self,
         _source_path: &Path,
         _component_name: String,
-    ) -> anyhow::Result<RibComponentMetadata> {
+    ) -> anyhow::Result<ComponentDependency> {
         unreachable!("add_component should not be used in CLI")
     }
 }
@@ -137,6 +139,7 @@ impl WorkerFunctionInvoke for RibReplHandler {
         worker_name: Option<String>,
         function_name: &str,
         args: Vec<ValueAndType>,
+        _return_type: Option<AnalysedType>,
     ) -> anyhow::Result<Option<ValueAndType>> {
         let worker_name = worker_name.map(WorkerName::from);
 

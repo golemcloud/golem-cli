@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::migration::IncludedMigrationsDir;
 use crate::router::start_router;
 use crate::StartedComponents;
 use anyhow::Context;
@@ -21,7 +20,7 @@ use golem_common::config::DbSqliteConfig;
 use golem_component_compilation_service::config::DynamicComponentServiceConfig;
 use golem_component_service::config::ComponentServiceConfig;
 use golem_component_service::ComponentService;
-use golem_component_service_base::config::ComponentCompilationEnabledConfig;
+use golem_component_service::config::ComponentCompilationEnabledConfig;
 use golem_service_base::config::BlobStorageConfig;
 use golem_service_base::config::LocalFileSystemBlobStorageConfig;
 use golem_service_base::service::routing_table::RoutingTableConfig;
@@ -41,7 +40,7 @@ use golem_worker_executor::services::golem_config::{
     PluginServiceConfig, PluginServiceGrpcConfig, ShardManagerServiceGrpcConfig,
 };
 use golem_worker_service::WorkerService;
-use golem_worker_service_base::app_config::WorkerServiceBaseConfig;
+use golem_worker_service::config::WorkerServiceConfig;
 use opentelemetry::global;
 use opentelemetry_sdk::metrics::MeterProviderBuilder;
 use prometheus::Registry;
@@ -49,6 +48,8 @@ use std::path::PathBuf;
 use tokio::runtime::Handle;
 use tokio::task::JoinSet;
 use tracing::Instrument;
+use cloud_service::config::CloudServiceConfig;
+use cloud_service::CloudService;
 
 pub struct LaunchArgs {
     pub router_addr: String,
@@ -101,6 +102,8 @@ async fn start_components(
     args: &LaunchArgs,
     join_set: &mut JoinSet<anyhow::Result<()>>,
 ) -> Result<StartedComponents, anyhow::Error> {
+    let cloud_service = run_cloud_service(cloud_service_config(args), join_set).await?;
+
     let shard_manager = run_shard_manager(shard_manager_config(args), join_set).await?;
 
     let component_compilation_service =
@@ -122,6 +125,7 @@ async fn start_components(
     .await?;
 
     Ok(StartedComponents {
+        cloud_service,
         shard_manager,
         worker_executor,
         component_service,
@@ -134,6 +138,22 @@ fn blob_storage_config(args: &LaunchArgs) -> BlobStorageConfig {
     BlobStorageConfig::LocalFileSystem(LocalFileSystemBlobStorageConfig {
         root: args.data_dir.join("blobs"),
     })
+}
+
+fn cloud_service_config(args: &LaunchArgs) -> CloudServiceConfig {
+    CloudServiceConfig {
+        grpc_port: 0,
+        http_port: 0,
+        db: DbConfig::Sqlite(DbSqliteConfig {
+            database: args
+                .data_dir
+                .join("components.db")
+                .to_string_lossy()
+                .to_string(),
+            max_connections: 4,
+        }),
+        ..Default::default()
+    }
 }
 
 fn shard_manager_config(args: &LaunchArgs) -> ShardManagerConfig {
@@ -172,7 +192,7 @@ fn component_compilation_service_config(
 fn component_service_config(
     args: &LaunchArgs,
     component_compilation_service: &golem_component_compilation_service::RunDetails,
-) -> ComponentServiceConfig {
+) -> golem_component_service::config::ComponentServiceConfig {
     ComponentServiceConfig {
         http_port: 0,
         grpc_port: 0,
@@ -185,7 +205,7 @@ fn component_service_config(
             max_connections: 4,
         }),
         blob_storage: blob_storage_config(args),
-        compilation: golem_component_service_base::config::ComponentCompilationConfig::Enabled(
+        compilation: golem_component_service::config::ComponentCompilationConfig::Enabled(
             ComponentCompilationEnabledConfig {
                 host: args.router_addr.clone(),
                 port: component_compilation_service.grpc_port,
@@ -247,8 +267,8 @@ fn worker_service_config(
     args: &LaunchArgs,
     shard_manager_run_details: &golem_shard_manager::RunDetails,
     component_service_run_details: &golem_component_service::TrafficReadyEndpoints,
-) -> WorkerServiceBaseConfig {
-    WorkerServiceBaseConfig {
+) -> WorkerServiceConfig {
+    WorkerServiceConfig {
         port: 0,
         worker_grpc_port: 0,
         custom_request_port: args.custom_request_port,
@@ -261,7 +281,7 @@ fn worker_service_config(
             max_connections: 4,
         }),
         gateway_session_storage:
-            golem_worker_service_base::app_config::GatewaySessionStorageConfig::Sqlite(
+            golem_worker_service::config::GatewaySessionStorageConfig::Sqlite(
                 DbSqliteConfig {
                     database: args
                         .data_dir
@@ -272,10 +292,10 @@ fn worker_service_config(
                 },
             ),
         blob_storage: blob_storage_config(args),
-        component_service: golem_worker_service_base::app_config::ComponentServiceConfig {
+        component_service: golem_worker_service::config::ComponentServiceConfig {
             host: args.router_addr.clone(),
             port: component_service_run_details.grpc_port,
-            ..golem_worker_service_base::app_config::ComponentServiceConfig::default()
+            ..golem_worker_service::config::ComponentServiceConfig::default()
         },
         routing_table: RoutingTableConfig {
             host: args.router_addr.clone(),
@@ -284,6 +304,20 @@ fn worker_service_config(
         },
         ..Default::default()
     }
+}
+
+async fn run_cloud_service(
+    config: CloudServiceConfig,
+    join_set: &mut JoinSet<anyhow::Result<()>>,
+) -> Result<cloud_service::TrafficReadyEndpoints, anyhow::Error> {
+    let prometheus_registry = golem_component_service::metrics::register_all();
+    let span = tracing::info_span!("cloud-service", component = "cloud-service");
+    CloudService::new(config, prometheus_registry)
+        .instrument(span.clone())
+        .await?
+        .start_endpoints(join_set)
+        .instrument(span)
+        .await
 }
 
 async fn run_shard_manager(
@@ -313,9 +347,8 @@ async fn run_component_service(
     join_set: &mut JoinSet<anyhow::Result<()>>,
 ) -> Result<golem_component_service::TrafficReadyEndpoints, anyhow::Error> {
     let prometheus_registry = golem_component_service::metrics::register_all();
-    let migrations_dir = IncludedMigrationsDir::new(ComponentService::db_migrations());
     let span = tracing::info_span!("component-service", component = "component-service");
-    ComponentService::new(config, prometheus_registry, migrations_dir)
+    ComponentService::new(config, prometheus_registry)
         .instrument(span.clone())
         .await?
         .start_endpoints(join_set)
@@ -330,19 +363,18 @@ async fn run_worker_executor(
     let prometheus_registry = golem_worker_executor::metrics::register_all();
 
     let span = tracing::info_span!("worker-executor");
-    golem_worker_executor::oss::run(config, prometheus_registry, Handle::current(), join_set)
+    golem_worker_executor::bootstrap::run(config, prometheus_registry, Handle::current(), join_set)
         .instrument(span)
         .await
 }
 
 async fn run_worker_service(
-    config: WorkerServiceBaseConfig,
+    config: WorkerServiceConfig,
     join_set: &mut JoinSet<anyhow::Result<()>>,
 ) -> Result<golem_worker_service::TrafficReadyEndpoints, anyhow::Error> {
     let prometheus_registry = golem_worker_executor::metrics::register_all();
-    let migration_path = IncludedMigrationsDir::new(WorkerService::db_migrations());
     let span = tracing::info_span!("worker-service");
-    WorkerService::new(config, prometheus_registry, migration_path)
+    WorkerService::new(config, prometheus_registry)
         .instrument(span.clone())
         .await?
         .start_endpoints(join_set)
