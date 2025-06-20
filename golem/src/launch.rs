@@ -191,7 +191,9 @@ fn component_compilation_service_config(
     golem_component_compilation_service::config::ServerConfig {
         component_service:
             golem_component_compilation_service::config::ComponentServiceConfig::Dynamic(
-                DynamicComponentServiceConfig::default(),
+                DynamicComponentServiceConfig {
+                    access_token: ADMIN_TOKEN,
+                },
             ),
         compiled_component_service: CompiledComponentServiceConfig::Enabled(
             CompiledComponentServiceEnabledConfig {},
