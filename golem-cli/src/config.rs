@@ -32,7 +32,7 @@ pub const CLOUD_URL: &str = "https://release.api.golem.cloud";
 pub const DEFAULT_OSS_URL: &str = "http://localhost:9881";
 const PROFILE_NAME_LOCAL: &str = "local";
 const PROFILE_NAME_CLOUD: &str = "cloud";
-pub const LOCAL_WELL_KNOWN_TOKEN: Uuid = uuid::uuid!("0c913ee0-f743-45a5-be96-a209b8a9edbe");
+pub const LOCAL_WELL_KNOWN_TOKEN: Uuid = uuid::uuid!("5c832d93-ff85-4a8f-9803-513950fdfdb1");
 
 // TODO: review and separate model, config and serialization parts
 // TODO: when doing the serialization we can do a legacy migration
