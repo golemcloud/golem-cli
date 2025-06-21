@@ -28,7 +28,7 @@ use golem_rib_repl::{
 use golem_wasm_ast::analysis::AnalysedType;
 use golem_wasm_rpc::json::OptionallyTypeAnnotatedValueJson;
 use golem_wasm_rpc::ValueAndType;
-use rib::ComponentDependency;
+use rib::{ComponentDependency, ComponentDependencyKey};
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -77,16 +77,21 @@ impl RibReplHandler {
             )
             .await?;
 
-        // TODO: Ask Afsal
-        // self.ctx
-        //     .set_rib_repl_dependencies(ReplComponentDependencies {
-        //         component_dependencies: vec![RibComponentMetadata {
-        //             component_id: component.versioned_component_id.component_id,
-        //             component_name: component.component_name.0.clone(),
-        //             metadata: component.metadata.exports.clone(),
-        //         }],
-        //     })
-        //     .await;
+        let component_dependency_key = ComponentDependencyKey {
+            component_name: component.component_name.0.clone(),
+            component_id: component.versioned_component_id.component_id.clone(),
+            root_package_name: component.metadata.root_package_name.clone(),
+            root_package_version: component.metadata.root_package_version.clone(),
+        };
+
+        self.ctx
+            .set_rib_repl_dependencies(ReplComponentDependencies {
+                component_dependencies: vec![ComponentDependency::new(
+                    component_dependency_key,
+                    component.metadata.exports.clone(),
+                )],
+            })
+            .await;
 
         let mut repl = RibRepl::bootstrap(RibReplConfig {
             history_file: Some(self.ctx.rib_repl_history_file().await?),
