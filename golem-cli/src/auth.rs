@@ -13,12 +13,12 @@
 // limitations under the License.
 
 use crate::config::{
-    AccountId, AuthSecret, AuthenticationConfig, OAuth2AuthenticationConfig,
-    OAuth2AuthenticationData,
+    AuthSecret, AuthenticationConfig, OAuth2AuthenticationConfig, OAuth2AuthenticationData,
 };
 use crate::config::{Config, ProfileName};
 use crate::error::service::AnyhowMapServiceError;
 use crate::log::LogColorize;
+use crate::model::AccountId;
 use anyhow::{anyhow, bail, Context};
 use colored::Colorize;
 use golem_client::api::{LoginClient, LoginClientLive, LoginOauth2WebFlowPollError};

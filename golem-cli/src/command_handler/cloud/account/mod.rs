@@ -16,7 +16,6 @@ pub mod grant;
 
 use crate::command::cloud::account::AccountSubcommand;
 use crate::command_handler::Handlers;
-use crate::config::AccountId;
 use crate::context::Context;
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
@@ -24,6 +23,7 @@ use crate::log::log_warn_action;
 use crate::model::text::account::{AccountGetView, AccountNewView};
 use crate::model::text::fmt::log_error;
 use crate::model::AccountDetails;
+use crate::model::AccountId;
 use anyhow::bail;
 use golem_client::api::AccountClient;
 use golem_client::model::{Account, AccountData};

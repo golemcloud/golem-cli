@@ -14,7 +14,6 @@
 
 use crate::command::cloud::project::{ProjectActionsOrPolicyId, ProjectSubcommand};
 use crate::command_handler::Handlers;
-use crate::config::ProjectId;
 use crate::context::Context;
 use crate::error::service::AnyhowMapServiceError;
 use crate::error::NonSuccessfulExit;
@@ -24,6 +23,7 @@ use crate::model::text::fmt::{log_error, log_text_view};
 use crate::model::text::project::{
     ProjectCreatedView, ProjectGetView, ProjectGrantView, ProjectListView,
 };
+use crate::model::ProjectId;
 use crate::model::{ProjectName, ProjectRefAndId, ProjectReference};
 use anyhow::{anyhow, bail};
 use golem_client::api::{ProjectClient, ProjectGrantClient};

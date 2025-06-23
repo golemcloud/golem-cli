@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{AccountId, ProjectId};
 use crate::model::ProjectName;
+use crate::model::{AccountId, ProjectId};
 use golem_client::model::{Project, ProjectType};
 use serde::{Deserialize, Serialize};
 

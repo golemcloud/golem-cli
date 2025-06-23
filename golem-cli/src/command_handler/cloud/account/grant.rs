@@ -14,10 +14,10 @@
 
 use crate::command::cloud::account::grant::GrantSubcommand;
 use crate::command_handler::Handlers;
-use crate::config::AccountId;
 use crate::context::Context;
 use crate::error::service::AnyhowMapServiceError;
 use crate::model::text::account::GrantGetView;
+use crate::model::AccountId;
 use crate::model::Role;
 
 use crate::log::log_action;

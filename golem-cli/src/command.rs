@@ -550,8 +550,8 @@ pub enum GolemCliSubcommand {
 }
 
 pub mod shared_args {
-    use crate::config::AccountId;
     use crate::model::app::AppBuildStep;
+    use crate::model::AccountId;
     use crate::model::{
         ComponentName, ProjectName, ProjectReference, WorkerName, WorkerUpdateMode,
     };

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::ProjectId;
 use crate::model::wave::function_wave_compatible;
 use crate::model::ComponentName;
+use crate::model::ProjectId;
 use anyhow::{anyhow, bail};
 use chrono::{DateTime, Utc};
 use golem_client::model::{
