@@ -8,7 +8,8 @@ export class WSS {
   }
 
   static async getConnection(url: string): Promise<WSS> {
-    let ip = await fetchCurrentIP();
+    // let ip = await fetchCurrentIP();
+    let ip = "http://localhost:9881";
     ip = ip?.replace("http", "ws");
     ip = ip?.replace("https", "wss");
     url = ip ? `${ip}${url}` : url;

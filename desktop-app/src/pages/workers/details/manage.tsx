@@ -34,7 +34,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function WorkerManage() {
-  const { componentId = "", workerName = "" } = useParams();
+  const {appId, componentId = "", workerName = "" } = useParams();
   const navigate = useNavigate();
   const [workerDetails, setWorkerDetails] = useState({} as Worker);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -45,10 +45,10 @@ export default function WorkerManage() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getComponentByIdAsKey().then(response => {
+      API.getComponentByIdAsKey(appId!).then(response => {
         setComponentList(response[componentId]);
       });
-      API.getParticularWorker(componentId, workerName).then(response => {
+      API.getParticularWorker(appId!,componentId, workerName).then(response => {
         setWorkerDetails(response);
         setUpgradeTo(`${response?.componentVersion}`);
       });
@@ -57,8 +57,9 @@ export default function WorkerManage() {
 
   const handleUpgrade = () => {
     API.upgradeWorker(
-      workerDetails?.workerId?.componentId,
-      workerDetails?.workerId?.workerName,
+      appId!,
+      componentList.componentName!,
+      workerDetails?.workerName,
       Number(upgradeTo),
       upgradeType,
     ).then(() => {
@@ -70,13 +71,13 @@ export default function WorkerManage() {
   };
 
   const handleDelete = () => {
-    API.deleteWorker(componentId, workerName).then(() => {
+    API.deleteWorker(appId!, componentId, workerName).then(() => {
       toast({
         title: "Worker deleted successfully",
         duration: 3000,
         variant: "destructive",
       });
-      navigate(`/components/${componentId}`);
+      navigate(`/app/${appId}/components/${componentId}`);
     });
   };
 
@@ -201,7 +202,7 @@ export default function WorkerManage() {
                 Component ID
               </Label>
               <Input
-                id="componentId"
+                appId="componentId"
                 defaultValue={workerDetails?.workerId?.componentId || "N/A"}
                 className="col-span-3 bg-muted/50"
                 disabled
@@ -217,7 +218,7 @@ export default function WorkerManage() {
                 Current Version
               </Label>
               <Input
-                id="componentVersion"
+                appId="componentVersion"
                 defaultValue={workerDetails?.componentVersion || "N/A"}
                 className="col-span-3 bg-muted/50"
                 disabled
@@ -233,7 +234,7 @@ export default function WorkerManage() {
                 Upgrade Type
               </Label>
               <Select defaultValue="Automatic" onValueChange={setUpgradeType}>
-                <SelectTrigger id="upgradeType" className="col-span-3">
+                <SelectTrigger appId="upgradeType" className="col-span-3">
                   <SelectValue>{upgradeType}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -255,7 +256,7 @@ export default function WorkerManage() {
                 Upgrade To
               </Label>
               <Select defaultValue={upgradeTo} onValueChange={setUpgradeTo}>
-                <SelectTrigger id="upgradeTo" className="col-span-3">
+                <SelectTrigger appId="upgradeTo" className="col-span-3">
                   <SelectValue>
                     {upgradeTo ? `v${upgradeTo}` : "Select a version"}
                   </SelectValue>

@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 export default function Plugins() {
-  const { componentId = "" } = useParams();
+  const { componentId = "", appId } = useParams();
   const [component, setComponent] = useState<ComponentList>(
     {} as ComponentList,
   );
@@ -50,14 +50,14 @@ export default function Plugins() {
     priority: 1,
     version: "",
   });
-  const [availabePlugin, setAvailabePlugin] = useState<
+  const [availablePlugin, setAvailablePlugin] = useState<
     Record<string, string[]>
   >({});
 
   useEffect(() => {
     const fetchPlugins = async () => {
       try {
-        const plugins = await API.getPlugins();
+        const plugins = await API.getPlugins(appId!);
         const pluginMap: Record<string, string[]> = {};
         plugins.forEach(({ name, version }) => {
           if (!pluginMap[name]) {
@@ -65,7 +65,7 @@ export default function Plugins() {
           }
           pluginMap[name].push(version);
         });
-        setAvailabePlugin(pluginMap);
+        setAvailablePlugin(pluginMap);
       } catch (error) {
         toast({
           title: "Failed to fetch plugins",
@@ -82,7 +82,7 @@ export default function Plugins() {
   }, []);
 
   const refreshComponent = () => {
-    API.getComponentByIdAsKey().then(response => {
+    API.getComponentByIdAsKey(appId!).then(response => {
       setComponent(response[componentId]);
       const data = response[componentId];
       const versionList = data.versionList || [];
@@ -211,8 +211,8 @@ export default function Plugins() {
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.keys(availabePlugin).length > 0 ? (
-                      Object.keys(availabePlugin).map(plugin => (
+                    {Object.keys(availablePlugin).length > 0 ? (
+                      Object.keys(availablePlugin).map(plugin => (
                         <SelectItem key={plugin} value={plugin}>
                           {plugin}
                         </SelectItem>
@@ -240,7 +240,7 @@ export default function Plugins() {
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {(availabePlugin[newPlugin.name || ""] || []).map(
+                    {(availablePlugin[newPlugin.name || ""] || []).map(
                       version => (
                         <SelectItem key={version} value={version}>
                           {version}

@@ -151,7 +151,6 @@ const SidebarProvider = React.forwardRef<
               className,
             )}
             ref={ref}
-            {...props}
           >
             {children}
           </div>
@@ -191,7 +190,6 @@ const Sidebar = React.forwardRef<
             className,
           )}
           ref={ref}
-          {...props}
         >
           {children}
         </div>
@@ -250,7 +248,6 @@ const Sidebar = React.forwardRef<
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className,
           )}
-          {...props}
         >
           <div
             data-sidebar="sidebar"
@@ -282,7 +279,6 @@ const SidebarTrigger = React.forwardRef<
         onClick?.(event);
         toggleSidebar();
       }}
-      {...props}
     >
       <PanelLeft />
       <span className="sr-only">Toggle Sidebar</span>
@@ -314,7 +310,6 @@ const SidebarRail = React.forwardRef<
         "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
         className,
       )}
-      {...props}
     />
   );
 });
