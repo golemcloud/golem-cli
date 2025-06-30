@@ -1,3 +1,3 @@
-export function example_common_function() {
+export function exampleCommonFunction() {
     return "hello common";
 }

@@ -1,4 +1,4 @@
-let state = 0;
+let state = BigInt(0);
 
 export const componentNameApi = {
     add(value) {

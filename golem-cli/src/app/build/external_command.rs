@@ -20,6 +20,7 @@ use crate::fs::compile_and_collect_globs;
 use crate::log::{log_action, log_skipping_up_to_date, LogColorize, LogIndent};
 use crate::model::app_raw;
 use anyhow::{anyhow, Context};
+use camino::Utf8Path;
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
@@ -88,6 +89,53 @@ pub fn execute_custom_command(
     }
 
     Ok(())
+}
+
+pub fn execute_build_command(
+    ctx: &ApplicationContext,
+    base_build_dir: &Path,
+    command: &app_raw::BuildCommand,
+    additional_env_vars: HashMap<String, String>,
+) -> anyhow::Result<()> {
+    match command {
+        app_raw::BuildCommand::External(external_command) => {
+            execute_external_command(ctx, base_build_dir, external_command, additional_env_vars)
+        }
+        app_raw::BuildCommand::QuickJSCrate(cmd) => {
+            log_action(
+                "Executing",
+                format!(
+                    "WASM RQuickJS wrapper generator in directory {}",
+                    base_build_dir.log_color_highlight()
+                ),
+            );
+
+            let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
+            wasm_rquickjs::generate_wrapper_crate(
+                &base_build_dir.join(&cmd.wit),
+                &base_build_dir.join(&cmd.js),
+                &base_build_dir.join(&cmd.generate_quickjs_crate),
+                cmd.world.as_ref().map(|x| x.as_str()),
+            )
+        }
+        app_raw::BuildCommand::QuickJSDTS(cmd) => {
+            log_action(
+                "Executing",
+                format!(
+                    "WASM RQuickJS d.ts generator in directory {}",
+                    base_build_dir.log_color_highlight()
+                ),
+            );
+
+            let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
+            wasm_rquickjs::generate_dts(
+                &base_build_dir.join(&cmd.wit),
+                &base_build_dir.join(&cmd.generate_quickjs_dts),
+                cmd.world.as_ref().map(|x| x.as_str()),
+            )
+            .context("Failed to generate QuickJS DTS")
+        }
+    }
 }
 
 pub fn execute_external_command(
