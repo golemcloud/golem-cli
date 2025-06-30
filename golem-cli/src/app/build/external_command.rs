@@ -115,7 +115,7 @@ pub fn execute_build_command(
                 &base_build_dir.join(&cmd.wit),
                 &base_build_dir.join(&cmd.js),
                 &base_build_dir.join(&cmd.generate_quickjs_crate),
-                cmd.world.as_ref().map(|x| x.as_str()),
+                cmd.world.as_deref(),
             )
         }
         app_raw::BuildCommand::QuickJSDTS(cmd) => {
@@ -131,7 +131,7 @@ pub fn execute_build_command(
             wasm_rquickjs::generate_dts(
                 &base_build_dir.join(&cmd.wit),
                 &base_build_dir.join(&cmd.generate_quickjs_dts),
-                cmd.world.as_ref().map(|x| x.as_str()),
+                cmd.world.as_deref(),
             )
             .context("Failed to generate QuickJS DTS")
         }
