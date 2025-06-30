@@ -18,14 +18,14 @@ templates:
     - command: cargo component build --release
       dir: ../../golem-temp/quickjs-wrappers/{{ component_name | to_snake_case }}
       sources:
-        - src
-        - wit
-        - Cargo.toml
+      - src
+      - wit
+      - Cargo.toml
       targets:
-        - ../../golem-temp/quickjs-wrappers/{{ component_name | to_snake_case }}/target/wasm32-wasip1/release/{{ component_name | to_snake_case }}.wasm
+      - target/wasm32-wasip1/release/{{ component_name | to_snake_case }}.wasm
     sourceWit: wit
     generatedWit: wit-generated
-    componentWasm:  ../../golem-temp/quickjs-wrappers/{{ component_name | to_snake_case }}/target/wasm32-wasip1/release/{{ component_name | to_snake_case }}.wasm
+    componentWasm: ../../golem-temp/quickjs-wrappers/{{ component_name | to_snake_case }}/target/wasm32-wasip1/release/{{ component_name | to_snake_case }}.wasm
     linkedWasm: ../../golem-temp/components/{{ component_name | to_snake_case }}.wasm
     clean:
     - dist

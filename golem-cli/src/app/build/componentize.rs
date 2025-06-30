@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::app::build::external_command::execute_build_command;
+use crate::app::build::command::execute_build_command;
 use crate::app::context::ApplicationContext;
 use crate::log::{log_action, log_warn_action, LogColorize, LogIndent};
 use crate::model::app::{AppComponentName, DependencyType};
