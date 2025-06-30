@@ -122,7 +122,7 @@ wax = "0.6.0"
 wasm-metadata = { version = "0.228", features = ["oci"] }
 wasmparser = "0.228.0"
 wasm-encoder = "0.228.0"
-wasm-rquickjs = "0.0.2"
+wasm-rquickjs = "0.0.3"
 wit-bindgen-rust = "0.40.0"
 wit-component = "0.228"
 wit-encoder = "0.228"
