@@ -3,6 +3,8 @@
 templates:
   js:
     build:
+    - generateQuickjsDts: src/generated/interfaces
+      wit: wit-generated
     - command: npx rollup -c
       sources:
       - src
