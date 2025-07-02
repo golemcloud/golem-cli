@@ -63,7 +63,7 @@ impl ApiCloudCertificateCommandHandler {
         }
     }
 
-    async fn cmd_get(
+    pub async fn cmd_get(
         &self,
         project: ProjectReference,
         certificate_id: Option<Uuid>,
@@ -93,7 +93,7 @@ impl ApiCloudCertificateCommandHandler {
         Ok(())
     }
 
-    async fn cmd_new(
+    pub async fn cmd_new(
         &self,
         project: ProjectReference,
         domain_name: String,
@@ -132,7 +132,7 @@ impl ApiCloudCertificateCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(
+    pub async fn cmd_delete(
         &self,
         project: ProjectReference,
         certificate_id: Uuid,

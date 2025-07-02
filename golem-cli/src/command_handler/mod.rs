@@ -39,6 +39,7 @@ use crate::command_handler::component::plugin_installation::PluginInstallationHa
 use crate::command_handler::component::ComponentCommandHandler;
 use crate::command_handler::interactive::InteractiveHandler;
 use crate::command_handler::log::LogHandler;
+use crate::command_handler::mcp_server::McpServerCommandHandler;
 use crate::command_handler::partial_match::ErrorHandler;
 use crate::command_handler::plugin::PluginCommandHandler;
 use crate::command_handler::profile::config::ProfileConfigCommandHandler;
@@ -68,6 +69,7 @@ mod cloud;
 mod component;
 pub(crate) mod interactive;
 mod log;
+mod mcp_server;
 mod partial_match;
 mod plugin;
 mod profile;
@@ -129,7 +131,7 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
     }
 
     #[cfg(feature = "server-commands")]
-    fn start_local_server_hook(
+    pub fn start_local_server_hook(
         yes: Arc<tokio::sync::RwLock<bool>>,
     ) -> Box<dyn Fn() -> BoxFuture<'static, anyhow::Result<()>> + Send + Sync> {
         Box::new(move || {
@@ -352,6 +354,12 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                     .await
             }
             GolemCliSubcommand::Completion { shell } => self.cmd_completion(shell),
+            GolemCliSubcommand::McpServer { subcommand } => {
+                self.ctx
+                    .mcp_server_handler()
+                    .handle_command(subcommand)
+                    .await
+            }
         }
     }
 
@@ -394,6 +402,7 @@ pub trait Handlers {
     fn profile_handler(&self) -> ProfileCommandHandler;
     fn rib_repl_handler(&self) -> RibReplHandler;
     fn worker_handler(&self) -> WorkerCommandHandler;
+    fn mcp_server_handler(&self) -> McpServerCommandHandler;
 }
 
 impl Handlers for Arc<Context> {
@@ -499,6 +508,10 @@ impl Handlers for Arc<Context> {
 
     fn worker_handler(&self) -> WorkerCommandHandler {
         WorkerCommandHandler::new(self.clone())
+    }
+
+    fn mcp_server_handler(&self) -> McpServerCommandHandler {
+        McpServerCommandHandler::new(self.clone())
     }
 }
 

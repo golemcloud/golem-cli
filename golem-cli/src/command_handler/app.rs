@@ -88,7 +88,7 @@ impl AppCommandHandler {
         }
     }
 
-    async fn cmd_new(
+    pub async fn cmd_new(
         &self,
         application_name: Option<String>,
         languages: Vec<GuestLanguage>,
@@ -264,7 +264,7 @@ impl AppCommandHandler {
         Ok(())
     }
 
-    async fn cmd_build(
+    pub async fn cmd_build(
         &self,
         component_name: AppOptionalComponentNames,
         build_args: BuildArgs,
@@ -277,7 +277,7 @@ impl AppCommandHandler {
         .await
     }
 
-    async fn cmd_clean(&self, component_name: AppOptionalComponentNames) -> anyhow::Result<()> {
+    pub async fn cmd_clean(&self, component_name: AppOptionalComponentNames) -> anyhow::Result<()> {
         self.clean(
             component_name.component_name,
             &ApplicationComponentSelectMode::All,
@@ -285,7 +285,7 @@ impl AppCommandHandler {
         .await
     }
 
-    async fn cmd_deploy(
+    pub async fn cmd_deploy(
         &self,
         component_name: AppOptionalComponentNames,
         force_build: ForceBuildArg,
@@ -295,7 +295,7 @@ impl AppCommandHandler {
             .await
     }
 
-    async fn cmd_custom_command(&self, command: Vec<String>) -> anyhow::Result<()> {
+    pub async fn cmd_custom_command(&self, command: Vec<String>) -> anyhow::Result<()> {
         if command.len() != 1 {
             bail!(
                 "Expected exactly one custom subcommand, got: {}",
@@ -346,7 +346,7 @@ impl AppCommandHandler {
         Ok(())
     }
 
-    async fn cmd_update_workers(
+    pub async fn cmd_update_workers(
         &self,
         component_names: Vec<ComponentName>,
         update_mode: WorkerUpdateMode,
@@ -364,7 +364,7 @@ impl AppCommandHandler {
         Ok(())
     }
 
-    async fn cmd_redeploy_workers(
+    pub async fn cmd_redeploy_workers(
         &self,
         component_names: Vec<ComponentName>,
     ) -> anyhow::Result<()> {
@@ -380,7 +380,10 @@ impl AppCommandHandler {
         Ok(())
     }
 
-    async fn cmd_diagnose(&self, component_names: AppOptionalComponentNames) -> anyhow::Result<()> {
+    pub async fn cmd_diagnose(
+        &self,
+        component_names: AppOptionalComponentNames,
+    ) -> anyhow::Result<()> {
         self.diagnose(
             component_names.component_name,
             &ApplicationComponentSelectMode::All,

@@ -15,6 +15,9 @@
 use crate::fs::{OverwriteSafeAction, OverwriteSafeActionPlan, PathExtra};
 use camino::{Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
+use console::strip_ansi_codes;
+use rmcp::model::LoggingMessageNotificationParam;
+use rmcp::{Peer, RoleServer};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, OnceLock, RwLock};
@@ -30,12 +33,25 @@ fn terminal_width() -> Option<usize> {
     *TERMINAL_WIDTH.get_or_init(|| terminal_size().map(|(width, _)| width.0 as usize))
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Output {
     Stdout,
     Stderr,
     None,
     TracingDebug,
+    Mcp(McpClient),
+}
+
+impl Output {
+    fn is_mcp(&self) -> bool {
+        matches!(self, Output::Mcp(_))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct McpClient {
+    pub client: Peer<RoleServer>,
+    pub tool_name: String,
 }
 
 struct LogState {
@@ -118,15 +134,20 @@ pub struct LogOutput {
 
 impl LogOutput {
     pub fn new(output: Output) -> Self {
-        let prev_output = LOG_STATE.read().unwrap().output;
+        let prev_output = &LOG_STATE.read().unwrap().output.clone();
         LOG_STATE.write().unwrap().set_output(output);
-        Self { prev_output }
+        Self {
+            prev_output: prev_output.clone(),
+        }
     }
 }
 
 impl Drop for LogOutput {
     fn drop(&mut self) {
-        LOG_STATE.write().unwrap().set_output(self.prev_output);
+        LOG_STATE
+            .write()
+            .unwrap()
+            .set_output(self.prev_output.clone());
     }
 }
 
@@ -160,37 +181,72 @@ pub fn logln<T: AsRef<str>>(message: T) {
 }
 
 pub fn logln_internal(message: &str) {
+    // Acquire read lock once
     let state = LOG_STATE.read().unwrap();
+    let width = state.max_width;
+    let indent = state.calculated_indent.clone();
+    let output = state.output.clone();
 
-    let lines = match state.max_width {
-        Some(width) if width <= message.len() && !message.contains("\n") => {
+    drop(state); // Release read lock before logging
+
+    // Wrap lines if needed
+    let lines: Vec<Cow<'_, str>> = if !output.is_mcp() {
+        process_lines(message, width)
+    } else {
+        vec![Cow::from(process_lines(message, width).concat())]
+    };
+
+    for line in lines {
+        match &output {
+            Output::Stdout => println!("{}{}", indent, line),
+            Output::Stderr => eprintln!("{}{}", indent, line),
+            Output::None => {}
+            Output::TracingDebug => debug!("{}{}", indent, line),
+            Output::Mcp(mcp_client) => {
+                notify_log_to_mcp_client(message, &indent, line, mcp_client);
+            }
+        }
+    }
+}
+
+fn process_lines(message: &str, width: Option<usize>) -> Vec<Cow<'_, str>> {
+    match width {
+        Some(w) if w > 0 && message.len() > w && !message.contains('\n') => {
             textwrap::wrap(
                 message,
-                textwrap::Options::new(width)
+                textwrap::Options::new(w)
                     // deliberately 5 spaces, to makes this indent different from normal ones
                     .subsequent_indent("     ")
                     .word_splitter(WordSplitter::NoHyphenation),
             )
         }
-        _ => {
-            vec![Cow::from(message)]
-        }
-    };
-
-    for line in lines {
-        match state.output {
-            Output::Stdout => {
-                println!("{}{}", state.calculated_indent, line)
-            }
-            Output::Stderr => {
-                eprintln!("{}{}", state.calculated_indent, line)
-            }
-            Output::None => {}
-            Output::TracingDebug => {
-                debug!("{}{}", state.calculated_indent, line);
-            }
-        }
+        _ => vec![Cow::from(message)],
     }
+}
+
+fn notify_log_to_mcp_client(
+    message: &str,
+    indent: &String,
+    line: Cow<'_, str>,
+    mcp_client: &McpClient,
+) {
+    let data: String = format!("{}{}", indent, line).clone();
+    let _message_owned = message.to_string();
+    tokio::spawn({
+        let client = mcp_client.client.clone();
+        let tool_name = mcp_client.tool_name.clone();
+        async move {
+            let plain_data = strip_ansi_codes(&data).into_owned();
+
+            let _ = client
+                .notify_logging_message(LoggingMessageNotificationParam {
+                    level: rmcp::model::LoggingLevel::Info,
+                    logger: Some(format!("golem-cli mcp server tool: {}", tool_name)),
+                    data: plain_data.into(),
+                })
+                .await;
+        }
+    });
 }
 
 pub fn log_skipping_up_to_date<T: AsRef<str>>(subject: T) {

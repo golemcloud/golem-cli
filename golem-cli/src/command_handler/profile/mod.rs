@@ -76,7 +76,7 @@ impl ProfileCommandHandler {
         }
     }
 
-    fn cmd_new(
+    pub fn cmd_new(
         &self,
         name: Option<ProfileName>,
         set_active: bool,
@@ -135,7 +135,7 @@ impl ProfileCommandHandler {
         Ok(())
     }
 
-    fn cmd_list(&self) -> anyhow::Result<()> {
+    pub fn cmd_list(&self) -> anyhow::Result<()> {
         let config = Config::from_dir(self.ctx.config_dir())?;
         let default_profile_name = config.default_profile_name();
 
@@ -153,7 +153,7 @@ impl ProfileCommandHandler {
         Ok(())
     }
 
-    fn cmd_switch(&self, profile_name: ProfileName) -> anyhow::Result<()> {
+    pub fn cmd_switch(&self, profile_name: ProfileName) -> anyhow::Result<()> {
         Config::set_active_profile_name(profile_name.clone(), self.ctx.config_dir())?;
 
         log_action(
@@ -164,7 +164,7 @@ impl ProfileCommandHandler {
         Ok(())
     }
 
-    fn cmd_get(&self, profile_name: Option<ProfileName>) -> anyhow::Result<()> {
+    pub fn cmd_get(&self, profile_name: Option<ProfileName>) -> anyhow::Result<()> {
         let default_profile = Config::get_default_profile(self.ctx.config_dir())?;
         let default_profile_name = default_profile.name.clone();
 
@@ -191,7 +191,7 @@ impl ProfileCommandHandler {
         Ok(())
     }
 
-    fn cmd_delete(&self, profile_name: ProfileName) -> anyhow::Result<()> {
+    pub fn cmd_delete(&self, profile_name: ProfileName) -> anyhow::Result<()> {
         if profile_name.is_builtin() {
             log_error(format!(
                 "Cannot delete builtin profile: {}",

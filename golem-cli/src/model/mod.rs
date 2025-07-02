@@ -43,6 +43,7 @@ use golem_common::model::trim_date::TrimDateTime;
 use golem_templates::model::{
     GuestLanguage, GuestLanguageTier, PackageName, Template, TemplateName,
 };
+use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -61,7 +62,18 @@ use uuid::Uuid;
 // NOTE: using aliases for lower-case support in manifest, as global configs are using the
 //       PascalCase versions historically, should be cleared up (migrated), if we touch the global
 //       CLI config
-#[derive(Copy, Clone, PartialEq, Eq, Debug, EnumIter, Serialize, Deserialize, Default)]
+#[derive(
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    EnumIter,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+    Default,
+)]
 pub enum Format {
     #[serde(alias = "json")]
     Json,
@@ -106,7 +118,7 @@ pub trait HasFormatConfig {
     fn format(&self) -> Option<Format>;
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum PluginReference {
     RelativeToCurrentAccount {
         name: String,
@@ -177,7 +189,7 @@ impl Display for PluginReference {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ProjectName(pub String);
 
 impl From<&str> for ProjectName {
@@ -192,7 +204,7 @@ impl From<String> for ProjectName {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum ProjectReference {
     JustName(ProjectName),
     WithAccount {
@@ -230,7 +242,9 @@ impl Display for ProjectReference {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct ComponentName(pub String);
 
 impl From<&str> for ComponentName {
@@ -251,7 +265,7 @@ impl Display for ComponentName {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct WorkerName(pub String);
 
 impl From<&str> for WorkerName {
@@ -289,7 +303,7 @@ impl From<u64> for ComponentVersionSelection<'_> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IdempotencyKey(pub String);
 
 impl Default for IdempotencyKey {
@@ -365,7 +379,7 @@ impl TemplateDescription {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum PathBufOrStdin {
     Path(PathBuf),
     Stdin,
@@ -406,10 +420,14 @@ impl FromStr for PathBufOrStdin {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum WorkerUpdateMode {
     Automatic,
     Manual,
+}
+
+pub fn default_worker_update_mode() -> WorkerUpdateMode {
+    WorkerUpdateMode::Automatic
 }
 
 impl Display for WorkerUpdateMode {
@@ -683,7 +701,7 @@ pub struct SelectedComponents {
     pub component_names: Vec<ComponentName>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct TokenId(pub Uuid);
 
 impl FromStr for TokenId {
@@ -694,7 +712,7 @@ impl FromStr for TokenId {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct ProjectPolicyId(pub Uuid);
 
 impl FromStr for ProjectPolicyId {
@@ -705,7 +723,9 @@ impl FromStr for ProjectPolicyId {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug, EnumIter, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, Debug, EnumIter, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub enum Role {
     Admin,
     MarketingAdmin,
@@ -820,7 +840,7 @@ pub struct NewInteractiveApp {
     pub templated_component_names: Vec<(ComponentTemplateName, PackageName)>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct AccountId(pub String);
 
 impl From<String> for AccountId {

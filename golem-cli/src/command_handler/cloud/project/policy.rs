@@ -43,7 +43,7 @@ impl CloudProjectPolicyCommandHandler {
         }
     }
 
-    async fn cmd_new(
+    pub async fn cmd_new(
         &self,
         policy_name: String,
         actions: Vec<ProjectPermission>,
@@ -69,7 +69,7 @@ impl CloudProjectPolicyCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(&self, policy_id: ProjectPolicyId) -> anyhow::Result<()> {
+    pub async fn cmd_get(&self, policy_id: ProjectPolicyId) -> anyhow::Result<()> {
         let policy = self
             .ctx
             .golem_clients()

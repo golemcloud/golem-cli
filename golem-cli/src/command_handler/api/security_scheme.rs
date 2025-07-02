@@ -62,7 +62,7 @@ impl ApiSecuritySchemeCommandHandler {
         }
     }
 
-    async fn cmd_create(
+    pub async fn cmd_create(
         &self,
         project: ProjectOptionalFlagArg,
         scheme_identifier: String,
@@ -112,7 +112,7 @@ impl ApiSecuritySchemeCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(
+    pub async fn cmd_get(
         &self,
         project: ProjectOptionalFlagArg,
         security_scheme_id: String,

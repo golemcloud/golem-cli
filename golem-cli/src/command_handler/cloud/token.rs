@@ -41,7 +41,7 @@ impl CloudTokenCommandHandler {
         }
     }
 
-    async fn cmd_list(&self) -> anyhow::Result<()> {
+    pub async fn cmd_list(&self) -> anyhow::Result<()> {
         let clients = self.ctx.golem_clients().await?;
 
         let tokens = clients
@@ -55,7 +55,7 @@ impl CloudTokenCommandHandler {
         Ok(())
     }
 
-    async fn cmd_new(&self, expires_at: DateTime<Utc>) -> anyhow::Result<()> {
+    pub async fn cmd_new(&self, expires_at: DateTime<Utc>) -> anyhow::Result<()> {
         let clients = self.ctx.golem_clients().await?;
 
         let token = clients
@@ -69,7 +69,7 @@ impl CloudTokenCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(&self, token_id: TokenId) -> anyhow::Result<()> {
+    pub async fn cmd_delete(&self, token_id: TokenId) -> anyhow::Result<()> {
         let clients = self.ctx.golem_clients().await?;
 
         clients

@@ -70,7 +70,7 @@ impl CloudProjectPluginCommandHandler {
         }
     }
 
-    async fn cmd_install(
+    pub async fn cmd_install(
         &self,
         project_reference: ProjectReference,
         plugin_name: String,
@@ -112,7 +112,7 @@ impl CloudProjectPluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(&self, project: ProjectReference) -> anyhow::Result<()> {
+    pub async fn cmd_get(&self, project: ProjectReference) -> anyhow::Result<()> {
         let project = self
             .ctx
             .cloud_project_handler()
@@ -133,7 +133,7 @@ impl CloudProjectPluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_update(
+    pub async fn cmd_update(
         &self,
         project_reference: ProjectReference,
         plugin_installation_id: PluginInstallationId,
@@ -171,7 +171,7 @@ impl CloudProjectPluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_uninstall(
+    pub async fn cmd_uninstall(
         &self,
         project_reference: ProjectReference,
         plugin_installation_id: PluginInstallationId,

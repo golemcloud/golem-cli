@@ -16,6 +16,7 @@ use crate::command::api::ApiSubcommand;
 use crate::command::app::AppSubcommand;
 use crate::command::cloud::CloudSubcommand;
 use crate::command::component::ComponentSubcommand;
+use crate::command::mcp_server::McpServerSubcommand;
 use crate::command::plugin::PluginSubcommand;
 use crate::command::profile::ProfileSubcommand;
 use crate::command::worker::WorkerSubcommand;
@@ -545,6 +546,12 @@ pub enum GolemCliSubcommand {
         /// Selects shell
         shell: clap_complete::Shell,
     },
+    #[command(alias = "mcp")]
+    /// Mcp Server for golem-cli
+    McpServer {
+        #[clap(subcommand)]
+        subcommand: McpServerSubcommand,
+    },
 }
 
 pub mod shared_args {
@@ -555,6 +562,8 @@ pub mod shared_args {
     };
     use clap::Args;
     use golem_templates::model::GuestLanguage;
+    use rmcp::schemars;
+    use serde::{Deserialize, Serialize};
 
     pub type ComponentTemplateName = String;
     pub type NewWorkerArgument = String;
@@ -573,7 +582,7 @@ pub mod shared_args {
         pub component_name: ComponentName,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct ComponentOptionalComponentName {
         // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Optional component name, if not specified component is selected based on the current directory.
@@ -585,7 +594,7 @@ pub mod shared_args {
         pub component_name: Option<ComponentName>,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct ComponentOptionalComponentNames {
         // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Optional component names, if not specified components are selected based on the current directory
@@ -597,7 +606,7 @@ pub mod shared_args {
         pub component_name: Vec<ComponentName>,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct AppOptionalComponentNames {
         // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Optional component names, if not specified all components are selected.
@@ -614,23 +623,33 @@ pub mod shared_args {
         pub language: GuestLanguage,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Default, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct ForceBuildArg {
         /// When set to true will skip modification time based up-to-date checks, defaults to false
         #[clap(long, default_value = "false")]
+        #[schemars(default="default_force_build_arg")]
         pub force_build: bool,
     }
 
-    #[derive(Debug, Args)]
+    fn default_force_build_arg() -> bool {
+        false
+    }
+
+    #[derive(Debug, Args, Default, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct BuildArgs {
         /// Select specific build step(s)
         #[clap(long, short)]
+        #[schemars(default="default_build_args_steps")]
         pub step: Vec<AppBuildStep>,
         #[command(flatten)]
         pub force_build: ForceBuildArg,
     }
 
-    #[derive(Debug, Args)]
+    fn default_build_args_steps() -> Vec<AppBuildStep> {
+        vec![]
+    }
+
+    #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct WorkerNameArg {
         // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Worker name, accepted formats:
@@ -642,7 +661,7 @@ pub mod shared_args {
         pub worker_name: WorkerName,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct StreamArgs {
         /// Hide log levels in stream output
         #[clap(long, short = 'L')]
@@ -652,11 +671,12 @@ pub mod shared_args {
         pub stream_no_timestamp: bool,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Default, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct UpdateOrRedeployArgs {
         /// Update existing workers with auto or manual update mode
         #[clap(long, value_name = "UPDATE_MODE", short, conflicts_with_all = ["redeploy_workers", "redeploy_all"], num_args = 0..=1
         )]
+        #[schemars(default="default_worker_update_mode")]
         pub update_workers: Option<WorkerUpdateMode>,
         /// Delete and recreate existing workers
         #[clap(long, conflicts_with_all = ["update_workers"])]
@@ -695,7 +715,7 @@ pub mod shared_args {
         }
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct ProjectArg {
         // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Project, accepted formats:
@@ -705,7 +725,7 @@ pub mod shared_args {
         pub project: ProjectReference,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct ProjectOptionalFlagArg {
         // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Project, accepted formats:
@@ -715,14 +735,14 @@ pub mod shared_args {
         pub project: Option<ProjectReference>,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct AccountIdOptionalArg {
         /// Account ID
         #[arg(long)]
         pub account_id: Option<AccountId>,
     }
 
-    #[derive(Debug, Args)]
+    #[derive(clap::Args, Debug, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct PluginArg {
         // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
         /// Plugin, accepted formats:
@@ -732,7 +752,7 @@ pub mod shared_args {
         pub plugin: PluginReference,
     }
 
-    #[derive(clap::Args, Debug, Clone)]
+    #[derive(clap::Args, Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct PluginScopeArgs {
         /// Global scope (plugin available for all components)
         #[arg(long, conflicts_with_all=["account", "project", "component"])]
@@ -1814,6 +1834,30 @@ pub mod server {
         },
         /// Clean the local server data directory
         Clean,
+    }
+}
+
+pub mod mcp_server {
+    use clap::Subcommand;
+
+    #[derive(Debug, Clone, clap::ValueEnum)]
+    pub enum Transport {
+        StreamableHttp,
+        Sse,
+    }
+
+    #[derive(Debug, Subcommand)]
+    pub enum McpServerSubcommand {
+        /// Run the MCP server
+        Run {
+            /// server port to serve the MCP API on (localhost), defaults t0 8080
+            #[clap(long)]
+            port: Option<u16>,
+            #[clap(long)]
+            timeout: Option<u64>,
+            #[clap(long, value_enum)]
+            transport: Option<Transport>,
+        },
     }
 }
 

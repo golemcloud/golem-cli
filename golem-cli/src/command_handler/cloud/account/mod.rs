@@ -64,14 +64,14 @@ impl CloudAccountCommandHandler {
         }
     }
 
-    async fn cmd_get(&self, account_id: Option<AccountId>) -> anyhow::Result<()> {
+    pub async fn cmd_get(&self, account_id: Option<AccountId>) -> anyhow::Result<()> {
         let account = self.get(account_id).await?;
         self.ctx.log_handler().log_view(&AccountGetView(account));
 
         Ok(())
     }
 
-    async fn cmd_update(
+    pub async fn cmd_update(
         &self,
         account_id: Option<AccountId>,
         account_name: Option<String>,
@@ -104,7 +104,7 @@ impl CloudAccountCommandHandler {
         Ok(())
     }
 
-    async fn cmd_new(&self, account_name: String, account_email: String) -> anyhow::Result<()> {
+    pub async fn cmd_new(&self, account_name: String, account_email: String) -> anyhow::Result<()> {
         let account = self
             .ctx
             .golem_clients()
@@ -122,7 +122,7 @@ impl CloudAccountCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(&self, account_id: Option<AccountId>) -> anyhow::Result<()> {
+    pub async fn cmd_delete(&self, account_id: Option<AccountId>) -> anyhow::Result<()> {
         let account = self.get(account_id).await?;
         if !self
             .ctx

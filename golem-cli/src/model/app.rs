@@ -10,6 +10,7 @@ use crate::wasm_rpc_stubgen::naming;
 use crate::wasm_rpc_stubgen::naming::wit::package_dep_dir_name_from_parser;
 use crate::wasm_rpc_stubgen::stub::RustDependencyOverride;
 use golem_common::model::{ComponentFilePathWithPermissions, ComponentFilePermissions};
+use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -177,7 +178,18 @@ pub struct ComponentStubInterfaces {
     pub exported_interfaces_per_stub_resource: BTreeMap<String, String>,
 }
 
-#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    clap::ValueEnum,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[clap(rename_all = "kebab_case")]
 pub enum AppBuildStep {
     GenRpc,
@@ -213,7 +225,9 @@ impl From<&str> for AppComponentName {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct HttpApiDefinitionName(String);
 
 impl HttpApiDefinitionName {
@@ -363,7 +377,19 @@ impl<T: Default> Default for WithSource<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default, EnumIter)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Default,
+    EnumIter,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 pub enum DependencyType {
     #[default]
     /// Dynamic ("stubless") wasm-rpc
