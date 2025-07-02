@@ -68,7 +68,9 @@ pub struct Diagnose {
 
 /// Run custom command
 #[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct CustomCommand(Vec<String>);
+pub struct CustomCommand{
+    command: Vec<String>
+}
 
 #[tool_router(router= tool_router_app, vis="pub")]
 impl GolemCliMcpServer {
@@ -136,7 +138,7 @@ impl GolemCliMcpServer {
         {
             Ok(ctx) => {
                 let command_new = AppCommandHandler::new(ctx.into());
-                match command_new.cmd_custom_command(req.0).await {
+                match command_new.cmd_custom_command(req.command).await {
                     Ok(_) => Ok(CallToolResult {
                         content: vec![Content::text("Success")],
 

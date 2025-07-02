@@ -597,7 +597,7 @@ pub mod shared_args {
     #[derive(Debug, Args, Serialize, Deserialize, schemars::JsonSchema)]
     pub struct ComponentOptionalComponentNames {
         // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
-        /// Optional component names, if not specified components are selected based on the current directory
+        /// Optional component names, if not specified components or asks for all compoennets,  make it empty vector and are selected based on the current directory
         /// Accepted formats:
         ///   - <COMPONENT>
         ///   - <PROJECT>/<COMPONENT>
@@ -676,7 +676,6 @@ pub mod shared_args {
         /// Update existing workers with auto or manual update mode
         #[clap(long, value_name = "UPDATE_MODE", short, conflicts_with_all = ["redeploy_workers", "redeploy_all"], num_args = 0..=1
         )]
-        #[schemars(default="default_worker_update_mode")]
         pub update_workers: Option<WorkerUpdateMode>,
         /// Delete and recreate existing workers
         #[clap(long, conflicts_with_all = ["update_workers"])]
@@ -1840,9 +1839,10 @@ pub mod server {
 pub mod mcp_server {
     use clap::Subcommand;
 
-    #[derive(Debug, Clone, clap::ValueEnum)]
+    #[derive(Debug, Clone, clap::ValueEnum, Default)]
     pub enum Transport {
         StreamableHttp,
+        #[default]
         Sse,
     }
 

@@ -5,7 +5,7 @@ use crate::command::shared_args::{
 use crate::command_handler::mcp_server::GolemCliMcpServer;
 use crate::log::{McpClient, Output};
 use crate::model::app::DependencyType;
-use crate::model::{ComponentName, WorkerUpdateMode, default_worker_update_mode};
+use crate::model::{ComponentName, WorkerUpdateMode };
 use crate::{command::GolemCliGlobalFlags, command_handler::component::ComponentCommandHandler};
 use console::strip_ansi_codes;
 use golem_templates::model::PackageName;
@@ -51,12 +51,7 @@ pub struct GetComponentTool {
     ///   - <ACCOUNT>/<PROJECT>/<COMPONENT>
     component_name: Option<ComponentName>,
     /// Component version in integer(u64)
-    #[schemars(default="default_component_version")]
     version: Option<u64>,
-}
-
-fn default_component_version() -> Option<u64>{
-    None
 }
 
 #[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
@@ -66,7 +61,7 @@ pub struct UpdateWorkersTool {
     ///   - <PROJECT>/<COMPONENT>
     ///   - <ACCOUNT>/<PROJECT>/<COMPONENT>
     component_name: Option<ComponentName>,
-    #[schemars(default="default_worker_update_mode")]
+    // default Worker update mode is Automatic
     worker_update_mode: WorkerUpdateMode,
 }
 

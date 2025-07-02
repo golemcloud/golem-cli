@@ -50,10 +50,12 @@ impl McpServerCommandHandler {
         let port = port.unwrap_or(8080);
         let timeout = timeout.unwrap_or(6);
 
-        let transport_to_use = transport.unwrap_or(Transport::Sse);
+        let transport_to_use = transport.unwrap_or_default();
 
         match transport_to_use {
             Transport::StreamableHttp => {
+                println!("Runing golem-cli mcp mode (StreamableHttp transport) on port {port}");
+
                 let service = TowerToHyperService::new(StreamableHttpService::new(
                     || Ok(GolemCliMcpServer::new()),
                     LocalSessionManager::default().into(),
@@ -79,6 +81,8 @@ impl McpServerCommandHandler {
                 }
             }
             Transport::Sse => {
+                println!("Runing golem-cli mcp mode (sse transport) on port {port}");
+
                 let ct = SseServer::serve(format!("127.0.0.1:{}", port).parse()?)
                     .await?
                     .with_service_directly(GolemCliMcpServer::new);
