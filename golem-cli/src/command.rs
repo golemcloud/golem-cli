@@ -558,7 +558,7 @@ pub mod shared_args {
     use crate::model::app::AppBuildStep;
     use crate::model::{AccountId, PluginReference};
     use crate::model::{
-        ComponentName, ProjectName, ProjectReference, WorkerName, WorkerUpdateMode,
+        ComponentName, ProjectName, ProjectReference, WorkerName, WorkerUpdateMode, default_worker_update_mode
     };
     use clap::Args;
     use golem_templates::model::GuestLanguage;
