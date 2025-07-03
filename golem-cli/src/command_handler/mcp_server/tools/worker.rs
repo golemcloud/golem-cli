@@ -5,11 +5,11 @@ use crate::command::shared_args::{
 use crate::command::GolemCliGlobalFlags;
 use crate::command_handler::mcp_server::GolemCliMcpServer;
 use crate::command_handler::worker::WorkerCommandHandler;
-use crate::log::{McpClient, Output};
+use crate::log::{Mcp, Output};
 use crate::model::{IdempotencyKey, WorkerUpdateMode};
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, Content, Meta};
 use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -151,6 +151,7 @@ impl GolemCliMcpServer {
     #[tool(name = "create_new_worker", description = "Create new worker")]
     pub async fn create_new_worker(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -158,9 +159,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "create_new_worker".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -200,6 +202,7 @@ impl GolemCliMcpServer {
     #[tool(name = "list_worker_metadata", description = "List worker metadata")]
     pub async fn list_worker_metadata(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<List>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -207,9 +210,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "list_worker_metadata".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -249,6 +253,7 @@ impl GolemCliMcpServer {
     #[tool(name = "update_worker", description = "Updates a worker")]
     pub async fn update_worker(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Update>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -256,9 +261,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "update_worker".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -295,6 +301,7 @@ impl GolemCliMcpServer {
     #[tool(name = "get_worker_metadata", description = "Get worker metadata")]
     pub async fn get_worker_metadata(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -302,9 +309,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "get_worker_metadata".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -334,6 +342,7 @@ impl GolemCliMcpServer {
     #[tool(name = "delete_worker", description = "Deletes a worker")]
     pub async fn delete_worker(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -341,9 +350,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "delete_worker".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -376,6 +386,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn invoke_worker(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Invoke>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -383,9 +394,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "invoke_worker".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -432,6 +444,7 @@ impl GolemCliMcpServer {
     #[tool(name = "resume_worker", description = "Resume an interrupted worker")]
     pub async fn resume_worker(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Resume>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -439,9 +452,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "resume_worker".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -471,6 +485,7 @@ impl GolemCliMcpServer {
     #[tool(name = "interupt_worker", description = "Interrupts a running worker")]
     pub async fn interupt_worker(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Interrupt>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -478,9 +493,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "interupt_worker".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -513,6 +529,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn simulate_worker_crash(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<SimulateCrash>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -520,9 +537,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "simulate_worker_crash".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -555,6 +573,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn query_worker_oplog(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Oplog>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -562,9 +581,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "query_worker_oplog".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -600,6 +620,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn stream_worker_outputs(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Stream>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -607,9 +628,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "stream_worker_outputs".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -645,6 +667,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn revert_worker_operations(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Revert>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -652,9 +675,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "revert_worker_operations".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -694,6 +718,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn cancel_worker_invocation(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<CancelInvocation>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -701,9 +726,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "cancel_worker_invocation".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now

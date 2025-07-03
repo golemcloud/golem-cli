@@ -2,11 +2,11 @@ use crate::command::shared_args::ProjectOptionalFlagArg;
 use crate::command::GolemCliGlobalFlags;
 use crate::command_handler::api::security_scheme::ApiSecuritySchemeCommandHandler;
 use crate::command_handler::mcp_server::GolemCliMcpServer;
-use crate::log::{McpClient, Output};
+use crate::log::{Mcp, Output};
 use crate::model::api::IdentityProviderType;
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, Content, Meta};
 use rmcp::{schemars, tool, Error as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -43,6 +43,7 @@ impl GolemCliMcpServer {
     #[tool(name = "get_api_security_scheme", description = "Get API security")]
     pub async fn get_api_security_scheme(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -50,9 +51,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "get_api_security_scheme".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -89,6 +91,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn create_api_security_scheme(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Create>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -96,9 +99,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "create_api_security_scheme".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
