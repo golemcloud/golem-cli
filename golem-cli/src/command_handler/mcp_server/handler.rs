@@ -90,7 +90,6 @@ impl ServerHandler for GolemCliMcpServer {
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<ReadResourceResult, Error>> + Send + '_ {
         std::future::ready(
-            // read file from request.uri path and send as content
             match fs::read_to_string(Path::new(&request.uri)) {
                 Ok(content) => Ok(ReadResourceResult {
                     contents: vec![ResourceContents::TextResourceContents {
@@ -111,7 +110,7 @@ impl ServerHandler for GolemCliMcpServer {
                 .enable_resources()
                 .build(),
             instructions: Some(
-                "Help user to do what normally they can do using golem cli".to_string(),
+                "Help user to perform what normally they can directly do using golem cli".to_string(),
             ),
             protocol_version: ProtocolVersion::V_2025_03_26,
             server_info: Implementation {

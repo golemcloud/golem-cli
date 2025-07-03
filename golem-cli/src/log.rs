@@ -16,7 +16,7 @@ use crate::fs::{OverwriteSafeAction, OverwriteSafeActionPlan, PathExtra};
 use camino::{Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
 use console::strip_ansi_codes;
-use rmcp::model::LoggingMessageNotificationParam;
+use rmcp::model::{ProgressNotificationParam, ProgressToken};
 use rmcp::{Peer, RoleServer};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
@@ -28,6 +28,7 @@ use tracing::debug;
 static LOG_STATE: LazyLock<RwLock<LogState>> = LazyLock::new(RwLock::default);
 static TERMINAL_WIDTH: OnceLock<Option<usize>> = OnceLock::new();
 static WRAP_PADDING: usize = 2;
+static PROGRESS_COUNTER: LazyLock<RwLock<u32>> = LazyLock::new(|| RwLock::new(0));
 
 fn terminal_width() -> Option<usize> {
     *TERMINAL_WIDTH.get_or_init(|| terminal_size().map(|(width, _)| width.0 as usize))
@@ -39,7 +40,7 @@ pub enum Output {
     Stderr,
     None,
     TracingDebug,
-    Mcp(McpClient),
+    Mcp(Mcp),
 }
 
 impl Output {
@@ -49,9 +50,10 @@ impl Output {
 }
 
 #[derive(Debug, Clone)]
-pub struct McpClient {
+pub struct Mcp {
     pub client: Peer<RoleServer>,
     pub tool_name: String,
+    pub progress_token: ProgressToken
 }
 
 struct LogState {
@@ -202,8 +204,8 @@ pub fn logln_internal(message: &str) {
             Output::Stderr => eprintln!("{}{}", indent, line),
             Output::None => {}
             Output::TracingDebug => debug!("{}{}", indent, line),
-            Output::Mcp(mcp_client) => {
-                notify_log_to_mcp_client(message, &indent, line, mcp_client);
+            Output::Mcp(mcp) => {
+                notify_log_to_mcp_client(&indent, line, mcp);
             }
         }
     }
@@ -225,26 +227,27 @@ fn process_lines(message: &str, width: Option<usize>) -> Vec<Cow<'_, str>> {
 }
 
 fn notify_log_to_mcp_client(
-    message: &str,
-    indent: &String,
+    indent: &str,
     line: Cow<'_, str>,
-    mcp_client: &McpClient,
+    mcp: &Mcp,
 ) {
     let data: String = format!("{}{}", indent, line).clone();
-    let _message_owned = message.to_string();
+    let progress = *PROGRESS_COUNTER.read().unwrap() as u32;
     tokio::spawn({
-        let client = mcp_client.client.clone();
-        let tool_name = mcp_client.tool_name.clone();
+        let client = mcp.client.clone();
+        let progress_token = mcp.progress_token.clone();
+        let progress = progress;
         async move {
             let plain_data = strip_ansi_codes(&data).into_owned();
 
-            let _ = client
-                .notify_logging_message(LoggingMessageNotificationParam {
-                    level: rmcp::model::LoggingLevel::Info,
-                    logger: Some(format!("golem-cli mcp server tool: {}", tool_name)),
-                    data: plain_data.into(),
+            let _ = client.notify_progress(ProgressNotificationParam {
+                    progress_token,
+                    progress,
+                    message: plain_data.into(),
+                    total: None,
                 })
                 .await;
+            *PROGRESS_COUNTER.write().unwrap() = progress + 1;
         }
     });
 }

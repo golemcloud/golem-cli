@@ -2,11 +2,11 @@ use crate::command::GolemCliGlobalFlags;
 use crate::command_handler::mcp_server::GolemCliMcpServer;
 use crate::command_handler::profile::ProfileCommandHandler;
 use crate::config::ProfileName;
-use crate::log::{McpClient, Output};
+use crate::log::{Mcp, Output};
 use crate::model::Format;
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, Content, Meta};
 use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -81,6 +81,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn create_new_global_profile(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -88,9 +89,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "create_new_global_profile".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -130,6 +132,7 @@ impl GolemCliMcpServer {
     #[tool(name = "list_global_profiles", description = "List global profiles")]
     pub async fn list_global_profiles(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(_): Parameters<List>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -137,9 +140,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "list_global_profiles".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -173,6 +177,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn show_global_profile_details(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -180,9 +185,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "Show_global_profile_details".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -213,6 +219,7 @@ impl GolemCliMcpServer {
     #[tool(name = "remove_profile", description = "Remove global profile")]
     pub async fn remove_profile(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -220,9 +227,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "remove_profile".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -256,6 +264,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn switch_profile(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Switch>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -263,9 +272,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "switch_profile".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server

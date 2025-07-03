@@ -2,11 +2,11 @@ use crate::command::shared_args::PluginScopeArgs;
 use crate::command::GolemCliGlobalFlags;
 use crate::command_handler::mcp_server::GolemCliMcpServer;
 use crate::command_handler::plugin::PluginCommandHandler;
-use crate::log::{McpClient, Output};
+use crate::log::{Mcp, Output};
 use crate::model::PathBufOrStdin;
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, Content, Meta};
 use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -53,6 +53,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn list_components_for_scope(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<List>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -60,9 +61,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "list_components_for_scope".to_owned(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -96,6 +98,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn get_plugin(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Unregister>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -103,9 +106,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "get_plugin".to_string(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -136,6 +140,7 @@ impl GolemCliMcpServer {
     #[tool(name = "register_plugin", description = "Register a new plugin")]
     pub async fn register_plugin(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Register>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -143,9 +148,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "register_plugin".to_string(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
@@ -176,6 +182,7 @@ impl GolemCliMcpServer {
     #[tool(name = "unregister_plugin", description = "Unregister a new plugin")]
     pub async fn unregister_plugin(
         &self,
+        meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Unregister>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -183,9 +190,10 @@ impl GolemCliMcpServer {
 
         match crate::context::Context::new(
             GolemCliGlobalFlags::default(),
-            Some(Output::Mcp(McpClient {
+            Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "unregister_plugin".to_string(),
+                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now
