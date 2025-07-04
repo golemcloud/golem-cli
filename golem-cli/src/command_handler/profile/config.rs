@@ -43,7 +43,7 @@ impl ProfileConfigCommandHandler {
         }
     }
 
-    fn cmd_set_format(&self, profile_name: ProfileName, format: Format) -> anyhow::Result<()> {
+    pub fn cmd_set_format(&self, profile_name: ProfileName, format: Format) -> anyhow::Result<()> {
         match Config::get_profile(self.ctx.config_dir(), &profile_name)? {
             Some(mut profile) => {
                 profile.profile.config.default_format = format;

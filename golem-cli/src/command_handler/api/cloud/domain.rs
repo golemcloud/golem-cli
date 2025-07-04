@@ -47,7 +47,7 @@ impl ApiCloudDomainCommandHandler {
         }
     }
 
-    async fn cmd_get(&self, project_reference: ProjectReference) -> anyhow::Result<()> {
+    pub async fn cmd_get(&self, project_reference: ProjectReference) -> anyhow::Result<()> {
         let domains = self
             .ctx
             .golem_clients()
@@ -70,7 +70,7 @@ impl ApiCloudDomainCommandHandler {
         Ok(())
     }
 
-    async fn cmd_new(
+    pub async fn cmd_new(
         &self,
         project_reference: ProjectReference,
         domain_name: String,
@@ -98,7 +98,7 @@ impl ApiCloudDomainCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(
+    pub async fn cmd_delete(
         &self,
         project_reference: ProjectReference,
         domain_name: String,

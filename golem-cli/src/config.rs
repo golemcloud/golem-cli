@@ -17,6 +17,7 @@ use anyhow::{anyhow, bail, Context};
 use chrono::{DateTime, Utc};
 use golem_client::model::TokenSecret;
 use itertools::Itertools;
+use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -44,7 +45,9 @@ pub struct Config {
     pub default_profile: Option<ProfileName>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct ProfileName(pub String);
 
 impl ProfileName {

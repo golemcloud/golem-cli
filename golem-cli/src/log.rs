@@ -14,6 +14,9 @@
 
 use crate::fs::{OverwriteSafeAction, OverwriteSafeActionPlan, PathExtra};
 use colored::{ColoredString, Colorize};
+use console::strip_ansi_codes;
+use rmcp::model::{ProgressNotificationParam, ProgressToken};
+use rmcp::{Peer, RoleServer};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, OnceLock, RwLock};
@@ -24,17 +27,34 @@ use tracing::debug;
 static LOG_STATE: LazyLock<RwLock<LogState>> = LazyLock::new(RwLock::default);
 static TERMINAL_WIDTH: OnceLock<Option<usize>> = OnceLock::new();
 static WRAP_PADDING: usize = 2;
+// static PROGRESS_COUNTER: LazyLock<RwLock<u32>> = LazyLock::new(|| RwLock::new(0));
+static TOOL_OUTPUT: LazyLock<RwLock<Vec<String>>> = LazyLock::new(RwLock::default);
+
 
 fn terminal_width() -> Option<usize> {
     *TERMINAL_WIDTH.get_or_init(|| terminal_size().map(|(width, _)| width.0 as usize))
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Output {
     Stdout,
     Stderr,
     None,
     TracingDebug,
+    Mcp(Mcp),
+}
+
+impl Output {
+    fn is_mcp(&self) -> bool {
+        matches!(self, Output::Mcp(_))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Mcp {
+    pub client: Peer<RoleServer>,
+    pub tool_name: String,
+    // pub progress_token: ProgressToken
 }
 
 struct LogState {
@@ -117,21 +137,30 @@ pub struct LogOutput {
 
 impl LogOutput {
     pub fn new(output: Output) -> Self {
-        let prev_output = LOG_STATE.read().unwrap().output;
+        let prev_output = &LOG_STATE.read().unwrap().output.clone();
         LOG_STATE.write().unwrap().set_output(output);
-        Self { prev_output }
+        Self {
+            prev_output: prev_output.clone(),
+        }
     }
 }
 
 impl Drop for LogOutput {
     fn drop(&mut self) {
-        LOG_STATE.write().unwrap().set_output(self.prev_output);
+        LOG_STATE
+            .write()
+            .unwrap()
+            .set_output(self.prev_output.clone());
     }
 }
 
 pub fn set_log_output(output: Output) {
     debug!(output=?output, "set log output");
     LOG_STATE.write().unwrap().set_output(output);
+}
+
+pub fn get_log_output() -> Output {
+    LOG_STATE.read().unwrap().output.clone()
 }
 
 pub fn log_action<T: AsRef<str>>(action: &str, subject: T) {
@@ -159,37 +188,89 @@ pub fn logln<T: AsRef<str>>(message: T) {
 }
 
 pub fn logln_internal(message: &str) {
+    // Acquire read lock once
     let state = LOG_STATE.read().unwrap();
+    let width = state.max_width;
+    let indent = state.calculated_indent.clone();
+    let output = state.output.clone();
 
-    let lines = match state.max_width {
-        Some(width) if width <= message.len() && !message.contains("\n") => {
+    drop(state); // Release read lock before logging
+
+    // Wrap lines if needed
+    let lines: Vec<Cow<'_, str>> = if !output.is_mcp() {
+        process_lines(message, width)
+    } else {
+        vec![Cow::from(process_lines(message, width).concat())]
+    };
+
+    for line in lines {
+        match &output {
+            Output::Stdout => println!("{}{}", indent, line),
+            Output::Stderr => eprintln!("{}{}", indent, line),
+            Output::None => {}
+            Output::TracingDebug => debug!("{}{}", indent, line),
+            Output::Mcp(_mcp) => {
+                store_mcp_tool_output(&indent, line)
+                // notify_log_to_mcp_client(&indent, line, mcp);
+            }
+        }
+    }
+}
+
+fn process_lines(message: &str, width: Option<usize>) -> Vec<Cow<'_, str>> {
+    match width {
+        Some(w) if w > 0 && message.len() > w && !message.contains('\n') => {
             textwrap::wrap(
                 message,
-                textwrap::Options::new(width)
+                textwrap::Options::new(w)
                     // deliberately 5 spaces, to makes this indent different from normal ones
                     .subsequent_indent("     ")
                     .word_splitter(WordSplitter::NoHyphenation),
             )
         }
-        _ => {
-            vec![Cow::from(message)]
-        }
-    };
-
-    for line in lines {
-        match state.output {
-            Output::Stdout => {
-                println!("{}{}", state.calculated_indent, line)
-            }
-            Output::Stderr => {
-                eprintln!("{}{}", state.calculated_indent, line)
-            }
-            Output::None => {}
-            Output::TracingDebug => {
-                debug!("{}{}", state.calculated_indent, line);
-            }
-        }
+        _ => vec![Cow::from(message)],
     }
+}
+
+// fn notify_log_to_mcp_client(
+//     indent: &str,
+//     line: Cow<'_, str>,
+//     mcp: &Mcp,
+// ) {
+//     let data: String = format!("{}{}", indent, line).clone();
+//     let progress = *PROGRESS_COUNTER.read().unwrap() as u32;
+//     tokio::spawn({
+//         let client = mcp.client.clone();
+//         let progress_token = mcp.progress_token.clone();
+//         let progress = progress;
+//         async move {
+//             let plain_data = strip_ansi_codes(&data).into_owned();
+
+//             let _ = client.notify_progress(ProgressNotificationParam {
+//                     progress_token,
+//                     progress,
+//                     message: plain_data.into(),
+//                     total: None,
+//                 })
+//                 .await;
+//             *PROGRESS_COUNTER.write().unwrap() = progress + 1;
+//         }
+//     });
+// }
+
+pub fn store_mcp_tool_output(
+    indent: &str,
+    line: Cow<'_, str>,
+) {
+    let data: String = format!("{}{}", indent, line).clone();
+    (*TOOL_OUTPUT.write().unwrap()).push(data)
+}
+
+pub fn get_mcp_tool_output() -> Vec<String> {
+    let output = TOOL_OUTPUT.read().unwrap().to_vec().join("\n");
+    (*TOOL_OUTPUT.write().unwrap()).clear();
+    
+    vec![output]
 }
 
 pub fn log_skipping_up_to_date<T: AsRef<str>>(subject: T) {

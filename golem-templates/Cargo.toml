@@ -24,6 +24,8 @@ include_dir = { workspace = true }
 itertools = { workspace = true }
 nanoid = { workspace = true }
 regex = { workspace = true }
+rmcp = { workspace= true }
+schemars = { workspace= true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 strum = { workspace = true }

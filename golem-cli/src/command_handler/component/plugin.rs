@@ -86,7 +86,7 @@ impl ComponentPluginCommandHandler {
         }
     }
 
-    async fn cmd_install(
+    pub async fn cmd_install(
         &self,
         component_name: Option<ComponentName>,
         plugin_name: String,
@@ -160,7 +160,7 @@ impl ComponentPluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(
+    pub async fn cmd_get(
         &self,
         component_name: Option<ComponentName>,
         version: Option<u64>,
@@ -210,7 +210,7 @@ impl ComponentPluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_update(
+    pub async fn cmd_update(
         &self,
         component_name: Option<ComponentName>,
         plugin_installation_id: PluginInstallationId,
@@ -275,7 +275,7 @@ impl ComponentPluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_uninstall(
+    pub async fn cmd_uninstall(
         &self,
         component_name: Option<ComponentName>,
         plugin_installation_id: PluginInstallationId,

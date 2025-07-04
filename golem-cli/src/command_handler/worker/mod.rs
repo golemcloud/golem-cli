@@ -164,7 +164,7 @@ impl WorkerCommandHandler {
         }
     }
 
-    async fn cmd_new(
+    pub async fn cmd_new(
         &self,
         worker_name: WorkerNameArg,
         arguments: Vec<NewWorkerArgument>,
@@ -225,7 +225,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_invoke(
+    pub async fn cmd_invoke(
         &self,
         worker_name: WorkerNameArg,
         function_name: &WorkerFunctionName,
@@ -384,7 +384,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_stream(
+    pub async fn cmd_stream(
         &self,
         worker_name: WorkerNameArg,
         stream_args: StreamArgs,
@@ -417,7 +417,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_simulate_crash(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    pub async fn cmd_simulate_crash(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -446,7 +446,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_oplog(
+    pub async fn cmd_oplog(
         &self,
         worker_name: WorkerNameArg,
         from: Option<u64>,
@@ -500,7 +500,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_revert(
+    pub async fn cmd_revert(
         &self,
         worker_name: WorkerNameArg,
         last_oplog_index: Option<u64>,
@@ -563,7 +563,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_cancel_invocation(
+    pub async fn cmd_cancel_invocation(
         &self,
         worker_name: WorkerNameArg,
         idempotency_key: IdempotencyKey,
@@ -606,7 +606,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_list(
+    pub async fn cmd_list(
         &self,
         component_name: Option<ComponentName>,
         filters: Vec<String>,
@@ -683,7 +683,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_interrupt(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    pub async fn cmd_interrupt(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -706,7 +706,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_resume(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    pub async fn cmd_resume(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -728,7 +728,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_update(
+    pub async fn cmd_update(
         &self,
         worker_name: WorkerNameArg,
         mode: WorkerUpdateMode,
@@ -779,7 +779,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    pub async fn cmd_get(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self
@@ -808,7 +808,7 @@ impl WorkerCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+    pub async fn cmd_delete(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
         self.ctx.silence_app_context_init().await;
         let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
         let (component, worker_name) = self

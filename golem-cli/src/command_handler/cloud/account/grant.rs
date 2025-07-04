@@ -45,7 +45,7 @@ impl CloudAccountGrantCommandHandler {
         }
     }
 
-    async fn cmd_get(&self, account_id: Option<AccountId>) -> anyhow::Result<()> {
+    pub async fn cmd_get(&self, account_id: Option<AccountId>) -> anyhow::Result<()> {
         let roles = self
             .ctx
             .golem_clients()
@@ -67,7 +67,7 @@ impl CloudAccountGrantCommandHandler {
         Ok(())
     }
 
-    async fn cmd_new(&self, account_id: Option<AccountId>, role: Role) -> anyhow::Result<()> {
+    pub async fn cmd_new(&self, account_id: Option<AccountId>, role: Role) -> anyhow::Result<()> {
         self.ctx
             .golem_clients()
             .await?
@@ -89,7 +89,11 @@ impl CloudAccountGrantCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(&self, account_id: Option<AccountId>, role: Role) -> anyhow::Result<()> {
+    pub async fn cmd_delete(
+        &self,
+        account_id: Option<AccountId>,
+        role: Role,
+    ) -> anyhow::Result<()> {
         self.ctx
             .golem_clients()
             .await?

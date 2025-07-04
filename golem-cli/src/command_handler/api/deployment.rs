@@ -64,7 +64,7 @@ impl ApiDeploymentCommandHandler {
         }
     }
 
-    async fn cmd_deploy(
+    pub async fn cmd_deploy(
         &self,
         host_or_site: Option<String>,
         update_or_redeploy: UpdateOrRedeployArgs,
@@ -129,7 +129,11 @@ impl ApiDeploymentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(&self, project: ProjectOptionalFlagArg, site: String) -> anyhow::Result<()> {
+    pub async fn cmd_get(
+        &self,
+        project: ProjectOptionalFlagArg,
+        site: String,
+    ) -> anyhow::Result<()> {
         let project = self
             .ctx
             .cloud_project_handler()
@@ -145,7 +149,7 @@ impl ApiDeploymentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_list(
+    pub async fn cmd_list(
         &self,
         project: ProjectOptionalFlagArg,
         definition: Option<ApiDefinitionId>,
@@ -189,7 +193,7 @@ impl ApiDeploymentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_delete(
+    pub async fn cmd_delete(
         &self,
         project: ProjectOptionalFlagArg,
         site: String,

@@ -62,7 +62,7 @@ impl PluginCommandHandler {
         }
     }
 
-    async fn cmd_list(&self, scope: PluginScopeArgs) -> anyhow::Result<()> {
+    pub async fn cmd_list(&self, scope: PluginScopeArgs) -> anyhow::Result<()> {
         let (scope_project, scope_component_id) = self.resolve_scope(&scope).await?;
 
         let clients = self.ctx.golem_clients().await?;
@@ -87,13 +87,13 @@ impl PluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(&self, plugin_name: String, version: String) -> anyhow::Result<()> {
+    pub async fn cmd_get(&self, plugin_name: String, version: String) -> anyhow::Result<()> {
         let plugin_definition = self.get(&plugin_name, &version).await?;
         self.ctx.log_handler().log_view(&plugin_definition);
         Ok(())
     }
 
-    async fn cmd_register(
+    pub async fn cmd_register(
         &self,
         scope: PluginScopeArgs,
         manifest: PathBufOrStdin,
@@ -277,7 +277,7 @@ impl PluginCommandHandler {
         Ok(())
     }
 
-    async fn cmd_unregister(&self, plugin_name: String, version: String) -> anyhow::Result<()> {
+    pub async fn cmd_unregister(&self, plugin_name: String, version: String) -> anyhow::Result<()> {
         let clients = self.ctx.golem_clients().await?;
 
         clients
