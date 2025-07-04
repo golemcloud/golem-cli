@@ -62,7 +62,7 @@ http-body-util = "0.1.3"
 humansize = "2.1.3"
 hyper = "1.6.0"
 include_dir = "0.7.4"
-indexmap = "2.7.0"
+indexmap = "2.10.0"
 indoc = "2.0.5"
 inquire = "0.7.5"
 iso8601 = "0.6.2"
@@ -127,15 +127,17 @@ wit-bindgen-rust = "0.40.0"
 wit-component = "0.228"
 wit-encoder = "0.228"
 wit-parser = "0.228"
+webbrowser = "1.0.4"
+warp = "0.3.7"
 
 [patch.crates-io]
-golem-client = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-common = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-rib = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-rib-repl = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-service-base = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-wasm-ast = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-wasm-rpc = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
+golem-client = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
+golem-common = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
+golem-rib = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
+golem-rib-repl = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
+golem-service-base = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
+golem-wasm-ast = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
+golem-wasm-rpc = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
 
 redis-protocol = { git = "https://github.com/golemcloud/redis-protocol.rs.git", branch = "unpin-cookie-factory" }
 wasmtime = { git = "https://github.com/golemcloud/wasmtime.git", branch = "golem-wasmtime-v33.0.0" }
