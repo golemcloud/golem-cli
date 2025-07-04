@@ -120,7 +120,9 @@ impl GolemCliMcpServer {
                 + self::GolemCliMcpServer::tool_router_profile()
                 + self::GolemCliMcpServer::tool_router_profile_config()
                 + self::GolemCliMcpServer::tool_router_worker()
-                + self::GolemCliMcpServer::tool_router_repl(),
+                + self::GolemCliMcpServer::tool_router_repl()
+
+                + self::GolemCliMcpServer::tool_router_list_tools(),      
         }
     }
 }

@@ -2,9 +2,7 @@ use std::{fs, future::Future, path::Path };
 
 use rmcp::{
     model::{
-        Implementation, ListResourcesResult, PaginatedRequestParam, ProtocolVersion, RawResource,
-        ReadResourceRequestParam, ReadResourceResult, Resource, ResourceContents,
-        ServerCapabilities, ServerInfo,
+        Implementation, ListResourcesResult, ListToolsResult, PaginatedRequestParam, ProtocolVersion, RawResource, ReadResourceRequestParam, ReadResourceResult, Resource, ResourceContents, ServerCapabilities, ServerInfo
     },
     service::RequestContext,
     tool_handler, Error, RoleServer, ServerHandler,
@@ -14,6 +12,7 @@ use crate::command_handler::mcp_server::GolemCliMcpServer;
 
 #[tool_handler]
 impl ServerHandler for GolemCliMcpServer {
+
     fn list_resources(
         &self,
         _request: Option<PaginatedRequestParam>,
@@ -110,7 +109,18 @@ impl ServerHandler for GolemCliMcpServer {
                 .enable_resources()
                 .build(),
             instructions: Some(
-                "Help user to perform what normally they can directly do using golem cli".to_string(),
+                "Tools Introduction
+                Helps interacting with Golem. It allows users to upload their components, launch new workers based on these components and call functions on running workers, etc..,
+
+                Call list_golem_mcp_server_tools once to know detailed info about available tools.
+
+                User uses these tools when using gemini cli or calude code or similar tools inside the golem app.
+                
+                📎 NOTES:
+                    - User requests should be interpreted and mapped internally to tool calls.
+                    - AI agents must ensure the `params` object includes all required keys and correct types.
+                    - No interactive shell exists. Every action is an atomic tool invocation.
+                ".to_string(),
             ),
             protocol_version: ProtocolVersion::V_2025_03_26,
             server_info: Implementation {

@@ -20,7 +20,10 @@ use crate::app::build::{delete_path_logged, is_up_to_date, valid_env_vars};
 use crate::app::context::ApplicationContext;
 use crate::app::error::CustomCommandError;
 use crate::fs::compile_and_collect_globs;
-use crate::log::{log_action, log_skipping_up_to_date, LogColorize, LogIndent};
+use crate::log::{
+    get_log_output, log_action, log_skipping_up_to_date, store_mcp_tool_output,
+    LogColorize, LogIndent, Output,
+};
 use crate::model::app_raw;
 use anyhow::{anyhow, Context};
 use camino::Utf8Path;
@@ -293,18 +296,33 @@ pub fn execute_external_command(
         let result = Command::new(command_tokens[0].clone())
             .args(command_tokens.iter().skip(1))
             .current_dir(build_dir)
-            .status()
+            .output()
             .with_context(|| "Failed to execute command".to_string())?;
+        let status = result.status;
 
-        if result.success() {
+        if status.success() {
+            if matches!(get_log_output(), Output::Mcp(_)) {
+                use std::borrow::Cow;
+                let out_str = format!(
+                    "Command execution went fine. stdout: {}, stderr: {}",
+                    String::from_utf8_lossy(&result.stdout),
+                    String::from_utf8_lossy(&result.stderr)
+                );
+                store_mcp_tool_output("", Cow::Borrowed(&out_str));
+            }
             Ok(())
         } else {
             Err(anyhow!(format!(
-                "Command failed with exit code: {}",
-                result
+                "Command failed with exit code: {} and output: {}",
+                status
                     .code()
                     .map(|code| code.to_string().log_color_error_highlight().to_string())
-                    .unwrap_or_else(|| "?".to_string())
+                    .unwrap_or_else(|| "?".to_string()),
+                format!(
+                    "stdout: {}, stderr: {}",
+                    String::from_utf8_lossy(&result.stdout),
+                    String::from_utf8_lossy(&result.stderr)
+                )
             )))
         }
     })())

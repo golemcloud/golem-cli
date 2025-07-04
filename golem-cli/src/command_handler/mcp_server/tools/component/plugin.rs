@@ -2,7 +2,7 @@ use crate::command::shared_args::ComponentOptionalComponentName;
 use crate::command::GolemCliGlobalFlags;
 use crate::command_handler::component::plugin::ComponentPluginCommandHandler;
 use crate::command_handler::mcp_server::GolemCliMcpServer;
-use crate::log::{Mcp, Output};
+use crate::log::{get_mcp_tool_output, Mcp, Output};
 use console::strip_ansi_codes;
 use golem_common::model::PluginInstallationId;
 use rmcp::handler::server::tool::Parameters;
@@ -78,7 +78,7 @@ impl GolemCliMcpServer {
             Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "install_component_plugin".to_owned(),
-                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
+                // progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -98,7 +98,7 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: vec![Content::text("Success")],
+                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
 
                         is_error: None,
                     }),
@@ -132,7 +132,7 @@ impl GolemCliMcpServer {
             Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "get_component_plugin".to_owned(),
-                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
+                // progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -146,7 +146,7 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: vec![Content::text("Success")],
+                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
 
                         is_error: None,
                     }),
@@ -180,7 +180,7 @@ impl GolemCliMcpServer {
             Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "uninstall_component_plugin".to_owned(),
-                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
+                // progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -194,7 +194,7 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: vec![Content::text("Success")],
+                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
 
                         is_error: None,
                     }),
@@ -228,7 +228,7 @@ impl GolemCliMcpServer {
             Some(Output::Mcp(Mcp {
                 client,
                 tool_name: "update_component_plugin".to_owned(),
-                progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
+                // progress_token: meta.get_progress_token().ok_or(CallToolError::invalid_params("Progress Token is required to use this tool", None))?
             })),
             start_local_server_yes,
             Box::new(|| Box::pin(async { Ok(()) })), // dummy, not starting anything for now, can we provide a seperate tool to start the golem server
@@ -247,7 +247,7 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: vec![Content::text("Success")],
+                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
 
                         is_error: None,
                     }),
