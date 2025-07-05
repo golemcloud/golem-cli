@@ -33,9 +33,7 @@ use crate::model::text::api_definition::{
     ApiDefinitionExportView, ApiDefinitionGetView, ApiDefinitionNewView, ApiDefinitionUpdateView,
 };
 use crate::model::text::fmt::{log_deploy_diff, log_error, log_warn};
-use crate::model::{
-    ComponentName, OpenApiDefinitionOutputFormat, ProjectRefAndId,
-};
+use crate::model::{ComponentName, OpenApiDefinitionOutputFormat, ProjectRefAndId};
 use anyhow::{bail, Context as AnyhowContext};
 use golem_client::api::ApiDefinitionClient;
 use golem_client::api::ApiDeploymentClient;
@@ -694,8 +692,8 @@ impl ApiDefinitionCommandHandler {
         let openapi_spec = response.openapi_yaml;
         let file_name = output_name.unwrap_or_else(|| format!("{}_{}", id.0, version.0));
         let file_path = match format {
-            OpenApiDefinitionOutputFormat::Json => format!("{}.json", file_name),
-            OpenApiDefinitionOutputFormat::Yaml => format!("{}.yaml", file_name),
+            OpenApiDefinitionOutputFormat::Json => format!("{file_name}.json"),
+            OpenApiDefinitionOutputFormat::Yaml => format!("{file_name}.yaml"),
         };
 
         match format {
@@ -712,7 +710,7 @@ impl ApiDefinitionCommandHandler {
             }
         }
 
-        let result = format!("Exported to {}", file_path);
+        let result = format!("Exported to {file_path}");
 
         self.ctx
             .log_handler()
@@ -924,11 +922,10 @@ impl ApiDefinitionCommandHandler {
         });
 
         // Try to open browser
-        match webbrowser::open(&format!("http://localhost:{}", port)) {
+        match webbrowser::open(&format!("http://localhost:{port}")) {
             Ok(_) => println!("Browser opened successfully."),
             Err(_) => println!(
-                "Could not open browser automatically. You can access the Swagger UI at: http://localhost:{}",
-                port
+                "Could not open browser automatically. You can access the Swagger UI at: http://localhost:{port}"
             ),
         }
 

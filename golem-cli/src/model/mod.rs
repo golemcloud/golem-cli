@@ -836,7 +836,7 @@ impl From<Uuid> for ProjectId {
     }
 }
 
-impl     From<ProjectId> for Uuid {
+impl From<ProjectId> for Uuid {
     fn from(project_id: ProjectId) -> Self {
         project_id.0
     }
