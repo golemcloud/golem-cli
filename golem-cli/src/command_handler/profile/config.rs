@@ -46,7 +46,7 @@ impl ProfileConfigCommandHandler {
     fn cmd_set_format(&self, profile_name: ProfileName, format: Format) -> anyhow::Result<()> {
         match Config::get_profile(self.ctx.config_dir(), &profile_name)? {
             Some(mut profile) => {
-                profile.profile.get_config_mut().default_format = format;
+                profile.profile.config.default_format = format;
 
                 log_action(
                     "Updating",
@@ -61,7 +61,7 @@ impl ProfileConfigCommandHandler {
                 Ok(())
             }
             None => {
-                log_error(format!("Profile {} not found", profile_name));
+                log_error(format!("Profile {profile_name} not found"));
                 // TODO: show available profiles
                 bail!(NonSuccessfulExit);
             }

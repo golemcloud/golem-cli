@@ -446,9 +446,9 @@ pub enum BinaryComponentSource {
 impl Display for BinaryComponentSource {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            BinaryComponentSource::AppComponent { name } => write!(f, "{}", name),
+            BinaryComponentSource::AppComponent { name } => write!(f, "{name}"),
             BinaryComponentSource::LocalFile { path } => write!(f, "{}", path.display()),
-            BinaryComponentSource::Url { url } => write!(f, "{}", url),
+            BinaryComponentSource::Url { url } => write!(f, "{url}"),
         }
     }
 }
@@ -647,7 +647,7 @@ impl Application {
     fn component(&self, component_name: &AppComponentName) -> &Component {
         self.components
             .get(component_name)
-            .unwrap_or_else(|| panic!("Component not found: {}", component_name))
+            .unwrap_or_else(|| panic!("Component not found: {component_name}"))
     }
 
     pub fn component_source(&self, component_name: &AppComponentName) -> &Path {
@@ -1698,8 +1698,7 @@ mod app_builder {
                                 vec![("profile", profile_name.to_string())],
                                 |validation| {
                                     let is_builtin_local = profile_name.is_builtin_local();
-                                    let is_cloud =
-                                        profile_name.is_builtin_cloud() || profile.is_cloud();
+                                    let is_cloud = profile_name.is_builtin_cloud();
                                     if is_builtin_local || is_cloud {
                                         check_not_allowed_for_profile(
                                             &format!("{} profiles", "Cloud".log_color_highlight()),
@@ -2473,7 +2472,7 @@ mod app_builder {
                                                         format!(
                                                             "Failed to parse property {} as Rib:\n{}\n{}\n{}",
                                                             property_name.log_color_highlight(),
-                                                            err.to_string().lines().map(|l| format!("  {}", l)).join("\n").log_color_warn(),
+                                                            err.to_string().lines().map(|l| format!("  {l}")).join("\n").log_color_warn(),
                                                             "Rib source:".log_color_highlight(),
                                                             format_rib_source_for_error(rib, &err),
                                                         )
@@ -2651,7 +2650,7 @@ mod app_builder {
         ) -> String {
             let options = name_options.into_iter().collect::<Vec<_>>();
             if options.is_empty() {
-                return format!("No {} are defined", entity_plural);
+                return format!("No {entity_plural} are defined");
             }
 
             let fuzzy_search = FuzzySearch::new(options.iter().copied());
@@ -2682,8 +2681,8 @@ mod app_builder {
             format!(
                 "{}{}\n{}",
                 hint,
-                format!("Available {}:", entity_name_plural).log_color_help_group(),
-                options.iter().map(|name| format!("- {}", name)).join("\n")
+                format!("Available {entity_name_plural}:").log_color_help_group(),
+                options.iter().map(|name| format!("- {name}")).join("\n")
             )
         }
     }

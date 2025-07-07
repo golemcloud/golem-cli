@@ -18,8 +18,8 @@ use crate::context::Context;
 use crate::error::service::AnyhowMapServiceError;
 use crate::log::{log_action, log_warn_action, logln};
 use crate::model::ProjectReference;
+use golem_client::api::ProjectClient;
 use golem_client::model::{PluginInstallationCreation, PluginInstallationUpdate};
-use golem_cloud_client::api::ProjectClient;
 use golem_common::base_model::PluginInstallationId;
 use std::sync::Arc;
 
@@ -86,13 +86,13 @@ impl CloudProjectPluginCommandHandler {
 
         log_action(
             "Installing",
-            format!("plugin {} for project {}", plugin_name, project_reference),
+            format!("plugin {plugin_name} for project {project_reference}"),
         );
         logln("");
 
         let result = self
             .ctx
-            .golem_clients_cloud()
+            .golem_clients()
             .await?
             .project
             .install_plugin_to_project(
@@ -121,7 +121,7 @@ impl CloudProjectPluginCommandHandler {
 
         let results = self
             .ctx
-            .golem_clients_cloud()
+            .golem_clients()
             .await?
             .project
             .get_installed_plugins_of_project(&project.project_id.0)
@@ -148,14 +148,11 @@ impl CloudProjectPluginCommandHandler {
 
         log_action(
             "Updating",
-            format!(
-                "plugin {} for project {}",
-                plugin_installation_id, project_reference
-            ),
+            format!("plugin {plugin_installation_id} for project {project_reference}"),
         );
 
         self.ctx
-            .golem_clients_cloud()
+            .golem_clients()
             .await?
             .project
             .update_installed_plugin_in_project(
@@ -187,14 +184,11 @@ impl CloudProjectPluginCommandHandler {
 
         log_warn_action(
             "Uninstalling",
-            format!(
-                "plugin {} from project {}",
-                plugin_installation_id, project_reference
-            ),
+            format!("plugin {plugin_installation_id} from project {project_reference}"),
         );
 
         self.ctx
-            .golem_clients_cloud()
+            .golem_clients()
             .await?
             .project
             .uninstall_plugin_from_project(&project.project_id.0, &plugin_installation_id.0)

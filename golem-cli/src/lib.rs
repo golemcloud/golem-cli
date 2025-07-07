@@ -18,7 +18,6 @@ use tracing_subscriber::FmtSubscriber;
 
 pub mod app;
 pub mod auth;
-pub mod cloud;
 pub mod command;
 pub mod command_handler;
 pub mod config;
@@ -110,9 +109,9 @@ mod tests {
             for arg in positional {
                 let id = arg.get_id().to_string().to_uppercase();
                 if arg.is_required_set() && arg.get_default_values().is_empty() {
-                    print!(" <{}>", id);
+                    print!(" <{id}>");
                 } else {
-                    print!(" [{}]", id);
+                    print!(" [{id}]");
                 }
                 if let ArgAction::Append = arg.get_action() {
                     print!("...")
@@ -126,9 +125,7 @@ mod tests {
             print!("{}", "\t".repeat(level + 2));
             for arg in flag_args.clone() {
                 print!(" --{}", arg.get_long().unwrap(),);
-                arg.get_short()
-                    .iter()
-                    .for_each(|short| print!("({})", short));
+                arg.get_short().iter().for_each(|short| print!("({short})"));
             }
             println!()
         }

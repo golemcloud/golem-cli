@@ -15,7 +15,7 @@
 use crate::model::project::ProjectView;
 use crate::model::text::fmt::*;
 use cli_table::Table;
-use golem_cloud_client::model::{Project, ProjectGrant, ProjectPolicy, ProjectType};
+use golem_client::model::{Project, ProjectGrant, ProjectPolicy, ProjectType};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -148,13 +148,7 @@ fn project_policy_fields(policy: &ProjectPolicy) -> Vec<(String, String)> {
             "Actions",
             &policy.project_actions,
             !policy.project_actions.actions.is_empty(),
-            |actions| {
-                actions
-                    .actions
-                    .iter()
-                    .map(|a| format!("- {}", a))
-                    .join("\n")
-            },
+            |actions| actions.actions.iter().map(|a| format!("- {a}")).join("\n"),
         );
 
     fields.build()

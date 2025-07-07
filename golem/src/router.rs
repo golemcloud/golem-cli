@@ -14,7 +14,7 @@
 
 use crate::StartedComponents;
 use anyhow::Context;
-use poem::middleware::{OpenTelemetryMetrics, Tracing};
+use poem::middleware::{CookieJarManager, Cors, OpenTelemetryMetrics, Tracing};
 use poem::EndpointExt;
 use poem::{Route, Server};
 use std::net::Ipv4Addr;
@@ -37,8 +37,7 @@ pub fn start_router(
     info!("Starting single-executable http api");
 
     let ipv4_addr: Ipv4Addr = listener_addr.parse().context(format!(
-        "Failed at parsing the listener host address {}",
-        listener_addr
+        "Failed at parsing the listener host address {listener_addr}"
     ))?;
 
     let listener_socket_addr = SocketAddrV4::new(ipv4_addr, listener_port);
@@ -49,6 +48,7 @@ pub fn start_router(
 
     let worker_service_api = Arc::new(started_components.worker_service.api_endpoint);
     let component_service_api = Arc::new(started_components.component_service.endpoint);
+    let cloud_service_api = Arc::new(started_components.cloud_service.endpoint);
 
     let app = Route::new()
         .at("/v1/api/definitions", worker_service_api.clone())
@@ -114,8 +114,18 @@ pub fn start_router(
         .at("/v1/library-plugins", component_service_api.clone())
         .at("/v1/plugins", component_service_api.clone())
         .at("/v1/plugins/*", component_service_api.clone())
+        .at("/v1/accounts", cloud_service_api.clone())
+        .at("/v1/accounts/*", cloud_service_api.clone())
+        .at("/v1/admin/*", cloud_service_api.clone())
+        .at("/v1/resource-limits", cloud_service_api.clone())
+        .at("/v1/oauth2", cloud_service_api.clone())
+        .at("/v1/login/*", cloud_service_api.clone())
+        .at("/v1/projects", cloud_service_api.clone())
+        .at("/v1/projects/*", cloud_service_api.clone())
         .at("/metrics", metrics)
         .at("/healthcheck", component_service_api)
+        .with(CookieJarManager::new())
+        .with(Cors::new().allow_origin_regex(".*").allow_credentials(true))
         .with(OpenTelemetryMetrics::new())
         .with(Tracing);
 
