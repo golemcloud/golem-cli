@@ -1,6 +1,6 @@
 import type * as bindings from "component-name"
 
-let result = undefined;
+let result: any = undefined;
 
 export const componentNameApi: typeof bindings.componentNameApi = {
     async getLastResult() {
