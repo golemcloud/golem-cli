@@ -113,10 +113,10 @@ fn delete_path_logged(context: &str, path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn is_up_to_date<S: Debug, T: Debug, FS, FT>(skip_check: bool, sources: FS, targets: FT) -> bool
+fn is_up_to_date<S, T, FS, FT>(skip_check: bool, sources: FS, targets: FT) -> bool
 where
-    S: IntoIterator<Item = PathBuf>,
-    T: IntoIterator<Item = PathBuf>,
+    S: Debug + IntoIterator<Item = PathBuf>,
+    T: Debug + IntoIterator<Item = PathBuf>,
     FS: FnOnce() -> S,
     FT: FnOnce() -> T,
 {

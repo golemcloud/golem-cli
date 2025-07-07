@@ -146,14 +146,14 @@ pub fn execute_build_command(
                 ),
             );
 
-            task_result_marker.result((|| {
+            task_result_marker.result({
                 wasm_rquickjs::generate_wrapper_crate(
                     &wit,
                     &js,
                     &generate_quickjs_crate,
                     command.world.as_deref(),
                 )
-            })())
+            })
         }
         app_raw::BuildCommand::QuickJSDTS(command) => {
             let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
@@ -191,10 +191,10 @@ pub fn execute_build_command(
                 ),
             );
 
-            task_result_marker.result((|| {
-                wasm_rquickjs::generate_dts(&wit, &generate_quickjs_dts, command.world.as_deref())
+            task_result_marker.result({
+                wasm_rquickjs::generate_dts(wit, generate_quickjs_dts, command.world.as_deref())
                     .context("Failed to generate QuickJS DTS")
-            })())
+            })
         }
     }
 }
