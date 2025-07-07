@@ -4,7 +4,7 @@ let result: any = undefined;
 
 export const componentNameApi: typeof bindings.componentNameApi = {
     async getLastResult() {
-        return result ? JSON.stringify(result) : undefined;
+        return result ? JSON.stringify(result) : "???";
     },
     async fetchJson(url) {
         const response = await fetch(url);
