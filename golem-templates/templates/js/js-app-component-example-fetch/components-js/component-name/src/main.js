@@ -1,4 +1,4 @@
-let result = undefined;
+let result: any = undefined;
 
 export const componentNameApi = {
     async getLastResult() {
