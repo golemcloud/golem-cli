@@ -74,9 +74,14 @@ impl AppCommandHandler {
             AppSubcommand::UpdateWorkers {
                 component_name,
                 update_mode,
+                r#await,
             } => {
-                self.cmd_update_workers(component_name.component_name, update_mode)
-                    .await
+                self.cmd_update_workers(
+                    component_name.component_name,
+                    update_mode,
+                    r#await.unwrap_or(false),
+                )
+                .await
             }
             AppSubcommand::RedeployWorkers { component_name } => {
                 self.cmd_redeploy_workers(component_name.component_name)
@@ -349,6 +354,7 @@ impl AppCommandHandler {
         &self,
         component_names: Vec<ComponentName>,
         update_mode: WorkerUpdateMode,
+        await_update: bool,
     ) -> anyhow::Result<()> {
         self.must_select_components(component_names, &ApplicationComponentSelectMode::All)
             .await?;
@@ -356,7 +362,7 @@ impl AppCommandHandler {
         let components = self.components_for_update_or_redeploy().await?;
         self.ctx
             .component_handler()
-            .update_workers_by_components(&components, update_mode)
+            .update_workers_by_components(&components, update_mode, await_update)
             .await?;
 
         Ok(())
