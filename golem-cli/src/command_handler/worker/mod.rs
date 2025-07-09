@@ -137,7 +137,7 @@ impl WorkerCommandHandler {
                     worker_name,
                     mode.unwrap_or(WorkerUpdateMode::Automatic),
                     target_version,
-                    r#await.unwrap_or(false),
+                    r#await,
                 )
                 .await
             }

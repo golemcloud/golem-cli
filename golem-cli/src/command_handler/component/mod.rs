@@ -130,12 +130,8 @@ impl ComponentCommandHandler {
                 update_mode,
                 r#await,
             } => {
-                self.cmd_update_workers(
-                    component_name.component_name,
-                    update_mode,
-                    r#await.unwrap_or(false),
-                )
-                .await
+                self.cmd_update_workers(component_name.component_name, update_mode, r#await)
+                    .await
             }
             ComponentSubcommand::RedeployWorkers { component_name } => {
                 self.cmd_redeploy_workers(component_name.component_name)

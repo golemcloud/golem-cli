@@ -792,8 +792,8 @@ pub mod app {
             #[arg(long, short, default_value = "auto")]
             update_mode: WorkerUpdateMode,
             /// Await the update to be completed
-            #[arg(long)]
-            r#await: Option<bool>,
+            #[arg(long, default_value_t = false)]
+            r#await: bool,
         },
         /// Redeploy all workers of the application using the latest version
         RedeployWorkers {
@@ -897,8 +897,8 @@ pub mod component {
             #[arg(long, short, default_value_t = WorkerUpdateMode::Automatic)]
             update_mode: WorkerUpdateMode,
             /// Await the update to be completed
-            #[arg(long)]
-            r#await: Option<bool>,
+            #[arg(long, default_value_t = false)]
+            r#await: bool,
         },
         /// Redeploy all workers of the selected component using the latest version
         RedeployWorkers {
@@ -1073,8 +1073,8 @@ pub mod worker {
             /// The new version of the updated worker (default is the latest version)
             target_version: Option<u64>,
             /// Await the update to be completed
-            #[arg(long)]
-            r#await: Option<bool>,
+            #[arg(long, default_value_t = false)]
+            r#await: bool,
         },
         /// Interrupts a running worker
         Interrupt {
