@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
 // BrowserRouter is used for client-side routing
 import { BrowserRouter as Router, useRoutes } from "react-router-dom";
 // ThemeProvider provides theming support
