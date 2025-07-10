@@ -23,6 +23,8 @@ import { YamlEditor } from "./yaml-editor";
 
 // import { parse } from "path";
 
+type ValidationError = string;
+
 export default function YamlUploader() {
   const { apiName, version, appId } = useParams();
   const navigate = useNavigate();
@@ -50,7 +52,7 @@ export default function YamlUploader() {
         setActiveApiDetails(apiResponse!);
       } catch (error) {
         console.error("Failed to fetch data:", error);
-        setFetchError("Failed to load required data. Please try again.");
+        setError("Failed to load required data. Please try again.");
       } finally {
         setIsLoading(false);
       }

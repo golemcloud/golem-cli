@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
@@ -109,11 +109,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockResolvedValue([]);
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       expect(screen.getByText('Golem Desktop')).toBeInTheDocument();
       expect(screen.getByText('New Application')).toBeInTheDocument();
@@ -123,11 +125,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockResolvedValue([]);
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       // Use more specific selectors to avoid duplicate text issue
       expect(screen.getByRole('heading', { name: 'Create New Application' })).toBeInTheDocument();
@@ -140,11 +144,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockResolvedValue([]);
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       expect(screen.getByText('Recent Applications')).toBeInTheDocument();
       expect(screen.getByText('Your recently opened applications')).toBeInTheDocument();
@@ -156,11 +162,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Test App 1')).toBeInTheDocument();
@@ -174,11 +182,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockResolvedValue([]);
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('No recent applications found')).toBeInTheDocument();
@@ -190,11 +200,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockRejectedValue(new Error('Failed to load'));
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch apps:', expect.any(Error));
@@ -210,11 +222,13 @@ describe('Home Page', () => {
       (settingsService.getApps as any).mockResolvedValue([]);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       const createButton = screen.getByRole('button', { name: /create new application/i });
       await user.click(createButton);
@@ -227,11 +241,13 @@ describe('Home Page', () => {
       (settingsService.getApps as any).mockResolvedValue([]);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       const headerButton = screen.getByText('New Application');
       await user.click(headerButton);
@@ -244,11 +260,13 @@ describe('Home Page', () => {
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Test App 1')).toBeInTheDocument();
@@ -275,11 +293,13 @@ describe('Home Page', () => {
       (settingsService.addApp as any).mockResolvedValue(true);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       const openButton = screen.getByText('Open');
       await user.click(openButton);
@@ -304,11 +324,13 @@ describe('Home Page', () => {
       });
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       const openButton = screen.getByText('Open');
       await user.click(openButton);
@@ -330,11 +352,13 @@ describe('Home Page', () => {
       (open as any).mockResolvedValue(null);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       const openButton = screen.getByText('Open');
       await user.click(openButton);
@@ -355,11 +379,13 @@ describe('Home Page', () => {
       (open as any).mockRejectedValue(new Error('Dialog error'));
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       const openButton = screen.getByText('Open');
       await user.click(openButton);
@@ -381,11 +407,13 @@ describe('Home Page', () => {
       (open as any).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve('/path'), 100)));
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       const openButton = screen.getByText('Open');
       await user.click(openButton);
@@ -404,11 +432,13 @@ describe('Home Page', () => {
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Test App 1')).toBeInTheDocument();
@@ -427,11 +457,13 @@ describe('Home Page', () => {
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Test App 1')).toBeInTheDocument();
@@ -448,11 +480,13 @@ describe('Home Page', () => {
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Test App 1')).toBeInTheDocument();
@@ -479,11 +513,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockResolvedValue(manyApps);
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('View All')).toBeInTheDocument();
@@ -503,11 +539,13 @@ describe('Home Page', () => {
       (settingsService.getApps as any).mockResolvedValue(manyApps);
 
       const user = userEvent.setup();
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('View All')).toBeInTheDocument();
@@ -540,11 +578,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockResolvedValue(unsortedApps);
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         const appCards = screen.getAllByTestId('card');
@@ -569,11 +609,13 @@ describe('Home Page', () => {
       const { settingsService } = await import('@/lib/settings');
       (settingsService.getApps as any).mockResolvedValue([recentApp]);
 
-      render(
-        <MemoryRouter>
-          <Home />
-        </MemoryRouter>
-      );
+      await act(async () => {
+        render(
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/1 minute ago/)).toBeInTheDocument();
