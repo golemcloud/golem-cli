@@ -1,4 +1,4 @@
-import { fetchCurrentIP, UniversalWebSocket } from "@/lib/tauri&web.ts";
+import {  UniversalWebSocket } from "@/lib/tauri&web.ts";
 
 export class WSS {
   private ws: UniversalWebSocket;

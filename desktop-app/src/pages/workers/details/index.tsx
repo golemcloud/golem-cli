@@ -84,15 +84,15 @@ export default function WorkerDetails() {
       const invocationList = [] as Invocation[];
       response.forEach((item: OplogEntry | number) => {
         if (typeof item === "number") return;
-        if (item.type) {
+        if (item.entry.type) {
           terminalData.push({
-            timestamp: item.timestamp,
-            message: item.message,
+            timestamp: item.entry.timestamp,
+            message: item.entry.message,
           });
-        } else if (item.type === "ExportedFunctionInvoked") {
+        } else if (item.entry.type === "ExportedFunctionInvoked") {
           invocationList.push({
-            timestamp: item.timestamp,
-            function: item.function_name,
+            timestamp: item.entry.timestamp,
+            function: item.entry.function_name,
           });
         }
       });

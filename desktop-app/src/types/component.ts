@@ -74,7 +74,7 @@ export interface Producer {
 }
 
 export interface Metadata {
-  exports: Export[];
+  exports: string[];
   memories: Memory[];
   producers: Producer[];
 }

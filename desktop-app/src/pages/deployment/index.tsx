@@ -20,6 +20,7 @@ import { Deployment } from "@/types/deployments";
 import ErrorBoundary from "@/components/errorBoundary";
 import { HTTP_METHOD_COLOR } from "@/components/nav-route";
 import { useNavigate, useParams } from "react-router-dom";
+import { HttpApiDefinition } from "@/types/golemManifest";
 
 const RoutesCard = ({
   apiId,
@@ -113,9 +114,9 @@ const RoutesCard = ({
 export default function Deployments() {
   const navigate = useNavigate();
   const [expandedDeployment, setExpandedDeployment] = useState<string[]>([]);
-  const [apiList, setApiList] = useState<Api[]>([]);
+  const [apiList, setApiList] = useState<HttpApiDefinition[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogOpenForHost, setDialogOpenForHost] = useState<string | null>(null);
   const { appId } = useParams<{ appId: string }>();
   const [selectedDeploymentHost, setSelectedDeploymentHost] = useState<
     string | null
@@ -129,10 +130,18 @@ export default function Deployments() {
 
         const uniqueApis = removeDuplicateApis(response);
         const allDeployments = await Promise.all(
-          uniqueApis.map(api => API.getDeploymentApi(appId!, api.subdomain)),
+          uniqueApis.map(api => API.getDeploymentApi(appId!)),
         );
 
-        setDeployments(allDeployments.flat().filter(Boolean));
+        const flattenedDeployments = allDeployments.flat().filter(Boolean);
+        const uniqueDeployments = flattenedDeployments.reduce((acc, current) => {
+          if (!acc.find(item => item.site.host === current.site.host)) {
+            acc.push(current);
+          }
+          return acc;
+        }, []);
+
+        setDeployments(uniqueDeployments);
       } catch (error) {
         console.error("Error fetching deployments:", error);
       }
@@ -152,7 +161,7 @@ export default function Deployments() {
     } catch (error) {
       console.error("Error deleting deployment:", error);
     } finally {
-      setIsDialogOpen(false);
+      setDialogOpenForHost(null);
       setSelectedDeploymentHost(null);
     }
   };
@@ -173,6 +182,7 @@ export default function Deployments() {
           <Button
             size="sm"
             onClick={() => navigate(`/app/${appId}/deployments/create`)}
+            type="button"
           >
             <Plus className="w-4 h-4 mr-2" />
             New
@@ -194,22 +204,27 @@ export default function Deployments() {
                       </h2>
 
                       <Dialog
-                        open={isDialogOpen}
-                        onOpenChange={setIsDialogOpen}
+                        open={dialogOpenForHost === deployment.site.host}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setSelectedDeploymentHost(deployment.site.host);
+                            setDialogOpenForHost(deployment.site.host);
+                          } else {
+                            setDialogOpenForHost(null);
+                          }
+                        }}
                       >
                         <DialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                          <div
                             className="text-destructive hover:text-destructive"
                             onClick={e => {
                               e.stopPropagation();
                               setSelectedDeploymentHost(deployment.site.host);
-                              setIsDialogOpen(true);
+                              setDialogOpenForHost(deployment.site.host);
                             }}
                           >
                             <Trash className="h-4 w-4" />
-                          </Button>
+                          </div>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>

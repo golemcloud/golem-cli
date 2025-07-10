@@ -1,4 +1,4 @@
-import { Api, RouteRequestData } from "@/types/api";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Globe, LayoutGrid, Plus, Route } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Deployment } from "@/types/deployments.ts";
 import ErrorBoundary from "@/components/errorBoundary.tsx";
 import { HTTP_METHOD_COLOR } from "@/components/nav-route.tsx";
+import { HttpApiDefinition, HttpApiDefinitionRoute } from "@/types/golemManifest";
 
 const APIDetails = () => {
   const { apiName, version, appId } = useParams();
   const [queryParams] = useSearchParams();
   const reload = queryParams.get("reload");
   const navigate = useNavigate();
-  const [activeApiDetails, setActiveApiDetails] = useState({} as Api);
+  const [activeApiDetails, setActiveApiDetails] = useState({} as HttpApiDefinition);
 
   const [deployments, setDeployments] = useState([] as Deployment[]);
 
@@ -42,7 +43,7 @@ const APIDetails = () => {
     }
   }, [apiName, version, reload]);
 
-  const routeToQuery = (route: RouteRequestData) => {
+  const routeToQuery = (route: HttpApiDefinitionRoute) => {
     navigate(
       `/app/${appId}/apis/${apiName}/version/${version}/routes/?path=${route.path}&method=${route.method}`,
     );

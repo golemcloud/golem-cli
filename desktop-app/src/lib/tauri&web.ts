@@ -1,12 +1,12 @@
 import { BaseDirectory } from "@tauri-apps/api/path";
 import TauriWebSocket from "@tauri-apps/plugin-websocket";
-import { invoke } from "@tauri-apps/api/core";
+// import { invoke } from "@tauri-apps/api/core";
 import { listen, TauriEvent as TauriEventEnum } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { writeFile } from "@tauri-apps/plugin-fs";
 
-const isTauri = typeof window !== "undefined";
+const isTauri = typeof window !== "undefined" && (window as any).__TAURI__;
 
 export type Theme = "dark" | "light" | "system";
 

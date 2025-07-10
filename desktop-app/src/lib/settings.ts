@@ -26,7 +26,7 @@ async function validFolderFilter(app: App): Promise<boolean> {
   return validFolder;
 }
 
-class SettingsService {
+export class SettingsService {
   private readonly storeName: string;
 
   constructor() {

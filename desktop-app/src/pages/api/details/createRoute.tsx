@@ -36,6 +36,7 @@ import type { Component, ComponentList } from "@/types/component";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { HttpApiDefinition } from "@/types/golemManifest";
 
 const MethodPattern = z.enum([
   "Get",
@@ -74,7 +75,7 @@ const HttpCors = z.object({
 });
 
 const RouteRequestData = z.object({
-  method: MethodPattern,
+  method: z.enum(["GET" , "CONNECT" , "POST" , "DELETE" , "PUT" , "PATCH" , "OPTIONS" , "TRACE" , "HEAD"]),
   path: z.string(),
   binding: GatewayBindingData,
   cors: HttpCors.optional(),
@@ -117,7 +118,7 @@ const CreateRoute = () => {
   const reload = queryParams.get("reload");
 
   const [isEdit, setIsEdit] = useState(false);
-  const [activeApiDetails, setActiveApiDetails] = useState<Api | null>(null);
+  const [activeApiDetails, setActiveApiDetails] = useState<HttpApiDefinition | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [responseSuggestions, setResponseSuggestions] = useState(
@@ -173,7 +174,7 @@ const CreateRoute = () => {
       try {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
-          API.getApi(apiName),
+          API.getApi(appId!,apiName),
           API.getComponentByIdAsKey(appId!),
         ]);
         const selectedApi = apiResponse.find(api => api.version === version);
@@ -181,7 +182,7 @@ const CreateRoute = () => {
         setComponentList(componentResponse);
         if (path != null && method) {
           setIsEdit(true);
-          const route = selectedApi?.routes.find(
+          const route = selectedApi?.routes?.find(
             route => route.path === path && route.method === method,
           );
           if (route) {
@@ -191,12 +192,12 @@ const CreateRoute = () => {
               extractDynamicParams(path);
             }
             form.setValue("method", route.method);
-            form.setValue(
-              "binding.bindingType",
-              route.binding.bindingType || "default",
-            );
-            const componentName = route.binding.component?.name;
-            const versionId = route.binding.component?.version;
+            // form.setValue(
+            //   "binding.bindingType",
+            //   route.binding.bindingType || "default",
+            // );
+            const componentName = route.binding.componentName;
+            const versionId = route.binding.componentVersion;
             if (componentName && versionId) {
               const componentId = getComponentIdByName(componentName, componentList);
               if (componentId) {
@@ -207,30 +208,30 @@ const CreateRoute = () => {
                 );
                 form.setValue(
                   "binding.component.name",
-                  route.binding.component?.name || "",
+                  route.binding.componentName || "",
                 );
                 form.setValue(
                   "binding.component.version",
-                  route.binding.component?.version || 0,
+                  +(route.binding.componentVersion || 0),
                 );
               }
             }
-            form.setValue("binding.workerName", route.binding.workerName || "");
+            form.setValue("binding.workerName", route.binding.invocationContext || "");
             form.setValue("binding.response", route.binding.response || "");
             if (
-              route.binding.corsPreflight &&
-              route.binding.bindingType === "cors-preflight"
+              route.binding.type &&
+              route.binding.type === "cors-preflight"
             ) {
-              form.setValue(
-                "binding.response",
-                JSON.stringify(route.binding.corsPreflight) || "",
-              );
+              // form.setValue(
+              //   "binding.response",
+              //   JSON.stringify(route.binding.corsPreflight) || "",
+              // );
             }
             form.setValue(
               "binding.idempotencyKey",
               route.binding.idempotencyKey || "",
             );
-            form.setValue("cors", route.cors || undefined);
+            // form.setValue("cors", route.cors || undefined);
             form.setValue("security", route.security || "");
           }
         }
@@ -251,7 +252,7 @@ const CreateRoute = () => {
     try {
       setIsSubmitting(true);
 
-      const apiResponse = await API.getApi(apiName!);
+      const apiResponse = await API.getApi(appId!,apiName!);
       const selectedApi = apiResponse.find(api => api.version === version);
       if (!selectedApi) {
         toast({
@@ -262,12 +263,12 @@ const CreateRoute = () => {
         });
         return;
       }
-      selectedApi.routes = selectedApi.routes.filter(
+      selectedApi.routes = selectedApi.routes?.filter(
         route => !(route.path === path && route.method === method),
       );
-      selectedApi.routes.push(values);
+      selectedApi.routes?.push(values);
       await API.putApi(
-        activeApiDetails.appId,
+        activeApiDetails.id!,
         activeApiDetails.version,
         selectedApi,
       ).then(() => {
@@ -307,7 +308,7 @@ const CreateRoute = () => {
   ) => {
     const exportedFunctions = componentResponse?.[componentId]?.versions?.find(
       (data: Component) =>
-        data.versionedComponentId?.version?.toString() === version,
+        data.componentVersion?.toString() === version,
     );
     const data = exportedFunctions?.metadata?.exports || [];
     const output = data.flatMap(item =>

@@ -20,7 +20,7 @@ import {
   HttpApiDefinition,
   serializeHttpApiDefinition,
 } from "@/types/golemManifest.ts";
-import { parse, parseDocument, Document, stringify } from "yaml";
+import { parse, parseDocument, Document, YAMLMap } from "yaml";
 
 export class Service {
   public baseUrl: string;
@@ -359,7 +359,7 @@ export class Service {
     ]);
   };
 
-  public putApi = async (id: string, version: string, payload: Api) => {
+  public putApi = async (id: string, version: string, payload: HttpApiDefinition) => {
     // should use YAML
     // const r = await this.callApi(
     //   ENDPOINT.putApi(id, version),

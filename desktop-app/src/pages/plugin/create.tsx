@@ -133,7 +133,7 @@ export default function CreatePlugin() {
         <CardContent>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(async data => {
+              onSubmit={form.handleSubmit(async () => {
                 // const values = { ...data, icon: [] };
                 await API.createPlugin(appId!, "values")
                 navigate(`/app/${appId}plugins`);

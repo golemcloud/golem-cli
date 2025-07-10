@@ -17,7 +17,7 @@ export function parseErrorResponse(response: any): ErrorResponse {
   };
   if (typeof response === "string") {
     parsedError.description = parseErrorMessage(response);
-  } else if (typeof response === "object") {
+  } else if (typeof response === "object" && response !== null) {
     if (response?.error) {
       parsedError.description = response?.error;
     } else if (response?.Error) {
@@ -68,7 +68,7 @@ export function parseErrorResponse(response: any): ErrorResponse {
           break;
         case "RuntimeError":
           parsedError.title = "Runtime Error";
-          parsedError.description = `Runtime error occurred: ${response.golemError.details}`;
+          parsedError.description = `Runtime error occurred: ${response.golemError.details || response.golemError.reason || "Unknown error"}`;
           break;
         case "ValueMismatch":
           parsedError.title = "Value Mismatch";
@@ -101,15 +101,30 @@ export function parseErrorResponse(response: any): ErrorResponse {
             "An unspecified Golem error occurred.";
           break;
       }
+
+      // Add path information after switch statement for cases that don't handle path internally
+      if (
+        response.golemError?.path &&
+        !["InitialComponentFileDownloadFailed", "FileSystemError"].includes(
+          response.golemError.type,
+        )
+      ) {
+        parsedError.description += ` (Path: ${response.golemError.path})`;
+      }
     } else {
-      parsedError.description = parseErrorMessage(String(response));
+      // For empty objects or objects without known error properties, keep default description
+      if (Object.keys(response).length === 0) {
+        // Keep the default description for empty objects
+      } else {
+        parsedError.description = parseErrorMessage(String(response));
+      }
     }
   }
   toast({
     title: parsedError.title,
     description: parsedError.description,
     variant: "destructive",
-    duration: parsedError.description.includes("Rib compilation error")
+    duration: parsedError.description?.includes("Rib compilation error")
       ? Infinity
       : 5000,
   });

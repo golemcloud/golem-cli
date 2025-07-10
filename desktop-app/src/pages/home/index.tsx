@@ -206,7 +206,7 @@ export const Home = () => {
               >
                 <FolderOpen size={24} />
                 <span className="text-lg">
-                  {isOpeningApp ? "Opening..." : "Open Existing Application"}
+                  {isOpeningApp ? "Opening..." : "Open"}
                 </span>
               </Button>
             </CardContent>

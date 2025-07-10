@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/tooltip";
 
 function FunctionDisplay({ funcStr }: { funcStr: string }) {
-  const [copied, setCopied] = useState(false);
+  const [_copied, setCopied] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(funcStr).then(() => {

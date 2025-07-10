@@ -70,7 +70,7 @@ export default function ComponentInvoke() {
       }
       if (name && urlFn) {
         const exportItem = matchingComponent.metadata?.exports?.find(
-          (e: Export) => e.name === name,
+          _name=> name === _name,
         );
         if (!exportItem) {
           throw new Error("Export item not found.");
@@ -188,22 +188,22 @@ export default function ComponentInvoke() {
           <div className="border-r px-8 py-4 min-w-[300px]">
             <div className="flex flex-col gap-4 overflow-scroll h-[85vh]">
               {componentDetails?.metadata?.exports?.map(exportItem => (
-                <div key={exportItem.name}>
+                <div key={exportItem}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 font-bold pb-4">
-                      {exportItem.name}
+                      {exportItem}
                     </span>
                   </div>
                   <ul className="space-y-1">
-                    {exportItem?.functions?.length > 0 &&
-                      exportItem.functions.map(
+                    {exportItem.length > 0 &&
+                      exportItem.map(
                         (fn: ComponentExportFunction) => (
                           <li key={fn.name}>
                             <Button
                               variant="ghost"
                               onClick={() =>
                                 navigate(
-                                  `/app/${appId}/components/${componentId}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
+                                  `/app/${appId}/components/${componentId}/invoke?name=${exportItem}&fn=${fn.name}`,
                                 )
                               }
                               className={cn(
