@@ -13,7 +13,6 @@ import { cn, removeDuplicateApis } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 import { API } from "@/service";
-import { Api } from "@/types/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Deployment } from "@/types/deployments";
@@ -31,7 +30,7 @@ const RoutesCard = ({
   apiId: string;
   version: string;
   host: string;
-  apiList: Api[];
+  apiList: HttpApiDefinition[];
 }) => {
   const routes = apiList.find(
     api => api.id === apiId && api.version === version,
@@ -130,12 +129,12 @@ export default function Deployments() {
 
         const uniqueApis = removeDuplicateApis(response);
         const allDeployments = await Promise.all(
-          uniqueApis.map(api => API.getDeploymentApi(appId!)),
+          uniqueApis.map(() => API.getDeploymentApi(appId!)),
         );
 
         const flattenedDeployments = allDeployments.flat().filter(Boolean);
-        const uniqueDeployments = flattenedDeployments.reduce((acc, current) => {
-          if (!acc.find(item => item.site.host === current.site.host)) {
+        const uniqueDeployments = flattenedDeployments.reduce((acc: any[], current) => {
+          if (!acc.find((item: any) => item.site.host === current.site.host)) {
             acc.push(current);
           }
           return acc;
@@ -154,7 +153,7 @@ export default function Deployments() {
     if (!selectedDeploymentHost) return;
 
     try {
-      await API.deleteDeployment(appId, selectedDeploymentHost);
+      await API.deleteDeployment(appId!, selectedDeploymentHost);
       setDeployments(prev =>
         prev.filter(d => d.site.host !== selectedDeploymentHost),
       );

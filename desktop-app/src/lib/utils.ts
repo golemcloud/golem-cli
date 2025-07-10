@@ -1,4 +1,3 @@
-import { Api } from "@/types/api";
 import {
   Case,
   ComponentExportFunction,
@@ -91,9 +90,11 @@ export const compareSemver = (version1: string, version2: string) => {
 
 /// Remove the duplicate api and keep the latest one by comparing the semver version
 export const removeDuplicateApis = (data: HttpApiDefinition[]) => {
-  const uniqueEntries = {} as Record<string, Api>;
+  const uniqueEntries = {} as Record<string, HttpApiDefinition & { count?: number }>;
 
   data.forEach(item => {
+    if (!item.id) return; // Skip items without id
+    
     if (!uniqueEntries[item.id]) {
       uniqueEntries[item.id] = item;
     } else {

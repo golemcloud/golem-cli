@@ -14,14 +14,14 @@ import {
 import { Check, Copy, Eye, EyeOff } from "lucide-react";
 
 export default function WorkerEnvironments() {
-  const { componentId, workerName } = useParams();
+  const { componentId, workerName, appId } = useParams();
   const [workerDetails, setWorkerDetails] = useState({} as Worker);
   const [visible, setVisible] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getParticularWorker(componentId, workerName).then(response => {
+      API.getParticularWorker(appId!, componentId, workerName).then(response => {
         setWorkerDetails(response);
       });
     }

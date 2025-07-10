@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Service } from "../client";
 import { toast } from "@/hooks/use-toast";
+import { ComponentType } from "@/types/component";
 
 // Mock dependencies
 vi.mock("@/lib/settings", () => ({
@@ -253,8 +254,8 @@ describe("Service", () => {
       const mockManifest1 = {
         httpApi: {
           definitions: {
-            api1: { id: "api1", name: "API 1" },
-            api2: { id: "api2", name: "API 2" },
+            api1: { version: "1.0.0" },
+            api2: { version: "1.0.0" },
           },
         },
       };
@@ -262,7 +263,7 @@ describe("Service", () => {
       const mockManifest2 = {
         httpApi: {
           definitions: {
-            api3: { id: "api3", name: "API 3" },
+            api3: { version: "1.0.0" },
           },
         },
       };
@@ -277,17 +278,17 @@ describe("Service", () => {
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({
         id: "api1",
-        name: "API 1",
+        version: "1.0.0",
         componentId: "comp1",
       });
       expect(result[1]).toEqual({
         id: "api2",
-        name: "API 2",
+        version: "1.0.0",
         componentId: "comp1",
       });
       expect(result[2]).toEqual({
         id: "api3",
-        name: "API 3",
+        version: "1.0.0",
         componentId: "comp2",
       });
     });
@@ -314,19 +315,19 @@ describe("Service", () => {
         {
           componentId: "comp1",
           componentName: "Component 1",
-          componentType: "rust",
+          componentType: "Durable" as ComponentType,
           componentVersion: 1,
         },
         {
           componentId: "comp1",
           componentName: "Component 1",
-          componentType: "rust",
+          componentType: "Durable" as ComponentType,
           componentVersion: 2,
         },
         {
           componentId: "comp2",
           componentName: "Component 2",
-          componentType: "js",
+          componentType: "Ephemeral" as ComponentType,
           componentVersion: 1,
         },
       ];
@@ -339,14 +340,14 @@ describe("Service", () => {
         comp1: {
           componentName: "Component 1",
           componentId: "comp1",
-          componentType: "rust",
+          componentType: "Durable" as ComponentType,
           versions: [mockComponents[0], mockComponents[1]],
           versionList: [1, 2],
         },
         comp2: {
           componentName: "Component 2",
           componentId: "comp2",
-          componentType: "js",
+          componentType: "Ephemeral" as ComponentType,
           versions: [mockComponents[2]],
           versionList: [1],
         },

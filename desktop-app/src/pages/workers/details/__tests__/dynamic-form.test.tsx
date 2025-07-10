@@ -46,9 +46,8 @@ vi.mock('@/components/ui/button', () => ({
 }));
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import React from 'react';
 import { DynamicForm, nonStringPrimitives } from '../dynamic-form';
 import { ComponentExportFunction } from '@/types/component';
 
@@ -149,7 +148,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'testParam', typ: { type: 'Str' } }
+          { name: 'testParam', typ: { type: 'Str' }, type: 'String' }
         ],
         results: []
       };
@@ -169,7 +168,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'boolParam', typ: { type: 'Bool' } }
+          { name: 'boolParam', typ: { type: 'Bool' }, type: 'boolParam' }
         ],
         results: []
       };
@@ -196,7 +195,8 @@ describe('DynamicForm', () => {
             typ: {
               type: 'Enum',
               cases: ['option1', 'option2', 'option3']
-            }
+            },
+            type: 'enumParam'
           }
         ],
         results: []
@@ -218,7 +218,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'intParam', typ: { type: 'U32' } }
+          { name: 'intParam', typ: { type: 'U32' }, type: 'intParam' }
         ],
         results: []
       };
@@ -250,7 +250,8 @@ describe('DynamicForm', () => {
               fields: [
                 { name: 'field1', typ: { type: 'Str' } }
               ]
-            }
+            },
+            type: 'complexParam'
           }
         ],
         results: []
@@ -275,7 +276,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'textParam', typ: { type: 'Str' } }
+          { name: 'textParam', typ: { type: 'Str' }, type: 'textParam' }
         ],
         results: []
       };
@@ -300,7 +301,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'boolParam', typ: { type: 'Bool' } }
+          { name: 'boolParam', typ: { type: 'Bool' }, type: 'boolParam' }
         ],
         results: []
       };
@@ -329,7 +330,8 @@ describe('DynamicForm', () => {
             typ: {
               type: 'Enum',
               cases: ['option1', 'option2', 'option3']
-            }
+            },
+            type: 'enumParam'
           }
         ],
         results: []
@@ -357,7 +359,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'numParam', typ: { type: 'U32' } }
+          { name: 'numParam', typ: { type: 'U32' }, type: 'numParam' }
         ],
         results: []
       };
@@ -387,7 +389,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'requiredParam', typ: { type: 'U32' } }
+          { name: 'requiredParam', typ: { type: 'U32' }, type: 'requiredParam' }
         ],
         results: []
       };
@@ -451,7 +453,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'textParam', typ: { type: 'Str' } }
+          { name: 'textParam', typ: { type: 'Str' }, type: 'textParam' }
         ],
         results: []
       };
@@ -488,7 +490,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'textParam', typ: { type: 'Str' } }
+          { name: 'textParam', typ: { type: 'Str' }, type: 'textParam' }
         ],
         results: []
       };
@@ -518,7 +520,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'numParam', typ: { type: 'U32' } }
+          { name: 'numParam', typ: { type: 'U32' }, type: 'numParam' }
         ],
         results: []
       };
@@ -549,7 +551,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'boolParam', typ: { type: 'Bool' } }
+          { name: 'boolParam', typ: { type: 'Bool' }, type: 'boolParam' }
         ],
         results: []
       };
@@ -588,7 +590,8 @@ describe('DynamicForm', () => {
             typ: {
               type: 'Record',
               fields: [{ name: 'field', typ: { type: 'Str' } }]
-            }
+            },
+            type: 'jsonParam'
           }
         ],
         results: []
@@ -660,7 +663,7 @@ describe('DynamicForm', () => {
       const functionDetails1: ComponentExportFunction = {
         name: 'testFunction1',
         parameters: [
-          { name: 'param1', typ: { type: 'Str' } }
+          { name: 'param1', typ: { type: 'Str' }, type: 'param1' }
         ],
         results: []
       };
@@ -668,7 +671,7 @@ describe('DynamicForm', () => {
       const functionDetails2: ComponentExportFunction = {
         name: 'testFunction2',
         parameters: [
-          { name: 'param2', typ: { type: 'U32' } }
+          { name: 'param2', typ: { type: 'U32' }, type: 'param2' }
         ],
         results: []
       };
@@ -702,7 +705,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'textParam', typ: { type: 'Str' } }
+          { name: 'textParam', typ: { type: 'Str' }, type: 'textParam' }
         ],
         results: []
       };
@@ -749,7 +752,7 @@ describe('DynamicForm', () => {
       const functionDetails: ComponentExportFunction = {
         name: 'testFunction',
         parameters: [
-          { name: 'unknownParam', typ: { type: 'UnknownType' as any } }
+          { name: 'unknownParam', typ: { type: 'UnknownType' as any }, type: 'unknownParam' }
         ],
         results: []
       };

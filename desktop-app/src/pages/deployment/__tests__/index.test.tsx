@@ -50,7 +50,7 @@ vi.mock('@/components/ui/dialog', () => ({
   DialogFooter: ({ children }: any) => <div>{children}</div>,
   DialogHeader: ({ children }: any) => <div>{children}</div>,
   DialogTitle: ({ children }: any) => <h2>{children}</h2>,
-  DialogTrigger: ({ children, asChild }: any) => <div>{children}</div>,
+  DialogTrigger: ({ children }: any) => <div>{children}</div>,
 }));
 
 vi.mock('@/components/ui/button', () => ({

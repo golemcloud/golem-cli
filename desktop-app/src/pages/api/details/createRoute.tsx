@@ -31,7 +31,6 @@ import { toast } from "@/hooks/use-toast";
 import { parseTypeForTooltip } from "@/lib/utils.ts";
 import { API } from "@/service";
 import type { GatewayBindingType, MethodPattern } from "@/types/api";
-import { Api } from "@/types/api";
 import type { Component, ComponentList } from "@/types/component";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -155,7 +154,7 @@ const CreateRoute = () => {
     resolver: zodResolver(RouteRequestData),
     defaultValues: {
       path: "/",
-      method: "Get",
+      method: "GET",
       binding: {
         bindingType: "default",
         component: {
@@ -311,10 +310,10 @@ const CreateRoute = () => {
         data.componentVersion?.toString() === version,
     );
     const data = exportedFunctions?.metadata?.exports || [];
-    const output = data.flatMap(item =>
-      item.functions.map(func => {
-        const param = func.parameters
-          .map(p => {
+    const output = (data as any[]).flatMap((item: any) =>
+      (item.functions || []).map((func: any) => {
+        const param = (func.parameters || [])
+          .map((p: any) => {
             const { short } = parseTypeForTooltip(p.typ);
             return `${p.name}: ${short}`;
           })

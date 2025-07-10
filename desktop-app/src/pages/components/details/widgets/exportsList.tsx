@@ -24,14 +24,14 @@ export function ExportsList({ exports }: { exports: string[] }) {
             <CommandList>
               <CommandEmpty>No exports found.</CommandEmpty>
               <CommandGroup>
-                {exports.map(endpoint => (
+                {exports.map((endpoint: any, index) => (
                   <CommandItem
-                    key={`${endpoint.exportName}-${endpoint.name}`}
+                    key={`${endpoint.exportName || endpoint}-${endpoint.name || index}`}
                     className="flex items-center justify-between"
                   >
                     <span className="font-mono text-sm">
                       <span className="text-blue-400">
-                        {endpoint}
+                        {endpoint.exportName || endpoint}
                       </span>
                     </span>
                   </CommandItem>

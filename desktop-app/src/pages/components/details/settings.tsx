@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { API } from "@/service";
-import { Worker } from "@/types/worker";
 
 export default function ComponentSettings() {
   const { toast } = useToast();
@@ -37,7 +36,7 @@ export default function ComponentSettings() {
       });
 
       await Promise.allSettled(
-        response?.workers.map((worker: Worker) =>
+        response?.workers.map((worker: any) =>
           API.deleteWorker(appId!,componentId!, worker.workerName),
         ),
       );

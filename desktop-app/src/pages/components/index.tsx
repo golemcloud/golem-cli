@@ -89,7 +89,7 @@ export const ComponentCard = React.memo(
     const latestVersion = data.versions?.[data.versions?.length - 1];
     // Count total exports using a helper function
     const exportCount = calculateExportFunctions(
-      latestVersion?.metadata?.exports || [],
+      (latestVersion?.metadata?.exports as any) || [],
     ).length;
     // Convert component size from bytes to kilobytes
     const componentSize = Math.round(

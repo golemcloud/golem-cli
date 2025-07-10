@@ -7,7 +7,7 @@ import {
   parseTypesData,
   validateJsonStructure,
 } from "../worker";
-import { ComponentExportFunction, Field, TypeField } from "@/types/component";
+import { ComponentExportFunction, TypeField } from "@/types/component";
 
 describe("worker utilities", () => {
   describe("parseToJsonEditor", () => {
@@ -28,7 +28,8 @@ describe("worker utilities", () => {
     it("should handle boolean parameters", () => {
       const data: ComponentExportFunction = {
         name: "test-function",
-        parameters: [{ name: "param1", typ: { type: "Bool" } }],
+        parameters: [{ name: "param1", typ: { type: "Bool" }, type: "Boolean" }],
+        results: [],
       };
 
       const result = parseToJsonEditor(data);
@@ -39,10 +40,11 @@ describe("worker utilities", () => {
       const data: ComponentExportFunction = {
         name: "test-function",
         parameters: [
-          { name: "param1", typ: { type: "F64" } },
-          { name: "param2", typ: { type: "U32" } },
-          { name: "param3", typ: { type: "S16" } },
+          { name: "param1", typ: { type: "F64" }, type: "Number" },
+          { name: "param2", typ: { type: "U32" }, type: "Number" },
+          { name: "param3", typ: { type: "S16" }, type: "Number" },
         ],
+        results: [],
       };
 
       const result = parseToJsonEditor(data);
@@ -62,8 +64,10 @@ describe("worker utilities", () => {
                 { name: "field2", typ: { type: "U32" } },
               ],
             },
+            type: "Record",
           },
         ],
+        results: [],
       };
 
       const result = parseToJsonEditor(data);
@@ -83,8 +87,10 @@ describe("worker utilities", () => {
                 { name: "item2", typ: { type: "Bool" } },
               ],
             },
+            type: "Tuple",
           },
         ],
+        results: [],
       };
 
       const result = parseToJsonEditor(data);
@@ -101,8 +107,10 @@ describe("worker utilities", () => {
               type: "List",
               inner: { type: "Str" },
             },
+            type: "List",
           },
         ],
+        results: [],
       };
 
       const result = parseToJsonEditor(data);
@@ -119,8 +127,10 @@ describe("worker utilities", () => {
               type: "Option",
               inner: { type: "Str" },
             },
+            type: "Option",
           },
         ],
+        results: [],
       };
 
       const result = parseToJsonEditor(data);
@@ -137,8 +147,10 @@ describe("worker utilities", () => {
               type: "Flags",
               names: ["flag1", "flag2", "flag3"],
             },
+            type: "Flags",
           },
         ],
+        results: [],
       };
 
       const result = parseToJsonEditor(data);
@@ -155,8 +167,10 @@ describe("worker utilities", () => {
               type: "Enum",
               cases: ["case1", "case2", "case3"],
             },
+            type: "Enum",
           },
         ],
+        results: [],
       };
 
       const result = parseToJsonEditor(data);

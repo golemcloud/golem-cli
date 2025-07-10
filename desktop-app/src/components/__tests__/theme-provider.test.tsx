@@ -1,5 +1,4 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
 import { ThemeProvider, useTheme } from '../theme-provider';
 import { vi } from 'vitest';
 

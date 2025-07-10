@@ -116,13 +116,15 @@ export default function CreateDeployment() {
         const transformedData = Object.values(
           response.reduce(
             (acc, api) => {
-              if (!acc[api.id]) {
+              if (api.id && !acc[api.id]) {
                 acc[api.id] = { id: api.id, versions: [] };
               }
-              acc[api.id].versions.push(api.version);
-              acc[api.id].versions.sort((a, b) =>
-                b.localeCompare(a, undefined, { numeric: true }),
-              );
+              if (api.id) {
+                acc[api.id].versions.push(api.version);
+                acc[api.id].versions.sort((a, b) =>
+                  b.localeCompare(a, undefined, { numeric: true }),
+                );
+              }
               return acc;
             },
             {} as Record<string, ApiDefinition>,

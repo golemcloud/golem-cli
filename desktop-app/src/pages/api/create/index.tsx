@@ -56,7 +56,6 @@ const CreateAPI = () => {
         id: values.apiName,
         version: values.version,
         routes: [],
-        draft: true,
       });
       navigate(`/app/${appId}/apis/${values.apiName}/version/${values.version}`);
     } catch (error) {

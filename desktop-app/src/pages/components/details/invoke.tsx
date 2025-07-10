@@ -12,7 +12,6 @@ import { CodeBlock, dracula } from "react-code-blocks";
 import {
   ComponentExportFunction,
   ComponentList,
-  Export,
 } from "@/types/component.ts";
 import {
   DynamicForm,
@@ -70,13 +69,13 @@ export default function ComponentInvoke() {
       }
       if (name && urlFn) {
         const exportItem = matchingComponent.metadata?.exports?.find(
-          _name=> name === _name,
+          (item: any) => name === item.name,
         );
         if (!exportItem) {
           throw new Error("Export item not found.");
         }
 
-        const fnDetails = exportItem.functions?.find(
+        const fnDetails = (exportItem as any).functions?.find(
           (f: ComponentExportFunction) => f.name === urlFn,
         );
         if (!fnDetails) {
@@ -89,10 +88,11 @@ export default function ComponentInvoke() {
       } else if (
         !name &&
         !urlFn &&
-        matchingComponent?.metadata?.exports?.[0]?.functions?.[0]
+        (matchingComponent?.metadata?.exports?.[0] as any)?.functions?.[0]
       ) {
+        const firstExport = matchingComponent.metadata?.exports?.[0] as any;
         navigate(
-          `/app/${appId}/components/${componentId}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
+          `/app/${appId}/components/${componentId}/invoke?name=${firstExport.name}&&fn=${firstExport.functions[0].name}`,
         );
       }
     } catch (error: unknown) {
@@ -187,16 +187,16 @@ export default function ComponentInvoke() {
         <div className="flex">
           <div className="border-r px-8 py-4 min-w-[300px]">
             <div className="flex flex-col gap-4 overflow-scroll h-[85vh]">
-              {componentDetails?.metadata?.exports?.map(exportItem => (
-                <div key={exportItem}>
+              {componentDetails?.metadata?.exports?.map((exportItem: any) => (
+                <div key={exportItem.name || exportItem}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 font-bold pb-4">
-                      {exportItem}
+                      {exportItem.name || exportItem}
                     </span>
                   </div>
                   <ul className="space-y-1">
-                    {exportItem.length > 0 &&
-                      exportItem.map(
+                    {(exportItem.functions || []).length > 0 &&
+                      (exportItem.functions || []).map(
                         (fn: ComponentExportFunction) => (
                           <li key={fn.name}>
                             <Button

@@ -59,7 +59,7 @@ export default function WorkerManage() {
     API.upgradeWorker(
       appId!,
       componentList.componentName!,
-      workerDetails?.workerName,
+      (workerDetails as any)?.workerName,
       Number(upgradeTo),
       upgradeType,
     ).then(() => {
@@ -202,7 +202,6 @@ export default function WorkerManage() {
                 Component ID
               </Label>
               <Input
-                appId="componentId"
                 defaultValue={workerDetails?.workerId?.componentId || "N/A"}
                 className="col-span-3 bg-muted/50"
                 disabled
@@ -218,7 +217,6 @@ export default function WorkerManage() {
                 Current Version
               </Label>
               <Input
-                appId="componentVersion"
                 defaultValue={workerDetails?.componentVersion || "N/A"}
                 className="col-span-3 bg-muted/50"
                 disabled
@@ -234,7 +232,7 @@ export default function WorkerManage() {
                 Upgrade Type
               </Label>
               <Select defaultValue="Automatic" onValueChange={setUpgradeType}>
-                <SelectTrigger appId="upgradeType" className="col-span-3">
+                <SelectTrigger className="col-span-3">
                   <SelectValue>{upgradeType}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -256,7 +254,7 @@ export default function WorkerManage() {
                 Upgrade To
               </Label>
               <Select defaultValue={upgradeTo} onValueChange={setUpgradeTo}>
-                <SelectTrigger appId="upgradeTo" className="col-span-3">
+                <SelectTrigger className="col-span-3">
                   <SelectValue>
                     {upgradeTo ? `v${upgradeTo}` : "Select a version"}
                   </SelectValue>

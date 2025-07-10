@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { parseErrorResponse, type ErrorResponse } from "../error-handler";
+import { parseErrorResponse } from "../error-handler";
 import { toast } from "@/hooks/use-toast";
 import { parseErrorMessage } from "@/lib/utils";
 

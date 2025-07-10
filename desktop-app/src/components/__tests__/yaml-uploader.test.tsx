@@ -95,7 +95,6 @@ describe('YamlUploader', () => {
   // Mock references
   let mockYamlLoad: any;
   let mockAPI: any;
-  let mockNavigate: any;
   let mockUseParams: any;
 
   beforeEach(async () => {
@@ -109,7 +108,6 @@ describe('YamlUploader', () => {
     // Get router mocks and set them up
     const router = await import('react-router-dom');
     mockUseParams = vi.mocked(router.useParams);
-    mockNavigate = vi.mocked(router.useNavigate)();
     
     // Set default return values
     mockUseParams.mockReturnValue({

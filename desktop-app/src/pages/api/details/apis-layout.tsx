@@ -111,7 +111,7 @@ export const ApiLayout = () => {
           setActiveItem={setCurrentMenu}
           title={"Worker"}
         >
-          {currentApiDetails?.routes?.length > 0 && (
+          {(currentApiDetails?.routes?.length || 0) > 0 && (
             <NavRoutes
               routes={(currentApiDetails?.routes || []).map(route => {
                 return {
@@ -151,8 +151,8 @@ export const ApiLayout = () => {
                 <Select
                   defaultValue={version}
                   onValueChange={version => {
-                    const selectedApi = apiDetails.find(
-                      api => api.version === version,
+                    const selectedApi = sortedVersions.find(
+                      (api: any) => api.version === version,
                     );
                     if (selectedApi) {
                       navigate(
@@ -171,21 +171,12 @@ export const ApiLayout = () => {
                       <SelectItem value={api.version} key={api.version}>
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{api.version}</span>
-                          {api.draft ? (
-                            <Badge
-                              variant="warning"
-                              className="p-0.5 m-0 rounded"
-                            >
-                              Draft
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="success"
-                              className="p-0.5 m-0 rounded"
-                            >
-                              Published
-                            </Badge>
-                          )}
+                          <Badge
+                            variant="success"
+                            className="p-0.5 m-0 rounded"
+                          >
+                            Published
+                          </Badge>
                         </div>
                         {/*{api.version} {api.draft ? "(Draft)" : "(Published)"}*/}
                       </SelectItem>

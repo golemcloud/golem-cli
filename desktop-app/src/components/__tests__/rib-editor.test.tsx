@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen} from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { RibEditor } from '../rib-editor';
 import { useTheme } from '../theme-provider';
@@ -240,10 +239,10 @@ describe('RibEditor', () => {
       const scriptKeys = ['function1', 'function2', 'function3'];
       render(<RibEditor scriptKeys={scriptKeys} />);
       
-      const providerCall = mockMonaco.languages.registerCompletionItemProvider.mock.calls[0];
-      const provider = providerCall[1];
+      const providerCalls = mockMonaco.languages.registerCompletionItemProvider.mock.calls;
+      const provider = providerCalls.length > 0 && providerCalls[0] && providerCalls[0].length > 1 ? (providerCalls[0] as any)[1] : null;
       
-      expect(provider.triggerCharacters).toEqual(expect.arrayContaining(['.', 'r', 'e', 'q', 'u', 'e', 's', 't', 'v', 'a', 'r']));
+      expect(provider?.triggerCharacters).toEqual(expect.arrayContaining(['.', 'r', 'e', 'q', 'u', 'e', 's', 't', 'v', 'a', 'r']));
     });
 
     it('should provide suggestions based on suggestVariable prop', () => {
@@ -261,12 +260,6 @@ describe('RibEditor', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
       // Mock a provider that throws an error
-      const mockProvider = {
-        triggerCharacters: ['.'],
-        provideCompletionItems: vi.fn(() => {
-          throw new Error('Provider error');
-        }),
-      };
       
       render(<RibEditor />);
       
@@ -312,7 +305,7 @@ describe('RibEditor', () => {
       const mockDispose = vi.fn();
       mockMonaco.languages.registerCompletionItemProvider.mockReturnValue({
         dispose: mockDispose,
-      });
+      } as any);
       
       const { unmount } = render(<RibEditor />);
       unmount();
@@ -321,7 +314,7 @@ describe('RibEditor', () => {
     });
 
     it('should handle cleanup when no provider exists', () => {
-      mockMonaco.languages.registerCompletionItemProvider.mockReturnValue(null);
+      mockMonaco.languages.registerCompletionItemProvider.mockReturnValue(null as any);
       
       const { unmount } = render(<RibEditor />);
       
@@ -350,7 +343,7 @@ describe('RibEditor', () => {
     });
 
     it('should handle null suggestVariable', () => {
-      render(<RibEditor suggestVariable={null} />);
+      render(<RibEditor suggestVariable={null as any} />);
       
       expect(mockMonaco.languages.registerCompletionItemProvider).toHaveBeenCalled();
     });

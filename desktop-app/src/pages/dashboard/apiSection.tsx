@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { removeDuplicateApis } from "@/lib/utils";
 import { API } from "@/service";
-import { Api } from "@/types/api.ts";
+import { HttpApiDefinition } from "@/types/golemManifest";
 import { ArrowRight, Layers, PlusCircle, Server } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -12,7 +12,7 @@ import { useNavigate, useParams } from "react-router-dom";
 export function APISection() {
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
-  const [apis, setApis] = useState([] as Api[]);
+  const [apis, setApis] = useState([] as (HttpApiDefinition & { count?: number })[]);
 
   useEffect(() => {
     API.getApiList(appId!).then(response => {

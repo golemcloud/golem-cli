@@ -101,11 +101,11 @@ export default function Plugins() {
 
     const fetchComponent = fetchedComponent
       ? Promise.resolve(fetchedComponent)
-      : API.getComponentByIdAndVersion(componentId, version);
+      : API.getComponentByIdAndVersion(appId!, componentId, version);
 
     fetchComponent.then(response => {
-      setPlugins(response.installedPlugins || []);
-      setFilteredPlugins(response.installedPlugins || []);
+      setPlugins(response?.installedPlugins || []);
+      setFilteredPlugins(response?.installedPlugins || []);
     });
   };
 

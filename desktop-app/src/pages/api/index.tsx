@@ -7,7 +7,7 @@ import {
   Search,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Api } from "@/types/api";
+import { HttpApiDefinition } from "@/types/golemManifest";
 import { API } from "@/service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +18,8 @@ import { removeDuplicateApis } from "@/lib/utils";
 
 export const APIs = () => {
   const navigate = useNavigate();
-  const [apis, setApis] = useState([] as Api[]);
-  const [searchedApi, setSearchedApi] = useState([] as Api[]);
+  const [apis, setApis] = useState([] as (HttpApiDefinition & { count?: number })[]);
+  const [searchedApi, setSearchedApi] = useState([] as (HttpApiDefinition & { count?: number })[]);
   const { appId } = useParams<{ appId: string }>();
 
   useEffect(() => {
@@ -42,8 +42,7 @@ export const APIs = () => {
               onChange={e =>
                 setSearchedApi(
                   apis.filter(api =>
-                    api.id
-                      .toLocaleLowerCase()
+                    api.id?.toLocaleLowerCase()
                       .includes(e.target.value.toLocaleLowerCase()),
                   ),
                 )
@@ -65,9 +64,9 @@ export const APIs = () => {
             {searchedApi.map(api => (
               <APICard
                 key={api.id}
-                name={api.id}
+                name={api.id || ''}
                 version={api.version}
-                routes={api.routes.length}
+                routes={api.routes?.length || 0}
                 count={api.count || 0}
               />
             ))}

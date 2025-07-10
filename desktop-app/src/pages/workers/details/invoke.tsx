@@ -69,14 +69,14 @@ export default function WorkerInvoke() {
         throw new Error("Component not found.");
       }
       if (name && urlFn) {
-        const exportItem = matchingComponent.metadata?.exports?.find(
+        const exportItem = (matchingComponent.metadata?.exports as any)?.find(
           (e: Export) => e.name === name,
         );
         if (!exportItem) {
           throw new Error("Export item not found.");
         }
 
-        const fnDetails = exportItem.functions?.find(
+        const fnDetails = (exportItem as any).functions?.find(
           (f: ComponentExportFunction) => f.name === urlFn,
         );
         if (!fnDetails) {
@@ -89,10 +89,11 @@ export default function WorkerInvoke() {
       } else if (
         !name &&
         !urlFn &&
-        matchingComponent?.metadata?.exports?.[0]?.functions?.[0]
+        (matchingComponent?.metadata?.exports?.[0] as any)?.functions?.[0]
       ) {
+        const firstExport = (matchingComponent.metadata?.exports as any)?.[0];
         navigate(
-          `/app/${appId}/components/${componentId}/workers/${workerName}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
+          `/app/${appId}/components/${componentId}/workers/${workerName}/invoke?name=${firstExport.name}&&fn=${firstExport.functions[0].name}`,
         );
       }
     } catch (error: unknown) {
@@ -188,23 +189,23 @@ export default function WorkerInvoke() {
         <div className="flex">
           <div className="border-r px-8 py-4 min-w-[300px]">
             <div className="flex flex-col gap-4 overflow-scroll h-[85vh]">
-              {componentDetails?.metadata?.exports?.map(exportItem => (
-                <div key={exportItem.name}>
+              {componentDetails?.metadata?.exports?.map((exportItem: any) => (
+                <div key={exportItem.name || exportItem}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 font-bold pb-4">
-                      {exportItem.name}
+                      {exportItem.name || exportItem}
                     </span>
                   </div>
                   <ul className="space-y-1">
-                    {exportItem?.functions?.length > 0 &&
-                      exportItem.functions.map(
+                    {(exportItem?.functions || []).length > 0 &&
+                      (exportItem.functions || []).map(
                         (fn: ComponentExportFunction) => (
                           <li key={fn.name}>
                             <Button
                               variant="ghost"
                               onClick={() =>
                                 navigate(
-                                  `/app/${appId}/components/${componentId}/workers/${workerName}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
+                                  `/app/${appId}/components/${componentId}/workers/${workerName}/invoke?name=${exportItem.name || exportItem}&&fn=${fn.name}`,
                                 )
                               }
                               className={cn(
