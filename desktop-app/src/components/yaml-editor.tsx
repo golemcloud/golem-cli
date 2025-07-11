@@ -1,5 +1,3 @@
- 
- 
 // @ts-nocheck
 import { useTheme } from "@/components/theme-provider.tsx";
 import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";

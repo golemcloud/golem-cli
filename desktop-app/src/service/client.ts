@@ -1,4 +1,3 @@
- 
 import { toast } from "@/hooks/use-toast";
 // import { fetchData } from "@/lib/tauri&web.ts";
 // import { ENDPOINT } from "@/service/endpoints.ts";
@@ -359,7 +358,11 @@ export class Service {
     ]);
   };
 
-  public putApi = async (id: string, version: string, payload: HttpApiDefinition) => {
+  public putApi = async (
+    id: string,
+    version: string,
+    payload: HttpApiDefinition,
+  ) => {
     // should use YAML
     // const r = await this.callApi(
     //   ENDPOINT.putApi(id, version),

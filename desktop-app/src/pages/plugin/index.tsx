@@ -65,7 +65,9 @@ export default function PluginList() {
               key={plugin.name}
               className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow from-background to-muted border-border bg-gradient-to-br"
               onClick={() =>
-                navigate(`/app/${appId}/plugins/${plugin.name}/${plugin.version}`)
+                navigate(
+                  `/app/${appId}/plugins/${plugin.name}/${plugin.version}`,
+                )
               }
             >
               <CardHeader>

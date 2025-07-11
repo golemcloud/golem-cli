@@ -18,7 +18,9 @@ export function DeploymentSection() {
       try {
         const response = await API.getApiList(appId!);
         const newData = removeDuplicateApis(response);
-        const deploymentPromises = newData.map(_ => API.getDeploymentApi(appId!));
+        const deploymentPromises = newData.map(_ =>
+          API.getDeploymentApi(appId!),
+        );
         const allDeployments = await Promise.all(deploymentPromises);
         const combinedDeployments = allDeployments.flat().filter(Boolean);
         setDeployments(combinedDeployments);
@@ -72,7 +74,9 @@ export function DeploymentSection() {
               <p className="text-gray-500 mb-6 text-center">
                 Create your first deployment to get started.
               </p>
-              <Button onClick={() => navigate(`/app/${appId}/deployments/create`)}>
+              <Button
+                onClick={() => navigate(`/app/${appId}/deployments/create`)}
+              >
                 <PlusCircle className="mr-2 size-4" />
                 Create Deployment
               </Button>

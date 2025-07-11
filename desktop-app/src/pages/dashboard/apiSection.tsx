@@ -12,7 +12,9 @@ import { useNavigate, useParams } from "react-router-dom";
 export function APISection() {
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
-  const [apis, setApis] = useState([] as (HttpApiDefinition & { count?: number })[]);
+  const [apis, setApis] = useState(
+    [] as (HttpApiDefinition & { count?: number })[],
+  );
 
   useEffect(() => {
     API.getApiList(appId!).then(response => {
@@ -29,7 +31,10 @@ export function APISection() {
             <Server className="w-5 h-5 text-muted-foreground" />
             APIs
           </CardTitle>
-          <Button variant="ghost" onClick={() => navigate(`/app/${appId}/apis`)}>
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/app/${appId}/apis`)}
+          >
             View All
             <ArrowRight className="w-4 h-4 ml-1" />
           </Button>
@@ -41,7 +46,9 @@ export function APISection() {
                 key={api.id}
                 className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/50 transition-colors cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
                 onClick={() => {
-                  navigate(`/app/${appId}/apis/${api.id}/version/${api.version}`);
+                  navigate(
+                    `/app/${appId}/apis/${api.id}/version/${api.version}`,
+                  );
                 }}
               >
                 <p className="text-sm font-medium">{api.id}</p>

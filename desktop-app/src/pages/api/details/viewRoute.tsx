@@ -12,7 +12,10 @@ import ErrorBoundary from "@/components/errorBoundary.tsx";
 import { HTTP_METHOD_COLOR } from "@/components/nav-route";
 import { RibEditor } from "@/components/rib-editor";
 import { useToast } from "@/hooks/use-toast";
-import { HttpApiDefinition, HttpApiDefinitionRoute } from "@/types/golemManifest";
+import {
+  HttpApiDefinition,
+  HttpApiDefinitionRoute,
+} from "@/types/golemManifest";
 
 interface CodeBlockProps {
   code: string | string[];
@@ -66,10 +69,10 @@ function CodeBlock({ code, label, allowCopy = false }: CodeBlockProps) {
         <code>
           {Array.isArray(code)
             ? code.map((line, index) => (
-              <div key={index} className="py-1">
-                {line}
-              </div>
-            ))
+                <div key={index} className="py-1">
+                  {line}
+                </div>
+              ))
             : code}
         </code>
       </pre>
@@ -110,10 +113,11 @@ function PathParameters({ url }: { url: string }) {
           <Badge
             key={param.name}
             variant="outline"
-            className={`font-mono text-sm ${param.type === "path"
+            className={`font-mono text-sm ${
+              param.type === "path"
                 ? "border-blue-500 dark:border-blue-500"
                 : "border-gray-500 dark:border-gray-500"
-              }`}
+            }`}
           >
             <span className="text-purple-600 dark:text-purple-400">
               {param.name}
@@ -132,7 +136,9 @@ function PathParameters({ url }: { url: string }) {
 export const ApiRoute = () => {
   const navigate = useNavigate();
   const { apiName, version, appId } = useParams();
-  const [currentRoute, setCurrentRoute] = useState({} as HttpApiDefinitionRoute);
+  const [currentRoute, setCurrentRoute] = useState(
+    {} as HttpApiDefinitionRoute,
+  );
   const [_apiResponse, setApiResponse] = useState({} as HttpApiDefinition);
   const [queryParams] = useSearchParams();
   const path = queryParams.get("path");
@@ -149,7 +155,7 @@ export const ApiRoute = () => {
           const route = selectedApi.routes?.find(
             route => route.path === path && route.method === method,
           );
-          setCurrentRoute(route || {} as HttpApiDefinitionRoute);
+          setCurrentRoute(route || ({} as HttpApiDefinitionRoute));
         } else {
           navigate(`/app/${appId}/apis/${apiName}/version/${version}`);
         }
@@ -193,7 +199,7 @@ export const ApiRoute = () => {
                   variant="secondary"
                   className={
                     HTTP_METHOD_COLOR[
-                    currentRoute.method as keyof typeof HTTP_METHOD_COLOR
+                      currentRoute.method as keyof typeof HTTP_METHOD_COLOR
                     ]
                   }
                 >
@@ -234,8 +240,9 @@ export const ApiRoute = () => {
                   Component
                 </h2>
                 <CodeBlock
-                  code={`${currentRoute?.binding?.componentName
-                    } / v${currentRoute?.binding?.componentVersion}`}
+                  code={`${
+                    currentRoute?.binding?.componentName
+                  } / v${currentRoute?.binding?.componentVersion}`}
                   label="component name"
                   allowCopy={false}
                 />
@@ -276,7 +283,6 @@ export const ApiRoute = () => {
                 /> 
                 </div> */}
 
-
             {/* Response Section */}
             {currentRoute?.binding?.response && (
               <div className="mb-6">
@@ -294,7 +300,7 @@ export const ApiRoute = () => {
             )}
 
             {/* Cors Section */}
-            {currentRoute?.binding?.type == "cors-preflight" && (
+            {currentRoute?.binding?.type == "cors-preflight" &&
               // <CorsDisplay cors={currentRoute?.binding?.corsPreflight} />
               // <div className="mb-6">
               //   <div className="flex items-center gap-2 mb-2">
@@ -308,8 +314,7 @@ export const ApiRoute = () => {
               //     disabled={true}
               //   />
               // </div>
-              ""
-            )}
+              ""}
           </CardContent>
         </Card>
       </main>

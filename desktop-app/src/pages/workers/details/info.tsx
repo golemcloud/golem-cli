@@ -162,14 +162,20 @@ export const PluginStatus: React.FC<PluginStatusProps> = ({
 };
 
 export default function WorkerInfo() {
-  const { appId, componentId = "", workerName = "" } = useParams<{ appId: string; componentId: string; workerName: string }>();
+  const {
+    appId,
+    componentId = "",
+    workerName = "",
+  } = useParams<{ appId: string; componentId: string; workerName: string }>();
   const [workerDetails, setWorkerDetails] = useState({} as Worker);
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getParticularWorker(appId!, componentId, workerName).then(response => {
-        setWorkerDetails(response);
-      });
+      API.getParticularWorker(appId!, componentId, workerName).then(
+        response => {
+          setWorkerDetails(response);
+        },
+      );
     }
   }, [appId, componentId, workerName]);
 

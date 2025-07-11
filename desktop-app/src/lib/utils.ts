@@ -7,7 +7,7 @@ import {
 } from "@/types/component";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import {  HttpApiDefinition } from "@/types/golemManifest.ts";
+import { HttpApiDefinition } from "@/types/golemManifest.ts";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -90,11 +90,14 @@ export const compareSemver = (version1: string, version2: string) => {
 
 /// Remove the duplicate api and keep the latest one by comparing the semver version
 export const removeDuplicateApis = (data: HttpApiDefinition[]) => {
-  const uniqueEntries = {} as Record<string, HttpApiDefinition & { count?: number }>;
+  const uniqueEntries = {} as Record<
+    string,
+    HttpApiDefinition & { count?: number }
+  >;
 
   data.forEach(item => {
     if (!item.id) return; // Skip items without id
-    
+
     if (!uniqueEntries[item.id]) {
       uniqueEntries[item.id] = item;
     } else {

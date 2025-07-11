@@ -18,8 +18,12 @@ import { removeDuplicateApis } from "@/lib/utils";
 
 export const APIs = () => {
   const navigate = useNavigate();
-  const [apis, setApis] = useState([] as (HttpApiDefinition & { count?: number })[]);
-  const [searchedApi, setSearchedApi] = useState([] as (HttpApiDefinition & { count?: number })[]);
+  const [apis, setApis] = useState(
+    [] as (HttpApiDefinition & { count?: number })[],
+  );
+  const [searchedApi, setSearchedApi] = useState(
+    [] as (HttpApiDefinition & { count?: number })[],
+  );
   const { appId } = useParams<{ appId: string }>();
 
   useEffect(() => {
@@ -42,7 +46,8 @@ export const APIs = () => {
               onChange={e =>
                 setSearchedApi(
                   apis.filter(api =>
-                    api.id?.toLocaleLowerCase()
+                    api.id
+                      ?.toLocaleLowerCase()
                       .includes(e.target.value.toLocaleLowerCase()),
                   ),
                 )
@@ -64,7 +69,7 @@ export const APIs = () => {
             {searchedApi.map(api => (
               <APICard
                 key={api.id}
-                name={api.id || ''}
+                name={api.id || ""}
                 version={api.version}
                 routes={api.routes?.length || 0}
                 count={api.count || 0}

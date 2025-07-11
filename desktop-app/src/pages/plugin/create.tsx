@@ -135,7 +135,7 @@ export default function CreatePlugin() {
             <form
               onSubmit={form.handleSubmit(async () => {
                 // const values = { ...data, icon: [] };
-                await API.createPlugin(appId!, "values")
+                await API.createPlugin(appId!, "values");
                 navigate(`/app/${appId}plugins`);
                 toast({
                   title: "Plugin created successfully",
@@ -159,7 +159,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.name &&
-                            "border-red-500 focus-visible:ring-red-500",
+                              "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -184,7 +184,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.version &&
-                            "border-red-500 focus-visible:ring-red-500",
+                              "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -210,7 +210,7 @@ export default function CreatePlugin() {
                         {...field}
                         className={cn(
                           form.formState.errors.description &&
-                          "border-red-500 focus-visible:ring-red-500",
+                            "border-red-500 focus-visible:ring-red-500",
                         )}
                       />
                     </FormControl>
@@ -242,7 +242,7 @@ export default function CreatePlugin() {
                           }}
                           className={cn(
                             form.formState.errors.icon &&
-                            "border-red-500 focus-visible:ring-red-500",
+                              "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -267,7 +267,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.homepage &&
-                            "border-red-500 focus-visible:ring-red-500",
+                              "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -320,7 +320,7 @@ export default function CreatePlugin() {
                                           componentId: string;
                                         }
                                       )?.componentId &&
-                                      "border-red-500 focus-visible:ring-red-500",
+                                        "border-red-500 focus-visible:ring-red-500",
                                     )}
                                   >
                                     <SelectValue placeholder="Select a Component" />
@@ -366,7 +366,7 @@ export default function CreatePlugin() {
                                           componentVersion: string;
                                         }
                                       )?.componentVersion &&
-                                      "border-red-500 focus-visible:ring-red-500",
+                                        "border-red-500 focus-visible:ring-red-500",
                                     )}
                                   >
                                     <SelectValue placeholder="Select a version">
@@ -411,7 +411,7 @@ export default function CreatePlugin() {
                                         validateUrl: string;
                                       }
                                     )?.validateUrl &&
-                                    "border-red-500 focus-visible:ring-red-500",
+                                      "border-red-500 focus-visible:ring-red-500",
                                   )}
                                 />
                               </FormControl>
@@ -441,7 +441,7 @@ export default function CreatePlugin() {
                                         transformUrl: string;
                                       }
                                     )?.transformUrl &&
-                                    "border-red-500 focus-visible:ring-red-500",
+                                      "border-red-500 focus-visible:ring-red-500",
                                   )}
                                 />
                               </FormControl>
@@ -468,7 +468,7 @@ export default function CreatePlugin() {
                                         jsonSchema: string;
                                       }
                                     )?.jsonSchema &&
-                                    "border-red-500 focus-visible:ring-red-500",
+                                      "border-red-500 focus-visible:ring-red-500",
                                   )}
                                 />
                               </FormControl>
@@ -504,7 +504,7 @@ export default function CreatePlugin() {
                               <SelectTrigger
                                 className={cn(
                                   form.formState.errors.scope?.type &&
-                                  "border-red-500 focus-visible:ring-red-500",
+                                    "border-red-500 focus-visible:ring-red-500",
                                 )}
                               >
                                 <SelectValue placeholder="Select a scope type" />
@@ -544,7 +544,7 @@ export default function CreatePlugin() {
                                       componentId: string;
                                     }
                                   )?.componentId &&
-                                  "border-red-500 focus-visible:ring-red-500",
+                                    "border-red-500 focus-visible:ring-red-500",
                                 )}
                               >
                                 <SelectValue placeholder="Select a Component" />

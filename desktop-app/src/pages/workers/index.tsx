@@ -66,7 +66,9 @@ export default function WorkerList() {
             <Button
               variant="default"
               onClick={() =>
-                navigate(`/app/${appId}/components/${componentId}/workers/create`)
+                navigate(
+                  `/app/${appId}/components/${componentId}/workers/create`,
+                )
               }
             >
               <Plus className="h-4 w-4" />

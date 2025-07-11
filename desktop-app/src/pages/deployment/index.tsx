@@ -77,7 +77,7 @@ const RoutesCard = ({
                   variant="secondary"
                   className={cn(
                     HTTP_METHOD_COLOR[
-                    endpoint.method as keyof typeof HTTP_METHOD_COLOR
+                      endpoint.method as keyof typeof HTTP_METHOD_COLOR
                     ],
                     "w-16 text-center justify-center",
                   )}
@@ -115,7 +115,9 @@ export default function Deployments() {
   const [expandedDeployment, setExpandedDeployment] = useState<string[]>([]);
   const [apiList, setApiList] = useState<HttpApiDefinition[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
-  const [dialogOpenForHost, setDialogOpenForHost] = useState<string | null>(null);
+  const [dialogOpenForHost, setDialogOpenForHost] = useState<string | null>(
+    null,
+  );
   const { appId } = useParams<{ appId: string }>();
   const [selectedDeploymentHost, setSelectedDeploymentHost] = useState<
     string | null
@@ -133,12 +135,17 @@ export default function Deployments() {
         );
 
         const flattenedDeployments = allDeployments.flat().filter(Boolean);
-        const uniqueDeployments = flattenedDeployments.reduce((acc: any[], current) => {
-          if (!acc.find((item: any) => item.site.host === current.site.host)) {
-            acc.push(current);
-          }
-          return acc;
-        }, []);
+        const uniqueDeployments = flattenedDeployments.reduce(
+          (acc: any[], current) => {
+            if (
+              !acc.find((item: any) => item.site.host === current.site.host)
+            ) {
+              acc.push(current);
+            }
+            return acc;
+          },
+          [],
+        );
 
         setDeployments(uniqueDeployments);
       } catch (error) {
@@ -204,7 +211,7 @@ export default function Deployments() {
 
                       <Dialog
                         open={dialogOpenForHost === deployment.site.host}
-                        onOpenChange={(isOpen) => {
+                        onOpenChange={isOpen => {
                           if (isOpen) {
                             setSelectedDeploymentHost(deployment.site.host);
                             setDialogOpenForHost(deployment.site.host);
@@ -266,39 +273,40 @@ export default function Deployments() {
                                 a =>
                                   a.id === api.id && a.version === api.version,
                               )?.routes?.length || 0) > 0 && (
-                                  <button
-                                    onClick={() =>
-                                      toggleExpanded(
-                                        deployment.site.host,
-                                        api.id,
-                                        api.version,
-                                      )
-                                    }
-                                    className="p-1 hover:bg-accent rounded-md"
-                                  >
-                                    <ChevronRight
-                                      className={`w-4 h-4 text-muted-foreground transition-transform ${expandedDeployment.includes(
+                                <button
+                                  onClick={() =>
+                                    toggleExpanded(
+                                      deployment.site.host,
+                                      api.id,
+                                      api.version,
+                                    )
+                                  }
+                                  className="p-1 hover:bg-accent rounded-md"
+                                >
+                                  <ChevronRight
+                                    className={`w-4 h-4 text-muted-foreground transition-transform ${
+                                      expandedDeployment.includes(
                                         `${deployment.site.host}.${api.id}.${api.version}`,
                                       )
-                                          ? "rotate-90"
-                                          : ""
-                                        }`}
-                                    />
-                                  </button>
-                                )}
+                                        ? "rotate-90"
+                                        : ""
+                                    }`}
+                                  />
+                                </button>
+                              )}
                             </div>
                           </div>
 
                           {expandedDeployment.includes(
                             `${deployment.site.host}.${api.id}.${api.version}`,
                           ) && (
-                              <RoutesCard
-                                apiId={api.id}
-                                version={api.version}
-                                apiList={apiList}
-                                host={deployment.site.host}
-                              />
-                            )}
+                            <RoutesCard
+                              apiId={api.id}
+                              version={api.version}
+                              apiList={apiList}
+                              host={deployment.site.host}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>

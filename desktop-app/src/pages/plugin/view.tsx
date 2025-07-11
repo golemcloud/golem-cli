@@ -41,7 +41,7 @@ export function PluginView() {
   const [currentVersion, setCurrentVersion] = useState<Plugin | null>(null);
 
   useEffect(() => {
-    API.getPluginByName(appId!, pluginId!, '0').then(res => {
+    API.getPluginByName(appId!, pluginId!, "0").then(res => {
       setPlugin(res);
       const selectedVersion = version
         ? res.find(p => p.version === version)

@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import React from 'react';
-import { Home } from '@/pages/home';
-import { AppLayout } from '@/layouts/app-layout';
-import { Service } from '@/service/client';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
+import React from "react";
+import { Home } from "@/pages/home";
+import { AppLayout } from "@/layouts/app-layout";
+import { Service } from "@/service/client";
 
 // Mock all dependencies
-vi.mock('@/lib/settings', () => ({
+vi.mock("@/lib/settings", () => ({
   settingsService: {
     getApps: vi.fn(),
     validateGolemApp: vi.fn(),
@@ -17,29 +17,29 @@ vi.mock('@/lib/settings', () => ({
   },
 }));
 
-vi.mock('@tauri-apps/plugin-dialog', () => ({
+vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
-vi.mock('@/hooks/use-toast', () => ({
+vi.mock("@/hooks/use-toast", () => ({
   toast: vi.fn(),
 }));
 
-vi.mock('@/service/client', () => ({
+vi.mock("@/service/client", () => ({
   Service: vi.fn(),
 }));
 
-vi.mock('@/components/errorBoundary', () => ({
+vi.mock("@/components/errorBoundary", () => ({
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="error-boundary">{children}</div>
   ),
 }));
 
-vi.mock('@/components/navbar.tsx', () => ({
+vi.mock("@/components/navbar.tsx", () => ({
   default: () => <nav data-testid="navbar">Navbar</nav>,
 }));
 
-vi.mock('@/components/ui/button', () => ({
+vi.mock("@/components/ui/button", () => ({
   Button: ({ children, onClick, disabled }: any) => (
     <button onClick={onClick} disabled={disabled}>
       {children}
@@ -47,7 +47,7 @@ vi.mock('@/components/ui/button', () => ({
   ),
 }));
 
-vi.mock('@/components/ui/card', () => ({
+vi.mock("@/components/ui/card", () => ({
   Card: ({ children, onClick, className }: any) => (
     <div className={className} onClick={onClick} data-testid="card">
       {children}
@@ -59,11 +59,11 @@ vi.mock('@/components/ui/card', () => ({
   CardTitle: ({ children }: any) => <h2>{children}</h2>,
 }));
 
-vi.mock('@/components/ui/input', () => ({
+vi.mock("@/components/ui/input", () => ({
   Input: (props: any) => <input {...props} />,
 }));
 
-vi.mock('lucide-react', () => ({
+vi.mock("lucide-react", () => ({
   Plus: () => <span>+</span>,
   FolderOpen: () => <span>📂</span>,
   Folder: () => <span>📁</span>,
@@ -72,21 +72,21 @@ vi.mock('lucide-react', () => ({
   ChevronRight: () => <span>▶</span>,
 }));
 
-describe('Application Workflow Integration Tests', () => {
+describe("Application Workflow Integration Tests", () => {
   const mockApps = [
     {
-      id: 'app-1',
-      name: 'Test App 1',
-      folderLocation: '/path/to/app1',
-      golemYamlLocation: '/path/to/app1/golem.yaml',
-      lastOpened: '2023-12-01T10:00:00Z',
+      id: "app-1",
+      name: "Test App 1",
+      folderLocation: "/path/to/app1",
+      golemYamlLocation: "/path/to/app1/golem.yaml",
+      lastOpened: "2023-12-01T10:00:00Z",
     },
     {
-      id: 'app-2',
-      name: 'Test App 2',
-      folderLocation: '/path/to/app2',
-      golemYamlLocation: '/path/to/app2/golem.yaml',
-      lastOpened: '2023-12-02T15:30:00Z',
+      id: "app-2",
+      name: "Test App 2",
+      folderLocation: "/path/to/app2",
+      golemYamlLocation: "/path/to/app2/golem.yaml",
+      lastOpened: "2023-12-02T15:30:00Z",
     },
   ];
 
@@ -98,209 +98,220 @@ describe('Application Workflow Integration Tests', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Home to App Navigation Flow', () => {
-    it('should navigate from home page to app when clicking on recent app', async () => {
-      const { settingsService } = await import('@/lib/settings');
+  describe("Home to App Navigation Flow", () => {
+    it("should navigate from home page to app when clicking on recent app", async () => {
+      const { settingsService } = await import("@/lib/settings");
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
-      const TestApp = () => <div data-testid="app-page">App Page for {window.location.pathname}</div>;
+      const TestApp = () => (
+        <div data-testid="app-page">
+          App Page for {window.location.pathname}
+        </div>
+      );
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/app/:id" element={<AppLayout />}>
               <Route index element={<TestApp />} />
             </Route>
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       // Wait for apps to load
       await waitFor(() => {
-        expect(screen.getByText('Test App 1')).toBeInTheDocument();
-        expect(screen.getByText('Test App 2')).toBeInTheDocument();
+        expect(screen.getByText("Test App 1")).toBeInTheDocument();
+        expect(screen.getByText("Test App 2")).toBeInTheDocument();
       });
 
       // Click on first app
-      const appCard = screen.getByText('Test App 1').closest('[data-testid="card"]');
+      const appCard = screen
+        .getByText("Test App 1")
+        .closest('[data-testid="card"]');
       await user.click(appCard!);
 
       // Should navigate to app page
       await waitFor(() => {
-        expect(screen.getByTestId('app-page')).toBeInTheDocument();
-        expect(screen.getByTestId('navbar')).toBeInTheDocument();
+        expect(screen.getByTestId("app-page")).toBeInTheDocument();
+        expect(screen.getByTestId("navbar")).toBeInTheDocument();
       });
     });
 
-    it('should handle complete app opening workflow', async () => {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const { settingsService } = await import('@/lib/settings');
+    it("should handle complete app opening workflow", async () => {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { settingsService } = await import("@/lib/settings");
       // const { toast } = await import('@/hooks/use-toast');
 
       (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockResolvedValue('/path/to/new/app');
+      (open as any).mockResolvedValue("/path/to/new/app");
       (settingsService.validateGolemApp as any).mockResolvedValue({
         isValid: true,
-        yamlPath: '/path/to/new/app/golem.yaml',
+        yamlPath: "/path/to/new/app/golem.yaml",
       });
       (settingsService.addApp as any).mockResolvedValue(true);
 
       const user = userEvent.setup();
-      const TestApp = () => <div data-testid="new-app-page">New App Opened</div>;
+      const TestApp = () => (
+        <div data-testid="new-app-page">New App Opened</div>
+      );
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/app/:id" element={<AppLayout />}>
               <Route index element={<TestApp />} />
             </Route>
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       // Click open existing app button
-      const openButton = screen.getByText('Open');
+      const openButton = screen.getByText("Open");
       await user.click(openButton);
 
       await waitFor(() => {
         expect(open).toHaveBeenCalledWith({
           directory: true,
           multiple: false,
-          title: 'Select Golem Application Folder',
+          title: "Select Golem Application Folder",
         });
-        expect(settingsService.validateGolemApp).toHaveBeenCalledWith('/path/to/new/app');
+        expect(settingsService.validateGolemApp).toHaveBeenCalledWith(
+          "/path/to/new/app",
+        );
         expect(settingsService.addApp).toHaveBeenCalledWith(
           expect.objectContaining({
-            folderLocation: '/path/to/new/app',
-            golemYamlLocation: '/path/to/new/app/golem.yaml',
-          })
+            folderLocation: "/path/to/new/app",
+            golemYamlLocation: "/path/to/new/app/golem.yaml",
+          }),
         );
       });
     });
   });
 
-  describe('Error Handling Integration', () => {
-    it('should display error toast when app opening fails', async () => {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const { settingsService } = await import('@/lib/settings');
-      const { toast } = await import('@/hooks/use-toast');
+  describe("Error Handling Integration", () => {
+    it("should display error toast when app opening fails", async () => {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { settingsService } = await import("@/lib/settings");
+      const { toast } = await import("@/hooks/use-toast");
 
       (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockResolvedValue('/path/to/invalid/app');
+      (open as any).mockResolvedValue("/path/to/invalid/app");
       (settingsService.validateGolemApp as any).mockResolvedValue({
         isValid: false,
-        yamlPath: '',
+        yamlPath: "",
       });
 
       const user = userEvent.setup();
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
-      const openButton = screen.getByText('Open');
+      const openButton = screen.getByText("Open");
       await user.click(openButton);
 
       await waitFor(() => {
         expect(toast).toHaveBeenCalledWith({
-          title: 'Invalid Golem Application',
-          description: 'The selected folder does not contain a golem.yaml file.',
-          variant: 'destructive',
+          title: "Invalid Golem Application",
+          description:
+            "The selected folder does not contain a golem.yaml file.",
+          variant: "destructive",
         });
       });
     });
 
-    it('should handle service layer errors gracefully', async () => {
+    it("should handle service layer errors gracefully", async () => {
       const mockService = {
-        getComponents: vi.fn().mockRejectedValue(new Error('API Error')),
+        getComponents: vi.fn().mockRejectedValue(new Error("API Error")),
         checkHealth: vi.fn().mockResolvedValue(true),
       };
       (Service as any).mockImplementation(() => mockService);
 
-      const { settingsService } = await import('@/lib/settings');
+      const { settingsService } = await import("@/lib/settings");
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const TestAppWithService = () => {
         const [error, setError] = React.useState<string | null>(null);
 
         React.useEffect(() => {
-          const service = new Service('http://localhost:3000');
-          service.getComponents('app-1').catch((err) => {
+          const service = new Service("http://localhost:3000");
+          service.getComponents("app-1").catch(err => {
             setError(err.message);
           });
         }, []);
 
         return (
           <div data-testid="app-with-service">
-            {error ? `Error: ${error}` : 'App loaded successfully'}
+            {error ? `Error: ${error}` : "App loaded successfully"}
           </div>
         );
       };
 
       render(
-        <MemoryRouter initialEntries={['/app/app-1']}>
+        <MemoryRouter initialEntries={["/app/app-1"]}>
           <Routes>
             <Route path="/app/:id" element={<AppLayout />}>
               <Route index element={<TestAppWithService />} />
             </Route>
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Error: API Error')).toBeInTheDocument();
+        expect(screen.getByText("Error: API Error")).toBeInTheDocument();
       });
     });
   });
 
-  describe('Search and Filter Integration', () => {
-    it('should filter apps in real-time during search', async () => {
-      const { settingsService } = await import('@/lib/settings');
+  describe("Search and Filter Integration", () => {
+    it("should filter apps in real-time during search", async () => {
+      const { settingsService } = await import("@/lib/settings");
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       // Wait for apps to load
       await waitFor(() => {
-        expect(screen.getByText('Test App 1')).toBeInTheDocument();
-        expect(screen.getByText('Test App 2')).toBeInTheDocument();
+        expect(screen.getByText("Test App 1")).toBeInTheDocument();
+        expect(screen.getByText("Test App 2")).toBeInTheDocument();
       });
 
       // Search for specific app
-      const searchInput = screen.getByPlaceholderText('Search applications...');
-      await user.type(searchInput, 'Test App 1');
+      const searchInput = screen.getByPlaceholderText("Search applications...");
+      await user.type(searchInput, "Test App 1");
 
       // Should filter results
-      expect(screen.getByText('Test App 1')).toBeInTheDocument();
-      expect(screen.queryByText('Test App 2')).not.toBeInTheDocument();
+      expect(screen.getByText("Test App 1")).toBeInTheDocument();
+      expect(screen.queryByText("Test App 2")).not.toBeInTheDocument();
 
       // Clear search
       await user.clear(searchInput);
 
       // Should show all apps again
-      expect(screen.getByText('Test App 1')).toBeInTheDocument();
-      expect(screen.getByText('Test App 2')).toBeInTheDocument();
+      expect(screen.getByText("Test App 1")).toBeInTheDocument();
+      expect(screen.getByText("Test App 2")).toBeInTheDocument();
     });
   });
 
-  describe('State Management Integration', () => {
-    it('should maintain app state across navigation', async () => {
-      const { settingsService } = await import('@/lib/settings');
+  describe("State Management Integration", () => {
+    it("should maintain app state across navigation", async () => {
+      const { settingsService } = await import("@/lib/settings");
       let appsCallCount = 0;
       (settingsService.getApps as any).mockImplementation(() => {
         appsCallCount++;
@@ -311,7 +322,7 @@ describe('Application Workflow Integration Tests', () => {
       const AppPage = () => <div data-testid="app-page">App Page</div>;
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/app-create" element={<div>Create App Page</div>} />
@@ -319,29 +330,29 @@ describe('Application Workflow Integration Tests', () => {
               <Route index element={<AppPage />} />
             </Route>
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       // Wait for initial load
       await waitFor(() => {
-        expect(screen.getByText('Test App 1')).toBeInTheDocument();
+        expect(screen.getByText("Test App 1")).toBeInTheDocument();
       });
 
       // Navigate to create page
-      const createButton = screen.getByText('New Application');
+      const createButton = screen.getByText("New Application");
       await user.click(createButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Create App Page')).toBeInTheDocument();
+        expect(screen.getByText("Create App Page")).toBeInTheDocument();
       });
 
       // Navigate back (simulated by re-rendering home)
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       // Should reload apps data
@@ -351,31 +362,31 @@ describe('Application Workflow Integration Tests', () => {
     });
   });
 
-  describe('Performance Integration', () => {
-    it('should handle large number of apps efficiently', async () => {
+  describe("Performance Integration", () => {
+    it("should handle large number of apps efficiently", async () => {
       const manyApps = Array.from({ length: 100 }, (_, i) => ({
         id: `app-${i}`,
         name: `App ${i}`,
         folderLocation: `/path/to/app${i}`,
         golemYamlLocation: `/path/to/app${i}/golem.yaml`,
-        lastOpened: '2023-12-01T10:00:00Z',
+        lastOpened: "2023-12-01T10:00:00Z",
       }));
 
-      const { settingsService } = await import('@/lib/settings');
+      const { settingsService } = await import("@/lib/settings");
       (settingsService.getApps as any).mockResolvedValue(manyApps);
 
       const startTime = performance.now();
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       await waitFor(() => {
-        expect(screen.getByText('App 0')).toBeInTheDocument();
+        expect(screen.getByText("App 0")).toBeInTheDocument();
       });
 
       const endTime = performance.now();
@@ -385,84 +396,84 @@ describe('Application Workflow Integration Tests', () => {
       expect(renderTime).toBeLessThan(1000);
     });
 
-    it('should debounce search input to avoid excessive filtering', async () => {
-      const { settingsService } = await import('@/lib/settings');
+    it("should debounce search input to avoid excessive filtering", async () => {
+      const { settingsService } = await import("@/lib/settings");
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Test App 1')).toBeInTheDocument();
+        expect(screen.getByText("Test App 1")).toBeInTheDocument();
       });
 
-      const searchInput = screen.getByPlaceholderText('Search applications...');
+      const searchInput = screen.getByPlaceholderText("Search applications...");
 
       // Rapid typing should not cause excessive re-renders
-      await user.type(searchInput, 'Test');
+      await user.type(searchInput, "Test");
 
       // Should still show filtered results
-      expect(screen.getByText('Test App 1')).toBeInTheDocument();
-      expect(screen.getByText('Test App 2')).toBeInTheDocument();
+      expect(screen.getByText("Test App 1")).toBeInTheDocument();
+      expect(screen.getByText("Test App 2")).toBeInTheDocument();
     });
   });
 
-  describe('Accessibility Integration', () => {
-    it('should provide keyboard navigation throughout the app', async () => {
-      const { settingsService } = await import('@/lib/settings');
+  describe("Accessibility Integration", () => {
+    it("should provide keyboard navigation throughout the app", async () => {
+      const { settingsService } = await import("@/lib/settings");
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Test App 1')).toBeInTheDocument();
+        expect(screen.getByText("Test App 1")).toBeInTheDocument();
       });
 
       // Tab navigation should work
       await user.tab();
-      
+
       // Focus should be on interactive elements
       const focusedElement = document.activeElement;
       expect(focusedElement?.tagName).toMatch(/BUTTON|INPUT|A/);
     });
 
-    it('should maintain proper ARIA labels and roles', async () => {
-      const { settingsService } = await import('@/lib/settings');
+    it("should maintain proper ARIA labels and roles", async () => {
+      const { settingsService } = await import("@/lib/settings");
       (settingsService.getApps as any).mockResolvedValue(mockApps);
 
       render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route path="/" element={<Home />} />
           </Routes>
-        </MemoryRouter>
+        </MemoryRouter>,
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Test App 1')).toBeInTheDocument();
+        expect(screen.getByText("Test App 1")).toBeInTheDocument();
       });
 
       // Search input should have proper attributes
-      const searchInput = screen.getByPlaceholderText('Search applications...');
-      expect(searchInput).toHaveAttribute('placeholder');
+      const searchInput = screen.getByPlaceholderText("Search applications...");
+      expect(searchInput).toHaveAttribute("placeholder");
 
       // Buttons should be properly labeled
-      const buttons = screen.getAllByRole('button');
+      const buttons = screen.getAllByRole("button");
       buttons.forEach(button => {
         expect(button.textContent).toBeTruthy();
       });

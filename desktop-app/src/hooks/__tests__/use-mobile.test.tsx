@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useIsMobile } from '../use-mobile'; // Adjust import path as needed
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useIsMobile } from "../use-mobile"; // Adjust import path as needed
 
-describe('useIsMobile', () => {
+describe("useIsMobile", () => {
   let mockMatchMedia: any;
   let mockAddEventListener: any;
   let mockRemoveEventListener: any;
@@ -10,17 +10,21 @@ describe('useIsMobile', () => {
 
   beforeEach(() => {
     // Mock addEventListener and removeEventListener to capture the callback
-    mockAddEventListener = vi.fn().mockImplementation((event: string, callback: Function) => {
-      if (event === 'change') {
-        changeCallback = callback;
-      }
-    });
+    mockAddEventListener = vi
+      .fn()
+      .mockImplementation((event: string, callback: Function) => {
+        if (event === "change") {
+          changeCallback = callback;
+        }
+      });
 
-    mockRemoveEventListener = vi.fn().mockImplementation((event: string, callback: Function) => {
-      if (event === 'change' && changeCallback === callback) {
-        changeCallback = null;
-      }
-    });
+    mockRemoveEventListener = vi
+      .fn()
+      .mockImplementation((event: string, callback: Function) => {
+        if (event === "change" && changeCallback === callback) {
+          changeCallback = null;
+        }
+      });
 
     // Mock matchMedia
     mockMatchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -35,13 +39,13 @@ describe('useIsMobile', () => {
     }));
 
     // Set up window mocks
-    Object.defineProperty(window, 'matchMedia', {
+    Object.defineProperty(window, "matchMedia", {
       writable: true,
       value: mockMatchMedia,
     });
 
     // Mock window.innerWidth
-    Object.defineProperty(window, 'innerWidth', {
+    Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: 1024, // Default to desktop width
@@ -53,9 +57,9 @@ describe('useIsMobile', () => {
     changeCallback = null;
   });
 
-  it('should initialize as undefined and then set mobile state based on window width', () => {
+  it("should initialize as undefined and then set mobile state based on window width", () => {
     // Set mobile width
-    Object.defineProperty(window, 'innerWidth', {
+    Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: 500, // Mobile width
@@ -64,18 +68,21 @@ describe('useIsMobile', () => {
     const { result } = renderHook(() => useIsMobile());
 
     // Should call matchMedia with correct query
-    expect(mockMatchMedia).toHaveBeenCalledWith('(max-width: 767px)');
+    expect(mockMatchMedia).toHaveBeenCalledWith("(max-width: 767px)");
 
     // Should add event listener
-    expect(mockAddEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+    expect(mockAddEventListener).toHaveBeenCalledWith(
+      "change",
+      expect.any(Function),
+    );
 
     // Should return true for mobile
     expect(result.current).toBe(true);
   });
 
-  it('should return false for desktop width', () => {
+  it("should return false for desktop width", () => {
     // Set desktop width
-    Object.defineProperty(window, 'innerWidth', {
+    Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: 1024, // Desktop width
@@ -87,9 +94,9 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(false);
   });
 
-  it('should return true for tablet width (below 768px)', () => {
+  it("should return true for tablet width (below 768px)", () => {
     // Set tablet width
-    Object.defineProperty(window, 'innerWidth', {
+    Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: 600, // Tablet width
@@ -101,9 +108,9 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(true);
   });
 
-  it('should return false for width exactly at breakpoint', () => {
+  it("should return false for width exactly at breakpoint", () => {
     // Set width exactly at breakpoint
-    Object.defineProperty(window, 'innerWidth', {
+    Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: 768, // Exactly at breakpoint
@@ -115,9 +122,9 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(false);
   });
 
-  it('should update when viewport changes', () => {
+  it("should update when viewport changes", () => {
     // Start with desktop width
-    Object.defineProperty(window, 'innerWidth', {
+    Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: 1024,
@@ -130,7 +137,7 @@ describe('useIsMobile', () => {
 
     // Simulate viewport change to mobile
     act(() => {
-      Object.defineProperty(window, 'innerWidth', {
+      Object.defineProperty(window, "innerWidth", {
         writable: true,
         configurable: true,
         value: 500,
@@ -146,9 +153,9 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(true);
   });
 
-  it('should update from mobile to desktop', () => {
+  it("should update from mobile to desktop", () => {
     // Start with mobile width
-    Object.defineProperty(window, 'innerWidth', {
+    Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: 500,
@@ -161,7 +168,7 @@ describe('useIsMobile', () => {
 
     // Simulate viewport change to desktop
     act(() => {
-      Object.defineProperty(window, 'innerWidth', {
+      Object.defineProperty(window, "innerWidth", {
         writable: true,
         configurable: true,
         value: 1200,
@@ -177,22 +184,28 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(false);
   });
 
-  it('should cleanup event listener on unmount', () => {
+  it("should cleanup event listener on unmount", () => {
     const { unmount } = renderHook(() => useIsMobile());
 
     // Verify event listener was added
-    expect(mockAddEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+    expect(mockAddEventListener).toHaveBeenCalledWith(
+      "change",
+      expect.any(Function),
+    );
 
     // Unmount the hook
     unmount();
 
     // Verify event listener was removed
-    expect(mockRemoveEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+    expect(mockRemoveEventListener).toHaveBeenCalledWith(
+      "change",
+      expect.any(Function),
+    );
   });
 
-  it('should handle multiple viewport changes', () => {
+  it("should handle multiple viewport changes", () => {
     // Start with desktop
-    Object.defineProperty(window, 'innerWidth', {
+    Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: 1024,
@@ -203,7 +216,7 @@ describe('useIsMobile', () => {
 
     // Change to mobile
     act(() => {
-      Object.defineProperty(window, 'innerWidth', {
+      Object.defineProperty(window, "innerWidth", {
         writable: true,
         configurable: true,
         value: 400,
@@ -214,7 +227,7 @@ describe('useIsMobile', () => {
 
     // Change back to desktop
     act(() => {
-      Object.defineProperty(window, 'innerWidth', {
+      Object.defineProperty(window, "innerWidth", {
         writable: true,
         configurable: true,
         value: 900,
@@ -225,7 +238,7 @@ describe('useIsMobile', () => {
 
     // Change to tablet (mobile)
     act(() => {
-      Object.defineProperty(window, 'innerWidth', {
+      Object.defineProperty(window, "innerWidth", {
         writable: true,
         configurable: true,
         value: 700,
@@ -235,9 +248,9 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(true);
   });
 
-  it('should handle edge case where matchMedia is not supported', () => {
+  it("should handle edge case where matchMedia is not supported", () => {
     // Remove matchMedia support
-    Object.defineProperty(window, 'matchMedia', {
+    Object.defineProperty(window, "matchMedia", {
       writable: true,
       value: undefined,
     });
@@ -247,10 +260,10 @@ describe('useIsMobile', () => {
     expect(() => renderHook(() => useIsMobile())).toThrow();
   });
 
-  it('should use correct breakpoint constant', () => {
+  it("should use correct breakpoint constant", () => {
     renderHook(() => useIsMobile());
 
     // Verify the exact media query is used (767px = 768 - 1)
-    expect(mockMatchMedia).toHaveBeenCalledWith('(max-width: 767px)');
+    expect(mockMatchMedia).toHaveBeenCalledWith("(max-width: 767px)");
   });
 });

@@ -23,9 +23,11 @@ export default function WorkerDetails() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getParticularWorker(appId!, componentId, workerName).then(response => {
-        setWorkerDetails(response);
-      });
+      API.getParticularWorker(appId!, componentId, workerName).then(
+        response => {
+          setWorkerDetails(response);
+        },
+      );
     }
   }, [componentId, workerName]);
 

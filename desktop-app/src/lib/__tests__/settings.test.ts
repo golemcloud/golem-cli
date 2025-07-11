@@ -30,7 +30,7 @@ describe("SettingsService", () => {
       save: vi.fn(),
     };
 
-    const { load } = await import('@tauri-apps/plugin-store');
+    const { load } = await import("@tauri-apps/plugin-store");
     (load as any).mockResolvedValue(mockStore);
 
     service = new SettingsService();

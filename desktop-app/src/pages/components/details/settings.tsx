@@ -30,14 +30,14 @@ export default function ComponentSettings() {
   const handleDeleteAll = async () => {
     setIsDeleting(true);
     try {
-      const response = await API.findWorker(appId!,componentId!, {
+      const response = await API.findWorker(appId!, componentId!, {
         count: 100,
         precise: true,
       });
 
       await Promise.allSettled(
         response?.workers.map((worker: any) =>
-          API.deleteWorker(appId!,componentId!, worker.workerName),
+          API.deleteWorker(appId!, componentId!, worker.workerName),
         ),
       );
 
@@ -49,7 +49,7 @@ export default function ComponentSettings() {
 
       navigate(`/app/${appId}/components/${componentId}`);
     } catch (error) {
-      console.error(error)
+      console.error(error);
       toast({
         title: "Error",
         description: "Failed to delete some or all workers.",

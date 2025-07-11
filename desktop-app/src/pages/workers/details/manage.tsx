@@ -34,7 +34,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function WorkerManage() {
-  const {appId, componentId = "", workerName = "" } = useParams();
+  const { appId, componentId = "", workerName = "" } = useParams();
   const navigate = useNavigate();
   const [workerDetails, setWorkerDetails] = useState({} as Worker);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -48,10 +48,12 @@ export default function WorkerManage() {
       API.getComponentByIdAsKey(appId!).then(response => {
         setComponentList(response[componentId]);
       });
-      API.getParticularWorker(appId!,componentId, workerName).then(response => {
-        setWorkerDetails(response);
-        setUpgradeTo(`${response?.componentVersion}`);
-      });
+      API.getParticularWorker(appId!, componentId, workerName).then(
+        response => {
+          setWorkerDetails(response);
+          setUpgradeTo(`${response?.componentVersion}`);
+        },
+      );
     }
   }, [componentId, workerName]);
 

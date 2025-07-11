@@ -28,7 +28,9 @@ describe("worker utilities", () => {
     it("should handle boolean parameters", () => {
       const data: ComponentExportFunction = {
         name: "test-function",
-        parameters: [{ name: "param1", typ: { type: "Bool" }, type: "Boolean" }],
+        parameters: [
+          { name: "param1", typ: { type: "Bool" }, type: "Boolean" },
+        ],
         results: [],
       };
 
@@ -494,7 +496,9 @@ describe("worker utilities", () => {
       ).toBeNull();
       expect(
         validateJsonStructure({ field1: "test", field2: "invalid" }, field),
-      ).toBe('Expected an unsigned 32-bit integer for field "field2", but got invalid');
+      ).toBe(
+        'Expected an unsigned 32-bit integer for field "field2", but got invalid',
+      );
       expect(validateJsonStructure("not an object", field)).toBe(
         'Expected an object for field "testField", but got string',
       );

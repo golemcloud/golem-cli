@@ -1,81 +1,89 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { ServerStatus } from '../server-status';
-import { API } from '@/service';
+import { render, screen, waitFor } from "@testing-library/react";
+import { ServerStatus } from "../server-status";
+import { API } from "@/service";
 
 // Mock the API
-vi.mock('@/service', () => ({
+vi.mock("@/service", () => ({
   API: {
     checkHealth: vi.fn(),
   },
 }));
 
 // Mock lucide-react icons
-vi.mock('lucide-react', () => ({
+vi.mock("lucide-react", () => ({
   CheckCircle2: () => <div data-testid="check-icon">✓</div>,
   AlertCircle: () => <div data-testid="alert-icon">!</div>,
 }));
 
 // Mock tooltip components
-vi.mock('@/components/ui/tooltip', () => ({
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+vi.mock("@/components/ui/tooltip", () => ({
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  Tooltip: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
-describe('ServerStatus', () => {
+describe("ServerStatus", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders server status component with loading state initially', () => {
-    (API.checkHealth as any).mockImplementation(() => new Promise(() => { })); // Never resolves
+  it("renders server status component with loading state initially", () => {
+    (API.checkHealth as any).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<ServerStatus />);
 
-    expect(screen.getByText('Checking status...')).toBeInTheDocument();
+    expect(screen.getByText("Checking status...")).toBeInTheDocument();
   });
 
-  it('displays healthy status when connected', async () => {
+  it("displays healthy status when connected", async () => {
     (API.checkHealth as any).mockResolvedValue({});
 
     render(<ServerStatus />);
 
     await waitFor(() => {
-      expect(screen.getByText('Healthy')).toBeInTheDocument();
-      expect(screen.getByTestId('check-icon')).toBeInTheDocument();
+      expect(screen.getByText("Healthy")).toBeInTheDocument();
+      expect(screen.getByTestId("check-icon")).toBeInTheDocument();
     });
   });
 
-  it('displays unhealthy status when disconnected', async () => {
-    (API.checkHealth as any).mockRejectedValue(new Error('Connection failed'));
+  it("displays unhealthy status when disconnected", async () => {
+    (API.checkHealth as any).mockRejectedValue(new Error("Connection failed"));
 
     render(<ServerStatus />);
 
     await waitFor(() => {
-      expect(screen.getByText('Unhealthy')).toBeInTheDocument();
-      expect(screen.getByTestId('alert-icon')).toBeInTheDocument();
+      expect(screen.getByText("Unhealthy")).toBeInTheDocument();
+      expect(screen.getByTestId("alert-icon")).toBeInTheDocument();
     });
   });
 
-  it('displays connecting status when loading', () => {
-    (API.checkHealth as any).mockImplementation(() => new Promise(() => { })); // Never resolves
+  it("displays connecting status when loading", () => {
+    (API.checkHealth as any).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<ServerStatus />);
 
-    expect(screen.getByText('Checking status...')).toBeInTheDocument();
-    const loadingIndicator = document.querySelector('.animate-pulse');
+    expect(screen.getByText("Checking status...")).toBeInTheDocument();
+    const loadingIndicator = document.querySelector(".animate-pulse");
     expect(loadingIndicator).toBeInTheDocument();
   });
 
-  it('has correct text color based on status', async () => {
+  it("has correct text color based on status", async () => {
     (API.checkHealth as any).mockResolvedValue({});
 
     render(<ServerStatus />);
 
     await waitFor(() => {
-      const statusElement = screen.getByText('Healthy').closest('div');
-      expect(statusElement).toHaveClass('text-green-500');
+      const statusElement = screen.getByText("Healthy").closest("div");
+      expect(statusElement).toHaveClass("text-green-500");
     });
   });
 });

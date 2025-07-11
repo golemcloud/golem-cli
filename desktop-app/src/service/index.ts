@@ -10,11 +10,11 @@ export let API: Service = new Service("http://localhost:9881");
 
 export async function updateService(url: string) {
   if (API) {
-    console.log(url)
+    console.log(url);
     // await API.updateBackendEndpoint(url);
   }
 }
 
 export async function getEndpoint() {
-  return "http://localhost:9881"
+  return "http://localhost:9881";
 }

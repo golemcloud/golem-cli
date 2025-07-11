@@ -1,33 +1,33 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import CreateAPI from '../index';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import CreateAPI from "../index";
 
 // Mock dependencies
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useParams: () => ({ appId: 'test-app-id' }),
+    useParams: () => ({ appId: "test-app-id" }),
   };
 });
 
-vi.mock('@/service', () => ({
+vi.mock("@/service", () => ({
   API: {
     createApi: vi.fn(),
   },
 }));
 
-vi.mock('@/components/errorBoundary', () => ({
+vi.mock("@/components/errorBoundary", () => ({
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="error-boundary">{children}</div>
   ),
 }));
 
-vi.mock('@/components/ui/button', () => ({
+vi.mock("@/components/ui/button", () => ({
   Button: ({ children, onClick, disabled, type }: any) => (
     <button onClick={onClick} disabled={disabled} type={type}>
       {children}
@@ -35,7 +35,7 @@ vi.mock('@/components/ui/button', () => ({
   ),
 }));
 
-vi.mock('@/components/ui/input', () => ({
+vi.mock("@/components/ui/input", () => ({
   Input: (props: any) => {
     const handleChange = (e: any) => {
       if (props.onChange) {
@@ -47,17 +47,19 @@ vi.mock('@/components/ui/input', () => ({
 }));
 
 // Shared form data between FormField and useForm mocks
-let sharedFormData = { apiName: '', version: '0.1.0' };
+let sharedFormData = { apiName: "", version: "0.1.0" };
 
-vi.mock('@/components/ui/form', () => {
+vi.mock("@/components/ui/form", () => {
   return {
     Form: ({ children }: any) => <div>{children}</div>,
     FormControl: ({ children }: any) => <div>{children}</div>,
     FormField: ({ render, name }: any) => {
-      const fieldName = name || 'test';
+      const fieldName = name || "test";
       const field = {
         name: fieldName,
-        value: sharedFormData[fieldName as keyof typeof sharedFormData] || (fieldName === 'version' ? '0.1.0' : ''),
+        value:
+          sharedFormData[fieldName as keyof typeof sharedFormData] ||
+          (fieldName === "version" ? "0.1.0" : ""),
         onChange: (e: any) => {
           const newValue = e.target.value;
           sharedFormData = { ...sharedFormData, [fieldName]: newValue };
@@ -71,17 +73,17 @@ vi.mock('@/components/ui/form', () => {
   };
 });
 
-vi.mock('react-hook-form', () => {
+vi.mock("react-hook-form", () => {
   return {
     useForm: () => ({
       register: vi.fn(),
-      handleSubmit: vi.fn((fn) => async (e: any) => {
+      handleSubmit: vi.fn(fn => async (e: any) => {
         e?.preventDefault?.();
         try {
           return await fn(sharedFormData);
         } catch (error) {
           // Don't re-throw the error here, let the component handle it
-          console.error('Form submission error:', error);
+          console.error("Form submission error:", error);
         }
       }),
       formState: { errors: {} },
@@ -95,11 +97,11 @@ vi.mock('react-hook-form', () => {
   };
 });
 
-vi.mock('@hookform/resolvers/zod', () => ({
+vi.mock("@hookform/resolvers/zod", () => ({
   zodResolver: vi.fn(),
 }));
 
-vi.mock('zod', () => ({
+vi.mock("zod", () => ({
   default: {
     object: vi.fn(() => ({
       min: vi.fn().mockReturnThis(),
@@ -130,17 +132,17 @@ vi.mock('zod', () => ({
   })),
 }));
 
-vi.mock('lucide-react', () => ({
+vi.mock("lucide-react", () => ({
   PlusCircle: () => <span data-testid="plus-circle-icon">➕</span>,
   ArrowLeft: () => <span data-testid="arrow-left-icon">←</span>,
   Loader2: () => <span data-testid="loader-icon">⏳</span>,
 }));
 
-describe('CreateAPI', () => {
+describe("CreateAPI", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset shared form data
-    sharedFormData = { apiName: '', version: '0.1.0' };
+    sharedFormData = { apiName: "", version: "0.1.0" };
   });
 
   afterEach(() => {
@@ -151,44 +153,44 @@ describe('CreateAPI', () => {
     return render(
       <MemoryRouter>
         <CreateAPI />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 
-  describe('Component Rendering', () => {
-    it('should render the create API page', () => {
+  describe("Component Rendering", () => {
+    it("should render the create API page", () => {
       renderCreateAPI();
 
-      expect(screen.getByText('Create API')).toBeInTheDocument();
+      expect(screen.getByText("Create API")).toBeInTheDocument();
     });
 
-    it('should render the form fields', () => {
+    it("should render the form fields", () => {
       renderCreateAPI();
 
-      expect(screen.getByText('API Name')).toBeInTheDocument();
-      expect(screen.getByText('Version')).toBeInTheDocument();
+      expect(screen.getByText("API Name")).toBeInTheDocument();
+      expect(screen.getByText("Version")).toBeInTheDocument();
     });
 
-    it('should render action buttons', () => {
+    it("should render action buttons", () => {
       renderCreateAPI();
 
-      expect(screen.getByText('Back')).toBeInTheDocument();
-      expect(screen.getByText('Create API')).toBeInTheDocument();
+      expect(screen.getByText("Back")).toBeInTheDocument();
+      expect(screen.getByText("Create API")).toBeInTheDocument();
     });
 
-    it('should render within error boundary', () => {
+    it("should render within error boundary", () => {
       renderCreateAPI();
 
-      expect(screen.getByTestId('error-boundary')).toBeInTheDocument();
+      expect(screen.getByTestId("error-boundary")).toBeInTheDocument();
     });
   });
 
-  describe('Form Validation', () => {
-    it('should display validation errors for invalid input', async () => {
+  describe("Form Validation", () => {
+    it("should display validation errors for invalid input", async () => {
       renderCreateAPI();
       const user = userEvent.setup();
 
-      const submitButton = screen.getByText('Create API');
+      const submitButton = screen.getByText("Create API");
       await user.click(submitButton);
 
       // The mocked handleSubmit will still call the function, but with default values
@@ -196,14 +198,16 @@ describe('CreateAPI', () => {
       expect(mockNavigate).toHaveBeenCalled();
     });
 
-    it('should validate API name format', async () => {
+    it("should validate API name format", async () => {
       renderCreateAPI();
       const user = userEvent.setup();
 
-      const apiNameInput = screen.getByPlaceholderText('Must be unique per project');
-      await user.type(apiNameInput, '123invalid');
+      const apiNameInput = screen.getByPlaceholderText(
+        "Must be unique per project",
+      );
+      await user.type(apiNameInput, "123invalid");
 
-      const submitButton = screen.getByText('Create API');
+      const submitButton = screen.getByText("Create API");
       await user.click(submitButton);
 
       // Form validation should prevent submission with invalid data
@@ -211,15 +215,17 @@ describe('CreateAPI', () => {
       expect(apiNameInput).toBeInTheDocument();
     });
 
-    it('should validate version format', async () => {
+    it("should validate version format", async () => {
       renderCreateAPI();
       const user = userEvent.setup();
 
-      const versionInput = screen.getByPlaceholderText('Version prefix for your API');
+      const versionInput = screen.getByPlaceholderText(
+        "Version prefix for your API",
+      );
       await user.clear(versionInput);
-      await user.type(versionInput, 'invalid-version');
+      await user.type(versionInput, "invalid-version");
 
-      const submitButton = screen.getByText('Create API');
+      const submitButton = screen.getByText("Create API");
       await user.click(submitButton);
 
       // Form validation should prevent submission with invalid data
@@ -228,33 +234,37 @@ describe('CreateAPI', () => {
     });
   });
 
-  describe('Form Interactions', () => {
-    it('should handle back button click', async () => {
+  describe("Form Interactions", () => {
+    it("should handle back button click", async () => {
       renderCreateAPI();
       const user = userEvent.setup();
 
-      const backButton = screen.getByText('Back');
+      const backButton = screen.getByText("Back");
       await user.click(backButton);
 
       expect(mockNavigate).toHaveBeenCalledWith(-1);
     });
 
-    it('should handle successful API creation', async () => {
-      const { API } = await import('@/service');
-      (API.createApi as any).mockResolvedValue({ id: 'new-api-id' });
+    it("should handle successful API creation", async () => {
+      const { API } = await import("@/service");
+      (API.createApi as any).mockResolvedValue({ id: "new-api-id" });
 
       renderCreateAPI();
       const user = userEvent.setup();
 
       // Fill form with valid data
-      const apiNameInput = screen.getByPlaceholderText('Must be unique per project');
-      await user.type(apiNameInput, 'test_api');
+      const apiNameInput = screen.getByPlaceholderText(
+        "Must be unique per project",
+      );
+      await user.type(apiNameInput, "test_api");
 
-      const versionInput = screen.getByPlaceholderText('Version prefix for your API');
+      const versionInput = screen.getByPlaceholderText(
+        "Version prefix for your API",
+      );
       await user.clear(versionInput);
-      await user.type(versionInput, '1.0.0');
+      await user.type(versionInput, "1.0.0");
 
-      const submitButton = screen.getByText('Create API');
+      const submitButton = screen.getByText("Create API");
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -264,44 +274,50 @@ describe('CreateAPI', () => {
     });
   });
 
-  describe('Loading States', () => {
-    it('should show loading state during API creation', async () => {
-      const { API } = await import('@/service');
-      (API.createApi as any).mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+  describe("Loading States", () => {
+    it("should show loading state during API creation", async () => {
+      const { API } = await import("@/service");
+      (API.createApi as any).mockImplementation(
+        () => new Promise(resolve => setTimeout(resolve, 100)),
+      );
 
       renderCreateAPI();
       const user = userEvent.setup();
 
       // Fill form with valid data
-      const apiNameInput = screen.getByPlaceholderText('Must be unique per project');
-      await user.type(apiNameInput, 'test_api');
+      const apiNameInput = screen.getByPlaceholderText(
+        "Must be unique per project",
+      );
+      await user.type(apiNameInput, "test_api");
 
-      const versionInput = screen.getByPlaceholderText('Version prefix for your API');
+      const versionInput = screen.getByPlaceholderText(
+        "Version prefix for your API",
+      );
       await user.clear(versionInput);
-      await user.type(versionInput, '1.0.0');
+      await user.type(versionInput, "1.0.0");
 
-      const submitButton = screen.getByText('Create API');
+      const submitButton = screen.getByText("Create API");
       await user.click(submitButton);
 
       // Should show loading state
       expect(submitButton).toBeDisabled();
-      expect(screen.getByText('Creating...')).toBeInTheDocument();
+      expect(screen.getByText("Creating...")).toBeInTheDocument();
     });
   });
 
-  describe('Error Handling', () => {
-    it('should handle API creation errors', async () => {
-      const { API } = await import('@/service');
-      (API.createApi as any).mockRejectedValue(new Error('Creation failed'));
+  describe("Error Handling", () => {
+    it("should handle API creation errors", async () => {
+      const { API } = await import("@/service");
+      (API.createApi as any).mockRejectedValue(new Error("Creation failed"));
 
       renderCreateAPI();
       const user = userEvent.setup();
 
       // Manually set the form data to what the test expects
-      sharedFormData.apiName = 'test_api';
-      sharedFormData.version = '1.0.0';
+      sharedFormData.apiName = "test_api";
+      sharedFormData.version = "1.0.0";
 
-      const submitButton = screen.getByText('Create API');
+      const submitButton = screen.getByText("Create API");
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -313,40 +329,46 @@ describe('CreateAPI', () => {
     });
   });
 
-  describe('Form State Management', () => {
-    it('should maintain form state during user input', async () => {
+  describe("Form State Management", () => {
+    it("should maintain form state during user input", async () => {
       renderCreateAPI();
       const user = userEvent.setup();
 
-      const apiNameInput = screen.getByPlaceholderText('Must be unique per project');
-      await user.type(apiNameInput, 'test_api');
+      const apiNameInput = screen.getByPlaceholderText(
+        "Must be unique per project",
+      );
+      await user.type(apiNameInput, "test_api");
 
       // The form should render the input and allow typing
       expect(apiNameInput).toBeInTheDocument();
     });
 
-    it('should have default version value', () => {
+    it("should have default version value", () => {
       renderCreateAPI();
 
-      const versionInput = screen.getByPlaceholderText('Version prefix for your API');
+      const versionInput = screen.getByPlaceholderText(
+        "Version prefix for your API",
+      );
       // The version input should be rendered
       expect(versionInput).toBeInTheDocument();
     });
   });
 
-  describe('Navigation', () => {
-    it('should navigate back on successful creation', async () => {
-      const { API } = await import('@/service');
-      (API.createApi as any).mockResolvedValue({ id: 'new-api-id' });
+  describe("Navigation", () => {
+    it("should navigate back on successful creation", async () => {
+      const { API } = await import("@/service");
+      (API.createApi as any).mockResolvedValue({ id: "new-api-id" });
 
       renderCreateAPI();
       const user = userEvent.setup();
 
       // Fill and submit form
-      const apiNameInput = screen.getByPlaceholderText('Must be unique per project');
-      await user.type(apiNameInput, 'test_api');
+      const apiNameInput = screen.getByPlaceholderText(
+        "Must be unique per project",
+      );
+      await user.type(apiNameInput, "test_api");
 
-      const submitButton = screen.getByText('Create API');
+      const submitButton = screen.getByText("Create API");
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -355,23 +377,25 @@ describe('CreateAPI', () => {
     });
   });
 
-  describe('Accessibility', () => {
-    it('should have proper form labels', () => {
+  describe("Accessibility", () => {
+    it("should have proper form labels", () => {
       renderCreateAPI();
 
-      expect(screen.getByText('API Name')).toBeInTheDocument();
-      expect(screen.getByText('Version')).toBeInTheDocument();
+      expect(screen.getByText("API Name")).toBeInTheDocument();
+      expect(screen.getByText("Version")).toBeInTheDocument();
     });
 
-    it('should have proper heading structure', () => {
+    it("should have proper heading structure", () => {
       renderCreateAPI();
 
-      expect(screen.getByRole('heading', { name: 'Create a new API' })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Create a new API" }),
+      ).toBeInTheDocument();
     });
   });
 
-  describe('Performance', () => {
-    it('should render quickly', () => {
+  describe("Performance", () => {
+    it("should render quickly", () => {
       const startTime = performance.now();
       renderCreateAPI();
       const endTime = performance.now();
@@ -380,19 +404,19 @@ describe('CreateAPI', () => {
     });
   });
 
-  describe('Component Integration', () => {
-    it('should integrate with form validation library', () => {
+  describe("Component Integration", () => {
+    it("should integrate with form validation library", () => {
       renderCreateAPI();
 
       // Should render form without crashing
-      expect(screen.getByText('Create a new API')).toBeInTheDocument();
+      expect(screen.getByText("Create a new API")).toBeInTheDocument();
     });
 
-    it('should integrate with routing properly', () => {
+    it("should integrate with routing properly", () => {
       renderCreateAPI();
 
       // Should have access to navigation and params
-      expect(screen.getByText('Create a new API')).toBeInTheDocument();
+      expect(screen.getByText("Create a new API")).toBeInTheDocument();
     });
   });
 });

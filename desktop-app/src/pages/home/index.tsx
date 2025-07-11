@@ -132,16 +132,17 @@ export const Home = () => {
   };
 
   // Filter recent apps based on search term
-  const filteredApps = recentApps.filter(
-    app =>
-      (app.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-      app.folderLocation.toLowerCase().includes(searchTerm.toLowerCase()),
-  )// sort by lastOpened date, most recent first
+  const filteredApps = recentApps
+    .filter(
+      app =>
+        (app.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        app.folderLocation.toLowerCase().includes(searchTerm.toLowerCase()),
+    ) // sort by lastOpened date, most recent first
     .sort((a, b) => {
       const dateA = new Date(a.lastOpened || 0);
       const dateB = new Date(b.lastOpened || 0);
       return dateB.getTime() - dateA.getTime();
-    })
+    });
 
   // Display only recent apps unless showAllApps is true
   const appsToShow = showAllApps ? filteredApps : filteredApps.slice(0, 6);
@@ -256,46 +257,43 @@ export const Home = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2">
-                    {appsToShow
-                      .map((app, index) => (
-                        <Card
-                          key={app.id || index}
-                          className="cursor-pointer hover:bg-muted/50 transition-all border-l-4 border-l-primary/70"
-                          onClick={() =>
-                            navigate(`/app/${app.id}`)
-                          }
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h3 className="font-medium text-base">
-                                  {app.name}
-                                </h3>
-                                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                                  <Folder size={14} />
-                                  {app.folderLocation.length > 34
-                                    ? "..." + app.folderLocation.slice(-(34 - 3))
-                                    : app.folderLocation}
-                                </p>
-                                {app.lastOpened && (
-                                  <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                                    <Clock size={12} />
-                                    Last opened:{" "}
-                                    {formatRelativeTime(new Date(app.lastOpened))}
-                                  </div>
-                                )}
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="rounded-full h-8 w-8 p-0"
-                              >
-                                <ArrowRight size={16} />
-                              </Button>
+                    {appsToShow.map((app, index) => (
+                      <Card
+                        key={app.id || index}
+                        className="cursor-pointer hover:bg-muted/50 transition-all border-l-4 border-l-primary/70"
+                        onClick={() => navigate(`/app/${app.id}`)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="font-medium text-base">
+                                {app.name}
+                              </h3>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                                <Folder size={14} />
+                                {app.folderLocation.length > 34
+                                  ? "..." + app.folderLocation.slice(-(34 - 3))
+                                  : app.folderLocation}
+                              </p>
+                              {app.lastOpened && (
+                                <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                                  <Clock size={12} />
+                                  Last opened:{" "}
+                                  {formatRelativeTime(new Date(app.lastOpened))}
+                                </div>
+                              )}
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-full h-8 w-8 p-0"
+                            >
+                              <ArrowRight size={16} />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 )}
               </div>

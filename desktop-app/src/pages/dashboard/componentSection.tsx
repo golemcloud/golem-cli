@@ -67,7 +67,9 @@ export const ComponentsSection = () => {
               <p className="text-gray-500 mb-6 text-center">
                 Create your first component to get started.
               </p>
-              <Button onClick={() => navigate(`/app/${appId}/components/create`)}>
+              <Button
+                onClick={() => navigate(`/app/${appId}/components/create`)}
+              >
                 <PlusCircle className="mr-2 size-4" />
                 Create Component
               </Button>

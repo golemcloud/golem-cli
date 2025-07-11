@@ -57,7 +57,9 @@ const CreateAPI = () => {
         version: values.version,
         routes: [],
       });
-      navigate(`/app/${appId}/apis/${values.apiName}/version/${values.version}`);
+      navigate(
+        `/app/${appId}/apis/${values.apiName}/version/${values.version}`,
+      );
     } catch (error) {
       console.error("Failed to create API:", error);
       form.setError("apiName", {

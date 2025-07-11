@@ -52,7 +52,11 @@ export default function APISettings() {
     setIsDeleting(true);
     try {
       if (type === "version") {
-        await API.deleteApi(appId!, activeApiDetails.id!, activeApiDetails.version);
+        await API.deleteApi(
+          appId!,
+          activeApiDetails.id!,
+          activeApiDetails.version,
+        );
         toast({
           title: "Version deleted",
           description: `API version ${activeApiDetails.version} has been deleted successfully.`,

@@ -29,7 +29,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { sanitizeInput } from "@/lib/utils";
 
- 
 type FormData = Record<string, any>;
 type FieldType = {
   name: string;
@@ -70,7 +69,10 @@ export const DynamicForm = ({
   }, [functionDetails]);
 
   const initialFormData = () => {
-    if (!functionDetails.parameters || functionDetails.parameters.length === 0) {
+    if (
+      !functionDetails.parameters ||
+      functionDetails.parameters.length === 0
+    ) {
       setFormData({});
       setErrors({});
       return;
@@ -162,37 +164,40 @@ export const DynamicForm = ({
       const result: unknown[] = [];
       if (functionDetails.parameters) {
         functionDetails.parameters.forEach(field => {
-        const value = formData[field.name] || "";
-        if (
-          !nonStringPrimitives.includes(field.typ.type) &&
-          field.typ.type !== "Str" &&
-          field.typ.type !== "Chr"
-        ) {
-          try {
-            const sanitizedValue = sanitizeInput(value);
-            result.push(JSON.parse(sanitizedValue));
-          } catch (error) {
-            console.error(`Error parsing JSON for field ${field.name}:`, error);
-          }
-        } else if (
-          ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
-            field.typ.type,
-          )
-        ) {
-          result.push(Number.parseInt(value));
-        } else if (value !== undefined) {
+          const value = formData[field.name] || "";
           if (
+            !nonStringPrimitives.includes(field.typ.type) &&
+            field.typ.type !== "Str" &&
+            field.typ.type !== "Chr"
+          ) {
+            try {
+              const sanitizedValue = sanitizeInput(value);
+              result.push(JSON.parse(sanitizedValue));
+            } catch (error) {
+              console.error(
+                `Error parsing JSON for field ${field.name}:`,
+                error,
+              );
+            }
+          } else if (
             ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
               field.typ.type,
             )
           ) {
             result.push(Number.parseInt(value));
-          } else if (field.typ.type === "Bool") {
-            result.push(Boolean(value));
-          } else {
-            result.push(value);
+          } else if (value !== undefined) {
+            if (
+              ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
+                field.typ.type,
+              )
+            ) {
+              result.push(Number.parseInt(value));
+            } else if (field.typ.type === "Bool") {
+              result.push(Boolean(value));
+            } else {
+              result.push(value);
+            }
           }
-        }
         });
       }
       onInvoke(result);
@@ -361,7 +366,8 @@ export const DynamicForm = ({
       <Card className="w-full">
         <form>
           <CardContent className="p-6">
-            {functionDetails.parameters && functionDetails.parameters.length > 0 ? (
+            {functionDetails.parameters &&
+            functionDetails.parameters.length > 0 ? (
               functionDetails.parameters.map(parameter =>
                 renderField(parameter as FieldType),
               )

@@ -49,7 +49,10 @@ export default [
       // Disable prop-types as it's not used in this project
       "react/prop-types": "off",
       // Allow custom attributes for libraries like cmdk
-      "react/no-unknown-property": ["error", { ignore: ["cmdk-input-wrapper"] }],
+      "react/no-unknown-property": [
+        "error",
+        { ignore: ["cmdk-input-wrapper"] },
+      ],
       // Disable base ESLint no-useless-escape
       "no-useless-escape": "off",
       // TypeScript ESLint rules

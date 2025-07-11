@@ -122,7 +122,7 @@ export const ComponentCard = React.memo(
           >
             {formatRelativeTime(
               data.versions?.[data.versions?.length - 1].createdAt ||
-              new Date(),
+                new Date(),
             )}
           </CardDescription>
         </CardHeader>
