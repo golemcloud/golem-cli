@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { toast } from "@/hooks/use-toast";
 // import { fetchData } from "@/lib/tauri&web.ts";
 // import { ENDPOINT } from "@/service/endpoints.ts";

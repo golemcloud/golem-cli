@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
+ 
 // @ts-nocheck
 import * as yaml from "js-yaml";
 

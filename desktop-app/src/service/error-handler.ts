@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { parseErrorMessage } from "@/lib/utils.ts";
 import { toast } from "@/hooks/use-toast.ts";
 

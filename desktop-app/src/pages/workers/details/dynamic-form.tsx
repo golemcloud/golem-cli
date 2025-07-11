@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { sanitizeInput } from "@/lib/utils";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type FormData = Record<string, any>;
 type FieldType = {
   name: string;
