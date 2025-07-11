@@ -1,5 +1,4 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Plugin } from "@/types/plugin";
 import { useEffect, useState } from "react";
 import { API } from "@/service";
 import { ArrowLeft, Component, Globe, Trash2 } from "lucide-react";
@@ -32,16 +31,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Plugin } from "@/types/plugin";
 
 export function PluginView() {
-  const { pluginId, version } = useParams();
+  const { pluginId, version, appId } = useParams();
   const navigate = useNavigate();
   const [plugin, setPlugin] = useState<Plugin[]>([]);
   const [ver, setVer] = useState(version || "");
   const [currentVersion, setCurrentVersion] = useState<Plugin | null>(null);
 
   useEffect(() => {
-    API.getPluginByName(pluginId!).then(res => {
+    API.getPluginByName(appId!, pluginId!, "0").then(res => {
       setPlugin(res);
       const selectedVersion = version
         ? res.find(p => p.version === version)
@@ -58,18 +58,18 @@ export function PluginView() {
     if (selectedVersion) {
       setCurrentVersion(selectedVersion);
       setVer(version);
-      navigate(`/plugins/${pluginId}/${version}`);
+      navigate(`/app/${appId}/plugins/${pluginId}/${version}`);
     }
   };
 
   const handleDelete = () => {
     if (!currentVersion) return;
-    API.deletePlugin(currentVersion.name, currentVersion.version)
+    API.deletePlugin(appId!, currentVersion.name, currentVersion.version)
       .then(() => {
         if (plugin.length > 1) {
-          navigate(`/plugins/${plugin[0].name}`);
+          navigate(`/app/${appId}/plugins/${plugin[0].name}`);
         } else {
-          navigate("/plugins");
+          navigate(`/app/${appId}/plugins`);
         }
       })
       .catch(console.error);
@@ -82,7 +82,10 @@ export function PluginView() {
           <CardHeader className="p-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center">
-                <Button variant="link" onClick={() => navigate("/plugins")}>
+                <Button
+                  variant="link"
+                  onClick={() => navigate(`/app/${appId}/plugins`)}
+                >
                   <ArrowLeft className="w-5 h-5 mr-2" />
                 </Button>
                 <CardTitle className="text-2xl font-bold">

@@ -1,47 +1,44 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { API } from "@/service";
-import {
-  ComponentExportFunction,
-  ComponentList,
-  Export,
-} from "@/types/component.ts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  Check,
+  ClipboardCopy,
+  Info,
+  Play,
+  Presentation,
+  TableIcon,
+  TimerReset,
+} from "lucide-react";
+import { CodeBlock, dracula } from "react-code-blocks";
+import { ComponentExportFunction, ComponentList } from "@/types/component.ts";
+import {
+  DynamicForm,
+  nonStringPrimitives,
+} from "@/pages/workers/details/dynamic-form.tsx";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CodeBlock, dracula } from "react-code-blocks";
-import {
-  ClipboardCopy,
-  Play,
-  Presentation,
-  TableIcon,
-  TimerReset,
-  Info,
-  Check,
-} from "lucide-react";
 import { cn, sanitizeInput } from "@/lib/utils";
-import ReactJson from "react-json-view";
-import { useTheme } from "@/components/theme-provider.tsx";
-import { Textarea } from "@/components/ui/textarea";
 import {
   parseToJsonEditor,
+  parseTooltipTypesData,
   parseTypesData,
   safeFormatJSON,
-  parseTooltipTypesData,
   validateJsonStructure,
 } from "@/lib/worker";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+
+import { API } from "@/service";
+import { Button } from "@/components/ui/button";
+import ReactJson from "@microlink/react-json-view";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import {
-  DynamicForm,
-  nonStringPrimitives,
-} from "@/pages/workers/details/dynamic-form.tsx";
+import { useTheme } from "@/components/theme-provider.tsx";
 
 export default function ComponentInvoke() {
-  const { componentId = "" } = useParams();
+  const { componentId = "", appId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -60,7 +57,7 @@ export default function ComponentInvoke() {
   /** Fetch function details based on URL params. */
   const fetchFunctionDetails = useCallback(async () => {
     try {
-      const data = await API.getComponentByIdAsKey();
+      const data = await API.getComponentByIdAsKey(appId!);
       setComponentList(data);
       const matchingComponent =
         data?.[componentId].versions?.[data?.[componentId].versions.length - 1];
@@ -69,13 +66,13 @@ export default function ComponentInvoke() {
       }
       if (name && urlFn) {
         const exportItem = matchingComponent.metadata?.exports?.find(
-          (e: Export) => e.name === name,
+          (item: any) => name === item.name,
         );
         if (!exportItem) {
           throw new Error("Export item not found.");
         }
 
-        const fnDetails = exportItem.functions?.find(
+        const fnDetails = (exportItem as any).functions?.find(
           (f: ComponentExportFunction) => f.name === urlFn,
         );
         if (!fnDetails) {
@@ -88,10 +85,11 @@ export default function ComponentInvoke() {
       } else if (
         !name &&
         !urlFn &&
-        matchingComponent?.metadata?.exports?.[0]?.functions?.[0]
+        (matchingComponent?.metadata?.exports?.[0] as any)?.functions?.[0]
       ) {
+        const firstExport = matchingComponent.metadata?.exports?.[0] as any;
         navigate(
-          `/components/${componentId}/invoke?name=${matchingComponent.metadata.exports[0].name}&&fn=${matchingComponent.metadata.exports[0].functions[0].name}`,
+          `/app/${appId}/components/${componentId}/invoke?name=${firstExport.name}&&fn=${firstExport.functions[0].name}`,
         );
       }
     } catch (error: unknown) {
@@ -186,23 +184,23 @@ export default function ComponentInvoke() {
         <div className="flex">
           <div className="border-r px-8 py-4 min-w-[300px]">
             <div className="flex flex-col gap-4 overflow-scroll h-[85vh]">
-              {componentDetails?.metadata?.exports?.map(exportItem => (
-                <div key={exportItem.name}>
+              {componentDetails?.metadata?.exports?.map((exportItem: any) => (
+                <div key={exportItem.name || exportItem}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 font-bold pb-4">
-                      {exportItem.name}
+                      {exportItem.name || exportItem}
                     </span>
                   </div>
                   <ul className="space-y-1">
-                    {exportItem?.functions?.length > 0 &&
-                      exportItem.functions.map(
+                    {(exportItem.functions || []).length > 0 &&
+                      (exportItem.functions || []).map(
                         (fn: ComponentExportFunction) => (
                           <li key={fn.name}>
                             <Button
                               variant="ghost"
                               onClick={() =>
                                 navigate(
-                                  `/components/${componentId}/invoke?name=${exportItem.name}&&fn=${fn.name}`,
+                                  `/app/${appId}/components/${componentId}/invoke?name=${exportItem}&fn=${fn.name}`,
                                 )
                               }
                               className={cn(

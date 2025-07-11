@@ -1,11 +1,25 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { toast } from "@/hooks/use-toast";
-import { fetchData, updateIP } from "@/lib/tauri&web.ts";
-import { ENDPOINT } from "@/service/endpoints.ts";
+// import { fetchData } from "@/lib/tauri&web.ts";
+// import { ENDPOINT } from "@/service/endpoints.ts";
 import { parseErrorResponse } from "@/service/error-handler.ts";
 import { Api } from "@/types/api.ts";
 import { Component, ComponentList } from "@/types/component.ts";
 import { Plugin } from "@/types/plugin";
+import { invoke } from "@tauri-apps/api/core";
+import { settingsService } from "@/lib/settings.ts";
+import {
+  exists,
+  readDir,
+  readTextFile,
+  writeTextFile,
+} from "@tauri-apps/plugin-fs";
+import { join } from "@tauri-apps/api/path";
+import {
+  GolemApplicationManifest,
+  HttpApiDefinition,
+  serializeHttpApiDefinition,
+} from "@/types/golemManifest.ts";
+import { parse, parseDocument, Document, YAMLMap } from "yaml";
 
 export class Service {
   public baseUrl: string;
@@ -14,9 +28,13 @@ export class Service {
     this.baseUrl = baseUrl;
   }
 
-  public updateBackendEndpoint = async (url: string) => {
-    await updateIP(url);
-    this.baseUrl = url;
+  /**
+   * getComponents: Get the list of all components
+   * Note: Sample Endpoint https://release.api.golem.cloud/v1/components
+   * @returns {Promise<Boolean>}
+   */
+  public checkHealth = async (): Promise<Boolean> => {
+    return Promise.resolve(true);
   };
 
   /**
@@ -24,296 +42,444 @@ export class Service {
    * Note: Sample Endpoint https://release.api.golem.cloud/v1/components
    * @returns {Promise<Component[]>}
    */
-  public checkHealth = async () => {
-    const r = await this.callApi("/healthcheck");
-    return r;
+  public getComponents = async (appId: string): Promise<Component[]> => {
+    const r = await this.callCLI(appId, "component", ["list"]);
+    return r as Component[];
+  };
+
+  public getComponentById = async (appId: string, componentId: string) => {
+    const r = (await this.callCLI(appId, "component", ["list"])) as Component[];
+    const c = r.find(c => c.componentId === componentId);
+    if (!c) {
+      throw new Error("Could not find component");
+    }
+    return c;
   };
 
   /**
-   * getComponents: Get the list of all components
-   * Note: Sample Endpoint https://release.api.golem.cloud/v1/components
-   * @returns {Promise<Component[]>}
+   * getComponentYamlPath: Get the path to the YAML file of a component
+   * @param appId - The ID of the application
+   * @param componentName - The name of the component
+   * @returns {Promise<string | null>} - The path to the YAML file or null if not found
    */
-  public getComponents = async (): Promise<Component[]> => {
-    const r = await this.callApi(ENDPOINT.getComponents());
-    return r as Component[];
-  };
+  public async getComponentYamlPath(
+    appId: string,
+    componentName: string,
+  ): Promise<string> {
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
 
-  public getComponentById = async (id: string) => {
-    const r = await this.callApi(ENDPOINT.getComponentById(id));
-    return r as Component[];
-  };
+    // Replace: with - in component name
+    let folderName = componentName.replace(/:/g, "-").toLowerCase();
 
-  public getComponentByIdAndVersion = async (id: string, version: number) => {
-    const r = await this.callApi(
-      ENDPOINT.getComponentByIdAndVersion(id, version),
-    );
-    return r as Component;
-  };
-
-  public createComponent = async (form: FormData) => {
     try {
-      const response = await fetchData(`${this.baseUrl}/v1/components`, {
-        method: "POST",
-        body: form,
-      });
+      // Get all folders in app.folderLocation
+      const appEntries = await readDir(app.folderLocation);
+      const appFolders = appEntries
+        .filter(entry => entry.isDirectory)
+        .map(entry => entry.name);
 
-      if (!response.ok) {
-        // Handle HTTP errors (e.g., 400, 500)
-        const errorText = await response.text(); // Try to get error details
-        throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+      // Find all folders starting with "components-"
+      const componentsFolders = appFolders.filter(folder =>
+        folder.startsWith("components-"),
+      );
+
+      // Search through each component-* folder for the component
+      for (const componentsFolder of componentsFolders) {
+        const componentsFolderPath = await join(
+          app.folderLocation,
+          componentsFolder,
+        );
+
+        try {
+          const subEntries = await readDir(componentsFolderPath);
+          const subFolders = subEntries
+            .filter(entry => entry.isDirectory)
+            .map(entry => entry.name.toLowerCase());
+
+          // Check if our target folder exists
+          if (subFolders.includes(folderName)) {
+            const componentPath = await join(componentsFolderPath, folderName);
+
+            // Check if the component path exists
+            if (await exists(componentPath)) {
+              // Look for the golem YAML file in the component folder
+              const files = await readDir(componentPath);
+              const yamlFile = files
+                .filter(entry => !entry.isDirectory)
+                .map(entry => entry.name)
+                .find(file => file === "golem.yaml" || file === "golem.yml");
+
+              if (yamlFile) {
+                return await join(componentPath, yamlFile);
+              }
+            }
+          }
+        } catch (error) {
+          // Continue to the next components folder if this one fails
+          console.warn(
+            `Failed to read components folder ${componentsFolder}:`,
+            error,
+          );
+        }
       }
 
-      return await response.json(); // Return JSON response if successful
+      // Component folder isn't found in any components-* directory
+      toast({
+        title: "Error finding Component Manifest",
+        description:
+          "Could not find component golem.yaml for matched component in this app",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } catch (error) {
+      throw new Error(`Failed to scan app folder: ${error}`);
+    }
+
+    throw new Error(`Error finding Component Manifest`);
+  }
+
+  public async getComponentManifest(
+    appId: string,
+    componentId: string,
+  ): Promise<GolemApplicationManifest> {
+    const component = await this.getComponentById(appId, componentId);
+    let componentYamlPath = await this.getComponentYamlPath(
+      appId,
+      component.componentName!,
+    );
+    let rawYaml = await readTextFile(componentYamlPath);
+
+    return parse(rawYaml) as GolemApplicationManifest;
+  }
+
+  public async saveComponentManifest(
+    appId: string,
+    componentId: string,
+    manifest: string,
+  ): Promise<boolean> {
+    const component = await this.getComponentById(appId, componentId);
+    let componentYamlPath = await this.getComponentYamlPath(
+      appId,
+      component.componentName!,
+    );
+    // Write the YAML string to the file
+    await writeTextFile(componentYamlPath, manifest);
+
+    return true;
+  }
+
+  public async saveAppManifest(
+    appId: string,
+    manifest: string,
+  ): Promise<boolean> {
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+    let appManifestPath = await join(app.folderLocation, "golem.yaml");
+    await writeTextFile(appManifestPath, manifest);
+
+    return true;
+  }
+
+  public getComponentByIdAndVersion = async (
+    appId: string,
+    componentId: string,
+    version: number,
+  ) => {
+    const r = (await this.callCLI(appId, "component", ["get"])) as Component[];
+    return r.find(
+      c => c.componentId === componentId && c.componentVersion === version,
+    );
+  };
+
+  public createComponent = async (
+    appId: string,
+    name: string,
+    template: string,
+  ) => {
+    try {
+      await this.callCLI(appId, "component", ["new", template, name]);
     } catch (error) {
       console.error("Error in createComponent:", error);
       parseErrorResponse(error);
     }
   };
 
-  public getComponentByName = async (name: string) => {
-    const r = await this.callApi(
-      `${ENDPOINT.getComponents()}?component-name=${name}`,
-    );
+  public getComponentByName = async (appId: string, name: string) => {
+    const r = (await this.callCLI(appId, "component", [
+      "get",
+      name,
+    ])) as Component[];
     return r as Component;
   };
 
-  public updateComponent = async (componenetId: string, form: FormData) => {
-    try {
-      const response = await fetchData(
-        `${this.baseUrl}/v1/components/${componenetId}/updates`,
-        {
-          method: "POST",
-          body: form,
-        },
-      );
-
-      if (!response.ok) {
-        // Handle HTTP errors (e.g., 400, 500)
-        const errorText = await response.text(); // Try to get error details
-        throw new Error(`HTTP Error ${response.status}: ${errorText}`);
-      }
-
-      return await response.json(); // Return JSON response if successful
-    } catch (error) {
-      console.error("Error in Update Component:", error);
-    }
+  public updateComponent = async (componentId: string, form: FormData) => {
+    console.log(componentId, form);
   };
 
   public deletePluginToComponent = async (
     id: string,
     installation_id: string,
   ) => {
-    return await this.callApi(
-      ENDPOINT.deletePluginToComponent(id, installation_id),
-      "DELETE",
-    );
+    console.log(id, installation_id);
   };
 
   public addPluginToComponent = async (id: string, form: any) => {
-    return await this.callApi(
-      ENDPOINT.addPluginToComponent(id),
-      "POST",
-      JSON.stringify(form),
-    );
+    // return await this.callApi(
+    //   ENDPOINT.addPluginToComponent(id),
+    //   "POST",
+    //   JSON.stringify(form),
+    // );
+    console.log(id, form);
   };
 
   public upgradeWorker = async (
-    componentId: string,
+    appId: string,
+    componentName: string,
     workerName: string,
     version: number,
     upgradeType: string,
   ) => {
-    return await this.callApi(
-      ENDPOINT.updateWorker(componentId, workerName),
-      "POST",
-      JSON.stringify({
-        mode: upgradeType,
-        targetVersion: version,
-      }),
-      {
-        "Content-Type": "application/json; charset=utf-8",
-      },
-    );
+    return await this.callCLI(appId, "worker", [
+      "update",
+      `${componentName}/${workerName}`,
+      upgradeType,
+      `${version}`,
+    ]);
   };
 
   public findWorker = async (
+    appId: string,
     componentId: string,
     param = { count: 100, precise: true },
   ) => {
-    const r = await this.callApi(
-      ENDPOINT.findWorker(componentId),
-      "POST",
-      JSON.stringify(param),
-    );
-    return r;
+    const component = (await this.getComponentById(
+      appId,
+      componentId,
+    )) as Component;
+    const params = [
+      "list",
+      component.componentName!,
+      `--max-count=${param.count}`,
+    ];
+    if (param.precise) {
+      params.push(`--precise`);
+    }
+    return await this.callCLI(appId, "worker", params);
   };
 
-  public deleteWorker = async (componentId: string, workName: string) => {
-    const r = await this.callApi(
-      ENDPOINT.deleteWorker(componentId, workName),
-      "DELETE",
-    );
-    return r;
+  public deleteWorker = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+  ) => {
+    let component = await this.getComponentById(appId, componentId);
+    return await this.callCLI(appId, "worker", [
+      "delete",
+      `${component?.componentName}/${workerName}`,
+    ]);
   };
 
-  public createWorker = async (componentID: string, params: any) => {
-    const r = await this.callApi(
-      ENDPOINT.createWorker(componentID),
-      "POST",
-      JSON.stringify(params),
-    );
-    return r;
+  public createWorker = async (
+    appId: string,
+    componentID: string,
+    name: string,
+  ) => {
+    const component = await this.getComponentById(appId, componentID);
+    return await this.callCLI(appId, "worker", [
+      "new",
+      `${component?.componentName!}/${name}`,
+      // JSON.stringify(params),
+    ]);
   };
 
-  public getApiList = async (): Promise<Api[]> => {
-    const r = await this.callApi(ENDPOINT.getApiList());
-    return r as Api[];
+  public getApiList = async (appId: string): Promise<HttpApiDefinition[]> => {
+    let result: HttpApiDefinition[] = [];
+    // we get it on a per-component basis
+    let components = await this.getComponents(appId);
+    for (const component of components) {
+      try {
+        let manifest = await this.getComponentManifest(
+          appId,
+          component.componentId!,
+        );
+        let APIList = manifest.httpApi;
+        if (APIList) {
+          for (const apiListKey in APIList.definitions) {
+            let data = APIList.definitions[apiListKey];
+            data.id = apiListKey;
+            data.componentId = component.componentId;
+            result.push(data);
+          }
+        }
+      } catch (e) {
+        console.error(e, component.componentName);
+      }
+    }
+    // find in app's golem.yaml
+
+    return result;
   };
 
-  public getApi = async (id: string): Promise<Api[]> => {
-    const r = await this.callApi(ENDPOINT.getApi(id));
-    return r as Api[];
+  public getApi = async (
+    appId: string,
+    name: string,
+  ): Promise<HttpApiDefinition[]> => {
+    const ApiList = await this.getApiList(appId);
+    const Api = ApiList.filter(a => a.id == name);
+    if (!Api) {
+      throw new Error("Api not found");
+    }
+    return Api;
   };
 
-  public createApi = async (payload: Api) => {
-    const r = await this.callApi(
-      ENDPOINT.createApi(),
-      "POST",
-      JSON.stringify(payload),
-    );
-    return r;
+  public createApi = async (payload: HttpApiDefinition) => {
+    // should use a YAML file
+    // const r = await this.callApi(
+    //   ENDPOINT.createApi(),
+    //   "POST",
+    //   JSON.stringify(payload),
+    // );
+    // return r;
+
+    console.log(payload);
   };
 
-  public deleteApi = async (id: string, version: string) => {
-    const r = await this.callApi(ENDPOINT.deleteApi(id, version), "DELETE");
-    return r;
+  public deleteApi = async (appId: string, id: string, version: string) => {
+    return await this.callCLI(appId, "api", [
+      "definition",
+      "delete",
+      `--id=${id}`,
+      `--version=${version}`,
+    ]);
   };
 
-  public putApi = async (id: string, version: string, payload: Api) => {
-    const r = await this.callApi(
-      ENDPOINT.putApi(id, version),
-      "PUT",
-      JSON.stringify(payload),
-    );
-    return r;
+  public putApi = async (
+    id: string,
+    version: string,
+    payload: HttpApiDefinition,
+  ) => {
+    // should use YAML
+    // const r = await this.callApi(
+    //   ENDPOINT.putApi(id, version),
+    //   "PUT",
+    //   JSON.stringify(payload),
+    // );
+    // return r;
+
+    console.log(id, payload, version);
   };
 
   public postApi = async (payload: Api) => {
-    const r = await this.callApi(
-      ENDPOINT.postApi(),
-      "POST",
-      JSON.stringify(payload),
-    );
-    return r;
+    // const r = await this.callApi(
+    //   ENDPOINT.postApi(),
+    //   "POST",
+    //   JSON.stringify(payload),
+    // );
+    // return r;
+
+    console.log(payload);
   };
 
   public getParticularWorker = async (
+    appId: string,
     componentId: string,
     workerName: string,
   ) => {
-    const r = await this.callApi(
-      ENDPOINT.getParticularWorker(componentId, workerName),
-    );
-    return r;
+    const component = await this.getComponentById(appId, componentId);
+    return await this.callCLI(appId, "worker", [
+      "get",
+      `${component?.componentName}/${workerName}`,
+    ]);
   };
 
-  public interruptWorker = async (componentId: string, workerName: string) => {
-    const r = await this.callApi(
-      ENDPOINT.interruptWorker(componentId, workerName),
-      "POST",
-      JSON.stringify({}),
-    );
-    return r;
+  public interruptWorker = async (appId: string, workerName: string) => {
+    return await this.callCLI(appId, "worker", ["interrupt", workerName]);
   };
 
-  public resumeWorker = async (componentId: string, workerName: string) => {
-    const r = await this.callApi(
-      ENDPOINT.resumeWorker(componentId, workerName),
-      "POST",
-      JSON.stringify({}),
-    );
-    return r;
+  public resumeWorker = async (appId: string, workerName: string) => {
+    return await this.callCLI(appId, "worker", ["resume", workerName]);
   };
 
   public invokeWorkerAwait = async (
-    componentId: string,
+    appId: string,
     workerName: string,
     functionName: string,
     payload: any,
   ) => {
-    const r = await this.callApi(
-      ENDPOINT.invokeWorker(componentId, workerName, functionName),
-      "POST",
+    return await this.callCLI(appId, "worker", [
+      "invoke",
+      workerName,
+      functionName,
       JSON.stringify(payload),
-    );
-    return r;
+    ]);
   };
 
   public invokeEphemeralAwait = async (
-    componentId: string,
+    appId: string,
     functionName: string,
     payload: any,
   ) => {
-    const r = await this.callApi(
-      ENDPOINT.invokeEphemeralWorker(componentId, functionName),
-      "POST",
+    return await this.callCLI(appId, "worker", [
+      "invoke",
+      "-",
+      functionName,
       JSON.stringify(payload),
-    );
-    return r;
+    ]);
   };
 
-  public getDeploymentApi = async (versionId: string) => {
-    const r = await this.callApi(ENDPOINT.getDeploymentApi(versionId));
-    return r;
+  public getDeploymentApi = async (appId: string) => {
+    return await this.callCLI(appId, "api", ["deployment", "list"]);
   };
 
-  public deleteDeployment = async (deploymentId: string) => {
-    const r = await this.callApi(
-      ENDPOINT.deleteDeployment(deploymentId),
-      "DELETE",
-    );
-    return r;
+  public deleteDeployment = async (appId: string, subdomain: string) => {
+    return await this.callCLI(appId, "api", [
+      "deployment",
+      "delete",
+      subdomain,
+    ]);
   };
 
-  public createDeployment = async (payload: any) => {
-    const r = await this.callApi(
-      ENDPOINT.createDeployment(),
-      "POST",
-      JSON.stringify(payload),
-    );
-    return r;
+  public createDeployment = async (appId: string, subdomain?: string) => {
+    const params = ["deployment", "deploy"];
+    if (subdomain) {
+      params.push(subdomain);
+    }
+    return await this.callCLI(appId, "api", params);
   };
 
   public getOplog = async (
+    appId: string,
     componentId: string,
     workerName: string,
-    count: number,
     searchQuery: string,
   ) => {
-    const r = await this.callApi(
-      ENDPOINT.getOplog(componentId, workerName, count, searchQuery),
-      "GET",
-    );
+    const component = await this.getComponentById(appId, componentId);
+    const r = await this.callCLI(appId, "worker", [
+      "oplog",
+      `${component?.componentName}/${workerName}`,
+      `--query=${searchQuery}`,
+      // `--count=${count}`,
+    ]);
+    console.log(r);
+
     return r;
   };
 
-  public getComponentByIdAsKey = async (): Promise<
-    Record<string, ComponentList>
-  > => {
+  public getComponentByIdAsKey = async (
+    appId: string,
+  ): Promise<Record<string, ComponentList>> => {
     // Assume getComponents returns a Promise<RawComponent[]>
-    const components = await this.getComponents();
+    const components = await this.getComponents(appId);
 
-    const componentList = components.reduce<Record<string, ComponentList>>(
+    return components.reduce<Record<string, ComponentList>>(
       (acc, component) => {
-        const {
-          componentName,
-          versionedComponentId = {},
-          componentType,
-        } = component;
-
-        // Use type assertion to help TS with the optional fields in versionedComponentId
-        const { componentId = "", version = 0 } = versionedComponentId;
+        const { componentName, componentId, componentType, componentVersion } =
+          component;
 
         // Use componentId as the key. If not available, you might want to skip or handle differently.
         const key = componentId || "";
@@ -329,7 +495,7 @@ export class Service {
           };
         }
         if (acc[key].versionList) {
-          acc[key].versionList.push(version);
+          acc[key].versionList.push(componentVersion!);
         }
         if (acc[key].versions) {
           acc[key].versions.push(component);
@@ -338,99 +504,159 @@ export class Service {
       },
       {},
     );
-    return componentList;
   };
 
-  public getPlugins = async (): Promise<Plugin[]> => {
-    return await this.callApi(ENDPOINT.getPlugins());
+  public getPlugins = async (appId: string): Promise<Plugin[]> => {
+    return await this.callCLI(appId, "plugin", ["list"]);
   };
 
-  public getPluginByName = async (name: string): Promise<Plugin[]> => {
-    return await this.callApi(ENDPOINT.getPluginName(name));
+  public getPluginByName = async (
+    appId: string,
+    name: string,
+    version: string,
+  ): Promise<Plugin[]> => {
+    return await this.callCLI(appId, "plugin", ["get", name, version]);
   };
 
-  public downloadComponent = async (
-    componentId: string,
-    version: number,
+  // public downloadComponent = async (
+  //   componentId: string,
+  //   version: number,
+  // ): Promise<any> => {
+  //   return await this.downloadApi(
+  //     ENDPOINT.downloadComponent(componentId, version),
+  //   );
+  // };
+  public createPlugin = async (appId: string, manifestFileLocation: string) => {
+    return await this.callCLI(appId, "plugin", [
+      "register",
+      manifestFileLocation,
+    ]);
+  };
+  public deletePlugin = async (
+    appId: string,
+    name: string,
+    version: string,
+  ) => {
+    return await this.callCLI(appId, "plugin", ["unregister", name, version]);
+  };
+
+  private callCLI = async (
+    appId: string,
+    command: string,
+    subcommands: string[],
   ): Promise<any> => {
-    return await this.downloadApi(
-      ENDPOINT.downloadComponent(componentId, version),
-    );
-  };
-  public createPlugin = async (payload: Plugin) => {
-    return await this.callApi(
-      ENDPOINT.getPlugins(),
-      "POST",
-      JSON.stringify(payload),
-    );
-  };
-  public deletePlugin = async (name: string, version: string) => {
-    return await this.callApi(ENDPOINT.deletePlugin(name, version), "DELETE");
-  };
-
-  private callApi = async (
-    url: string,
-    method: string = "GET",
-    data: FormData | string | null = null,
-    headers = { "Content-Type": "application/json" },
-  ): Promise<any> => {
+    // find folder location
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+    //  we use the "invoke" here to call a special command that calls golem CLI for us
+    let result: string;
     try {
-      const response = await fetchData(`${this.baseUrl}${url}`, {
-        method: method,
-        body: data,
-        headers: headers,
+      result = await invoke("call_golem_command", {
+        command,
+        subcommands,
+        folderPath: app.folderLocation,
       });
+    } catch (e) {
+      toast({
+        title: "Error in calling golem CLI",
+        description: String(e),
+        variant: "destructive",
+        duration: 5000,
+      });
+      throw new Error("Error in calling golem CLI");
+    }
 
-      const contentType = response.headers.get("Content-Type");
-      let responseData: any;
-
-      if (contentType && contentType.includes("application/json")) {
-        responseData = await response.json();
-      } else {
-        responseData = await response.text();
-      }
-
-      if (response.ok) {
-        return responseData;
-      } else {
-        if (response.status === 504) {
-          return;
-        }
-
-        throw responseData;
-      }
-    } catch (response: any) {
-      const result = parseErrorResponse(response);
-      if (response?.status !== 504) {
-        throw result;
+    let parsedResult;
+    const match = result.match(/(\[.*]|\{.*})/s);
+    if (match) {
+      try {
+        parsedResult = JSON.parse(match[0]);
+      } catch (e) {
+        // some actions do not return JSON
       }
     }
+    return parsedResult || true;
   };
 
-  private downloadApi = async (
-    url: string,
-    method: string = "GET",
-    data: FormData | string | null = null,
-    headers = { "Content-Type": "application/json" },
-  ): Promise<any> => {
-    const resp = await fetchData(`${this.baseUrl}${url}`, {
-      method: method,
-      body: data,
-      headers: headers,
-    })
-      .then(res => {
-        if (res.ok) {
-          return res;
-        }
-      })
-      .catch(err => {
-        toast({
-          title: "Api is Failed check the api details",
-          variant: "destructive",
-          duration: 5000,
-        });
-        throw err;
-      });
-    return resp;
-  };
+  // private downloadApi = async (
+  //   url: string,
+  //   method: string = "GET",
+  //   data: FormData | string | null = null,
+  //   headers = { "Content-Type": "application/json" },
+  // ): Promise<any> => {
+  //   const resp = await fetchData(`${this.baseUrl}${url}`, {
+  //     method: method,
+  //     body: data,
+  //     headers: headers,
+  //   })
+  //     .then(res => {
+  //       if (res.ok) {
+  //         return res;
+  //       }
+  //     })
+  //     .catch(err => {
+  //       toast({
+  //         title: "Api is Failed check the api details",
+  //         variant: "destructive",
+  //         duration: 5000,
+  //       });
+  //       throw err;
+  //     });
+  //   return resp;
+  // };
+
+  public async createApiVersion(appId: string, payload: HttpApiDefinition) {
+    // We need to know if the definition came from a component and store it there
+    const app = await settingsService.getAppById(appId);
+    let yamlToUpdate = app!.golemYamlLocation;
+
+    if (payload.componentId) {
+      const component = await this.getComponentById(appId, payload.componentId);
+      yamlToUpdate = await this.getComponentYamlPath(
+        appId,
+        component.componentName!,
+      );
+    }
+
+    // Now load the YAML into memory, update and save
+    const rawYaml = await readTextFile(yamlToUpdate);
+
+    // Parse as Document to preserve comments and formatting
+    const manifest: Document = parseDocument(rawYaml);
+
+    // Type-safe access to the parsed content
+    // const manifestData = manifest.toJS() as GolemApplicationManifest;
+
+    // Get or create httpApi section
+    let httpApi = manifest.get("httpApi") as YAMLMap | undefined;
+    if (!httpApi) {
+      // Create new httpApi section if it doesn't exist
+      manifest.set("httpApi", {});
+      httpApi = manifest.get("httpApi") as YAMLMap;
+    }
+
+    // Get or create definitions section
+    let definitions = httpApi.get("definitions") as YAMLMap | undefined;
+    if (!definitions) {
+      // Create new definitions section if it doesn't exist
+      httpApi.set("definitions", {});
+      definitions = httpApi.get("definitions") as YAMLMap;
+    }
+
+    // Add or update the API definition
+    definitions.set(payload.id!, serializeHttpApiDefinition(payload));
+
+    // Save config back
+    if (payload.componentId) {
+      await this.saveComponentManifest(
+        appId,
+        payload.componentId,
+        manifest.toString(),
+      );
+    } else {
+      await this.saveAppManifest(appId, manifest.toString());
+    }
+  }
 }

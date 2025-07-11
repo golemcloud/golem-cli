@@ -31,11 +31,11 @@ import { toast } from "@/hooks/use-toast";
 import { parseTypeForTooltip } from "@/lib/utils.ts";
 import { API } from "@/service";
 import type { GatewayBindingType, MethodPattern } from "@/types/api";
-import { Api } from "@/types/api";
 import type { Component, ComponentList } from "@/types/component";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { HttpApiDefinition } from "@/types/golemManifest";
 
 const MethodPattern = z.enum([
   "Get",
@@ -74,7 +74,17 @@ const HttpCors = z.object({
 });
 
 const RouteRequestData = z.object({
-  method: MethodPattern,
+  method: z.enum([
+    "GET",
+    "CONNECT",
+    "POST",
+    "DELETE",
+    "PUT",
+    "PATCH",
+    "OPTIONS",
+    "TRACE",
+    "HEAD",
+  ]),
   path: z.string(),
   binding: GatewayBindingData,
   cors: HttpCors.optional(),
@@ -104,7 +114,7 @@ const interpolations = [
 ];
 
 const CreateRoute = () => {
-  const { apiName, version } = useParams();
+  const { apiName, version, appId } = useParams();
   const navigate = useNavigate();
   const [componentList, setComponentList] = useState<{
     [key: string]: ComponentList;
@@ -117,7 +127,8 @@ const CreateRoute = () => {
   const reload = queryParams.get("reload");
 
   const [isEdit, setIsEdit] = useState(false);
-  const [activeApiDetails, setActiveApiDetails] = useState<Api | null>(null);
+  const [activeApiDetails, setActiveApiDetails] =
+    useState<HttpApiDefinition | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [responseSuggestions, setResponseSuggestions] = useState(
@@ -154,7 +165,7 @@ const CreateRoute = () => {
     resolver: zodResolver(RouteRequestData),
     defaultValues: {
       path: "/",
-      method: "Get",
+      method: "GET",
       binding: {
         bindingType: "default",
         component: {
@@ -173,15 +184,15 @@ const CreateRoute = () => {
       try {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
-          API.getApi(apiName),
-          API.getComponentByIdAsKey(),
+          API.getApi(appId!, apiName),
+          API.getComponentByIdAsKey(appId!),
         ]);
         const selectedApi = apiResponse.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);
         setComponentList(componentResponse);
         if (path != null && method) {
           setIsEdit(true);
-          const route = selectedApi?.routes.find(
+          const route = selectedApi?.routes?.find(
             route => route.path === path && route.method === method,
           );
           if (route) {
@@ -191,14 +202,17 @@ const CreateRoute = () => {
               extractDynamicParams(path);
             }
             form.setValue("method", route.method);
-            form.setValue(
-              "binding.bindingType",
-              route.binding.bindingType || "default",
-            );
-            const componentName = route.binding.component?.name;
-            const versionId = route.binding.component?.version;
+            // form.setValue(
+            //   "binding.bindingType",
+            //   route.binding.bindingType || "default",
+            // );
+            const componentName = route.binding.componentName;
+            const versionId = route.binding.componentVersion;
             if (componentName && versionId) {
-              const componentId = getComponentIdByName(componentName, componentList);
+              const componentId = getComponentIdByName(
+                componentName,
+                componentList,
+              );
               if (componentId) {
                 loadResponseSuggestions(
                   componentId,
@@ -207,30 +221,30 @@ const CreateRoute = () => {
                 );
                 form.setValue(
                   "binding.component.name",
-                  route.binding.component?.name || "",
+                  route.binding.componentName || "",
                 );
                 form.setValue(
                   "binding.component.version",
-                  route.binding.component?.version || 0,
+                  +(route.binding.componentVersion || 0),
                 );
               }
             }
-            form.setValue("binding.workerName", route.binding.workerName || "");
+            form.setValue(
+              "binding.workerName",
+              route.binding.invocationContext || "",
+            );
             form.setValue("binding.response", route.binding.response || "");
-            if (
-              route.binding.corsPreflight &&
-              route.binding.bindingType === "cors-preflight"
-            ) {
-              form.setValue(
-                "binding.response",
-                JSON.stringify(route.binding.corsPreflight) || "",
-              );
+            if (route.binding.type && route.binding.type === "cors-preflight") {
+              // form.setValue(
+              //   "binding.response",
+              //   JSON.stringify(route.binding.corsPreflight) || "",
+              // );
             }
             form.setValue(
               "binding.idempotencyKey",
               route.binding.idempotencyKey || "",
             );
-            form.setValue("cors", route.cors || undefined);
+            // form.setValue("cors", route.cors || undefined);
             form.setValue("security", route.security || "");
           }
         }
@@ -251,7 +265,7 @@ const CreateRoute = () => {
     try {
       setIsSubmitting(true);
 
-      const apiResponse = await API.getApi(apiName!);
+      const apiResponse = await API.getApi(appId!, apiName!);
       const selectedApi = apiResponse.find(api => api.version === version);
       if (!selectedApi) {
         toast({
@@ -262,17 +276,17 @@ const CreateRoute = () => {
         });
         return;
       }
-      selectedApi.routes = selectedApi.routes.filter(
+      selectedApi.routes = selectedApi.routes?.filter(
         route => !(route.path === path && route.method === method),
       );
-      selectedApi.routes.push(values);
+      selectedApi.routes?.push(values);
       await API.putApi(
-        activeApiDetails.id,
+        activeApiDetails.id!,
         activeApiDetails.version,
         selectedApi,
       ).then(() => {
         navigate(
-          `/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
+          `/app/${appId}/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
         );
       });
     } catch (error) {
@@ -292,10 +306,15 @@ const CreateRoute = () => {
     extractDynamicParams(value);
   };
 
-  const getComponentIdByName = (componentName: string, componentResponse: {
-    [key: string]: ComponentList;
-  }) => {
-    return Object.keys(componentResponse).find(key => componentResponse[key].componentName === componentName);
+  const getComponentIdByName = (
+    componentName: string,
+    componentResponse: {
+      [key: string]: ComponentList;
+    },
+  ) => {
+    return Object.keys(componentResponse).find(
+      key => componentResponse[key].componentName === componentName,
+    );
   };
 
   const loadResponseSuggestions = async (
@@ -306,14 +325,13 @@ const CreateRoute = () => {
     },
   ) => {
     const exportedFunctions = componentResponse?.[componentId]?.versions?.find(
-      (data: Component) =>
-        data.versionedComponentId?.version?.toString() === version,
+      (data: Component) => data.componentVersion?.toString() === version,
     );
     const data = exportedFunctions?.metadata?.exports || [];
-    const output = data.flatMap(item =>
-      item.functions.map(func => {
-        const param = func.parameters
-          .map(p => {
+    const output = (data as any[]).flatMap((item: any) =>
+      (item.functions || []).map((func: any) => {
+        const param = (func.parameters || [])
+          .map((p: any) => {
             const { short } = parseTypeForTooltip(p.typ);
             return `${p.name}: ${short}`;
           })
@@ -417,11 +435,11 @@ const CreateRoute = () => {
                           <FormLabel required>Component</FormLabel>
                           <Select
                             onValueChange={name => {
-                              form.setValue(
-                                "binding.component.name",
+                              form.setValue("binding.component.name", name);
+                              const componentId = getComponentIdByName(
                                 name,
+                                componentList,
                               );
-                              const componentId = getComponentIdByName(name, componentList);
                               if (componentId) {
                                 loadResponseSuggestions(
                                   componentId,
@@ -464,9 +482,7 @@ const CreateRoute = () => {
                           <Select
                             onValueChange={onVersionChange}
                             value={String(field.value)}
-                            disabled={
-                              !form.watch("binding.component.name")
-                            }
+                            disabled={!form.watch("binding.component.name")}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -479,13 +495,15 @@ const CreateRoute = () => {
                             <SelectContent>
                               {form.watch("binding.component") &&
                                 componentList[
-                                  getComponentIdByName(form.watch("binding.component.name"), componentList)!
+                                  getComponentIdByName(
+                                    form.watch("binding.component.name"),
+                                    componentList,
+                                  )!
                                 ]?.versionList?.map((v: number) => (
                                   <SelectItem value={String(v)} key={v}>
                                     v{v}
                                   </SelectItem>
-                                ))
-                              }
+                                ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -495,75 +513,75 @@ const CreateRoute = () => {
                   </div>
                   {filterMethod(form.watch("binding.bindingType")).length >
                     0 && (
-                      <div className="grid grid-cols-3 gap-4 mt-4">
-                        <FormField
-                          control={form.control}
-                          name="method"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel required>Method</FormLabel>
-                              <Select
-                                onValueChange={v =>
-                                  form.setValue("method", v as MethodPattern)
-                                }
-                                value={
-                                  field.value ||
+                    <div className="grid grid-cols-3 gap-4 mt-4">
+                      <FormField
+                        control={form.control}
+                        name="method"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel required>Method</FormLabel>
+                            <Select
+                              onValueChange={v =>
+                                form.setValue("method", v as MethodPattern)
+                              }
+                              value={
+                                field.value ||
+                                filterMethod(
+                                  form.watch("binding.bindingType"),
+                                )[0]
+                              }
+                              disabled={
+                                !(
+                                  form.watch("binding.bindingType") &&
                                   filterMethod(
                                     form.watch("binding.bindingType"),
-                                  )[0]
-                                }
-                                disabled={
-                                  !(
-                                    form.watch("binding.bindingType") &&
-                                    filterMethod(
-                                      form.watch("binding.bindingType"),
-                                    ).length > 0
-                                  )
-                                }
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select Method">
-                                      {" "}
-                                      {field.value}{" "}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {form.watch("binding.bindingType") &&
-                                    filterMethod(
-                                      form.watch("binding.bindingType"),
-                                    ).map((v: string) => (
-                                      <SelectItem value={v} key={v}>
-                                        {v}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="path"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel required>Path</FormLabel>
+                                  ).length > 0
+                                )
+                              }
+                            >
                               <FormControl>
-                                <Input
-                                  placeholder="/api/v1/resource/<param>"
-                                  {...field}
-                                  onChange={e => handlePathChange(e)}
-                                />
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Method">
+                                    {" "}
+                                    {field.value}{" "}
+                                  </SelectValue>
+                                </SelectTrigger>
                               </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
+                              <SelectContent>
+                                {form.watch("binding.bindingType") &&
+                                  filterMethod(
+                                    form.watch("binding.bindingType"),
+                                  ).map((v: string) => (
+                                    <SelectItem value={v} key={v}>
+                                      {v}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="path"
+                        render={({ field }) => (
+                          <FormItem className="col-span-2">
+                            <FormLabel required>Path</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="/api/v1/resource/<param>"
+                                {...field}
+                                onChange={e => handlePathChange(e)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -648,10 +666,11 @@ const CreateRoute = () => {
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent
-                                className={`${responseSuggestions.length === 0
-                                  ? "max-w-[450px]"
-                                  : "w-[450px]"
-                                  }  p-4`}
+                                className={`${
+                                  responseSuggestions.length === 0
+                                    ? "max-w-[450px]"
+                                    : "w-[450px]"
+                                }  p-4`}
                                 align="start"
                                 sideOffset={5}
                               >

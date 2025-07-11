@@ -29,7 +29,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { sanitizeInput } from "@/lib/utils";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FormData = Record<string, any>;
 type FieldType = {
   name: string;
@@ -70,16 +69,25 @@ export const DynamicForm = ({
   }, [functionDetails]);
 
   const initialFormData = () => {
+    if (
+      !functionDetails.parameters ||
+      functionDetails.parameters.length === 0
+    ) {
+      setFormData({});
+      setErrors({});
+      return;
+    }
     const initialData = functionDetails.parameters.reduce((acc, field) => {
       if (field.typ.type === "Str" || field.typ.type === "Chr") {
         acc[field.name] = "";
       } else if (!nonStringPrimitives.includes(field.typ.type)) {
+        const parsed = parseToJsonEditor({
+          parameters: [{ ...field }],
+          name: "",
+          results: [],
+        });
         acc[field.name] = JSON.stringify(
-          parseToJsonEditor({
-            parameters: [{ ...field }],
-            name: "",
-            results: [],
-          })[0],
+          parsed && parsed.length > 0 ? parsed[0] : {},
           null,
           2,
         );
@@ -102,6 +110,9 @@ export const DynamicForm = ({
 
   const validateForm = (): Record<string, string> => {
     const validationErrors: Record<string, string> = {};
+    if (!functionDetails.parameters) {
+      return validationErrors;
+    }
     functionDetails.parameters.forEach(field => {
       let value = formData[field.name];
       if (nonStringPrimitives.includes(field.typ.type) && value === undefined) {
@@ -151,39 +162,44 @@ export const DynamicForm = ({
       setErrors(validationErrors);
     } else {
       const result: unknown[] = [];
-      functionDetails.parameters.forEach(field => {
-        const value = formData[field.name] || "";
-        if (
-          !nonStringPrimitives.includes(field.typ.type) &&
-          field.typ.type !== "Str" &&
-          field.typ.type !== "Chr"
-        ) {
-          try {
-            const sanitizedValue = sanitizeInput(value);
-            result.push(JSON.parse(sanitizedValue));
-          } catch (error) {
-            console.error(`Error parsing JSON for field ${field.name}:`, error);
-          }
-        } else if (
-          ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
-            field.typ.type,
-          )
-        ) {
-          result.push(Number.parseInt(value));
-        } else if (value !== undefined) {
+      if (functionDetails.parameters) {
+        functionDetails.parameters.forEach(field => {
+          const value = formData[field.name] || "";
           if (
+            !nonStringPrimitives.includes(field.typ.type) &&
+            field.typ.type !== "Str" &&
+            field.typ.type !== "Chr"
+          ) {
+            try {
+              const sanitizedValue = sanitizeInput(value);
+              result.push(JSON.parse(sanitizedValue));
+            } catch (error) {
+              console.error(
+                `Error parsing JSON for field ${field.name}:`,
+                error,
+              );
+            }
+          } else if (
             ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
               field.typ.type,
             )
           ) {
             result.push(Number.parseInt(value));
-          } else if (field.typ.type === "Bool") {
-            result.push(Boolean(value));
-          } else {
-            result.push(value);
+          } else if (value !== undefined) {
+            if (
+              ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
+                field.typ.type,
+              )
+            ) {
+              result.push(Number.parseInt(value));
+            } else if (field.typ.type === "Bool") {
+              result.push(Boolean(value));
+            } else {
+              result.push(value);
+            }
           }
-        }
-      });
+        });
+      }
       onInvoke(result);
     }
   };
@@ -350,7 +366,8 @@ export const DynamicForm = ({
       <Card className="w-full">
         <form>
           <CardContent className="p-6">
-            {functionDetails.parameters.length > 0 ? (
+            {functionDetails.parameters &&
+            functionDetails.parameters.length > 0 ? (
               functionDetails.parameters.map(parameter =>
                 renderField(parameter as FieldType),
               )

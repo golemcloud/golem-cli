@@ -1,4 +1,3 @@
-import { Api } from "@/types/api";
 import {
   Case,
   ComponentExportFunction,
@@ -8,6 +7,7 @@ import {
 } from "@/types/component";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { HttpApiDefinition } from "@/types/golemManifest.ts";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -48,15 +48,15 @@ export function formatTimestampInDateTimeFormat(timestamp: string) {
   // Get date components
   const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are zero-indexed
   const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
 
   // Get time components
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
   const seconds = String(date.getSeconds()).padStart(2, "0");
-  const milliseconds = String(date.getMilliseconds()).padStart(3, "0");
 
-  // Combine into the desired format
-  return `${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+  // Combine into MM/DD/YYYY HH:MM:SS format
+  return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
 }
 
 /// compare semver version
@@ -89,10 +89,15 @@ export const compareSemver = (version1: string, version2: string) => {
 };
 
 /// Remove the duplicate api and keep the latest one by comparing the semver version
-export const removeDuplicateApis = (data: Api[]) => {
-  const uniqueEntries = {} as Record<string, Api>;
+export const removeDuplicateApis = (data: HttpApiDefinition[]) => {
+  const uniqueEntries = {} as Record<
+    string,
+    HttpApiDefinition & { count?: number }
+  >;
 
   data.forEach(item => {
+    if (!item.id) return; // Skip items without id
+
     if (!uniqueEntries[item.id]) {
       uniqueEntries[item.id] = item;
     } else {

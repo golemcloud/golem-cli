@@ -33,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -83,6 +83,7 @@ const formSchema = z.object({
 
 export default function CreatePlugin() {
   const navigate = useNavigate();
+  const { appId } = useParams<{ appId: string }>();
   const [componentApiList, setComponentApiList] = useState<{
     [key: string]: ComponentList;
   }>({});
@@ -105,7 +106,8 @@ export default function CreatePlugin() {
   });
 
   useEffect(() => {
-    API.getComponentByIdAsKey().then(async response => {
+    const { appId } = useParams<{ appId: string }>();
+    API.getComponentByIdAsKey(appId!).then(async response => {
       setComponentApiList(response);
     });
   }, []);
@@ -131,10 +133,10 @@ export default function CreatePlugin() {
         <CardContent>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(async data => {
-                const values = { ...data, icon: [] };
-                await API.createPlugin(values);
-                navigate(`/plugins`);
+              onSubmit={form.handleSubmit(async () => {
+                // const values = { ...data, icon: [] };
+                await API.createPlugin(appId!, "values");
+                navigate(`/app/${appId}plugins`);
                 toast({
                   title: "Plugin created successfully",
                   duration: 3000,

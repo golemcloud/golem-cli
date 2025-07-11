@@ -3,12 +3,14 @@ import { listenThemeChange, Theme } from "@/lib/tauri&web.ts";
 
 function useSystemTheme() {
   const [systemTheme, setSystemTheme] = useState<Exclude<Theme, "system">>(
-      window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-  )
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light",
+  );
 
   useEffect(function () {
-    const unlisten = listenThemeChange((event) => {
-      setSystemTheme(event.payload)
+    const unlisten = listenThemeChange(event => {
+      setSystemTheme(event.payload);
     });
 
     return unlisten;
@@ -44,7 +46,7 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
   );
-  const systemTheme = useSystemTheme()
+  const systemTheme = useSystemTheme();
 
   useEffect(() => {
     const root = window.document.documentElement;

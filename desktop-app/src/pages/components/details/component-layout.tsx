@@ -15,7 +15,6 @@ import {
   Folder,
   Home,
   Info,
-  Pencil,
   Pickaxe,
   Settings,
   ToyBrick,
@@ -35,54 +34,55 @@ import { SidebarMenuProps } from "@/components/nav-main.tsx";
  * Creates menu items for the component sidebar
  */
 const createMenuItems = (
+  appId: string,
   componentId: string,
   componentType: string,
 ): SidebarMenuProps[] => [
   {
     title: "Overview",
-    url: `/components/${componentId}`,
+    url: `/app/${appId}/components/${componentId}`,
     icon: Home,
   },
   {
     title: "Workers",
-    url: `/components/${componentId}/workers`,
+    url: `/app/${appId}/components/${componentId}/workers`,
     icon: Pickaxe,
     isHidden: componentType === "Ephemeral",
   },
   {
     title: "Invoke",
-    url: `/components/${componentId}/invoke`,
+    url: `/app/${appId}/components/${componentId}/invoke`,
     icon: Workflow,
     isHidden: componentType === "Durable",
   },
   {
     title: "Exports",
-    url: `/components/${componentId}/exports`,
+    url: `/app/${appId}/components/${componentId}/exports`,
     icon: ArrowRightFromLine,
   },
-  {
-    title: "Update",
-    url: `/components/${componentId}/update`,
-    icon: Pencil,
-  },
+  // {
+  //   title: "Update",
+  //   url: `/app/${appId}/components/${componentId}/update`,
+  //   icon: Pencil,
+  // },
   {
     title: "Files",
-    url: `/components/${componentId}/files`,
+    url: `/app/${appId}/components/${componentId}/files`,
     icon: Folder,
   },
   {
     title: "Plugins",
-    url: `/components/${componentId}/plugins`,
+    url: `/app/${appId}/components/${componentId}/plugins`,
     icon: ToyBrick,
   },
   {
     title: "Info",
-    url: `/components/${componentId}/info`,
+    url: `/app/${appId}/components/${componentId}/info`,
     icon: Info,
   },
   {
     title: "Settings",
-    url: `/components/${componentId}/settings`,
+    url: `/app/${appId}/components/${componentId}/settings`,
     icon: Settings,
     isHidden: componentType === "Ephemeral",
   },
@@ -94,7 +94,7 @@ const createMenuItems = (
 export const ComponentLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { componentId = "" } = useParams();
+  const { componentId = "", appId } = useParams();
   const [currentComponent, setCurrentComponent] =
     useState<ComponentList | null>(null);
   const [currentMenu, setCurrentMenu] = useState("Overview");
@@ -103,13 +103,13 @@ export const ComponentLayout = () => {
   const fetchComponent = useCallback(async () => {
     if (componentId) {
       try {
-        const response = await API.getComponentByIdAsKey();
+        const response = await API.getComponentByIdAsKey(appId!);
         setCurrentComponent(response[componentId]);
       } catch (error) {
         console.error("Error fetching component:", error);
       }
     }
-  }, [componentId]);
+  }, [componentId, appId]);
 
   useEffect(() => {
     fetchComponent();
@@ -130,13 +130,17 @@ export const ComponentLayout = () => {
 
   // Memoize menu items
   const menuItems = useMemo(() => {
-    return createMenuItems(componentId, currentComponent?.componentType || "");
-  }, [componentId, currentComponent?.componentType]);
+    return createMenuItems(
+      appId!,
+      componentId,
+      currentComponent?.componentType || "",
+    );
+  }, [componentId, currentComponent?.componentType, appId]);
 
   const handleNavigateHome = useCallback(() => {
-    navigate(`/components/${componentId}`);
+    navigate(`/app/${appId}/components/${componentId}`);
     setCurrentMenu("Overview");
-  }, [navigate, componentId]);
+  }, [navigate, componentId, appId]);
 
   // Memoize header component
   const Header = useMemo(

@@ -15,7 +15,7 @@ import { ComponentList } from "@/types/component";
 import { Worker } from "@/types/worker";
 import { LayoutGrid, PlusCircle } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 /**
  * Worker status metrics used to categorize workers
@@ -89,7 +89,7 @@ export const ComponentCard = React.memo(
     const latestVersion = data.versions?.[data.versions?.length - 1];
     // Count total exports using a helper function
     const exportCount = calculateExportFunctions(
-      latestVersion?.metadata?.exports || [],
+      (latestVersion?.metadata?.exports as any) || [],
     ).length;
     // Convert component size from bytes to kilobytes
     const componentSize = Math.round(
@@ -203,13 +203,14 @@ const Components = () => {
   );
   const [workerList, setWorkerList] = useState<WorkerStatusMap>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const { appId } = useParams<{ appId: string }>();
 
   /**
    * Fetch all components, then fetch worker status for each component in parallel
    */
   const fetchComponentsAndMetrics = useCallback(async () => {
     try {
-      const response = await API.getComponentByIdAsKey();
+      const response = await API.getComponentByIdAsKey(appId!);
       setComponentList(response);
       setFilteredComponents(response);
 
@@ -218,7 +219,7 @@ const Components = () => {
       // Map over each component to fetch worker info
       const workerPromises = Object.values(response).map(async comp => {
         if (comp.componentId) {
-          const worker = await API.findWorker(comp.componentId, {
+          const worker = await API.findWorker(appId!, comp.componentId, {
             count: 100,
             precise: true,
           });
@@ -249,8 +250,10 @@ const Components = () => {
    * On mount, fetch components and their worker statuses
    */
   useEffect(() => {
-    fetchComponentsAndMetrics();
-  }, [fetchComponentsAndMetrics]);
+    (async () => {
+      await fetchComponentsAndMetrics();
+    })();
+  }, []);
 
   /**
    * Debounce-based search filter for components by name
@@ -305,7 +308,7 @@ const Components = () => {
    */
   const handleCardClick = useCallback(
     (componentId: string) => {
-      navigate(`/components/${componentId}`);
+      navigate(`/app/${appId}/components/${componentId}`);
     },
     [navigate],
   );
@@ -328,7 +331,7 @@ const Components = () => {
               />
             </div>
             {/* Create Component Button */}
-            <Button onClick={() => navigate("/components/create")}>
+            <Button onClick={() => navigate(`/app/${appId}/components/create`)}>
               <PlusCircle className="h-4 w-4 mr-2" />
               Create Component
             </Button>
