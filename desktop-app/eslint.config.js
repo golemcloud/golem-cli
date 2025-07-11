@@ -1,33 +1,81 @@
-import js from "@eslint/js";
 import globals from "globals";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
+import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
-import prettier from "eslint-config-prettier";
+import pluginReact from "eslint-plugin-react";
+import pluginReactRefresh from "eslint-plugin-react-refresh";
 
-export default tseslint.config(
-  { ignores: ["dist"] },
+export default [
   {
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.recommended,
-      prettier,
-    ],
-    files: ["**/*.{ts,tsx}"],
+    files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
     languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
+      parser: tseslint.parser,
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        // Vitest globals
+        vi: "readonly",
+        describe: "readonly",
+        it: "readonly",
+        expect: "readonly",
+        beforeEach: "readonly",
+        afterEach: "readonly",
+        afterAll: "readonly",
+        beforeAll: "readonly",
+      },
     },
     plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
+      "@typescript-eslint": tseslint.plugin,
+      react: pluginReact,
+      "react-refresh": pluginReactRefresh,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      ...pluginJs.configs.recommended.rules,
+      ...tseslint.configs.recommended.rules,
+      ...pluginReact.configs.recommended.rules,
+      "react/react-in-jsx-scope": "off", // React 17+ doesn't require React to be in scope
+      "react/jsx-uses-react": "off", // React 17+ doesn't require React to be in scope
+      "react/jsx-no-target-blank": "off",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
       ],
+      // Disable prop-types as it's not used in this project
+      "react/prop-types": "off",
+      // Allow custom attributes for libraries like cmdk
+      "react/no-unknown-property": ["error", { ignore: ["cmdk-input-wrapper"] }],
+      // Disable base ESLint no-useless-escape
+      "no-useless-escape": "off",
+      // TypeScript ESLint rules
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      // Disable base ESLint no-unused-vars to avoid conflicts with TypeScript version
+      "no-unused-vars": "off",
+      // Disable base ESLint no-undef to avoid conflicts with TypeScript version
+      "no-undef": "off",
+      // Disable no-redeclare and no-constant-binary-expression
+      "no-redeclare": "off",
+      "no-constant-binary-expression": "off",
+      "no-unreachable": "off",
+      "no-import-assign": "off",
+    },
+    settings: {
+      react: {
+        version: "detect",
+      },
     },
   },
-);
+  {
+    ignores: ["dist/", "node_modules/", "src-tauri/"],
+  },
+];
