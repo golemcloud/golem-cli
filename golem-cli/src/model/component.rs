@@ -163,7 +163,7 @@ pub struct ComponentView {
     #[serde(default)]
     pub project_id: Option<ProjectId>,
     pub exports: Vec<String>,
-    pub dynamic_linking: BTreeMap<String, BTreeMap<String, String>>,
+    pub dynamic_linking: BTreeMap<(String, String), BTreeMap<String, String>>,
     pub files: Vec<InitialComponentFile>,
     pub env: BTreeMap<String, String>,
 }
@@ -186,9 +186,19 @@ impl ComponentView {
                 .into_iter()
                 .map(|(name, link)| {
                     (
-                        name,
+                        match link {
+                            DynamicLinkedInstance::WasmRpc(_) => ("wasm-rpc".to_string(), name),
+                            DynamicLinkedInstance::Grpc(_) =>("grpc".to_string(), name)
+                        },
                         match link {
                             DynamicLinkedInstance::WasmRpc(links) => links
+                                .targets
+                                .iter()
+                                .map(|(resource, target)| {
+                                    (resource.clone(), target.interface_name.clone())
+                                })
+                                .collect::<BTreeMap<String, String>>(),
+                            DynamicLinkedInstance::Grpc(links) => links
                                 .targets
                                 .iter()
                                 .map(|(resource, target)| {

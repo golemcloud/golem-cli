@@ -21,9 +21,7 @@ use crate::config::ProfileName;
 use crate::fs::{compile_and_collect_globs, PathExtra};
 use crate::log::{log_action, logln, LogColorize, LogIndent, LogOutput, Output};
 use crate::model::app::{
-    includes_from_yaml_file, AppComponentName, Application, ApplicationComponentSelectMode,
-    ApplicationConfig, ApplicationSourceMode, BinaryComponentSource, BuildProfileName,
-    ComponentStubInterfaces, DependentComponent, DynamicHelpSections, DEFAULT_CONFIG_FILE_NAME,
+    includes_from_yaml_file, AppComponentName, Application, ApplicationComponentSelectMode, ApplicationConfig, ApplicationSourceMode, BinaryComponentSource, BuildProfileName, ComponentStubInterfaces, DependencyType, DependentComponent, DynamicHelpSections, DEFAULT_CONFIG_FILE_NAME
 };
 use crate::model::app_raw;
 use crate::validation::{ValidatedResult, ValidationBuilder};
@@ -170,40 +168,81 @@ impl ApplicationContext {
 
     pub fn component_stub_def(
         &mut self,
+        dep_type: &DependencyType,
         component_name: &AppComponentName,
         is_ephemeral: bool,
     ) -> anyhow::Result<&StubDefinition> {
-        if !self.component_stub_defs.contains_key(component_name) {
-            self.component_stub_defs.insert(
-                component_name.clone(),
-                StubDefinition::new(StubConfig {
-                    source_wit_root: self
-                        .application
-                        .component_generated_base_wit(component_name),
-                    client_root: self.application.client_temp_build_dir(component_name),
-                    selected_world: None,
-                    stub_crate_version: golem_common::golem_version().to_string(),
-                    golem_rust_override: self.config.golem_rust_override.clone(),
-                    extract_source_exports_package: false,
-                    seal_cargo_workspace: true,
-                    component_name: component_name.clone(),
-                    is_ephemeral,
-                })
-                .context("Failed to gather information for the stub generator")?,
-            );
+        match dep_type {
+            DependencyType::Grpc => {
+                let client_directory = self
+                    .application
+                    .client_build_dir()
+                    .join(component_name.as_str().replace(":", "_"));
+                if !self.component_stub_defs.contains_key(component_name) {
+                    self.component_stub_defs.insert(
+                        component_name.clone(),
+                        StubDefinition::new(StubConfig {
+                            source_wit_root: client_directory
+                            .clone()
+                            .join(naming::wit::WIT_DIR)
+                            .join(naming::wit::DEPS_DIR)
+                            .join(component_name.as_str().replace(":", "_")),
+                            client_root: client_directory,
+                            selected_world: None,
+                            stub_crate_version: "0.0.0".to_string(),
+                            golem_rust_override: self.config.golem_rust_override.clone(),
+                            extract_source_exports_package: false,
+                            seal_cargo_workspace: true,
+                            component_name: component_name.clone(),
+                            is_ephemeral,
+                        })
+                        .context("Failed to gather information for the stub generator")?,
+                    );
+                }
+            },
+            _ => {
+                if !self.component_stub_defs.contains_key(component_name) {
+                    self.component_stub_defs.insert(
+                        component_name.clone(),
+                        StubDefinition::new(StubConfig {
+                            source_wit_root: self
+                                .application
+                                .component_generated_base_wit(component_name),
+                            client_root: self.application.client_temp_build_dir(component_name),
+                            selected_world: None,
+                            stub_crate_version: WASM_RPC_VERSION.to_string(),
+                            golem_rust_override: self.config.golem_rust_override.clone(),
+                            extract_source_exports_package: false,
+                            seal_cargo_workspace: true,
+                            component_name: component_name.clone(),
+                            is_ephemeral,
+                        })
+                        .context("Failed to gather information for the stub generator")?,
+                    );
+                }
+            }
         }
         Ok(self.component_stub_defs.get(component_name).unwrap())
     }
 
     pub fn component_stub_interfaces(
         &mut self,
+        dep_type: &DependencyType,
         component_name: &AppComponentName,
+        is_ephemeral: Option<bool>,
     ) -> anyhow::Result<ComponentStubInterfaces> {
-        let is_ephemeral = self
+        let is_ephemeral =match dep_type {
+            DependencyType::Grpc => {
+                is_ephemeral.unwrap()
+            }
+            _ => {
+                self
             .application
             .component_properties(component_name, self.build_profile())
-            .is_ephemeral();
-        let stub_def = self.component_stub_def(component_name, is_ephemeral)?;
+            .is_ephemeral()
+            }
+        };
+        let stub_def = self.component_stub_def(dep_type, component_name, is_ephemeral)?;
         let client_package_name = stub_def.client_parser_package_name();
         let result = ComponentStubInterfaces {
             component_name: component_name.clone(),

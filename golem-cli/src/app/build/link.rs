@@ -39,13 +39,19 @@ pub async fn link(ctx: &ApplicationContext) -> anyhow::Result<()> {
             .iter()
             .filter(|dep| dep.dep_type == DependencyType::Wasm)
             .collect::<BTreeSet<_>>();
-        let dynamic_dependencies = ctx
+        let dynamic_wasm_dependencies = ctx
             .application
             .component_dependencies(component_name)
             .iter()
             .filter(|dep| dep.dep_type == DependencyType::DynamicWasmRpc)
             .collect::<BTreeSet<_>>();
-
+        let dynamic_grpc_dependencies = ctx
+            .application
+            .component_dependencies(component_name)
+            .iter()
+            .filter(|dep| dep.dep_type == DependencyType::Grpc)
+            .collect::<BTreeSet<_>>();
+        
         let mut wasms_to_compose_with = Vec::new();
         for static_dep in &static_dependencies {
             let path = ctx.resolve_binary_component_source(static_dep).await?;
@@ -69,12 +75,26 @@ pub async fn link(ctx: &ApplicationContext) -> anyhow::Result<()> {
             },
         )?;
 
-        if !dynamic_dependencies.is_empty() {
+        if !dynamic_wasm_dependencies.is_empty() {
             log_action(
                 "Found",
                 format!(
                     "dynamic WASM RPC dependencies ({}) for {}",
-                    dynamic_dependencies
+                    dynamic_wasm_dependencies
+                        .iter()
+                        .map(|s| s.source.to_string().log_color_highlight())
+                        .join(", "),
+                    component_name.as_str().log_color_highlight(),
+                ),
+            );
+        }
+
+        if !dynamic_grpc_dependencies.is_empty() {
+            log_action(
+                "Found",
+                format!(
+                    "dynamic GRPC dependencies ({}) for {}",
+                    dynamic_grpc_dependencies
                         .iter()
                         .map(|s| s.source.to_string().log_color_highlight())
                         .join(", "),

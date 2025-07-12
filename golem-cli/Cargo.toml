@@ -37,9 +37,10 @@ golem-client = { workspace = true }
 golem-common = { workspace = true }
 golem-rib = { workspace = true }
 golem-rib-repl = { workspace = true }
-golem-wasm-ast = { workspace = true }
+golem-wasm-ast = { path="../../golem-fork/wasm-ast", version="=0.0.0", features = ["analysis", "wave"] }
 golem-wasm-rpc = { workspace = true }
 golem-wit = { workspace = true }
+wit-carpenter = { workspace = true }
 
 # External deps
 anyhow = { workspace = true }
