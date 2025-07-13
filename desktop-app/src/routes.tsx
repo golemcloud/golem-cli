@@ -9,6 +9,10 @@ import { Home } from "@/pages/home";
 import AppLayout from "@/layouts/app-layout";
 import CreateApplication from "@/pages/app-create";
 import SettingsPage from "@/pages/settings";
+import { ProfileSettingsPage } from "@/pages/settings/profiles";
+import { CliPathSettingsPage } from "@/pages/settings/cli-path";
+import { GeneralSettingsPage } from "@/pages/settings/general";
+import { NotFoundPage } from "@/pages/not-found";
 
 // Lazy load route components for code splitting and performance improvement
 // Lazy-loading improves initial load times by loading components only when needed.
@@ -108,6 +112,20 @@ export const appRoutes: RouteObject[] = [
       {
         path: "settings",
         element: <SettingsPage />,
+        children: [
+          {
+            index: true,
+            element: <GeneralSettingsPage />,
+          },
+          {
+            path: "profiles",
+            element: <ProfileSettingsPage />,
+          },
+          {
+            path: "cli-path",
+            element: <CliPathSettingsPage />,
+          },
+        ],
       },
     ],
   },
@@ -204,5 +222,10 @@ export const appRoutes: RouteObject[] = [
         element: <PluginView />,
       },
     ],
+  },
+  // Catch-all route for 404 pages
+  {
+    path: "*",
+    element: <NotFoundPage />,
   },
 ];
