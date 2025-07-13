@@ -22,7 +22,7 @@ export function YamlEditor({ value, onChange }: YamlEditorProps) {
       message: string;
     }[]
   >([]);
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   const validateYaml = (content: string, monaco: Monaco) => {
     if (!editorRef.current) return;
@@ -143,7 +143,7 @@ export function YamlEditor({ value, onChange }: YamlEditorProps) {
       <Editor
         defaultLanguage="yaml"
         value={value}
-        theme={theme == "dark" ? "vs-dark" : "vs-light"}
+        theme={resolvedTheme === "dark" ? "vs-dark" : "vs-light"}
         onChange={handleEditorChange}
         onMount={handleEditorDidMount}
         options={{
