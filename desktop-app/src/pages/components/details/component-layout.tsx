@@ -19,6 +19,11 @@ import {
   Settings,
   ToyBrick,
   Workflow,
+  Play,
+  RefreshCw,
+  Upload,
+  Trash2,
+  FileText,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -29,6 +34,10 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb.tsx";
 import { SidebarMenuProps } from "@/components/nav-main.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { toast } from "@/hooks/use-toast";
+import { YamlViewerModal } from "@/components/yaml-viewer-modal";
+import { useLogViewer } from "@/contexts/log-viewer-context";
 
 /**
  * Creates menu items for the component sidebar
@@ -95,9 +104,164 @@ export const ComponentLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { componentId = "", appId } = useParams();
+  const { showLog } = useLogViewer();
   const [currentComponent, setCurrentComponent] =
     useState<ComponentList | null>(null);
   const [currentMenu, setCurrentMenu] = useState("Overview");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isYamlModalOpen, setIsYamlModalOpen] = useState(false);
+  const [yamlContent, setYamlContent] = useState<string>("");
+
+  // Component-level action handlers
+  const handleBuildComponent = async () => {
+    if (!appId || !currentComponent?.componentName) return;
+    setIsLoading(true);
+    try {
+      const result = await API.buildApp(appId, [
+        currentComponent.componentName,
+      ]);
+
+      if (result.success) {
+        toast({
+          title: "Build Completed",
+          description: `Component ${currentComponent.componentName} build completed successfully.`,
+        });
+      } else {
+        showLog({
+          title: "Component Build Failed",
+          logs: result.logs,
+          status: "error",
+          operation: `Build ${currentComponent.componentName}`,
+        });
+      }
+    } catch (error) {
+      showLog({
+        title: "Component Build Failed",
+        logs: String(error),
+        status: "error",
+        operation: `Build ${currentComponent.componentName}`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateWorkers = async () => {
+    if (!appId || !currentComponent?.componentName) return;
+    setIsLoading(true);
+    try {
+      const result = await API.updateWorkers(appId, [
+        currentComponent.componentName,
+      ]);
+
+      if (result.success) {
+        toast({
+          title: "Workers Update Completed",
+          description: `Workers for ${currentComponent.componentName} updated successfully.`,
+        });
+      } else {
+        showLog({
+          title: "Workers Update Failed",
+          logs: result.logs,
+          status: "error",
+          operation: `Update Workers for ${currentComponent.componentName}`,
+        });
+      }
+    } catch (error) {
+      showLog({
+        title: "Workers Update Failed",
+        logs: String(error),
+        status: "error",
+        operation: `Update Workers for ${currentComponent.componentName}`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeployWorkers = async () => {
+    if (!appId || !currentComponent?.componentName) return;
+    setIsLoading(true);
+    try {
+      const result = await API.deployWorkers(appId, [
+        currentComponent.componentName,
+      ]);
+
+      if (result.success) {
+        toast({
+          title: "Deployment Completed",
+          description: `Workers for ${currentComponent.componentName} deployed successfully.`,
+        });
+      } else {
+        showLog({
+          title: "Deployment Failed",
+          logs: result.logs,
+          status: "error",
+          operation: `Deploy Workers for ${currentComponent.componentName}`,
+        });
+      }
+    } catch (error) {
+      showLog({
+        title: "Deployment Failed",
+        logs: String(error),
+        status: "error",
+        operation: `Deploy Workers for ${currentComponent.componentName}`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCleanComponent = async () => {
+    if (!appId || !currentComponent?.componentName) return;
+    setIsLoading(true);
+    try {
+      const result = await API.cleanApp(appId, [
+        currentComponent.componentName,
+      ]);
+
+      if (result.success) {
+        toast({
+          title: "Clean Completed",
+          description: `Component ${currentComponent.componentName} cleaned successfully.`,
+        });
+      } else {
+        showLog({
+          title: "Component Clean Failed",
+          logs: result.logs,
+          status: "error",
+          operation: `Clean ${currentComponent.componentName}`,
+        });
+      }
+    } catch (error) {
+      showLog({
+        title: "Component Clean Failed",
+        logs: String(error),
+        status: "error",
+        operation: `Clean ${currentComponent.componentName}`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleViewComponentYaml = async () => {
+    if (!appId || !currentComponent?.componentName) return;
+    try {
+      const yamlContent = await API.getComponentYamlContent(
+        appId,
+        currentComponent.componentName,
+      );
+      setYamlContent(yamlContent);
+      setIsYamlModalOpen(true);
+    } catch (error) {
+      toast({
+        title: "Failed to Load Component YAML",
+        description: String(error),
+        variant: "destructive",
+      });
+    }
+  };
 
   // Fetch component data
   const fetchComponent = useCallback(async () => {
@@ -167,9 +331,72 @@ export const ComponentLayout = () => {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
+
+        {/* Component Actions */}
+        <div className="flex items-center gap-1 ml-auto px-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBuildComponent}
+            disabled={isLoading}
+            className="text-xs h-7"
+          >
+            <Play className="h-3 w-3 mr-1" />
+            Build
+          </Button>
+          {currentComponent?.componentType === "Durable" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUpdateWorkers}
+                disabled={isLoading}
+                className="text-xs h-7"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Update
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeployWorkers}
+                disabled={isLoading}
+                className="text-xs h-7"
+              >
+                <Upload className="h-3 w-3 mr-1" />
+                Deploy
+              </Button>
+            </>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCleanComponent}
+            disabled={isLoading}
+            className="text-xs h-7"
+          >
+            <Trash2 className="h-3 w-3 mr-1" />
+            Clean
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleViewComponentYaml}
+            className="text-xs h-7"
+          >
+            <FileText className="h-3 w-3 mr-1" />
+            YAML
+          </Button>
+        </div>
       </header>
     ),
-    [currentComponent?.componentName, currentMenu, handleNavigateHome],
+    [
+      currentComponent?.componentName,
+      currentComponent?.componentType,
+      currentMenu,
+      handleNavigateHome,
+      isLoading,
+    ],
   );
 
   if (!currentComponent) {
@@ -192,6 +419,17 @@ export const ComponentLayout = () => {
           </ErrorBoundary>
         </SidebarInset>
       </SidebarProvider>
+
+      {/* YAML Viewer Modal */}
+      <YamlViewerModal
+        isOpen={isYamlModalOpen}
+        onOpenChange={setIsYamlModalOpen}
+        title={`Component Manifest (${currentComponent?.componentName || "golem"}.yaml)`}
+        yamlContent={yamlContent}
+        appId={appId}
+        componentId={componentId}
+        isAppYaml={false}
+      />
     </ErrorBoundary>
   );
 };
