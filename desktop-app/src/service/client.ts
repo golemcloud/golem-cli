@@ -565,7 +565,7 @@ export class Service {
         variant: "destructive",
         duration: 5000,
       });
-      throw new Error("Error in calling golem CLI");
+      throw new Error("Error in calling golem CLI: ");
     }
 
     let parsedResult;
@@ -578,6 +578,48 @@ export class Service {
       }
     }
     return parsedResult || true;
+  };
+
+  private callCLIWithLogs = async (
+    appId: string,
+    command: string,
+    subcommands: string[],
+  ): Promise<{ result: any; logs: string; success: boolean }> => {
+    // find folder location
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+    //  we use the "invoke" here to call a special command that calls golem CLI for us
+    let result: string;
+    let success = true;
+
+    try {
+      result = await invoke("call_golem_command", {
+        command,
+        subcommands,
+        folderPath: app.folderLocation,
+      });
+    } catch (e) {
+      success = false;
+      result = String(e);
+    }
+
+    let parsedResult;
+    const match = result.match(/(\[.*]|\{.*})/s);
+    if (match) {
+      try {
+        parsedResult = JSON.parse(match[0]);
+      } catch (e) {
+        // some actions do not return JSON
+      }
+    }
+
+    return {
+      result: parsedResult || true,
+      logs: result,
+      success,
+    };
   };
 
   // private downloadApi = async (
@@ -659,4 +701,77 @@ export class Service {
       await this.saveAppManifest(appId, manifest.toString());
     }
   }
+
+  public buildApp = async (appId: string, componentNames?: string[]) => {
+    const subcommands = ["build"];
+    if (componentNames && componentNames.length > 0) {
+      subcommands.push(...componentNames);
+    }
+    return await this.callCLIWithLogs(appId, "app", subcommands);
+  };
+
+  public updateWorkers = async (
+    appId: string,
+    componentNames?: string[],
+    updateMode: string = "auto",
+  ) => {
+    const subcommands = ["update-workers"];
+    if (updateMode) {
+      subcommands.push("--update-mode", updateMode);
+    }
+    if (componentNames && componentNames.length > 0) {
+      subcommands.push(...componentNames);
+    }
+    return await this.callCLIWithLogs(appId, "app", subcommands);
+  };
+
+  public deployWorkers = async (
+    appId: string,
+    componentNames?: string[],
+    updateWorkers?: boolean,
+  ) => {
+    const subcommands = ["deploy"];
+    if (updateWorkers) {
+      subcommands.push("--update-workers");
+    }
+    if (componentNames && componentNames.length > 0) {
+      subcommands.push(...componentNames);
+    }
+    return await this.callCLIWithLogs(appId, "app", subcommands);
+  };
+
+  public cleanApp = async (appId: string, componentNames?: string[]) => {
+    const subcommands = ["clean"];
+    if (componentNames && componentNames.length > 0) {
+      subcommands.push(...componentNames);
+    }
+    return await this.callCLIWithLogs(appId, "app", subcommands);
+  };
+
+  public getAppYamlContent = async (appId: string): Promise<string> => {
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+    const appManifestPath = await join(app.folderLocation, "golem.yaml");
+    if (await exists(appManifestPath)) {
+      return await readTextFile(appManifestPath);
+    }
+    const appManifestPathYml = await join(app.folderLocation, "golem.yml");
+    if (await exists(appManifestPathYml)) {
+      return await readTextFile(appManifestPathYml);
+    }
+    throw new Error("App manifest file not found");
+  };
+
+  public getComponentYamlContent = async (
+    appId: string,
+    componentName: string,
+  ): Promise<string> => {
+    const componentYamlPath = await this.getComponentYamlPath(
+      appId,
+      componentName,
+    );
+    return await readTextFile(componentYamlPath);
+  };
 }
