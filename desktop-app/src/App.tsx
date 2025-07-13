@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { BrowserRouter as Router, useRoutes } from "react-router-dom";
 // ThemeProvider provides theming support
 import { ThemeProvider } from "@/components/theme-provider.tsx";
+import { LogViewerProvider } from "@/contexts/log-viewer-context";
+import { GlobalLogViewer } from "@/components/global-log-viewer";
 import { appRoutes } from "./routes";
 
 // AppRoutes component to render routes using useRoutes hook
@@ -15,20 +17,23 @@ const AppRoutes = () => {
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="golem-theme">
-      <Router>
-        <div className="min-h-screen">
-          {/* Suspense provides a fallback UI while lazy-loaded components are being fetched */}
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center min-h-screen">
-                Loading...
-              </div>
-            }
-          >
-            <AppRoutes />
-          </Suspense>
-        </div>
-      </Router>
+      <LogViewerProvider>
+        <Router>
+          <div className="min-h-screen">
+            {/* Suspense provides a fallback UI while lazy-loaded components are being fetched */}
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                  Loading...
+                </div>
+              }
+            >
+              <AppRoutes />
+            </Suspense>
+            <GlobalLogViewer />
+          </div>
+        </Router>
+      </LogViewerProvider>
     </ThemeProvider>
   );
 }
