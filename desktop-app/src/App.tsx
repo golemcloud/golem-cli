@@ -5,6 +5,7 @@ import { BrowserRouter as Router, useRoutes } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider.tsx";
 import { LogViewerProvider } from "@/contexts/log-viewer-context";
 import { GlobalLogViewer } from "@/components/global-log-viewer";
+import { Toaster } from "@/components/ui/toaster";
 import { appRoutes } from "./routes";
 
 // AppRoutes component to render routes using useRoutes hook
@@ -31,6 +32,7 @@ function App() {
               <AppRoutes />
             </Suspense>
             <GlobalLogViewer />
+            <Toaster />
           </div>
         </Router>
       </LogViewerProvider>

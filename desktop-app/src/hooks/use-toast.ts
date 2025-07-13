@@ -180,6 +180,12 @@ function useToast() {
     ...state,
     toast,
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    success: (props: Omit<Toast, "variant">) =>
+      toast({ ...props, variant: "success" }),
+    error: (props: Omit<Toast, "variant">) =>
+      toast({ ...props, variant: "destructive" }),
+    info: (props: Omit<Toast, "variant">) =>
+      toast({ ...props, variant: "default" }),
   };
 }
 
