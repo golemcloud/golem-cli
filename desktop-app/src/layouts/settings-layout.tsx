@@ -7,7 +7,7 @@ import { Outlet } from "react-router-dom";
 const settingsNavigation = [
   {
     name: "CLI Profiles",
-    href: "/settings/profiles",
+    href: "/settings",
     icon: User,
     description: "Manage Golem CLI profiles",
   },

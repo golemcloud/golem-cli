@@ -11,7 +11,6 @@ import CreateApplication from "@/pages/app-create";
 import SettingsPage from "@/pages/settings";
 import { ProfileSettingsPage } from "@/pages/settings/profiles";
 import { CliPathSettingsPage } from "@/pages/settings/cli-path";
-import { GeneralSettingsPage } from "@/pages/settings/general";
 import { NotFoundPage } from "@/pages/not-found";
 
 // Lazy load route components for code splitting and performance improvement
@@ -115,10 +114,6 @@ export const appRoutes: RouteObject[] = [
         children: [
           {
             index: true,
-            element: <GeneralSettingsPage />,
-          },
-          {
-            path: "profiles",
             element: <ProfileSettingsPage />,
           },
           {
