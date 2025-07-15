@@ -773,6 +773,35 @@ impl ApiDefinitionCommandHandler {
             .await
             .map_service_error()?;
 
+        // Add server information if deployments exist
+        if !deployments.is_empty() {
+            // Initialize servers array if it doesn't exist
+            if !spec.as_object().unwrap().contains_key("servers") {
+                spec.as_object_mut()
+                    .unwrap()
+                    .insert("servers".to_string(), serde_json::Value::Array(Vec::new()));
+            }
+
+            // Add servers to the spec
+            if let Some(servers) = spec.get_mut("servers") {
+                if let Some(servers) = servers.as_array_mut() {
+                    // Add deployment servers with HTTP
+                    for deployment in &deployments {
+                        let url = match &deployment.site.subdomain {
+                            Some(subdomain) => {
+                                format!("http://{}.{}", subdomain, deployment.site.host)
+                            }
+                            None => format!("http://{}", deployment.site.host),
+                        };
+                        servers.push(serde_json::json!({
+                            "url": url,
+                            "description": "Deployed instance"
+                        }));
+                    }
+                }
+            }
+        }
+
         // Validate port
         if port == 0 {
             return Err(anyhow::anyhow!(
