@@ -11,16 +11,16 @@ license-file = "LICENSE"
 [workspace.dependencies]
 
 # Golem dep
-golem-client = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-common = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-rib = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-rib-repl = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-service-base = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-wasm-ast = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui", default-features = false, features = [
+golem-client = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-common = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-rib = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-rib-repl = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-service-base = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-wasm-ast = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi", default-features = false, features = [
     "analysis",
     "wave",
 ] }
-golem-wasm-rpc = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui", default-features = false, features = [
+golem-wasm-rpc = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi", default-features = false, features = [
     "host",
 ] }
 
@@ -131,13 +131,13 @@ webbrowser = "1.0.4"
 warp = "0.3.7"
 
 [patch.crates-io]
-golem-client = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-common = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-rib = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-rib-repl = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-service-base = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-wasm-ast = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-wasm-rpc = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
+golem-client = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-common = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-rib = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-rib-repl = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-service-base = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-wasm-ast = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-wasm-rpc = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
 
 redis-protocol = { git = "https://github.com/golemcloud/redis-protocol.rs.git", branch = "unpin-cookie-factory" }
 wasmtime = { git = "https://github.com/golemcloud/wasmtime.git", branch = "golem-wasmtime-v33.0.0" }

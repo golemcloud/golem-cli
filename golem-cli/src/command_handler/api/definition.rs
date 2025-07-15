@@ -88,8 +88,8 @@ impl ApiDefinitionCommandHandler {
                 project,
                 id,
                 version,
-                host,
-            } => self.cmd_swagger(project, id, version, host).await,
+                port,
+            } => self.cmd_swagger(project, id, version, port).await,
         }
     }
 
@@ -724,7 +724,7 @@ impl ApiDefinitionCommandHandler {
         project: ProjectOptionalFlagArg,
         id: ApiDefinitionId,
         version: ApiDefinitionVersion,
-        host: String,
+        port: u16,
     ) -> anyhow::Result<()> {
         let project = self
             .ctx
@@ -773,74 +773,23 @@ impl ApiDefinitionCommandHandler {
             .await
             .map_service_error()?;
 
-        // Add server information if deployments exist
-        if !deployments.is_empty() {
-            // Initialize servers array if it doesn't exist
-            if !spec.as_object().unwrap().contains_key("servers") {
-                spec.as_object_mut()
-                    .unwrap()
-                    .insert("servers".to_string(), serde_json::Value::Array(Vec::new()));
-            }
-
-            // Add servers to the spec
-            if let Some(servers) = spec.get_mut("servers") {
-                if let Some(servers) = servers.as_array_mut() {
-                    // Add deployment servers with HTTP
-                    for deployment in &deployments {
-                        let url = match &deployment.site.subdomain {
-                            Some(subdomain) => {
-                                format!("http://{}.{}", subdomain, deployment.site.host)
-                            }
-                            None => format!("http://{}", deployment.site.host),
-                        };
-                        servers.push(serde_json::json!({
-                            "url": url,
-                            "description": "Deployed instance"
-                        }));
-                    }
-                }
-            }
+        // Validate port
+        if port == 0 {
+            return Err(anyhow::anyhow!(
+                "Port number must be greater than 0. Provided: {}",
+                port
+            ));
         }
 
-        // Handle localhost case
-        if host.starts_with("localhost") || host.starts_with("127.0.0.1") {
-            let port = host
-                .split(':')
-                .nth(1)
-                .unwrap_or("9990")
-                .parse::<u16>()
-                .map_err(|_| anyhow::anyhow!("Invalid port number"))?;
-
-            // Start local Swagger UI server
-            self.start_local_swagger_ui(serde_yaml::to_string(&spec)?, port)
-                .await?;
-
-            self.ctx
-                .log_handler()
-                .log_view(&ApiDefinitionExportView(format!(
-                    "Swagger UI running at http://localhost:{}\n{}",
-                    port,
-                    if deployments.is_empty() {
-                        "No deployments found - displaying API schema without server information"
-                            .to_string()
-                    } else {
-                        format!("API is deployed at {} locations", deployments.len())
-                    }
-                )));
-
-            // Wait for ctrl+c
-            tokio::signal::ctrl_c().await?;
-
-            return Ok(());
-        }
-
-        // For non-localhost cases, just save the file
-        std::fs::write("openapi.yaml", serde_yaml::to_string(&spec)?)?;
+        // Start local Swagger UI server
+        self.start_local_swagger_ui(serde_yaml::to_string(&spec)?, port)
+            .await?;
 
         self.ctx
             .log_handler()
             .log_view(&ApiDefinitionExportView(format!(
-                "OpenAPI spec saved to openapi.yaml\n{}",
+                "Swagger UI running at http://localhost:{}\n{}",
+                port,
                 if deployments.is_empty() {
                     "No deployments found - displaying API schema without server information"
                         .to_string()
@@ -848,6 +797,9 @@ impl ApiDefinitionCommandHandler {
                     format!("API is deployed at {} locations", deployments.len())
                 }
             )));
+
+        // Wait for ctrl+c
+        tokio::signal::ctrl_c().await?;
 
         Ok(())
     }

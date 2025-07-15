@@ -1245,9 +1245,9 @@ pub mod api {
                 /// Version of the api definition
                 #[arg(short = 'V', long)]
                 version: ApiDefinitionVersion,
-                /// Host to open Swagger UI on
-                #[arg(short = 'H', long)]
-                host: String,
+                /// Port to open Swagger UI on (defaults to 9007)
+                #[arg(short = 'P', long, default_value_t = 9007)]
+                port: u16,
             },
         }
     }

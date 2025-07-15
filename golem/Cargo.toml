@@ -23,14 +23,14 @@ golem-cli = { path = "../golem-cli", features = [
 ], version = "=0.0.0" }
 
 # Golem - git deps
-golem-common = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-service-base = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-cloud-service = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-component-compilation-service = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-component-service = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-shard-manager = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-worker-executor = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
-golem-worker-service = { git = "https://github.com/Nanashi-lab/golem.git", branch = "swaggerui" }
+golem-common = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-service-base = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+cloud-service = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-component-compilation-service = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-component-service = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-shard-manager = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-worker-executor = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
+golem-worker-service = { git = "https://github.com/Nanashi-lab/golem.git", branch = "openapi" }
 
 # External deps
 anyhow = { workspace = true }
