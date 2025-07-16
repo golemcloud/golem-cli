@@ -50,6 +50,7 @@ export function InvokeLayout({
   onInvoke,
   copyToClipboard,
 }: InvokeLayoutProps) {
+  console.log("parsedExports", parsedExports);
   return (
     <div className="flex">
       <div className="flex-1 flex flex-col bg-background">
@@ -159,7 +160,7 @@ export function InvokeLayout({
                   <SectionCard
                     title="Preview"
                     description="Preview the current function invocation arguments"
-                    value={value}
+                    value={value || JSON.stringify(parseToJsonEditor(functionDetails), null, 2)}
                     onValueChange={onValueChange}
                     copyToClipboard={copyToClipboard}
                     functionDetails={functionDetails}

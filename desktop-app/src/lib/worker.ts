@@ -7,27 +7,28 @@ import {
 
 function buildJsonSkeleton(field: Field): any {
   const { type, fields, cases, names, inner } = field.typ;
-  switch (type) {
-    case "Str":
-    case "Chr":
+  const typeStr = type?.toLowerCase();
+  switch (typeStr) {
+    case "str":
+    case "chr":
       return "";
 
-    case "Bool":
+    case "bool":
       return false;
 
-    case "F64":
-    case "F32":
-    case "U64":
-    case "S64":
-    case "U32":
-    case "S32":
-    case "U16":
-    case "S16":
-    case "U8":
-    case "S8":
+    case "f64":
+    case "f32":
+    case "u64":
+    case "s64":
+    case "u32":
+    case "s32":
+    case "u16":
+    case "s16":
+    case "u8":
+    case "s8":
       return 0;
 
-    case "Record": {
+    case "record": {
       const obj: Record<string, any> = {};
       fields?.forEach((subField: Field) => {
         obj[subField.name] = buildJsonSkeleton(subField);
@@ -35,38 +36,49 @@ function buildJsonSkeleton(field: Field): any {
       return obj;
     }
 
-    case "Tuple": {
+    case "tuple": {
       if (!fields) return [];
       return fields.map((subField: Field) => buildJsonSkeleton(subField));
     }
 
-    case "List": {
+    case "list": {
       if (inner) {
         return [buildJsonSkeleton({ ...field, typ: inner })];
       }
       return [];
     }
 
-    case "Option": {
+    case "option": {
       return null;
     }
 
-    case "Flags": {
+    case "flags": {
       return names ? [names[0]] : [];
     }
 
-    case "Enum": {
-      return cases ? cases[0] : "";
+    case "enum": {
+      if (cases && cases.length > 0) {
+        // For the example for priority enum, show a practical example
+        if (
+          cases.includes("low") &&
+          cases.includes("medium") &&
+          cases.includes("high")
+        ) {
+          return "low";
+        }
+        return cases[0];
+      }
+      return "";
     }
 
-    case "Variant": {
+    case "variant": {
       if (!cases || cases.length === 0) return null;
       const selectedCase = cases[0];
       if (typeof selectedCase !== "object" || !selectedCase.typ) return null;
       return { [selectedCase.name]: buildJsonSkeleton(selectedCase) };
     }
 
-    case "Result": {
+    case "result": {
       return {
         ok:
           field.typ && field.typ.ok

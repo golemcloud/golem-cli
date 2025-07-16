@@ -131,8 +131,11 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
         throw new Error("No function details loaded.");
       }
 
-      // Simplified: CLI will handle type validation, just pass the values
-      const params = parsedValue.map(value => ({ value }));
+      // Pass both values and type information for proper WAVE formatting
+      const params = parsedValue.map((value, index) => ({
+        value,
+        typ: functionDetails.parameters[index]?.typ
+      }));
       const functionName = `${name}.{${urlFn}}`;
       let response;
 
