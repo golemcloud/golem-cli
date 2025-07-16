@@ -16,7 +16,7 @@ export const DynamicForm = ({
   functionName = "",
 }: {
   functionDetails: ComponentExportFunction;
-  onInvoke: (args: unknown[]) => void;
+  onInvoke: (args: unknown[] | { params: Array<{ value: unknown; typ: any; name: string }> }) => void;
   resetResult: () => void;
   exportName?: string;
   functionName?: string;
@@ -116,12 +116,16 @@ export const DynamicForm = ({
       return;
     }
 
-    // Use recursive form data
-    const result: unknown[] = [];
+    // Use recursive form data with type information
+    const result: { params: Array<{ value: unknown; typ: any; name: string }> } = { params: [] };
     if (functionDetails.parameters) {
       functionDetails.parameters.forEach(param => {
         const value = recursiveFormData[param.name];
-        result.push(value);
+        result.params.push({
+          value,
+          typ: param.typ,
+          name: param.name
+        });
       });
     }
     onInvoke(result);

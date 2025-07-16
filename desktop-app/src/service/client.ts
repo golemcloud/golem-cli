@@ -3,7 +3,7 @@ import { toast } from "@/hooks/use-toast";
 // import { ENDPOINT } from "@/service/endpoints.ts";
 import { parseErrorResponse } from "@/service/error-handler.ts";
 import { Api } from "@/types/api.ts";
-import { Component, ComponentList } from "@/types/component.ts";
+import { Component, ComponentList, Parameter } from "@/types/component.ts";
 import { Plugin } from "@/types/plugin";
 import { invoke } from "@tauri-apps/api/core";
 import { settingsService } from "@/lib/settings.ts";
@@ -20,7 +20,10 @@ import {
   serializeHttpApiDefinition,
 } from "@/types/golemManifest.ts";
 import { parse, parseDocument, Document, YAMLMap } from "yaml";
-import { convertPayloadToWaveArgs, convertToWaveFormatWithType } from "@/lib/wave";
+import {
+  convertToWaveFormatWithType,
+  convertValuesToWaveArgs,
+} from "@/lib/wave";
 
 export class Service {
   public baseUrl: string;
@@ -398,13 +401,21 @@ export class Service {
     ]);
   };
 
-  public interruptWorker = async (appId: string, componentId: string, workerName: string) => {
+  public interruptWorker = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+  ) => {
     const component = await this.getComponentById(appId, componentId);
     const fullWorkerName = `${component?.componentName}/${workerName}`;
     return await this.callCLI(appId, "worker", ["interrupt", fullWorkerName]);
   };
 
-  public resumeWorker = async (appId: string, componentId: string, workerName: string) => {
+  public resumeWorker = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+  ) => {
     const component = await this.getComponentById(appId, componentId);
     const fullWorkerName = `${component?.componentName}/${workerName}`;
     return await this.callCLI(appId, "worker", ["resume", fullWorkerName]);
@@ -420,11 +431,36 @@ export class Service {
     // Get component name for proper worker identification
     const component = await this.getComponentById(appId, componentId);
     const fullWorkerName = `${component?.componentName}/${workerName}`;
-    
-    // Convert payload to individual WAVE-formatted arguments using smart conversion
-    const waveArgs = payload.params.map((param: any) => 
-      convertToWaveFormatWithType(param.value, param.typ)
-    );
+
+    // Convert payload to individual WAVE-formatted arguments
+    // Handle both old format (raw values) and new format (with type info)
+    let waveArgs: string[];
+    if (payload.params && payload.params.length > 0 && payload.params[0].typ) {
+      // New format with type information
+      // Filter out null option type parameters
+      const filteredParams = payload.params.filter((param: any) => {
+        if (
+          param.typ?.type === "option" &&
+          (param.value === null || param.value === undefined)
+        ) {
+          console.log("Skipping null option parameter:", param.name);
+          return false;
+        }
+        return true;
+      });
+
+      waveArgs = filteredParams.map((param: { value: any; typ: Parameter }) =>
+        convertToWaveFormatWithType(param.value, {
+          typ: param.typ,
+          name: "",
+          type: param.typ.type,
+        }),
+      );
+    } else {
+      // Old format - raw values
+      waveArgs = convertValuesToWaveArgs(payload);
+    }
+
     return await this.callCLI(appId, "worker", [
       "invoke",
       fullWorkerName,
@@ -442,11 +478,32 @@ export class Service {
     // Get component name for ephemeral worker identification
     const component = await this.getComponentById(appId, componentId);
     const ephemeralWorkerName = `${component?.componentName}/-`;
-    
-    // Convert payload to individual WAVE-formatted arguments using smart conversion
-    const waveArgs = payload.params.map((param: any) => 
-      convertToWaveFormatWithType(param.value, param.typ)
-    );
+
+    // Convert payload to individual WAVE-formatted arguments
+    // Handle both old format (raw values) and new format (with type info)
+    let waveArgs: string[];
+    if (payload.params && payload.params.length > 0 && payload.params[0].typ) {
+      // New format with type information
+      // Filter out null option type parameters
+      const filteredParams = payload.params.filter((param: any) => {
+        if (
+          param.typ?.type === "option" &&
+          (param.value === null || param.value === undefined)
+        ) {
+          console.log("Skipping null option parameter:", param.name);
+          return false;
+        }
+        return true;
+      });
+
+      waveArgs = filteredParams.map((param: any) =>
+        convertToWaveFormatWithType(param.value, { typ: param.typ }),
+      );
+    } else {
+      // Old format - raw values
+      waveArgs = convertValuesToWaveArgs(payload);
+    }
+
     return await this.callCLI(appId, "worker", [
       "invoke",
       ephemeralWorkerName,
@@ -484,7 +541,7 @@ export class Service {
     // Get component name for proper worker identification
     const component = await this.getComponentById(appId, componentId);
     const fullWorkerName = `${component?.componentName}/${workerName}`;
-    
+
     const r = await this.callCLI(appId, "worker", [
       "oplog",
       fullWorkerName,

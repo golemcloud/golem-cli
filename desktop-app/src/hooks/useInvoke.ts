@@ -125,17 +125,27 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
     setResultValue("");
   };
 
-  const onInvoke = async (parsedValue: unknown[]) => {
+  const onInvoke = async (parsedValue: unknown[] | { params: Array<{ value: unknown; typ: any; name: string }> }) => {
     try {
       if (!functionDetails) {
         throw new Error("No function details loaded.");
       }
 
-      // Pass both values and type information for proper WAVE formatting
-      const params = parsedValue.map((value, index) => ({
-        value,
-        typ: functionDetails.parameters[index]?.typ
-      }));
+      let params: Array<{ value: unknown; typ: any; name?: string }>;
+      
+      // Handle both old format (array) and new format (object with params)
+      if (Array.isArray(parsedValue)) {
+        // Old format - convert to new format
+        params = parsedValue.map((value, index) => ({
+          value,
+          typ: functionDetails.parameters[index]?.typ,
+          name: functionDetails.parameters[index]?.name
+        }));
+      } else {
+        // New format - use directly
+        params = parsedValue.params;
+      }
+
       const functionName = `${name}.{${urlFn}}`;
       let response;
 

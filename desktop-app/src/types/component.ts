@@ -148,7 +148,7 @@ function parseType(typeStr: string): Typ {
       const fields = parseRecordFields(fieldsStr);
       
       return {
-        type: "Record",
+        type: "record",
         fields,
       };
     }
@@ -166,7 +166,7 @@ function parseType(typeStr: string): Typ {
         .filter(s => s.length > 0);
       
       return {
-        type: "Enum",
+        type: "enum",
         cases,
       };
     }
@@ -204,7 +204,7 @@ function parseType(typeStr: string): Typ {
   if (trimmed.startsWith("list<") && trimmed.endsWith(">")) {
     const inner = trimmed.slice(5, -1);
     return {
-      type: "List",
+      type: "list",
       inner: parseType(inner),
     };
   }
@@ -212,7 +212,7 @@ function parseType(typeStr: string): Typ {
   if (trimmed.startsWith("option<") && trimmed.endsWith(">")) {
     const inner = trimmed.slice(7, -1);
     return {
-      type: "Option",
+      type: "option",
       inner: parseType(inner),
     };
   }
@@ -222,34 +222,34 @@ function parseType(typeStr: string): Typ {
     const parts = splitTypeArguments(inner);
     if (parts.length === 2) {
       return {
-        type: "Result",
+        type: "result",
         ok: parseType(parts[0]),
         err: parseType(parts[1]),
       };
     } else if (parts.length === 1) {
       return {
-        type: "Result",
+        type: "result",
         ok: parseType(parts[0]),
       };
     }
   }
 
-  // Handle primitive types with proper casing
+  // Handle primitive types with lowercase
   const typeMapping: Record<string, string> = {
-    string: "Str",
-    bool: "Bool",
-    u8: "U8",
-    u16: "U16",
-    u32: "U32",
-    u64: "U64",
-    s8: "S8",
-    s16: "S16",
-    s32: "S32",
-    s64: "S64",
-    f32: "F32",
-    f64: "F64",
-    char: "Chr",
-    _: "Unit",
+    string: "str",
+    bool: "bool",
+    u8: "u8",
+    u16: "u16",
+    u32: "u32",
+    u64: "u64",
+    s8: "s8",
+    s16: "s16",
+    s32: "s32",
+    s64: "s64",
+    f32: "f32",
+    f64: "f64",
+    char: "chr",
+    _: "unit",
   };
 
   return { type: typeMapping[trimmed] || trimmed };
@@ -489,36 +489,4 @@ export function parseExportString(exportStr: string): Export | null {
     return null;
   }
 }
-
-let correctX: Parameter[] = [{
-  name: "item",
-  type: "record",
-  typ: {
-    type: "record",
-    fields: [
-      {
-        name: "title",
-        typ: {
-          type: "str",
-        },
-      },
-      {
-        name: "priority",
-        typ: {
-          type: "enum",
-          cases: ["low", "medium", "high"],
-        },
-      },
-      {
-        name: "deadline",
-        typ: {
-          type: "option",
-          inner: {
-            type: "str",
-          },
-        },
-      },
-    ],
-  },
-}];
   
