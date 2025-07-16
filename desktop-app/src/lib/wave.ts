@@ -1,139 +1,286 @@
 /**
  * WAVE (WebAssembly Value Encoding) format utilities
- * Converts TypeScript values to WAVE format strings that golem-cli can parse
+ * Clean recursive implementation for comprehensive WIT type support
  */
 
-import { Parameter } from "@/types/component";
+import { Parameter, Typ } from "@/types/component";
 
 /**
- * Converts a JavaScript value to WAVE format string
- * Based on golem-cli's WAVE parsing logic
+ * Main conversion function with recursive type handling
  */
-export function convertToWaveFormat(
-  value: unknown,
-  context?: { isEnum?: boolean, isOption?: boolean },
-): string {
-  console.log("convertToWaveFormat called with:", { value, context });
+export function convertToWaveFormat(value: unknown, typ?: Typ): string {
+  console.log("convertToWaveFormat called with:", { value, typ });
+  return convertValueWithType(value, typ);
+}
 
+/**
+ * Core recursive conversion that handles all WIT types properly
+ */
+function convertValueWithType(value: unknown, typ?: Typ): string {
+  // Handle null/undefined
   if (value === null || value === undefined) {
-    if (context?.isOption) {
-      return "none"
+    return typ?.type === "option" ? "none" : "null";
+  }
+
+  // No type info - basic conversion
+  if (!typ) {
+    return convertBasicValue(value);
+  }
+
+  // Handle each WIT type with proper recursion
+  switch (typ.type) {
+    case "str":
+    case "string":
+      return `"${String(value).replace(/"/g, '\\"')}"`;
+
+    case "bool":
+      return String(value);
+
+    case "u8":
+    case "u16":
+    case "u32":
+    case "u64":
+    case "s8":
+    case "s16":
+    case "s32":
+    case "s64":
+    case "f32":
+    case "f64":
+      return String(value);
+
+    case "chr":
+      return typeof value === "number"
+        ? String(value)
+        : String(value.toString().charCodeAt(0));
+
+    case "enum":
+      return String(value);
+
+    case "option":
+      if (value === null || value === undefined) return "none";
+      const innerValue = convertValueWithType(value, typ.inner);
+      return typ.inner && isSimpleType(typ.inner.type)
+        ? innerValue
+        : `some(${innerValue})`;
+
+    case "list":
+      if (!Array.isArray(value)) return convertBasicValue(value);
+      const items = value.map(item => convertValueWithType(item, typ.inner));
+      return `[${items.join(", ")}]`;
+
+    case "record":
+      return convertRecord(value, typ);
+
+    case "variant":
+      return convertVariant(value, typ);
+
+    case "result":
+      return convertResult(value, typ);
+
+    case "tuple":
+      return convertTuple(value, typ);
+
+    case "flags":
+      if (!Array.isArray(value)) return convertBasicValue(value);
+      return `{${value.map(flag => String(flag)).join(", ")}}`;
+
+    case "handle":
+      return `"${String(value).replace(/"/g, '\\"')}"`;
+
+    case "unit":
+      return "null";
+
+    default:
+      console.warn("Unknown type:", typ.type);
+      return convertBasicValue(value);
+  }
+}
+
+function convertRecord(value: unknown, typ: Typ): string {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return convertBasicValue(value);
+  }
+
+  const obj = value as Record<string, unknown>;
+  const entries: string[] = [];
+
+  if (typ.fields) {
+    for (const field of typ.fields) {
+      if (field.name in obj) {
+        const fieldValue = obj[field.name];
+        const convertedValue = convertValueWithType(fieldValue, field.typ);
+        entries.push(`${field.name}: ${convertedValue}`);
+      }
     }
+  } else {
+    for (const [key, val] of Object.entries(obj)) {
+      entries.push(`${key}: ${convertBasicValue(val)}`);
+    }
+  }
+
+  return `{${entries.join(", ")}}`;
+}
+
+function convertVariant(value: unknown, typ: Typ): string {
+  // Handle string values as potential unit variants
+  if (typeof value === "string") {
+    // Check if this string matches a unit variant case
+    if (typ.cases) {
+      const unitCase = typ.cases.find(
+        c => (typeof c === "string" ? c : c.name) === value,
+      );
+      if (unitCase) {
+        return value; // Return the variant case name directly
+      }
+    }
+    // If not a unit variant, treat as regular string
+    return convertBasicValue(value);
+  }
+
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return convertBasicValue(value);
+  }
+
+  const obj = value as Record<string, unknown>;
+  const entries = Object.entries(obj);
+
+  if (entries.length !== 1) {
+    return convertBasicValue(value);
+  }
+
+  const [caseName, caseValue] = entries[0];
+
+  if (caseValue === null || caseValue === undefined) {
+    return caseName;
+  }
+
+  // Find case type
+  let caseType: Typ | undefined;
+  if (typ.cases) {
+    const caseInfo = typ.cases.find(c =>
+      typeof c === "object" && "name" in c
+        ? c.name === caseName
+        : c === caseName,
+    );
+    if (typeof caseInfo === "object" && "typ" in caseInfo) {
+      caseType = caseInfo.typ;
+    }
+  }
+
+  const convertedValue = convertValueWithType(caseValue, caseType);
+  return `${caseName}(${convertedValue})`;
+}
+
+function convertResult(value: unknown, typ: Typ): string {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return convertValueWithType(value, typ.ok);
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  if ("ok" in obj) {
+    const okValue = obj.ok;
+    if (okValue === null || okValue === undefined) {
+      return "ok(null)";
+    }
+
+    const convertedOk = convertValueWithType(okValue, typ.ok);
+    return typ.ok && isSimpleType(typ.ok.type)
+      ? convertedOk
+      : `ok(${convertedOk})`;
+  }
+
+  if ("err" in obj) {
+    const errValue = obj.err;
+    const convertedErr = convertValueWithType(errValue, typ.err);
+    return `err(${convertedErr})`;
+  }
+
+  return convertValueWithType(value, typ.ok);
+}
+
+function convertTuple(value: unknown, typ: Typ): string {
+  if (!Array.isArray(value)) {
+    return convertBasicValue(value);
+  }
+
+  const items: string[] = [];
+
+  if (typ.fields) {
+    for (let i = 0; i < value.length && i < typ.fields.length; i++) {
+      const elementValue = value[i];
+      const elementType = typ.fields[i].typ;
+      items.push(convertValueWithType(elementValue, elementType));
+    }
+  } else {
+    items.push(...value.map(item => convertBasicValue(item)));
+  }
+
+  return `(${items.join(", ")})`;
+}
+
+function convertBasicValue(value: unknown): string {
+  if (value === null || value === undefined) {
     return "null";
   }
 
-  const type = typeof value;
-
-  switch (type) {
+  switch (typeof value) {
     case "string":
-      // Enum values should be unquoted identifiers
-      if (context?.isEnum) {
-        console.log("Returning unquoted enum value:", value);
-        return value as string;
-      }
-      // Regular strings need to be quoted
-      console.log("Returning quoted string:", value);
-      return `"${(value as string).replace(/"/g, '\\"')}"`;
-
+      return `"${value.replace(/"/g, '\\"')}"`;
     case "number":
-      return String(value);
-
     case "boolean":
       return String(value);
-
     case "object":
       if (Array.isArray(value)) {
-        // Arrays in WAVE format: [item1, item2, item3]
-        const items = value.map(item => convertToWaveFormat(item)).join(", ");
-        return `[${items}]`;
+        const items = value.map(item => convertBasicValue(item));
+        return `[${items.join(", ")}]`;
       } else {
-        // Objects in WAVE format: {key1: value1, key2: value2}
-        const entries = Object.entries(value as Record<string, unknown>)
-          .map(([key, val]) => `${key}: ${convertToWaveFormat(val)}`)
-          .join(", ");
-        return `{${entries}}`;
+        const entries = Object.entries(value as Record<string, unknown>).map(
+          ([key, val]) => `${key}: ${convertBasicValue(val)}`,
+        );
+        return `{${entries.join(", ")}}`;
       }
-
     default:
-      // Fallback to JSON string representation
       return JSON.stringify(value);
   }
 }
 
-/**
- * Converts the current payload format to individual WAVE arguments
- * @param payload - The current payload format: { params: [{ value, typ }] }
- * @returns Array of WAVE-formatted argument strings
- */
+function isSimpleType(type: string): boolean {
+  return [
+    "str",
+    "string",
+    "bool",
+    "u8",
+    "u16",
+    "u32",
+    "u64",
+    "s8",
+    "s16",
+    "s32",
+    "s64",
+    "f32",
+    "f64",
+    "chr",
+    "enum",
+  ].includes(type);
+}
+
 export function convertPayloadToWaveArgs(payload: {
-  params: Array<{ value: unknown; typ?: unknown }>;
+  params: Array<{ value: unknown; typ?: Typ }>;
 }): string[] {
-  return payload.params.map(param => convertToWaveFormat(param.value));
+  return payload.params.map(param =>
+    convertValueWithType(param.value, param.typ),
+  );
 }
 
-/**
- * Simplified converter that takes just the values (since CLI will handle type validation)
- * @param values - Array of raw values to convert to WAVE format
- * @returns Array of WAVE-formatted argument strings
- */
 export function convertValuesToWaveArgs(values: unknown[]): string[] {
-  return values.map(value => convertToWaveFormat(value));
+  return values.map(value => convertBasicValue(value));
 }
 
-/**
- * Smart converter that handles parameter types properly for WAVE format
- * @param value - The value to convert
- * @param parameter - The parameter definition with type information
- * @returns WAVE-formatted string
- */
 export function convertToWaveFormatWithType(
   value: unknown,
   parameter?: Parameter,
 ): string {
   console.log("convertToWaveFormatWithType called with:", { value, parameter });
-
-  if (value == null || value == undefined) {
-    return "null";
-  }
-
-  // Handle different parameter types
-  if (parameter?.typ?.type === "enum") {
-    // Enum values are unquoted identifiers
-    return convertToWaveFormat(value, { isEnum: true });
-  }
-
-  if (parameter?.typ?.type === "record") {
-    // For records, check each field type
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      const entries = Object.entries(value as Record<string, unknown>)
-        .map(([key, val]) => {
-          const field = parameter.typ.fields?.find((f: any) => f.name === key);
-          if (field?.typ?.type === "enum") {
-            return `${key}: ${convertToWaveFormat(val, { isEnum: true })}`;
-          }
-          if (field?.typ?.type === "option") {
-            return `${key}: ${convertToWaveFormat(val, { isOption: true })}`;
-          }
-          return `${key}: ${convertToWaveFormat(val)}`;
-        })
-        .join(", ");
-      return `{${entries}}`;
-    }
-  }
-
-  if (parameter?.typ?.type === "option") {
-    // Handle optional values
-    if (value === null || value === undefined) {
-      return "none";
-    }
-    return convertToWaveFormatWithType(value, {
-      typ: parameter.typ.inner!,
-      name: parameter.name,
-      type: parameter.typ.type,
-    });
-  }
-
-  // Default conversion
-  console.log("Using default conversion for:", value, parameter?.typ?.type);
-  return convertToWaveFormat(value);
+  return convertValueWithType(value, parameter?.typ);
 }

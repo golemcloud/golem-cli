@@ -136,7 +136,6 @@ export interface ComponentExportFunction {
 
 function parseType(typeStr: string): Typ {
   const trimmed = typeStr.trim();
-  
 
   // Handle record types: record { field1: type1, field2: type2 }
   if (trimmed.startsWith("record ") && trimmed.includes("{")) {
@@ -144,9 +143,9 @@ function parseType(typeStr: string): Typ {
     const braceEnd = trimmed.lastIndexOf("}");
     if (braceStart !== -1 && braceEnd > braceStart) {
       const fieldsStr = trimmed.substring(braceStart + 1, braceEnd).trim();
-      
+
       const fields = parseRecordFields(fieldsStr);
-      
+
       return {
         type: "record",
         fields,
@@ -164,10 +163,43 @@ function parseType(typeStr: string): Typ {
         .split(",")
         .map(s => s.trim())
         .filter(s => s.length > 0);
-      
+
       return {
         type: "enum",
         cases,
+      };
+    }
+  }
+
+  // Handle variant types: variant { case1, case2(type), case3 }
+  if (trimmed.startsWith("variant ") && trimmed.includes("{")) {
+    const braceStart = trimmed.indexOf("{");
+    const braceEnd = trimmed.lastIndexOf("}");
+    if (braceStart !== -1 && braceEnd > braceStart) {
+      const variantStr = trimmed.substring(braceStart + 1, braceEnd).trim();
+      const cases = parseVariantCases(variantStr);
+
+      return {
+        type: "variant",
+        cases,
+      };
+    }
+  }
+
+  // Handle flags types: flags { flag1, flag2, flag3 }
+  if (trimmed.startsWith("flags ") && trimmed.includes("{")) {
+    const braceStart = trimmed.indexOf("{");
+    const braceEnd = trimmed.lastIndexOf("}");
+    if (braceStart !== -1 && braceEnd > braceStart) {
+      const flagsStr = trimmed.substring(braceStart + 1, braceEnd).trim();
+      const names = flagsStr
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      return {
+        type: "flags",
+        names,
       };
     }
   }
@@ -373,29 +405,29 @@ function parseParameter(paramStr: string): Parameter | null {
   // Find the first colon that's not inside brackets/braces
   let depth = 0;
   let colonIndex = -1;
-  
+
   for (let i = 0; i < paramStr.length; i++) {
     const char = paramStr[i];
-    
-    if (char === '<' || char === '(' || char === '{') {
+
+    if (char === "<" || char === "(" || char === "{") {
       depth++;
-    } else if (char === '>' || char === ')' || char === '}') {
+    } else if (char === ">" || char === ")" || char === "}") {
       depth--;
-    } else if (char === ':' && depth === 0) {
+    } else if (char === ":" && depth === 0) {
       colonIndex = i;
       break;
     }
   }
-  
+
   if (colonIndex === -1) return null;
-  
+
   const name = paramStr.substring(0, colonIndex).trim();
   const typeStr = paramStr.substring(colonIndex + 1).trim();
-  
+
   return {
     name,
     type: typeStr,
-    typ: parseType(typeStr)
+    typ: parseType(typeStr),
   };
 }
 
@@ -421,7 +453,6 @@ function parseResults(resultStr: string): Result[] {
 
 export function parseExportString(exportStr: string): Export | null {
   try {
-
     const parenIndex = exportStr.indexOf("(");
     const arrowIndex = exportStr.indexOf(" -> ");
 
@@ -466,12 +497,8 @@ export function parseExportString(exportStr: string): Export | null {
       }
     }
 
-    
-
     const parameters = parseParameters(parametersPart);
     const results = parseResults(resultsPart);
-
-    
 
     const func: Function = {
       name: functionName,
@@ -489,4 +516,68 @@ export function parseExportString(exportStr: string): Export | null {
     return null;
   }
 }
-  
+
+// Helper function to parse variant cases
+function parseVariantCases(casesStr: string): Case[] {
+  if (!casesStr.trim()) return [];
+
+  const cases: Case[] = [];
+  let depth = 0;
+  let current = "";
+  let i = 0;
+
+  while (i < casesStr.length) {
+    const char = casesStr[i];
+
+    if (char === "<" || char === "(" || char === "{") {
+      depth++;
+      current += char;
+    } else if (char === ">" || char === ")" || char === "}") {
+      depth--;
+      current += char;
+    } else if (char === "," && depth === 0) {
+      if (current.trim()) {
+        const caseItem = parseVariantCase(current.trim());
+        if (caseItem) cases.push(caseItem);
+      }
+      current = "";
+    } else {
+      current += char;
+    }
+    i++;
+  }
+
+  if (current.trim()) {
+    const caseItem = parseVariantCase(current.trim());
+    if (caseItem) cases.push(caseItem);
+  }
+
+  return cases;
+}
+
+// Helper function to parse a single variant case
+function parseVariantCase(caseStr: string): Case | null {
+  const parenIndex = caseStr.indexOf("(");
+
+  if (parenIndex === -1) {
+    // Simple case without payload
+    return {
+      name: caseStr.trim(),
+      typ: { type: "unit" },
+    };
+  }
+
+  // Case with payload
+  const name = caseStr.substring(0, parenIndex).trim();
+  const parenEnd = caseStr.lastIndexOf(")");
+
+  if (parenEnd > parenIndex) {
+    const typeStr = caseStr.substring(parenIndex + 1, parenEnd).trim();
+    return {
+      name,
+      typ: parseType(typeStr),
+    };
+  }
+
+  return null;
+}

@@ -1,4 +1,3 @@
-import type React from "react";
 import { useEffect, useState } from "react";
 import { ComponentExportFunction } from "@/types/component";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,13 +12,11 @@ export const DynamicForm = ({
   onInvoke,
   resetResult,
   exportName = "",
-  functionName = "",
 }: {
   functionDetails: ComponentExportFunction;
   onInvoke: (args: unknown[] | { params: Array<{ value: unknown; typ: any; name: string }> }) => void;
   resetResult: () => void;
   exportName?: string;
-  functionName?: string;
 }) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [recursiveFormData, setRecursiveFormData] = useState<Record<string, unknown>>({});
@@ -39,7 +36,7 @@ export const DynamicForm = ({
       return acc;
     }, {} as Record<string, unknown>);
     console.log(functionDetails.parameters, "initialData", initialData);
-    
+
     setRecursiveFormData(initialData);
   };
 
@@ -49,12 +46,25 @@ export const DynamicForm = ({
       case "record":
         const record: Record<string, unknown> = {};
         typeDef.fields?.forEach((field: any) => {
-            record[field.name] = createEmptyValue(field.typ);
+          record[field.name] = createEmptyValue(field.typ);
         });
         return record;
       case "list":
         return [];
       case "option":
+        return null;
+      case "variant":
+        // For variants, create the first case as default
+        if (typeDef.cases && typeDef.cases.length > 0) {
+          const firstCase = typeDef.cases[0];
+          if (typeof firstCase === "string") {
+            // Unit variant - just return the case name
+            return firstCase;
+          } else {
+            // Variant with data - create object with case name as key
+            return { [firstCase.name]: createEmptyValue(firstCase.typ) };
+          }
+        }
         return null;
       case "str":
       case "chr":
@@ -66,6 +76,17 @@ export const DynamicForm = ({
           return typeDef.cases[0];
         }
         return "";
+      case "flags":
+        return [];
+      case "result":
+        // For results, create default ok value
+        return { ok: typeDef.ok ? createEmptyValue(typeDef.ok) : null };
+      case "tuple":
+        // For tuples, create array with empty values for each element
+        if (typeDef.fields && typeDef.fields.length > 0) {
+          return typeDef.fields.map((field: any) => createEmptyValue(field.typ));
+        }
+        return [];
       case "f64":
       case "f32":
       case "u64":
@@ -99,7 +120,7 @@ export const DynamicForm = ({
         [current]: updateNestedValue((obj[current] as Record<string, unknown>) || {}, rest, value),
       };
     };
-    
+
     setRecursiveFormData(prev => updateNestedValue(prev, path.split("."), value));
     resetResult();
   };
@@ -108,10 +129,10 @@ export const DynamicForm = ({
   const handleSubmit = () => {
     // Check if HTTP handler can be invoked directly
     const canInvoke = canInvokeHttpHandler(exportName);
-    
+
     if (!canInvoke) {
-      setErrors({ 
-        root: "This HTTP handler cannot be invoked directly via CLI." 
+      setErrors({
+        root: "This HTTP handler cannot be invoked directly via CLI."
       });
       return;
     }
@@ -155,7 +176,7 @@ export const DynamicForm = ({
             )}
 
             {functionDetails.parameters &&
-            functionDetails.parameters.length > 0 ? (
+              functionDetails.parameters.length > 0 ? (
               // Recursive form layout
               <div className="space-y-4">
                 {functionDetails.parameters.map(parameter => (
@@ -180,7 +201,7 @@ export const DynamicForm = ({
                 </div>
               </div>
             )}
-            
+
             {/* Display root errors */}
             {errors.root && (
               <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">

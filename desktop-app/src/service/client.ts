@@ -3,7 +3,7 @@ import { toast } from "@/hooks/use-toast";
 // import { ENDPOINT } from "@/service/endpoints.ts";
 import { parseErrorResponse } from "@/service/error-handler.ts";
 import { Api } from "@/types/api.ts";
-import { Component, ComponentList, Parameter } from "@/types/component.ts";
+import { Component, ComponentList } from "@/types/component.ts";
 import { Plugin } from "@/types/plugin";
 import { invoke } from "@tauri-apps/api/core";
 import { settingsService } from "@/lib/settings.ts";
@@ -20,10 +20,7 @@ import {
   serializeHttpApiDefinition,
 } from "@/types/golemManifest.ts";
 import { parse, parseDocument, Document, YAMLMap } from "yaml";
-import {
-  convertToWaveFormatWithType,
-  convertValuesToWaveArgs,
-} from "@/lib/wave";
+import { convertValuesToWaveArgs, convertPayloadToWaveArgs } from "@/lib/wave";
 
 export class Service {
   public baseUrl: string;
@@ -432,19 +429,16 @@ export class Service {
     const component = await this.getComponentById(appId, componentId);
     const fullWorkerName = `${component?.componentName}/${workerName}`;
 
-    // Convert payload to individual WAVE-formatted arguments
-    // Handle both old format (raw values) and new format (with type info)
+    // Convert payload to individual WAVE-formatted arguments using enhanced converter
     let waveArgs: string[];
-    if (payload.params && payload.params.length > 0 && payload.params[0].typ) {
-      waveArgs = payload.params.map((param: { value: any; typ: Parameter }) =>
-        convertToWaveFormatWithType(param.value, {
-          typ: param.typ,
-          name: "",
-          type: param.typ.type,
-        }),
-      );
+    if (payload.params && Array.isArray(payload.params)) {
+      // Use the enhanced payload converter that handles all WIT types
+      waveArgs = convertPayloadToWaveArgs(payload);
+    } else if (Array.isArray(payload)) {
+      // Legacy format - array of raw values
+      waveArgs = convertValuesToWaveArgs(payload);
     } else {
-      // empty value
+      // Empty or invalid payload
       waveArgs = [];
     }
 
@@ -466,29 +460,17 @@ export class Service {
     const component = await this.getComponentById(appId, componentId);
     const ephemeralWorkerName = `${component?.componentName}/-`;
 
-    // Convert payload to individual WAVE-formatted arguments
-    // Handle both old format (raw values) and new format (with type info)
+    // Convert payload to individual WAVE-formatted arguments using enhanced converter
     let waveArgs: string[];
-    if (payload.params && payload.params.length > 0 && payload.params[0].typ) {
-      // New format with type information
-      // Filter out null option type parameters
-      const filteredParams = payload.params.filter((param: any) => {
-        if (
-          param.typ?.type === "option" &&
-          (param.value === null || param.value === undefined)
-        ) {
-          console.log("Skipping null option parameter:", param.name);
-          return false;
-        }
-        return true;
-      });
-
-      waveArgs = filteredParams.map((param: any) =>
-        convertToWaveFormatWithType(param.value, { typ: param.typ }),
-      );
-    } else {
-      // Old format - raw values
+    if (payload.params && Array.isArray(payload.params)) {
+      // Use the enhanced payload converter that handles all WIT types
+      waveArgs = convertPayloadToWaveArgs(payload);
+    } else if (Array.isArray(payload)) {
+      // Legacy format - array of raw values
       waveArgs = convertValuesToWaveArgs(payload);
+    } else {
+      // Empty or invalid payload
+      waveArgs = [];
     }
 
     return await this.callCLI(appId, "worker", [

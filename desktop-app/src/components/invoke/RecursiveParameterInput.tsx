@@ -39,6 +39,20 @@ const createEmptyValue = (typeDef: Typ): unknown => {
     case "option":
       return null;
 
+    case "variant":
+      // For variants, create the first case as default
+      if (typeDef.cases && typeDef.cases.length > 0) {
+        const firstCase = typeDef.cases[0];
+        if (typeof firstCase === "string") {
+          // Unit variant - just return the case name
+          return firstCase;
+        } else {
+          // Variant with data - create object with case name as key
+          return { [firstCase.name]: createEmptyValue(firstCase.typ) };
+        }
+      }
+      return null;
+
     case "str":
     case "chr":
       return "";
@@ -51,6 +65,21 @@ const createEmptyValue = (typeDef: Typ): unknown => {
         return typeDef.cases[0];
       }
       return "";
+
+    case "flags":
+      // For flags, create empty array as default
+      return [];
+
+    case "result":
+      // For results, create default ok value
+      return { ok: typeDef.ok ? createEmptyValue(typeDef.ok) : null };
+
+    case "tuple":
+      // For tuples, create array with empty values for each element
+      if (typeDef.fields && typeDef.fields.length > 0) {
+        return typeDef.fields.map(field => createEmptyValue(field.typ));
+      }
+      return [];
 
     case "f64":
     case "f32":
@@ -96,7 +125,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                     name={field.name}
                     typeDef={field.typ}
                     value={(value as Record<string, unknown>)?.[field.name]}
-                    onChange={(fieldPath, fieldValue) => {
+                    onChange={(_, fieldValue) => {
                       const newValue = { ...(value as Record<string, unknown> || {}) };
                       newValue[field.name] = fieldValue;
                       handleValueChange(newValue);
@@ -113,26 +142,36 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
         return (
           <div className="space-y-4">
             <Select
-              value={(value as { type: string })?.type || ""}
+              value={(() => {
+                if (typeof value === "string") return value;
+                if (value && typeof value === "object" && value !== null) {
+                  const entries = Object.entries(value as Record<string, unknown>);
+                  if (entries.length === 1) {
+                    return entries[0][0]; // Return the case name
+                  }
+                }
+                return "";
+              })()}
               onValueChange={(selectedType) => {
                 const selectedCase = typeDef.cases?.find(
                   (c) => (typeof c === "string" ? c : c.name) === selectedType
                 );
                 if (selectedCase) {
-                  const caseType = typeof selectedCase === "string"
-                    ? { type: selectedCase }
-                    : selectedCase.typ;
-                  handleValueChange({
-                    type: selectedType,
-                    value: createEmptyValue(caseType)
-                  });
+                  if (typeof selectedCase === "string") {
+                    // Unit variant - just the case name
+                    handleValueChange(selectedType);
+                  } else {
+                    // Variant with data - create object with case name as key
+                    const caseValue = createEmptyValue(selectedCase.typ);
+                    handleValueChange({ [selectedType]: caseValue });
+                  }
                 } else {
                   handleValueChange(null);
                 }
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select type..." />
+                <SelectValue placeholder="Select variant..." />
               </SelectTrigger>
               <SelectContent>
                 {typeDef.cases?.map((caseItem) => {
@@ -145,26 +184,36 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                 })}
               </SelectContent>
             </Select>
-            {(value as { type: string; value: unknown })?.type && (
-              <div className="pl-4 border-l-2 border-border/20">
-                <RecursiveParameterInput
-                  name="value"
-                  typeDef={
-                    typeDef.cases!.find(
-                      (c) => (typeof c === "string" ? c : c.name) === (value as { type: string }).type
-                    )!.typ
-                  }
-                  value={(value as { value: unknown }).value}
-                  onChange={(_, newValue) =>
-                    handleValueChange({
-                      type: (value as { type: string }).type,
-                      value: newValue,
-                    })
-                  }
-                  path={currentPath}
-                />
-              </div>
-            )}
+            {(() => {
+              if (!value || typeof value !== "object" || value === null) return null;
+
+              // Handle the case where value is a variant record like { caseName: caseValue }
+              const entries = Object.entries(value as Record<string, unknown>);
+              if (entries.length === 1) {
+                const [caseKey, caseValue] = entries[0];
+                const selectedCase = typeDef.cases?.find(
+                  (c) => (typeof c === "string" ? c : c.name) === caseKey
+                );
+
+                if (selectedCase && typeof selectedCase !== "string") {
+                  return (
+                    <div className="pl-4 border-l-2 border-border/20">
+                      <RecursiveParameterInput
+                        key={caseKey}
+                        name={caseKey}
+                        typeDef={selectedCase.typ}
+                        value={caseValue}
+                        onChange={(_, newValue) => {
+                          handleValueChange({ [caseKey]: newValue });
+                        }}
+                        path={currentPath}
+                      />
+                    </div>
+                  );
+                }
+              }
+              return null;
+            })()}
           </div>
         );
 
@@ -294,6 +343,116 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
               })}
             </SelectContent>
           </Select>
+        );
+
+      case "flags":
+        return (
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground">Select flags:</div>
+            {(typeDef.names || []).map((flagName) => (
+              <div key={flagName} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`${currentPath}-${flagName}`}
+                  checked={Array.isArray(value) && value.includes(flagName)}
+                  onChange={(e) => {
+                    const currentFlags = Array.isArray(value) ? value : [];
+                    if (e.target.checked) {
+                      handleValueChange([...currentFlags, flagName]);
+                    } else {
+                      handleValueChange(currentFlags.filter(f => f !== flagName));
+                    }
+                  }}
+                  className="rounded border-border/20"
+                />
+                <Label htmlFor={`${currentPath}-${flagName}`} className="text-sm">
+                  {flagName}
+                </Label>
+              </div>
+            ))}
+          </div>
+        );
+
+      case "result":
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Label className="text-sm font-medium">Result type:</Label>
+              <RadioGroup
+                value={value && typeof value === "object" && value !== null && "ok" in value ? "ok" : "err"}
+                onValueChange={(resultType) => {
+                  if (resultType === "ok") {
+                    handleValueChange({
+                      ok: typeDef.ok ? createEmptyValue(typeDef.ok) : null
+                    });
+                  } else {
+                    handleValueChange({
+                      err: typeDef.err ? createEmptyValue(typeDef.err) : null
+                    });
+                  }
+                }}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="ok" id={`${currentPath}-ok`} />
+                  <Label htmlFor={`${currentPath}-ok`}>Ok</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="err" id={`${currentPath}-err`} />
+                  <Label htmlFor={`${currentPath}-err`}>Error</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            {(() => {
+              if (!value || typeof value !== "object" || value === null) return null;
+
+              const resultValue = value as Record<string, unknown>;
+
+              return (
+                <div className="pl-4 border-l-2 border-border/20">
+                  {"ok" in resultValue && typeDef.ok && (
+                    <RecursiveParameterInput
+                      name="ok"
+                      typeDef={typeDef.ok}
+                      value={resultValue.ok}
+                      onChange={(_, newValue) => handleValueChange({ ok: newValue })}
+                      path={currentPath}
+                    />
+                  )}
+                  {"err" in resultValue && typeDef.err && (
+                    <RecursiveParameterInput
+                      name="err"
+                      typeDef={typeDef.err}
+                      value={resultValue.err}
+                      onChange={(_, newValue) => handleValueChange({ err: newValue })}
+                      path={currentPath}
+                    />
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        );
+
+      case "tuple":
+        return (
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground">Tuple elements:</div>
+            {typeDef.fields?.map((field, index) => (
+              <div key={index} className="border-l-2 border-border/20 pl-4">
+                <RecursiveParameterInput
+                  name={`element-${index}`}
+                  typeDef={field.typ}
+                  value={Array.isArray(value) ? value[index] : undefined}
+                  onChange={(_, newValue) => {
+                    const newTuple = Array.isArray(value) ? [...value] : new Array(typeDef.fields?.length || 0);
+                    newTuple[index] = newValue;
+                    handleValueChange(newTuple);
+                  }}
+                  path={currentPath}
+                />
+              </div>
+            ))}
+          </div>
         );
 
       case "f64":
