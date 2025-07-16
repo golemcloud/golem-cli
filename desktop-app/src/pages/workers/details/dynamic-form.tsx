@@ -28,6 +28,7 @@ import { CodeBlock, dracula } from "react-code-blocks";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { sanitizeInput } from "@/lib/utils";
+import { canInvokeHttpHandler } from "@/lib/http-handler";
 
 type FormData = Record<string, any>;
 type FieldType = {
@@ -40,26 +41,30 @@ type FieldType = {
 };
 
 export const nonStringPrimitives = [
-  "S64",
-  "S32",
-  "S16",
-  "S8",
-  "U64",
-  "U32",
-  "U16",
-  "U8",
-  "Bool",
-  "Enum",
+  "s64",
+  "s32", 
+  "s16",
+  "s8",
+  "u64",
+  "u32",
+  "u16", 
+  "u8",
+  "bool",
+  "enum",
 ];
 
 export const DynamicForm = ({
   functionDetails,
   onInvoke,
   resetResult,
+  exportName = "",
+  functionName = "",
 }: {
   functionDetails: ComponentExportFunction;
   onInvoke: (args: unknown[]) => void;
   resetResult: () => void;
+  exportName?: string;
+  functionName?: string;
 }) => {
   const [formData, setFormData] = useState<FormData>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -77,10 +82,12 @@ export const DynamicForm = ({
       setErrors({});
       return;
     }
+
+
     const initialData = functionDetails.parameters.reduce((acc, field) => {
       if (field.typ.type === "Str" || field.typ.type === "Chr") {
         acc[field.name] = "";
-      } else if (!nonStringPrimitives.includes(field.typ.type)) {
+      } else if (!nonStringPrimitives.includes(field.typ.type.toLowerCase())) {
         const parsed = parseToJsonEditor({
           parameters: [{ ...field }],
           name: "",
@@ -115,13 +122,13 @@ export const DynamicForm = ({
     }
     functionDetails.parameters.forEach(field => {
       let value = formData[field.name];
-      if (nonStringPrimitives.includes(field.typ.type) && value === undefined) {
+      if (nonStringPrimitives.includes(field.typ.type.toLowerCase()) && value === undefined) {
         validationErrors[field.name] = `${field.name} is required`;
       } else {
         if (
-          !nonStringPrimitives.includes(field.typ.type) &&
-          field.typ.type !== "Str" &&
-          field.typ.type !== "Chr"
+          !nonStringPrimitives.includes(field.typ.type.toLowerCase()) &&
+          field.typ.type.toLowerCase() !== "str" &&
+          field.typ.type.toLowerCase() !== "chr"
         ) {
           try {
             const sanitizedValue = sanitizeInput(value);
@@ -131,19 +138,19 @@ export const DynamicForm = ({
             return null;
           }
         } else if (
-          ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
-            field.typ.type,
+          ["s64", "s32", "s16", "s8", "u64", "u32", "u16", "u8"].includes(
+            field.typ.type.toLowerCase(),
           )
         ) {
           value = Number.parseInt(value);
         } else if (value !== undefined) {
           if (
-            ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
-              field.typ.type,
+            ["s64", "s32", "s16", "s8", "u64", "u32", "u16", "u8"].includes(
+              field.typ.type.toLowerCase(),
             )
           ) {
             value = Number.parseInt(value);
-          } else if (field.typ.type === "Bool") {
+          } else if (field.typ.type.toLowerCase() === "bool") {
             value = Boolean(value);
           }
         }
@@ -157,51 +164,57 @@ export const DynamicForm = ({
   };
 
   const handleSubmit = () => {
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-    } else {
-      const result: unknown[] = [];
-      if (functionDetails.parameters) {
-        functionDetails.parameters.forEach(field => {
-          const value = formData[field.name] || "";
+    // Check if HTTP handler can be invoked directly
+    const canInvoke = canInvokeHttpHandler(exportName);
+    
+    if (!canInvoke) {
+      setErrors({ 
+        root: "This HTTP handler cannot be invoked directly via CLI." 
+      });
+      return;
+    }
+
+    // Skip validation - let CLI handle it
+    const result: unknown[] = [];
+    if (functionDetails.parameters) {
+      functionDetails.parameters.forEach(field => {
+        const value = formData[field.name] || "";
+        if (
+          !nonStringPrimitives.includes(field.typ.type.toLowerCase()) &&
+          field.typ.type.toLowerCase() !== "str" &&
+          field.typ.type.toLowerCase() !== "chr"
+        ) {
+          try {
+            const sanitizedValue = sanitizeInput(value);
+            result.push(JSON.parse(sanitizedValue));
+          } catch (error) {
+            console.error(
+              `Error parsing JSON for field ${field.name}:`,
+              error,
+            );
+          }
+        } else if (
+          ["s64", "s32", "s16", "s8", "u64", "u32", "u16", "u8"].includes(
+            field.typ.type.toLowerCase(),
+          )
+        ) {
+          result.push(Number.parseInt(value));
+        } else if (value !== undefined) {
           if (
-            !nonStringPrimitives.includes(field.typ.type) &&
-            field.typ.type !== "Str" &&
-            field.typ.type !== "Chr"
-          ) {
-            try {
-              const sanitizedValue = sanitizeInput(value);
-              result.push(JSON.parse(sanitizedValue));
-            } catch (error) {
-              console.error(
-                `Error parsing JSON for field ${field.name}:`,
-                error,
-              );
-            }
-          } else if (
-            ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
-              field.typ.type,
+            ["s64", "s32", "s16", "s8", "u64", "u32", "u16", "u8"].includes(
+              field.typ.type.toLowerCase(),
             )
           ) {
             result.push(Number.parseInt(value));
-          } else if (value !== undefined) {
-            if (
-              ["S64", "S32", "S16", "S8", "U64", "U32", "U16", "U8"].includes(
-                field.typ.type,
-              )
-            ) {
-              result.push(Number.parseInt(value));
-            } else if (field.typ.type === "Bool") {
-              result.push(Boolean(value));
-            } else {
-              result.push(value);
-            }
+          } else if (field.typ.type.toLowerCase() === "bool") {
+            result.push(Boolean(value));
+          } else {
+            result.push(value);
           }
-        });
-      }
-      onInvoke(result);
+        }
+      });
     }
+    onInvoke(result);
   };
 
   const buildInput = (field: FieldType, isOptional: boolean) => {
@@ -209,11 +222,12 @@ export const DynamicForm = ({
     const type = isOptional ? typ.inner?.type : typ.type;
     const value = formData[name] ?? "";
 
-    switch (type) {
-      case "S64":
-      case "S32":
-      case "S16":
-      case "S8":
+    const normalizedType = type?.toLowerCase();
+    switch (normalizedType) {
+      case "s64":
+      case "s32":
+      case "s16":
+      case "s8":
         return (
           <Input
             type="number"
@@ -223,10 +237,10 @@ export const DynamicForm = ({
             onChange={e => handleInputChange(name, e.target.value)}
           />
         );
-      case "U64":
-      case "U32":
-      case "U16":
-      case "U8":
+      case "u64":
+      case "u32":
+      case "u16":
+      case "u8":
         return (
           <Input
             type="number"
@@ -238,8 +252,8 @@ export const DynamicForm = ({
             }}
           />
         );
-      case "Str":
-      case "Chr":
+      case "str":
+      case "chr":
         return (
           <Input
             type="text"
@@ -248,7 +262,7 @@ export const DynamicForm = ({
             onChange={e => handleInputChange(name, e.target.value)}
           />
         );
-      case "Bool":
+      case "bool":
         return (
           <RadioGroup
             value={value}
@@ -264,7 +278,7 @@ export const DynamicForm = ({
             </div>
           </RadioGroup>
         );
-      case "Enum":
+      case "enum":
         return (
           <Select
             value={value}
@@ -366,6 +380,23 @@ export const DynamicForm = ({
       <Card className="w-full">
         <form>
           <CardContent className="p-6">
+            {/* Warning for HTTP handlers */}
+            {!canInvokeHttpHandler(exportName) && (
+              <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div className="flex items-start">
+                  <Info className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                      Cannot invoke HTTP handler directly
+                    </h4>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                      This is an HTTP incoming handler that is designed to be triggered by incoming HTTP requests, not direct CLI invocation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {functionDetails.parameters &&
             functionDetails.parameters.length > 0 ? (
               functionDetails.parameters.map(parameter =>
@@ -381,6 +412,13 @@ export const DynamicForm = ({
                   This function has no parameters. You can invoke it without any
                   arguments.
                 </div>
+              </div>
+            )}
+            
+            {/* Display root errors */}
+            {errors.root && (
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-700 dark:text-red-300">{errors.root}</p>
               </div>
             )}
           </CardContent>

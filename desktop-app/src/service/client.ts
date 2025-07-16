@@ -20,6 +20,7 @@ import {
   serializeHttpApiDefinition,
 } from "@/types/golemManifest.ts";
 import { parse, parseDocument, Document, YAMLMap } from "yaml";
+import { convertPayloadToWaveArgs, convertToWaveFormatWithType } from "@/lib/wave";
 
 export class Service {
   public baseUrl: string;
@@ -397,38 +398,60 @@ export class Service {
     ]);
   };
 
-  public interruptWorker = async (appId: string, workerName: string) => {
-    return await this.callCLI(appId, "worker", ["interrupt", workerName]);
+  public interruptWorker = async (appId: string, componentId: string, workerName: string) => {
+    const component = await this.getComponentById(appId, componentId);
+    const fullWorkerName = `${component?.componentName}/${workerName}`;
+    return await this.callCLI(appId, "worker", ["interrupt", fullWorkerName]);
   };
 
-  public resumeWorker = async (appId: string, workerName: string) => {
-    return await this.callCLI(appId, "worker", ["resume", workerName]);
+  public resumeWorker = async (appId: string, componentId: string, workerName: string) => {
+    const component = await this.getComponentById(appId, componentId);
+    const fullWorkerName = `${component?.componentName}/${workerName}`;
+    return await this.callCLI(appId, "worker", ["resume", fullWorkerName]);
   };
 
   public invokeWorkerAwait = async (
     appId: string,
+    componentId: string,
     workerName: string,
     functionName: string,
     payload: any,
   ) => {
+    // Get component name for proper worker identification
+    const component = await this.getComponentById(appId, componentId);
+    const fullWorkerName = `${component?.componentName}/${workerName}`;
+    
+    // Convert payload to individual WAVE-formatted arguments using smart conversion
+    const waveArgs = payload.params.map((param: any) => 
+      convertToWaveFormatWithType(param.value, param.typ)
+    );
     return await this.callCLI(appId, "worker", [
       "invoke",
-      workerName,
+      fullWorkerName,
       functionName,
-      JSON.stringify(payload),
+      ...waveArgs,
     ]);
   };
 
   public invokeEphemeralAwait = async (
     appId: string,
+    componentId: string,
     functionName: string,
     payload: any,
   ) => {
+    // Get component name for ephemeral worker identification
+    const component = await this.getComponentById(appId, componentId);
+    const ephemeralWorkerName = `${component?.componentName}/-`;
+    
+    // Convert payload to individual WAVE-formatted arguments using smart conversion
+    const waveArgs = payload.params.map((param: any) => 
+      convertToWaveFormatWithType(param.value, param.typ)
+    );
     return await this.callCLI(appId, "worker", [
       "invoke",
-      "-",
+      ephemeralWorkerName,
       functionName,
-      JSON.stringify(payload),
+      ...waveArgs,
     ]);
   };
 
@@ -458,12 +481,14 @@ export class Service {
     workerName: string,
     searchQuery: string,
   ) => {
+    // Get component name for proper worker identification
     const component = await this.getComponentById(appId, componentId);
+    const fullWorkerName = `${component?.componentName}/${workerName}`;
+    
     const r = await this.callCLI(appId, "worker", [
       "oplog",
-      `${component?.componentName}/${workerName}`,
+      fullWorkerName,
       `--query=${searchQuery}`,
-      // `--count=${count}`,
     ]);
     console.log(r);
 
@@ -565,7 +590,7 @@ export class Service {
         variant: "destructive",
         duration: 5000,
       });
-      throw new Error("Error in calling golem CLI: ");
+      throw new Error("Error in calling golem CLI: " + String(e));
     }
 
     let parsedResult;

@@ -329,11 +329,16 @@ export function parseTypesData(input: any): any {
   };
 }
 
+function normalizeType(type: string): string {
+  return type.toLowerCase();
+}
+
 export function validateJsonStructure(
   data: any,
   field: TypeField,
 ): string | null {
   const { type, fields, cases, names, inner } = field.typ;
+  const normalizedType = normalizeType(type);
 
   const isInteger = (num: number) => Number.isInteger(num);
   const isUnsigned = (num: number) => num >= 0 && isInteger(num);
@@ -343,32 +348,32 @@ export function validateJsonStructure(
     return num >= min && num <= max;
   };
 
-  switch (type) {
-    case "Str":
-    case "Chr":
+  switch (normalizedType) {
+    case "str":
+    case "chr":
       if (typeof data !== "string") {
         return `Expected a string for field "${field.name}", but got ${typeof data}`;
       }
       break;
 
-    case "Bool":
+    case "bool":
       if (typeof data !== "boolean") {
         return `Expected a boolean for field "${field.name}", but got ${typeof data}`;
       }
       break;
 
-    case "F64":
-    case "F32":
+    case "f64":
+    case "f32":
       if (typeof data !== "number") {
         return `Expected a number for field "${field.name}", but got ${typeof data}`;
       }
       break;
 
-    case "U64":
-    case "U32":
-    case "U16":
-    case "U8": {
-      const bitSize = parseInt(type.slice(1), 10);
+    case "u64":
+    case "u32":
+    case "u16":
+    case "u8": {
+      const bitSize = parseInt(normalizedType.slice(1), 10);
       if (
         typeof data !== "number" ||
         !isUnsigned(data) ||
@@ -379,11 +384,11 @@ export function validateJsonStructure(
       break;
     }
 
-    case "S64":
-    case "S32":
-    case "S16":
-    case "S8": {
-      const bitSize = parseInt(type.slice(1), 10);
+    case "s64":
+    case "s32":
+    case "s16":
+    case "s8": {
+      const bitSize = parseInt(normalizedType.slice(1), 10);
       if (
         typeof data !== "number" ||
         !isInteger(data) ||
@@ -394,7 +399,7 @@ export function validateJsonStructure(
       break;
     }
 
-    case "Record": {
+    case "record": {
       if (typeof data !== "object" || data === null || Array.isArray(data)) {
         return `Expected an object for field "${field.name}", but got ${typeof data}`;
       }
@@ -406,7 +411,7 @@ export function validateJsonStructure(
       break;
     }
 
-    case "Tuple": {
+    case "tuple": {
       if (!Array.isArray(data)) {
         return `Expected an array for field "${field.name}", but got ${typeof data}`;
       }
@@ -421,7 +426,7 @@ export function validateJsonStructure(
       break;
     }
 
-    case "List": {
+    case "list": {
       if (!Array.isArray(data)) {
         return `Expected an array for field "${field.name}", but got ${typeof data}`;
       }
@@ -434,7 +439,7 @@ export function validateJsonStructure(
       break;
     }
 
-    case "Option": {
+    case "option": {
       if (data !== null && data !== undefined) {
         const error = validateJsonStructure(data, {
           ...field,
@@ -445,7 +450,7 @@ export function validateJsonStructure(
       break;
     }
 
-    case "Flags": {
+    case "flags": {
       if (!Array.isArray(data)) {
         return `Expected an array for field "${field.name}", but got ${typeof data}`;
       }
@@ -455,14 +460,14 @@ export function validateJsonStructure(
       break;
     }
 
-    case "Enum": {
+    case "enum": {
       if (cases && !cases.includes(data)) {
         return `Expected enum value to be one of [${cases.join(", ")}] for field "${field.name}"`;
       }
       break;
     }
 
-    case "Variant": {
+    case "variant": {
       if (!cases || cases.length === 0) break;
       if (typeof data !== "object" || data === null || Array.isArray(data)) {
         return `Expected an object for field "${field.name}", but got ${typeof data}`;
@@ -486,7 +491,7 @@ export function validateJsonStructure(
       break;
     }
 
-    case "Result": {
+    case "result": {
       if (typeof data !== "object" || data === null || Array.isArray(data)) {
         return `Expected an object for field "${field.name}", but got ${typeof data}`;
       }
@@ -507,7 +512,7 @@ export function validateJsonStructure(
     }
 
     default:
-      return `Unknown type "${type}" for field "${field.name}"`;
+      return `Unknown type "${normalizedType}" for field "${field.name}"`;
   }
 
   return null; // No error

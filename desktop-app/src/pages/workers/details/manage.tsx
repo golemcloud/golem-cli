@@ -84,7 +84,7 @@ export default function WorkerManage() {
   };
 
   const onResumeWorker = () => {
-    API.resumeWorker(componentId, workerName).then(() => {
+    API.resumeWorker(appId!, componentId, workerName).then(() => {
       toast({
         title: "Worker resumed",
         duration: 3000,
@@ -93,7 +93,7 @@ export default function WorkerManage() {
   };
 
   const onInterruptWorker = () => {
-    API.interruptWorker(componentId, workerName).then(() => {
+    API.interruptWorker(appId!, componentId, workerName).then(() => {
       toast({
         title: "Worker interrupted",
         duration: 3000,

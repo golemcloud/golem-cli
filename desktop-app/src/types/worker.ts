@@ -49,11 +49,76 @@ export interface WsMessage {
   StdOut: Terminal;
 }
 
-export interface OplogEntry {
-  entry: {
-    timestamp: string;
-    message: string;
-    function_name: string;
-    type: "Log" | "ExportedFunctionInvoked";
-  };
+interface BaseLogEntry {
+  type: string;
+  timestamp: string;
 }
+
+interface WorkerId {
+  componentId: string;
+  workerName: string;
+}
+
+interface AttributeValue {
+  type: string;
+  value: string;
+}
+
+interface Attribute {
+  key: string;
+  value: AttributeValue;
+}
+
+interface LocalSpan {
+  type: string;
+  spanId: string;
+  start: string;
+  parentId: string | null;
+  linkedContext: any | null;
+  attributes: Attribute[];
+  inherited: boolean;
+}
+
+interface CreateEntry extends BaseLogEntry {
+  type: "Create";
+  workerId: WorkerId;
+  componentVersion: number;
+  args: any[];
+  env: Record<string, any>;
+  accountId: string;
+  parent: string | null;
+  componentSize: number;
+  initialTotalLinearMemorySize: number;
+  initialActivePlugins: any[];
+}
+
+interface ExportedFunctionInvokedEntry extends BaseLogEntry {
+  type: "ExportedFunctionInvoked";
+  functionName: string;
+  request: any[];
+  idempotencyKey: string;
+  traceId: string;
+  traceStates: any[];
+  invocationContext: LocalSpan[][];
+}
+
+interface ResponseType {
+  typ: {
+    type: string;
+    items?: { type: string }[];
+  };
+  value: any;
+}
+
+interface ExportedFunctionCompletedEntry extends BaseLogEntry {
+  type: "ExportedFunctionCompleted";
+  response: ResponseType;
+  consumedFuel: number;
+}
+
+type OplogEntry =
+  | CreateEntry
+  | ExportedFunctionInvokedEntry
+  | ExportedFunctionCompletedEntry;
+
+export type OplogWithIndex = [number, OplogEntry];

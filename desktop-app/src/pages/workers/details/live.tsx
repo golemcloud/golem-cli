@@ -11,13 +11,13 @@ import { useDebounce } from "@/hooks/debounce"; // Import the "debounce" hook
 import { formatTimestampInDateTimeFormat } from "@/lib/utils";
 import { API } from "@/service";
 import { WSS } from "@/service/wss";
-import { Invocation, OplogEntry, Terminal, WsMessage } from "@/types/worker.ts";
+import { Invocation, OplogWithIndex, Terminal, WsMessage } from "@/types/worker.ts";
 import { RotateCw, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 export default function WorkerLive() {
-  const { componentId = "", workerName = "", id } = useParams();
+  const { componentId = "", workerName = "", appId } = useParams();
   const wsRef = useRef<WSS | null>(null);
   const [invocationData, setInvocationData] = useState<Invocation[]>([]);
   const [terminal, setTerminal] = useState<Terminal[]>([]);
@@ -84,25 +84,26 @@ export default function WorkerLive() {
 
   const getOpLog = async (search: string) => {
     API.getOplog(
-      id!,
+      appId!,
       componentId,
       workerName,
-      `${
-        debouncedActiveTab === "log" ? "log" : "ExportedFunctionInvoked"
+      `${debouncedActiveTab === "log" ? "" : "ExportedFunctionInvoked"
       } ${search}`,
     ).then(response => {
       const terminalData = [] as Terminal[];
       const invocationList = [] as Invocation[];
-      response.entries.forEach((item: OplogEntry) => {
-        if (item.entry.type === "Log") {
-          terminalData.push({
-            timestamp: item.entry.timestamp,
-            message: item.entry.message,
-          });
-        } else if (item.entry.type === "ExportedFunctionInvoked") {
+      response.forEach((_item: OplogWithIndex) => {
+        const item = _item[1]
+        if (item.type === "ExportedFunctionInvoked") {
           invocationList.push({
-            timestamp: item.entry.timestamp,
-            function: item.entry.function_name,
+            timestamp: item.timestamp,
+            function: item.functionName
+          });
+
+        } else {
+          terminalData.push({
+            timestamp: item.timestamp,
+            message: item.type
           });
         }
       });

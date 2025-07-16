@@ -5,6 +5,7 @@ import { WSS } from "@/service/wss";
 import {
   Invocation,
   OplogEntry,
+  OplogWithIndex,
   Terminal,
   Worker,
   WsMessage,
@@ -84,17 +85,18 @@ export default function WorkerDetails() {
     API.getOplog(appId!, componentId, workerName, "").then(response => {
       const terminalData = [] as Terminal[];
       const invocationList = [] as Invocation[];
-      response.forEach((item: OplogEntry | number) => {
-        if (typeof item === "number") return;
-        if (item.entry.type) {
-          terminalData.push({
-            timestamp: item.entry.timestamp,
-            message: item.entry.message,
-          });
-        } else if (item.entry.type === "ExportedFunctionInvoked") {
+      response.forEach((_item: OplogWithIndex) => {
+        const item = _item[1];
+        if (item.type === "ExportedFunctionInvoked") {
           invocationList.push({
-            timestamp: item.entry.timestamp,
-            function: item.entry.function_name,
+            timestamp: item.timestamp,
+            function: item.functionName,
+          });
+
+        } else {
+          terminalData.push({
+            timestamp: item.timestamp,
+            message: item.type
           });
         }
       });
