@@ -364,15 +364,35 @@ export class Service {
     version: string,
     payload: HttpApiDefinition,
   ) => {
-    // should use YAML
-    // const r = await this.callApi(
-    //   ENDPOINT.putApi(id, version),
-    //   "PUT",
-    //   JSON.stringify(payload),
-    // );
-    // return r;
-
-    console.log(id, payload, version);
+    const componentId = payload.componentId!;
+    const component = await this.getComponentById(id, componentId);
+    const componentYamlPath = await this.getComponentYamlPath(
+      id,
+      component.componentName!,
+    );
+    // Load the YAML into memory, update and save
+    const rawYaml = await readTextFile(componentYamlPath);
+    // Parse as Document to preserve comments and formatting
+    const manifest: Document = parseDocument(rawYaml);
+    // Get or create httpApi section
+    let httpApi = manifest.get("httpApi") as YAMLMap | undefined;
+    if (!httpApi) {
+      // Create new httpApi section if it doesn't exist
+      manifest.set("httpApi", {});
+      httpApi = manifest.get("httpApi") as YAMLMap;
+    }
+    // set the definition with the key
+    let definitions = httpApi.get("definitions") as YAMLMap | undefined;
+    if (!definitions) {
+      // Create new definitions section if it doesn't exist
+      httpApi.set("definitions", {});
+      definitions = httpApi.get("definitions") as YAMLMap;
+    }
+    // Add or update the API definition
+    payload.version = version;
+    definitions.set(payload.id, serializeHttpApiDefinition(payload));
+    // Save config back
+    await this.saveComponentManifest(id, componentId, manifest.toString());
   };
 
   public postApi = async (payload: Api) => {

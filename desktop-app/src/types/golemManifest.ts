@@ -124,7 +124,7 @@ export interface HttpApiDefinitionRoute {
 export interface HttpApiRouteBinding {
   type?: "default" | "cors-preflight" | "file-server" | "http-handler";
   componentName?: string;
-  componentVersion?: string;
+  componentVersion?: number;
   idempotencyKey?: string;
   invocationContext?: string;
   response?: string;
