@@ -25,14 +25,14 @@ const TypeBadge = ({ type }: { type: string }) => (
 
 const createEmptyValue = (typeDef: Typ, visited = new Set<string>()): unknown => {
   const typeStr = typeDef.type?.toLowerCase();
-  
+
   // Prevent infinite recursion for self-referencing types
   const typeKey = JSON.stringify(typeDef);
   if (visited.has(typeKey)) {
     return null;
   }
   visited.add(typeKey);
-  
+
   switch (typeStr) {
     case "record":
       const record: Record<string, unknown> = {};
