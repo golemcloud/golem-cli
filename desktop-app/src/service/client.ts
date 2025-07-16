@@ -436,20 +436,7 @@ export class Service {
     // Handle both old format (raw values) and new format (with type info)
     let waveArgs: string[];
     if (payload.params && payload.params.length > 0 && payload.params[0].typ) {
-      // New format with type information
-      // Filter out null option type parameters
-      const filteredParams = payload.params.filter((param: any) => {
-        if (
-          param.typ?.type === "option" &&
-          (param.value === null || param.value === undefined)
-        ) {
-          console.log("Skipping null option parameter:", param.name);
-          return false;
-        }
-        return true;
-      });
-
-      waveArgs = filteredParams.map((param: { value: any; typ: Parameter }) =>
+      waveArgs = payload.params.map((param: { value: any; typ: Parameter }) =>
         convertToWaveFormatWithType(param.value, {
           typ: param.typ,
           name: "",
@@ -457,8 +444,8 @@ export class Service {
         }),
       );
     } else {
-      // Old format - raw values
-      waveArgs = convertValuesToWaveArgs(payload);
+      // empty value
+      waveArgs = [];
     }
 
     return await this.callCLI(appId, "worker", [
