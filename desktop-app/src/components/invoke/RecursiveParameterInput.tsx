@@ -23,13 +23,21 @@ const TypeBadge = ({ type }: { type: string }) => (
   </span>
 );
 
-const createEmptyValue = (typeDef: Typ): unknown => {
+const createEmptyValue = (typeDef: Typ, visited = new Set<string>()): unknown => {
   const typeStr = typeDef.type?.toLowerCase();
+  
+  // Prevent infinite recursion for self-referencing types
+  const typeKey = JSON.stringify(typeDef);
+  if (visited.has(typeKey)) {
+    return null;
+  }
+  visited.add(typeKey);
+  
   switch (typeStr) {
     case "record":
       const record: Record<string, unknown> = {};
       typeDef.fields?.forEach(field => {
-        record[field.name] = createEmptyValue(field.typ);
+        record[field.name] = createEmptyValue(field.typ, visited);
       });
       return record;
 
@@ -48,7 +56,7 @@ const createEmptyValue = (typeDef: Typ): unknown => {
           return firstCase;
         } else {
           // Variant with data - create object with case name as key
-          return { [firstCase.name]: createEmptyValue(firstCase.typ) };
+          return { [firstCase.name]: createEmptyValue(firstCase.typ, visited) };
         }
       }
       return null;
@@ -72,12 +80,12 @@ const createEmptyValue = (typeDef: Typ): unknown => {
 
     case "result":
       // For results, create default ok value
-      return { ok: typeDef.ok ? createEmptyValue(typeDef.ok) : null };
+      return { ok: typeDef.ok ? createEmptyValue(typeDef.ok, visited) : null };
 
     case "tuple":
       // For tuples, create array with empty values for each element
       if (typeDef.fields && typeDef.fields.length > 0) {
-        return typeDef.fields.map(field => createEmptyValue(field.typ));
+        return typeDef.fields.map(field => createEmptyValue(field.typ, visited));
       }
       return [];
 
@@ -238,6 +246,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                       />
                     </div>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => {
@@ -257,6 +266,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
               </div>
             )}
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => {
