@@ -1730,7 +1730,7 @@ dependencies = [
 [[package]]
 name = "cloud-service"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3719,7 +3719,7 @@ dependencies = [
 [[package]]
 name = "golem-api-grpc"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "async-trait",
  "bincode",
@@ -3833,7 +3833,7 @@ dependencies = [
 [[package]]
 name = "golem-client"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "async-trait",
  "bytes 1.10.1",
@@ -3855,7 +3855,7 @@ dependencies = [
 [[package]]
 name = "golem-common"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3913,7 +3913,7 @@ dependencies = [
 [[package]]
 name = "golem-component-compilation-service"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "async-trait",
  "futures",
@@ -3939,7 +3939,7 @@ dependencies = [
 [[package]]
 name = "golem-component-service"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4022,7 +4022,7 @@ checksum = "1270134f61673cd221121fad55752b4692a5bc3f7a5f9b30e4d45d7b2e044946"
 [[package]]
 name = "golem-rib"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "async-trait",
  "bigdecimal",
@@ -4042,7 +4042,7 @@ dependencies = [
 [[package]]
 name = "golem-rib-repl"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4068,7 +4068,7 @@ dependencies = [
 [[package]]
 name = "golem-service-base"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "anyhow",
  "applying",
@@ -4124,7 +4124,7 @@ dependencies = [
 [[package]]
 name = "golem-shard-manager"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "anyhow",
  "async-rwlock",
@@ -4184,7 +4184,7 @@ dependencies = [
 [[package]]
 name = "golem-wasm-ast"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "bincode",
  "bincode_derive",
@@ -4210,7 +4210,7 @@ dependencies = [
 [[package]]
 name = "golem-wasm-rpc"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "arbitrary",
  "async-recursion",
@@ -4240,7 +4240,7 @@ dependencies = [
 [[package]]
 name = "golem-wasm-rpc-derive"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -4257,7 +4257,7 @@ checksum = "bccc9eaaf5df850f038f938a557b436c37bed0c84db297a698e95ea0b5237956"
 [[package]]
 name = "golem-worker-executor"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "anyhow",
  "applying",
@@ -4333,7 +4333,7 @@ dependencies = [
 [[package]]
 name = "golem-worker-service"
 version = "0.0.0"
-source = "git+https://github.com/nanashi-lab/golem.git?branch=workerfiles#216b613f13338609b75b80db85b18ccffb06b928"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.17#e292e4a02a4d04f469c471637bdcf57985b3ece8"
 dependencies = [
  "anyhow",
  "async-trait",
