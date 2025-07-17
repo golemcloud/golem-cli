@@ -11,16 +11,16 @@ license-file = "LICENSE"
 [workspace.dependencies]
 
 # Golem dep
-golem-client = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-common = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-rib = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-rib-repl = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-service-base = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17" }
-golem-wasm-ast = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17", default-features = false, features = [
+golem-client = "=1.3.0-dev.17"
+golem-common = "=1.3.0-dev.17"
+golem-rib = "=1.3.0-dev.17"
+golem-rib-repl = "=1.3.0-dev.17"
+golem-service-base = "=1.3.0-dev.17"
+golem-wasm-ast = { version = "=1.3.0-dev.17", default-features = false, features = [
     "analysis",
     "wave",
 ] }
-golem-wasm-rpc = { git = "https://github.com/golemcloud/golem.git", tag = "v1.3.0-dev.17", default-features = false, features = [
+golem-wasm-rpc = { version = "=1.3.0-dev.17", default-features = false, features = [
     "host",
 ] }
 
