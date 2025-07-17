@@ -142,6 +142,18 @@ export class Service {
     throw new Error(`Error finding Component Manifest`);
   }
 
+  public async getAppYamlPath(appId: string): Promise<string | null> {
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+    let appYamlPath = await join(app.folderLocation, "golem.yaml");
+    if (!(await exists(appYamlPath))) {
+      appYamlPath = await join(app.folderLocation, "golem.yml");
+    }
+    return appYamlPath;
+  }
+
   public async getComponentManifest(
     appId: string,
     componentId: string,
@@ -152,6 +164,18 @@ export class Service {
       component.componentName!,
     );
     let rawYaml = await readTextFile(componentYamlPath);
+
+    return parse(rawYaml) as GolemApplicationManifest;
+  }
+
+  public async getAppManifest(
+    appId: string,
+  ): Promise<GolemApplicationManifest> {
+    let appYamlPath = await this.getAppYamlPath(appId);
+    if (!appYamlPath) {
+      throw new Error("App manifest file not found");
+    }
+    let rawYaml = await readTextFile(appYamlPath);
 
     return parse(rawYaml) as GolemApplicationManifest;
   }
@@ -322,6 +346,20 @@ export class Service {
       }
     }
     // find in app's golem.yaml
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+    const manifest = await this.getAppManifest(appId);
+    let APIList = manifest.httpApi;
+    if (APIList) {
+      for (const apiListKey in APIList.definitions) {
+        let data = APIList.definitions[apiListKey];
+        data.id = apiListKey;
+        data.componentId = undefined; // This is not from a component
+        result.push(data);
+      }
+    }
 
     return result;
   };
@@ -338,16 +376,34 @@ export class Service {
     return Api;
   };
 
-  public createApi = async (payload: HttpApiDefinition) => {
-    // should use a YAML file
-    // const r = await this.callApi(
-    //   ENDPOINT.createApi(),
-    //   "POST",
-    //   JSON.stringify(payload),
-    // );
-    // return r;
-
-    console.log(payload);
+  public createApi = async (appId:string, payload: HttpApiDefinition) => {
+    // should use the app's YAML file
+    const path = await this.getAppYamlPath(appId);
+    if (!path) {
+      throw new Error("App manifest file not found");
+    }
+    // Load the YAML into memory, update and save
+    const rawYaml = await readTextFile(path);
+    // Parse as Document to preserve comments and formatting
+    const manifest: Document = parseDocument(rawYaml);
+    let httpApi = manifest.get("httpApi") as YAMLMap | undefined;
+    if (!httpApi) {
+      // Create new httpApi section if it doesn't exist
+      manifest.set("httpApi", new YAMLMap());
+      httpApi = manifest.get("httpApi") as YAMLMap;
+    }
+    // set the definition with the key
+    let definitions = httpApi.get("definitions") as YAMLMap | undefined;
+    if (!definitions) {
+      // Create new definitions section if it doesn't exist
+      httpApi.set("definitions", new YAMLMap());
+      definitions = httpApi.get("definitions") as YAMLMap;
+    }
+    // Add or update the API definition
+    payload.version = payload.version || "0.1.0"; // Ensure version is set
+    definitions.set(payload.id, serializeHttpApiDefinition(payload));
+    // Save config back
+    await this.saveAppManifest(appId, manifest.toString());
   };
 
   public deleteApi = async (appId: string, id: string, version: string) => {
@@ -364,35 +420,50 @@ export class Service {
     version: string,
     payload: HttpApiDefinition,
   ) => {
-    const componentId = payload.componentId!;
-    const component = await this.getComponentById(id, componentId);
-    const componentYamlPath = await this.getComponentYamlPath(
-      id,
-      component.componentName!,
-    );
+    const componentId = payload.componentId;
+    let yamlPath = "";
+    if (componentId) {
+      const component = await this.getComponentById(id, componentId);
+      const componentYamlPath = await this.getComponentYamlPath(
+        id,
+        component.componentName!,
+      );
+      yamlPath = componentYamlPath;
+    } else {
+      const app = await settingsService.getAppById(id);
+      if (!app) {
+        throw new Error("App not found");
+      }
+      yamlPath = await join(app.folderLocation, "golem.yaml");
+    }
+
     // Load the YAML into memory, update and save
-    const rawYaml = await readTextFile(componentYamlPath);
+    const rawYaml = await readTextFile(yamlPath);
     // Parse as Document to preserve comments and formatting
     const manifest: Document = parseDocument(rawYaml);
     // Get or create httpApi section
     let httpApi = manifest.get("httpApi") as YAMLMap | undefined;
     if (!httpApi) {
       // Create new httpApi section if it doesn't exist
-      manifest.set("httpApi", {});
+      manifest.set("httpApi", new YAMLMap());
       httpApi = manifest.get("httpApi") as YAMLMap;
     }
     // set the definition with the key
     let definitions = httpApi.get("definitions") as YAMLMap | undefined;
     if (!definitions) {
       // Create new definitions section if it doesn't exist
-      httpApi.set("definitions", {});
+      httpApi.set("definitions", new YAMLMap());
       definitions = httpApi.get("definitions") as YAMLMap;
     }
     // Add or update the API definition
     payload.version = version;
     definitions.set(payload.id, serializeHttpApiDefinition(payload));
     // Save config back
-    await this.saveComponentManifest(id, componentId, manifest.toString());
+    if (componentId) {
+      await this.saveComponentManifest(id, componentId, manifest.toString());
+    } else {
+      await this.saveAppManifest(id, manifest.toString());
+    }
   };
 
   public postApi = async (payload: Api) => {
@@ -746,7 +817,7 @@ export class Service {
     let httpApi = manifest.get("httpApi") as YAMLMap | undefined;
     if (!httpApi) {
       // Create new httpApi section if it doesn't exist
-      manifest.set("httpApi", {});
+      manifest.set("httpApi", new YAMLMap());
       httpApi = manifest.get("httpApi") as YAMLMap;
     }
 
@@ -754,7 +825,7 @@ export class Service {
     let definitions = httpApi.get("definitions") as YAMLMap | undefined;
     if (!definitions) {
       // Create new definitions section if it doesn't exist
-      httpApi.set("definitions", {});
+      httpApi.set("definitions", new YAMLMap());
       definitions = httpApi.get("definitions") as YAMLMap;
     }
 

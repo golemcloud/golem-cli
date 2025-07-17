@@ -22,7 +22,7 @@ const createApiSchema = z.object({
     .string()
     .min(3, "API Name must be at least 3 characters")
     .regex(
-      /^[a-zA-Z][a-zA-Z_]*$/,
+      /^[a-zA-Z][a-zA-Z_-]*$/,
       "API name must contain only letters and underscores",
     ),
   version: z
@@ -52,7 +52,7 @@ const CreateAPI = () => {
   const onSubmit = async (values: CreateApiFormValues) => {
     try {
       setIsSubmitting(true);
-      await API.createApi({
+      await API.createApi(appId!, {
         id: values.apiName,
         version: values.version,
         routes: [],

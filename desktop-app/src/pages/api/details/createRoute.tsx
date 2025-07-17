@@ -31,7 +31,8 @@ import { toast } from "@/hooks/use-toast";
 import { parseTypeForTooltip } from "@/lib/utils.ts";
 import { API } from "@/service";
 import type { GatewayBindingType, MethodPattern } from "@/types/api";
-import type { Component, ComponentList } from "@/types/component";
+import { parseExportString, type Component, type ComponentList } from "@/types/component";
+import type { Worker } from "@/types/worker";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -133,6 +134,12 @@ const CreateRoute = () => {
   const [variableSuggestions, setVariableSuggestions] = useState(
     {} as Record<string, any>,
   );
+  const [workerSuggestions, setWorkerSuggestions] = useState(
+    [] as string[],
+  );
+  const [contextVariables, setContextVariables] = useState(
+    {} as Record<string, any>,
+  );
 
   const extractDynamicParams = (path: string) => {
     const pathParamRegex = /{([^}]+)}/g; // Matches {param} in path
@@ -151,11 +158,38 @@ const CreateRoute = () => {
     while ((match = queryParamRegex.exec(path)) !== null) {
       queryParams[match[1]] = match[2]; // key -> param
     }
+    
+    const pathParamsObj = Object.fromEntries(
+      Object.keys(pathParams).map(key => [key, { name: key, type: "string" }])
+    );
+    
     setVariableSuggestions({
-      path: pathParams,
+      path: pathParamsObj,
       query: queryParams,
     });
+    
+    updateContextVariables(pathParamsObj);
   };
+
+  const updateContextVariables = (pathParams?: Record<string, { name: string; type: string }>) => {
+    const currentPathParams = pathParams || variableSuggestions.path || {};
+    const newContextVariables = {
+      request: {
+        path: currentPathParams,
+        body: { name: "body", type: "any" },
+        headers: { name: "headers", type: "Record" }
+      },
+      // Add worker names and function exports as top-level suggestions
+      ...workerSuggestions.reduce((acc, worker) => ({ ...acc, [worker]: worker }), {}),
+      ...responseSuggestions.reduce((acc, fn) => ({ ...acc, [fn]: fn }), {}),
+    };
+    setContextVariables(newContextVariables);
+  };
+
+  // Update context variables whenever worker or response suggestions change
+  useEffect(() => {
+    updateContextVariables();
+  }, [workerSuggestions, responseSuggestions, variableSuggestions]);
 
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(RouteRequestData),
@@ -208,11 +242,10 @@ const CreateRoute = () => {
                 componentList,
               );
               if (componentId) {
-                loadResponseSuggestions(
-                  componentId,
-                  String(versionId),
-                  componentResponse,
-                );
+                Promise.all([
+                  loadWorkerSuggestions(appId!, componentId),
+                  loadResponseSuggestions(componentId, String(versionId), componentResponse)
+                ]);
                 form.setValue(
                   "binding.componentName",
                   route.binding.componentName || "",
@@ -311,6 +344,23 @@ const CreateRoute = () => {
     );
   };
 
+  const loadWorkerSuggestions = async (
+    appId: string,
+    componentId: string,
+  ) => {
+    try {
+      const workersData = (await API.findWorker(appId, componentId)).workers as Worker[];
+      console.log("workersData", workersData);
+      const workerNames = (workersData || []).map((w) => `"${w.workerName}"`) || [];
+      setWorkerSuggestions(workerNames);
+      return workerNames;
+    } catch (error) {
+      console.error("Failed to load worker suggestions:", error);
+      setWorkerSuggestions([]);
+      return [];
+    }
+  };
+
   const loadResponseSuggestions = async (
     componentId: string,
     version: string,
@@ -321,7 +371,8 @@ const CreateRoute = () => {
     const exportedFunctions = componentResponse?.[componentId]?.versions?.find(
       (data: Component) => data.componentVersion?.toString() === version,
     );
-    const data = exportedFunctions?.metadata?.exports || [];
+    const data = (exportedFunctions?.metadata?.exports || []).map(parseExportString);
+
     const output = (data as any[]).flatMap((item: any) =>
       (item.functions || []).map((func: any) => {
         const param = (func.parameters || [])
@@ -334,14 +385,22 @@ const CreateRoute = () => {
       }),
     );
     setResponseSuggestions(output);
+    return output;
   };
 
-  const onVersionChange = (version: string) => {
+  const onVersionChange = async (version: string) => {
     form.setValue("binding.componentVersion", +version);
     const componentName = form.getValues("binding.componentName");
     const componentId = getComponentIdByName(componentName || "", componentList);
     if (componentId) {
-      loadResponseSuggestions(componentId, version, componentList);
+      const [workers, exports] = await Promise.all([
+        loadWorkerSuggestions(appId!, componentId),
+        loadResponseSuggestions(componentId, version, componentList)
+      ]);
+      
+      // Update context variables with new data
+      const currentPath = form.getValues("path") || "/";
+      extractDynamicParams(currentPath);
     }
   };
 
@@ -428,18 +487,21 @@ const CreateRoute = () => {
                         <FormItem>
                           <FormLabel required>Component</FormLabel>
                           <Select
-                            onValueChange={name => {
+                            onValueChange={async (name) => {
                               form.setValue("binding.componentName", name);
                               const componentId = getComponentIdByName(
                                 name,
                                 componentList,
                               );
                               if (componentId) {
-                                loadResponseSuggestions(
-                                  componentId,
-                                  "0",
-                                  componentList,
-                                );
+                                const [workers, exports] = await Promise.all([
+                                  loadWorkerSuggestions(appId!, componentId),
+                                  loadResponseSuggestions(componentId, "0", componentList)
+                                ]);
+                                
+                                // Update context variables with new data
+                                const currentPath = form.getValues("path") || "/";
+                                extractDynamicParams(currentPath);
                               }
                             }}
                             value={field.value}
@@ -589,7 +651,8 @@ const CreateRoute = () => {
                           <FormControl>
                             <RibEditor
                               {...field}
-                              suggestVariable={{ request: variableSuggestions }}
+                              suggestVariable={contextVariables}
+                              scriptKeys={workerSuggestions}
                             />
                           </FormControl>
                           <div>
@@ -709,7 +772,7 @@ const CreateRoute = () => {
                           <RibEditor
                             {...field}
                             scriptKeys={responseSuggestions}
-                            suggestVariable={{ request: variableSuggestions }}
+                            suggestVariable={contextVariables}
                           />
                         </FormControl>
                         <FormMessage />

@@ -11,10 +11,10 @@ export interface Worker {
   retryCount: number;
   status: string;
   totalLinearMemorySize: number;
-  workerId: {
-    componentId: string;
-    workerName: string;
-  };
+  // workerId: {
+  componentId: string;
+  workerName: string;
+  // };
   activePlugins: string[];
   updates: Update[];
 }
