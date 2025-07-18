@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { storeService } from "@/lib/settings.ts";
 import { API } from "@/service";
 import { toast } from "@/hooks/use-toast";
-import { Play, RefreshCw, Upload, Trash2, FileText } from "lucide-react";
+import { Play, RefreshCw, Upload, Trash2, FileText, Send } from "lucide-react";
 import { YamlViewerModal } from "@/components/yaml-viewer-modal";
 import { useLogViewer } from "@/contexts/log-viewer-context";
 
@@ -161,6 +161,37 @@ export const Dashboard = () => {
     }
   };
 
+  const handleDeployApp = async () => {
+    if (!appId) return;
+    setIsLoading(true);
+    try {
+      const result = await API.deployWorkers(appId);
+
+      if (result.success) {
+        toast({
+          title: "Deploy Completed",
+          description: "Application deployment completed successfully.",
+        });
+      } else {
+        showLog({
+          title: "Deploy Failed",
+          logs: result.logs,
+          status: "error",
+          operation: "Deploy App",
+        });
+      }
+    } catch (error) {
+      showLog({
+        title: "Deploy Failed",
+        logs: String(error),
+        status: "error",
+        operation: "Deploy App",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleViewYaml = async () => {
     if (!appId) return;
     try {
@@ -217,6 +248,15 @@ export const Dashboard = () => {
           >
             <Upload className="h-4 w-4 mr-2" />
             Deploy Workers
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDeployApp}
+            disabled={isLoading}
+          >
+            <Send className="h-4 w-4 mr-2" />
+            Deploy App
           </Button>
           <Button
             variant="outline"

@@ -24,6 +24,7 @@ import {
   Upload,
   Trash2,
   FileText,
+  Send,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -263,6 +264,39 @@ export const ComponentLayout = () => {
     }
   };
 
+  const handleDeployComponent = async () => {
+    if (!appId || !currentComponent?.componentName) return;
+    setIsLoading(true);
+    try {
+      const result = await API.deployWorkers(appId, [
+        currentComponent.componentName,
+      ]);
+
+      if (result.success) {
+        toast({
+          title: "Component Deployment Completed",
+          description: `Component ${currentComponent.componentName} deployed successfully.`,
+        });
+      } else {
+        showLog({
+          title: "Component Deployment Failed",
+          logs: result.logs,
+          status: "error",
+          operation: `Deploy ${currentComponent.componentName}`,
+        });
+      }
+    } catch (error) {
+      showLog({
+        title: "Component Deployment Failed",
+        logs: String(error),
+        status: "error",
+        operation: `Deploy ${currentComponent.componentName}`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch component data
   const fetchComponent = useCallback(async () => {
     if (componentId) {
@@ -368,6 +402,16 @@ export const ComponentLayout = () => {
               </Button>
             </>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDeployComponent}
+            disabled={isLoading}
+            className="text-xs h-7"
+          >
+            <Send className="h-3 w-3 mr-1" />
+            Deploy Component
+          </Button>
           <Button
             variant="outline"
             size="sm"

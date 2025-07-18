@@ -1,4 +1,3 @@
-// filepath: /Users/myestery/works/bounties/golem/golem-cli/desktop-app/src/pages/components/create/index.tsx
 import {
   Card,
   CardContent,
@@ -105,7 +104,7 @@ const CreateComponent = () => {
       template: "",
     },
   });
-  const appId = useParams()?.id;
+  const { appId } = useParams();
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     API.createComponent(appId!, values.name, values.template).then(() => {
