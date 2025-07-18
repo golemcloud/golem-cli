@@ -1,0 +1,469 @@
+// Copyright 2024-2025 Golem Cloud
+//
+// Licensed under the Golem Source License v1.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://license.golem.cloud/LICENSE
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::model::agent::{AgentType, DataSchema, ElementSchema};
+use crate::model::app::AppComponentName;
+use anyhow::bail;
+use golem_wasm_ast::analysis::AnalysedType;
+use heck::ToKebabCase;
+use std::fmt::Write;
+use std::path::Path;
+use wit_component::WitPrinter;
+use wit_parser::{PackageId, Resolve, SourceMap};
+
+pub fn generate_agent_wrapper_wit(
+    component_name: &AppComponentName,
+    agent_types: &[AgentType],
+) -> anyhow::Result<String> {
+    let wrapper_wit_package_source = generate_wit_source(component_name, agent_types)?;
+
+    let resolved = ResolvedWrapper::new(wrapper_wit_package_source)?;
+
+    resolved.into_single_file_wrapper_wit()
+}
+
+/// Generate the wrapper WIT that also imports and exports golem:agent/guest
+fn generate_wit_source(
+    component_name: &AppComponentName,
+    agent_types: &[AgentType],
+) -> anyhow::Result<String> {
+    let mut result = String::new();
+
+    let package_name = component_name.to_string();
+    let parts = package_name.split(':').collect::<Vec<_>>();
+    if parts.len() != 2 {
+        bail!(
+            "Component name `{package_name}` is not a valid WIT package name. It should be in the format `namespace:name`.",
+        )
+    }
+
+    let interface_name = parts[1].to_string();
+
+    writeln!(result, "package {package_name};")?;
+    writeln!(result, "")?;
+    writeln!(result, "interface {interface_name} {{")?;
+    writeln!(
+        result,
+        "  use golem:agent/common.{{agent-error, agent-type}};"
+    )?;
+
+    // TODO: collect and generate data types
+
+    for agent in agent_types {
+        generate_agent_wrapper_resource(&mut result, agent)?;
+    }
+
+    writeln!(result, "}}")?;
+    writeln!(result, "")?;
+    writeln!(result, "world agent-wrapper {{")?;
+    writeln!(result, "  import golem:agent/guest;")?;
+    writeln!(result, "  export golem:agent/guest;")?;
+    writeln!(result, "  export {interface_name};")?;
+    writeln!(result, "}}")?;
+
+    Ok(result)
+}
+
+fn generate_agent_wrapper_resource(result: &mut String, agent: &AgentType) -> anyhow::Result<()> {
+    let resource_name = agent.type_name.to_kebab_case();
+    let constructor_name = agent.constructor.name.as_deref().unwrap_or("create");
+
+    writeln!(result, "    /// {}", agent.description)?;
+    writeln!(result, "  resource {resource_name} {{")?;
+    writeln!(result, "    constructor(agent-id: string);")?;
+
+    writeln!(result, "    /// {}", agent.constructor.description)?;
+    write!(result, "    {constructor_name}: static func(")?;
+    write_parameter_list(result, &agent.constructor.input_schema)?;
+    writeln!(result, ") -> result<{resource_name}, agent-error>;")?;
+
+    writeln!(result, "")?;
+    writeln!(result, "    get-id: func() -> string;")?;
+    writeln!(result, "    get-definition: func() -> agent-type;")?;
+    writeln!(result, "")?;
+
+    for method in &agent.methods {
+        writeln!(result, "    /// {}", method.description)?;
+        write!(result, "    {}: func(", method.name)?;
+        write_parameter_list(result, &method.input_schema)?;
+        write!(result, ") -> result<")?;
+        write_return_type(result, &method.output_schema)?;
+        writeln!(result, ", agent-error>;")?;
+    }
+
+    writeln!(result, "  }}")?;
+
+    Ok(())
+}
+
+fn write_parameter_list(result: &mut String, input: &DataSchema) -> anyhow::Result<()> {
+    match input {
+        DataSchema::Tuple(elements) => {
+            let mut n = 0;
+            for element in elements {
+                if n > 0 {
+                    write!(result, ", ")?;
+                }
+                n += 1;
+
+                let param_name = format!("p{n}"); // TODO: get name from the schema
+                write!(result, "{param_name}: ")?;
+                match element {
+                    ElementSchema::ComponentModel(typ) => {
+                        write!(result, "{}", wit_type_reference(typ)?)?;
+                    }
+                    ElementSchema::UnstructuredText(_text_descriptor) => {
+                        todo!()
+                    }
+                    ElementSchema::UnstructuredBinary(_bin_descriptor) => {
+                        todo!()
+                    }
+                }
+            }
+        }
+        DataSchema::Multimodal(_cases) => {
+            todo!()
+        }
+    }
+    Ok(())
+}
+
+fn write_return_type(result: &mut String, schema: &DataSchema) -> anyhow::Result<()> {
+    match schema {
+        DataSchema::Tuple(elements) => {
+            let mut n = 0;
+            write!(result, "tuple<")?;
+            for element in elements {
+                if n > 0 {
+                    write!(result, ", ")?;
+                }
+                n += 1;
+
+                match element {
+                    ElementSchema::ComponentModel(typ) => {
+                        write!(result, "{}", wit_type_reference(typ)?)?;
+                    }
+                    ElementSchema::UnstructuredText(_text_descriptor) => {
+                        todo!()
+                    }
+                    ElementSchema::UnstructuredBinary(_bin_descriptor) => {
+                        todo!()
+                    }
+                }
+            }
+            write!(result, ">")?;
+        }
+        DataSchema::Multimodal(_cases) => {
+            todo!()
+        }
+    }
+    Ok(())
+}
+
+fn wit_type_reference(typ: &AnalysedType) -> anyhow::Result<String> {
+    match typ {
+        AnalysedType::Variant(_) => todo!(),
+        AnalysedType::Result(_) => todo!(),
+        AnalysedType::Option(opt) => {
+            let inner_type_ref = wit_type_reference(&opt.inner)?;
+            Ok(format!("option<{inner_type_ref}>"))
+        }
+        AnalysedType::Enum(_) => todo!(),
+        AnalysedType::Flags(_) => todo!(),
+        AnalysedType::Record(_) => todo!(),
+        AnalysedType::Tuple(tuple) => {
+            let inner_type_refs = tuple
+                .items
+                .iter()
+                .map(|t| wit_type_reference(t))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(format!("tuple<{}>", inner_type_refs.join(", ")))
+        }
+        AnalysedType::List(list) => {
+            let inner_type_ref = wit_type_reference(&list.inner)?;
+            Ok(format!("list<{inner_type_ref}>"))
+        }
+        AnalysedType::Str(_) => Ok("string".to_string()),
+        AnalysedType::Chr(_) => Ok("char".to_string()),
+        AnalysedType::F64(_) => Ok("f64".to_string()),
+        AnalysedType::F32(_) => Ok("f32".to_string()),
+        AnalysedType::U64(_) => Ok("u64".to_string()),
+        AnalysedType::S64(_) => Ok("s64".to_string()),
+        AnalysedType::U32(_) => Ok("u32".to_string()),
+        AnalysedType::S32(_) => Ok("s32".to_string()),
+        AnalysedType::U16(_) => Ok("u16".to_string()),
+        AnalysedType::S16(_) => Ok("s16".to_string()),
+        AnalysedType::U8(_) => Ok("u8".to_string()),
+        AnalysedType::S8(_) => Ok("s8".to_string()),
+        AnalysedType::Bool(_) => Ok("bool".to_string()),
+        AnalysedType::Handle(_) => todo!(),
+    }
+}
+
+struct ResolvedWrapper {
+    resolve: Resolve,
+    package_id: PackageId,
+    golem_agent_package_id: PackageId,
+    golem_rpc_package_id: PackageId,
+    golem_host_package_id: PackageId,
+    wasi_clocks_package_id: PackageId,
+    wasi_io_package_id: PackageId,
+}
+
+impl ResolvedWrapper {
+    /// Create a resolve of the generated WIT and push the golem:agent package in it
+    pub fn new(package_source: String) -> anyhow::Result<Self> {
+        let mut resolve = Resolve::new();
+
+        let wasi_io_package_id = add_wasi_io(&mut resolve)?;
+        let wasi_clocks_package_id = add_wasi_clocks(&mut resolve)?;
+        let golem_rpc_package_id = add_golem_rpc(&mut resolve)?;
+        let golem_host_package_id = add_golem_host(&mut resolve)?;
+        let golem_agent_package_id = add_golem_agent(&mut resolve)?;
+
+        let package_id = resolve.push_str("wrapper.wit", &package_source)?;
+
+        Ok(Self {
+            resolve,
+            package_id,
+            golem_agent_package_id,
+            golem_host_package_id,
+            golem_rpc_package_id,
+            wasi_clocks_package_id,
+            wasi_io_package_id,
+        })
+    }
+
+    /// Render a multi-package WIT and return it
+    pub fn into_single_file_wrapper_wit(self) -> anyhow::Result<String> {
+        let mut wit_printer = WitPrinter::default();
+        wit_printer.print(
+            &self.resolve,
+            self.package_id,
+            &[
+                self.golem_agent_package_id,
+                self.golem_rpc_package_id,
+                self.wasi_clocks_package_id,
+                self.wasi_io_package_id,
+                self.golem_host_package_id,
+            ],
+        )?;
+        Ok(wit_printer.output.to_string())
+    }
+}
+
+fn add_wasi_io(resolve: &mut Resolve) -> anyhow::Result<PackageId> {
+    const WASI_IO_ERROR_WIT: &str = include_str!("../../../wit/deps/io/error.wit");
+    const WASI_IO_POLL_WIT: &str = include_str!("../../../wit/deps/io/poll.wit");
+    const WASI_IO_STREAMS_WIT: &str = include_str!("../../../wit/deps/io/streams.wit");
+    const WASI_IO_WORLD_WIT: &str = include_str!("../../../wit/deps/io/world.wit");
+
+    let mut source_map = SourceMap::default();
+    source_map.push(Path::new("wit/deps/io/error.wit"), WASI_IO_ERROR_WIT);
+    source_map.push(Path::new("wit/deps/io/poll.wit"), WASI_IO_POLL_WIT);
+    source_map.push(Path::new("wit/deps/io/streams.wit"), WASI_IO_STREAMS_WIT);
+    source_map.push(Path::new("wit/deps/io/world.wit"), WASI_IO_WORLD_WIT);
+    let package_group = source_map.parse()?;
+    resolve.push_group(package_group)
+}
+
+fn add_wasi_clocks(resolve: &mut Resolve) -> anyhow::Result<PackageId> {
+    const WASI_CLOCKS_MONOTONIC_CLOCK_WIT: &str =
+        include_str!("../../../wit/deps/clocks/monotonic-clock.wit");
+    const WASI_CLOCKS_TIMEZONE_WIT: &str = include_str!("../../../wit/deps/clocks/timezone.wit");
+    const WASI_CLOCKS_WALL_CLOCK_WIT: &str =
+        include_str!("../../../wit/deps/clocks/wall-clock.wit");
+    const WASI_CLOCKS_WORLD: &str = include_str!("../../../wit/deps/clocks/world.wit");
+
+    let mut source_map = SourceMap::default();
+    source_map.push(
+        Path::new("wit/deps/clocks/monotonic-clock.wit"),
+        WASI_CLOCKS_MONOTONIC_CLOCK_WIT,
+    );
+    source_map.push(
+        Path::new("wit/deps/clocks/timezone.wit"),
+        WASI_CLOCKS_TIMEZONE_WIT,
+    );
+    source_map.push(
+        Path::new("wit/deps/clocks/wall-clock.wit"),
+        WASI_CLOCKS_WALL_CLOCK_WIT,
+    );
+    source_map.push(Path::new("wit/deps/clocks/world.wit"), WASI_CLOCKS_WORLD);
+
+    let package_group = source_map.parse()?;
+    resolve.push_group(package_group)
+}
+
+fn add_golem_rpc(resolve: &mut Resolve) -> anyhow::Result<PackageId> {
+    const GOLEM_RPC_WIT: &str = include_str!("../../../wit/deps/golem-rpc/wasm-rpc.wit");
+    resolve.push_str("wit/deps/golem-rpc/wasm-rpc.wit", GOLEM_RPC_WIT)
+}
+
+fn add_golem_host(resolve: &mut Resolve) -> anyhow::Result<PackageId> {
+    const GOLEM_CONTEXT_WIT: &str = include_str!("../../../wit/deps/golem-1.x/golem-context.wit");
+    const GOLEM_HOST_WIT: &str = include_str!("../../../wit/deps/golem-1.x/golem-host.wit");
+    const GOLEM_OPLOG_WIT: &str = include_str!("../../../wit/deps/golem-1.x/golem-oplog.wit");
+    const GOLEM_OPLOG_PROCESSOR_WIT: &str =
+        include_str!("../../../wit/deps/golem-1.x/golem-oplog-processor.wit");
+
+    let mut source_map = SourceMap::default();
+    source_map.push(
+        Path::new("wit/deps/golem-1.x/golem-context.wit"),
+        GOLEM_CONTEXT_WIT,
+    );
+    source_map.push(
+        Path::new("wit/deps/golem-1.x/golem-host.wit"),
+        GOLEM_HOST_WIT,
+    );
+    source_map.push(
+        Path::new("wit/deps/golem-1.x/golem-oplog.wit"),
+        GOLEM_OPLOG_WIT,
+    );
+    source_map.push(
+        Path::new("wit/deps/golem-1.x/golem-oplog-processor.wit"),
+        GOLEM_OPLOG_PROCESSOR_WIT,
+    );
+    let package_group = source_map.parse()?;
+    resolve.push_group(package_group)
+}
+
+fn add_golem_agent(resolve: &mut Resolve) -> anyhow::Result<PackageId> {
+    const GOLEM_AGENT_GUEST_WIT: &str = include_str!("../../../wit/deps/golem-agent/guest.wit");
+    const GOLEM_AGENT_COMMON_WIT: &str = include_str!("../../../wit/deps/golem-agent/common.wit");
+
+    let mut golem_agent_source = SourceMap::default();
+    golem_agent_source.push(
+        Path::new("wit/deps/golem-agent/common.wit"),
+        GOLEM_AGENT_COMMON_WIT,
+    );
+    golem_agent_source.push(
+        Path::new("wit/deps/golem-agent/guest.wit"),
+        GOLEM_AGENT_GUEST_WIT,
+    );
+    let golem_agent_pkg_group = golem_agent_source.parse()?;
+    resolve.push_group(golem_agent_pkg_group)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::model::agent::{
+        AgentConstructor, AgentMethod, AgentType, DataSchema, ElementSchema,
+    };
+    use golem_wasm_ast::analysis::analysed_type;
+    use indoc::indoc;
+    use test_r::test;
+
+    #[test]
+    fn empty_agent_wrapper() {
+        let component_name = "example:empty".into();
+        let agent_types = vec![];
+        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types).unwrap();
+        println!("{wit}");
+        assert!(wit.contains(indoc!(
+            r#"package example:empty;
+            
+            interface empty {
+              use golem:agent/common.{agent-error, agent-type};
+            }
+
+            world agent-wrapper {
+              import wasi:clocks/wall-clock@0.2.3;
+              import wasi:io/poll@0.2.3;
+              import golem:rpc/types@0.2.1;
+              import golem:agent/common;
+              import golem:agent/guest;
+
+              export golem:agent/guest;
+              export empty;
+            }
+            "#
+        )));
+    }
+
+    #[test]
+    fn single_agent_wrapper_1() {
+        let component_name = "example:single1".into();
+        let agent_types = vec![AgentType {
+            type_name: "agent1".to_string(),
+            description: "An example agent".to_string(),
+            constructor: AgentConstructor {
+                name: None,
+                description: "Creates an example agent instance".into(),
+                prompt_hint: None,
+                input_schema: super::DataSchema::Tuple(vec![
+                    ElementSchema::ComponentModel(analysed_type::u32()),
+                    ElementSchema::ComponentModel(analysed_type::option(analysed_type::str())),
+                ]),
+            },
+            methods: vec![
+                AgentMethod {
+                    name: "f1".to_string(),
+                    description: "returns a random string".to_string(),
+                    prompt_hint: None,
+                    input_schema: DataSchema::Tuple(vec![]),
+                    output_schema: DataSchema::Tuple(vec![ElementSchema::ComponentModel(
+                        analysed_type::str(),
+                    )]),
+                },
+                AgentMethod {
+                    name: "f2".to_string(),
+                    description: "adds two numbers".to_string(),
+                    prompt_hint: None,
+                    input_schema: DataSchema::Tuple(vec![
+                        ElementSchema::ComponentModel(analysed_type::u32()),
+                        ElementSchema::ComponentModel(analysed_type::u32()),
+                    ]),
+                    output_schema: DataSchema::Tuple(vec![ElementSchema::ComponentModel(
+                        analysed_type::u32(),
+                    )]),
+                },
+            ],
+            dependencies: vec![],
+        }];
+        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types).unwrap();
+        println!("{wit}");
+        assert!(wit.contains(indoc!(
+            r#"package example:single1;
+
+            interface single1 {
+              use golem:agent/common.{agent-error, agent-type};
+
+              /// An example agent
+              resource agent1 {
+                constructor(agent-id: string);
+                /// Creates an example agent instance
+                create: static func(p1: u32, p2: option<string>) -> result<agent1, agent-error>;
+                get-id: func() -> string;
+                get-definition: func() -> agent-type;
+                /// returns a random string
+                f1: func() -> result<tuple<string>, agent-error>;
+                /// adds two numbers
+                f2: func(p1: u32, p2: u32) -> result<tuple<u32>, agent-error>;
+              }
+            }
+
+            world agent-wrapper {
+              import wasi:clocks/wall-clock@0.2.3;
+              import wasi:io/poll@0.2.3;
+              import golem:rpc/types@0.2.1;
+              import golem:agent/common;
+              import golem:agent/guest;
+
+              export golem:agent/guest;
+              export single1;
+            }
+            "#
+        )));
+    }
+}
