@@ -44,8 +44,74 @@ export class Service {
    * @returns {Promise<Component[]>}
    */
   public getComponents = async (appId: string): Promise<Component[]> => {
+    // Check if app has any components before making CLI call
+    const hasComponents = await this.hasComponents(appId);
+    if (!hasComponents) {
+      return [];
+    }
+    
     const r = await this.callCLI(appId, "component", ["list"]);
     return r as Component[];
+  };
+
+  /**
+   * Check if app has any components by looking for non-empty components-* folders
+   * @param appId - The ID of the application
+   * @returns {Promise<boolean>} - True if app has components, false otherwise
+   */
+  private hasComponents = async (appId: string): Promise<boolean> => {
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      return false;
+    }
+
+    try {
+      // Get all entries in app folder
+      const appEntries = await readDir(app.folderLocation);
+      const appFolders = appEntries
+        .filter(entry => entry.isDirectory)
+        .map(entry => entry.name);
+
+      // Find all folders starting with "components-"
+      const componentsFolders = appFolders.filter(folder =>
+        folder.startsWith("components-"),
+      );
+
+      // If no components-* folders exist, no components
+      if (componentsFolders.length === 0) {
+        return false;
+      }
+
+      // Check if any components-* folder has content
+      for (const componentsFolder of componentsFolders) {
+        const componentsFolderPath = await join(
+          app.folderLocation,
+          componentsFolder,
+        );
+
+        try {
+          const subEntries = await readDir(componentsFolderPath);
+          const subFolders = subEntries.filter(entry => entry.isDirectory);
+
+          // If any components-* folder has subdirectories, we have components
+          if (subFolders.length > 0) {
+            return true;
+          }
+        } catch (error) {
+          // Continue to next folder if this one fails
+          console.warn(
+            `Failed to read components folder ${componentsFolder}:`,
+            error,
+          );
+        }
+      }
+
+      // All components-* folders are empty
+      return false;
+    } catch (error) {
+      console.error("Error checking for components:", error);
+      return false;
+    }
   };
 
   public getComponentById = async (appId: string, componentId: string) => {
@@ -226,7 +292,9 @@ export class Service {
     name: string,
     template: string,
   ) => {
+    console.log(appId)
     try {
+      console.log("Creating component with name:", name, "and template:", template);
       await this.callCLI(appId, "component", ["new", template, name]);
     } catch (error) {
       console.error("Error in createComponent:", error);
