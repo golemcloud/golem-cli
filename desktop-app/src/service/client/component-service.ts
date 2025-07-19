@@ -105,7 +105,7 @@ export class ComponentService {
     version: number,
   ) => {
     const r = (await this.cliService.callCLI(appId, "component", [
-      "get",
+      "list",
     ])) as Component[];
     return r.find(
       c => c.componentId === componentId && c.componentVersion === version,
@@ -148,20 +148,78 @@ export class ComponentService {
     console.log(componentId, form);
   };
 
-  public deletePluginToComponent = async (
-    id: string,
-    installation_id: string,
+  public deletePluginToComponentWithApp = async (
+    appId: string,
+    componentId: string,
+    pluginName: string,
+    pluginVersion: string,
   ) => {
-    console.log(id, installation_id);
+    // Get the component details to find the component name
+    const component = await this.getComponentById(appId, componentId);
+    if (!component) {
+      throw new Error(`Component with ID ${componentId} not found`);
+    }
+
+    try {
+      // Use CLI to uninstall plugin from component
+      const args = [
+        "plugin",
+        "uninstall",
+        "--plugin-name",
+        pluginName,
+        "--plugin-version",
+        pluginVersion,
+        component.componentName,
+      ];
+
+      return await this.cliService.callCLI(appId, "component", args);
+    } catch (error) {
+      console.error("Failed to uninstall plugin:", error);
+      throw error;
+    }
   };
 
-  public addPluginToComponent = async (id: string, form: any) => {
-    // return await this.callApi(
-    //   ENDPOINT.addPluginToComponent(id),
-    //   "POST",
-    //   JSON.stringify(form),
-    // );
-    console.log(id, form);
+
+  public addPluginToComponentWithApp = async (
+    appId: string,
+    componentId: string,
+    form: any,
+  ) => {
+    const { name, version, priority, parameters } = form;
+
+    // Get the component details to find the component name
+    const component = await this.getComponentById(appId, componentId);
+    if (!component) {
+      throw new Error(`Component with ID ${componentId} not found`);
+    }
+
+    try {
+      // Use CLI to install plugin to component
+      const args = [
+        "plugin",
+        "install",
+        "--plugin-name",
+        name,
+        "--plugin-version",
+        version,
+        "--priority",
+        priority.toString(),
+        component.componentName || componentId,
+      ];
+
+      // Add parameters if provided (note: this might need adjustment based on actual CLI spec)
+      if (parameters && Object.keys(parameters).length > 0) {
+        // Convert parameters object to CLI format
+        for (const [key, value] of Object.entries(parameters)) {
+          args.push("--parameter", `${key}=${value}`);
+        }
+      }
+
+      return await this.cliService.callCLI(appId, "component", args);
+    } catch (error) {
+      console.error("Failed to install plugin:", error);
+      throw error;
+    }
   };
 
   public getComponentByIdAsKey = async (

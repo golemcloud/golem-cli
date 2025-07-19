@@ -59,11 +59,16 @@ export default function Plugins() {
       try {
         const plugins = await API.pluginService.getPlugins(appId!);
         const pluginMap: Record<string, string[]> = {};
-        plugins.forEach(({ name, version }) => {
+        plugins.forEach(({ name, versions }) => {
           if (!pluginMap[name]) {
             pluginMap[name] = [];
           }
-          pluginMap[name].push(version);
+          // Extract version strings from the versions array
+          versions.forEach(plugin => {
+            if (!pluginMap[name].includes(plugin.version)) {
+              pluginMap[name].push(plugin.version);
+            }
+          });
         });
         setAvailablePlugin(pluginMap);
       } catch (error) {
@@ -121,15 +126,38 @@ export default function Plugins() {
     const versionList = component.versionList || [];
     const latestVersion = versionList[versionList.length - 1];
     if (latestVersion === versionChange) {
-      API.componentService.deletePluginToComponent(componentId, pluginId).then(() => {
-        toast({
-          title: "Plugin deleted successfully",
-          description:
-            "Plugin has been deleted successfully. Please check the latest version of the component.",
-          duration: 3000,
+      // Find the plugin details by ID
+      const pluginToDelete = plugins.find(plugin => plugin.id === pluginId);
+      if (pluginToDelete) {
+        API.componentService.deletePluginToComponentWithApp(
+          appId!,
+          componentId,
+          pluginToDelete.name,
+          pluginToDelete.version
+        ).then(() => {
+          toast({
+            title: "Plugin deleted successfully",
+            description:
+              "Plugin has been deleted successfully. Please check the latest version of the component.",
+            duration: 3000,
+          });
+          refreshComponent();
+        }).catch(error => {
+          toast({
+            title: "Failed to delete plugin",
+            description: `An error occurred while deleting the plugin. ${error}`,
+            variant: "destructive",
+            duration: 5000,
+          });
         });
-        refreshComponent();
-      });
+      } else {
+        toast({
+          title: "Plugin not found",
+          description: "Could not find the plugin to delete.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
     }
   };
 
@@ -140,7 +168,7 @@ export default function Plugins() {
       version: newPlugin.version,
       parameters: {},
     };
-    API.componentService.addPluginToComponent(componentId, pluginData)
+    API.componentService.addPluginToComponentWithApp(appId!, componentId, pluginData)
       .then(() => {
         toast({
           title: "Plugin added successfully",
@@ -149,6 +177,7 @@ export default function Plugins() {
         });
         refreshComponent();
         setIsDialogOpen(false);
+        setNewPlugin({ name: "", priority: 1, version: "" });
       })
       .catch(error => {
         toast({
