@@ -81,7 +81,7 @@ export const ApiLayout = () => {
   }, [apiDetails]);
 
   useEffect(() => {
-    API.getApi(appId!, apiName!).then(async response => {
+    API.apiService.getApi(appId!, apiName!).then(async response => {
       let detail = response.find(r => r.version == version);
       setApiDetails(detail);
       if (response) {

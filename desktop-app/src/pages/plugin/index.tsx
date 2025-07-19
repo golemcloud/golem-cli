@@ -21,7 +21,7 @@ export default function PluginListPage() {
   const { appId } = useParams<{ appId: string }>();
   useEffect(() => {
     const fetchPlugins = async () => {
-      const res = await API.getPlugins(appId!);
+      const res = await API.pluginService.getPlugins(appId!);
       setPluginsApi(res);
       setPlugins(res);
     };

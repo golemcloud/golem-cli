@@ -88,7 +88,7 @@ export default function Exports() {
 
   useEffect(() => {
     if (!componentId) return;
-    API.getComponentByIdAsKey(appId!).then(response => {
+    API.componentService.getComponentByIdAsKey(appId!).then(response => {
       const fetched = response[componentId];
       if (!fetched) return;
 

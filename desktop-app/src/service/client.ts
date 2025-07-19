@@ -9,24 +9,31 @@ import { ManifestService } from "./client/manifest-service";
 
 export class Service {
   public baseUrl: string;
-  private cliService: CLIService;
-  private componentService: ComponentService;
-  private workerService: WorkerService;
-  private apiService: APIService;
-  private pluginService: PluginService;
-  private deploymentService: DeploymentService;
-  private appService: AppService;
-  private manifestService: ManifestService;
+  public cliService: CLIService;
+  public componentService: ComponentService;
+  public workerService: WorkerService;
+  public apiService: APIService;
+  public pluginService: PluginService;
+  public deploymentService: DeploymentService;
+  public appService: AppService;
+  public manifestService: ManifestService;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    
+
     // Initialize services in the correct order to handle dependencies
     this.cliService = new CLIService();
     this.componentService = new ComponentService(this.cliService);
     this.manifestService = new ManifestService(this.cliService);
-    this.workerService = new WorkerService(this.cliService, this.componentService);
-    this.apiService = new APIService(this.cliService, this.componentService, this.manifestService);
+    this.workerService = new WorkerService(
+      this.cliService,
+      this.componentService,
+    );
+    this.apiService = new APIService(
+      this.cliService,
+      this.componentService,
+      this.manifestService,
+    );
     this.pluginService = new PluginService(this.cliService);
     this.deploymentService = new DeploymentService(this.cliService);
     this.appService = new AppService(this.cliService);
@@ -46,11 +53,23 @@ export class Service {
     return this.componentService.getComponentById(appId, componentId);
   };
 
-  public getComponentByIdAndVersion = async (appId: string, componentId: string, version: number) => {
-    return this.componentService.getComponentByIdAndVersion(appId, componentId, version);
+  public getComponentByIdAndVersion = async (
+    appId: string,
+    componentId: string,
+    version: number,
+  ) => {
+    return this.componentService.getComponentByIdAndVersion(
+      appId,
+      componentId,
+      version,
+    );
   };
 
-  public createComponent = async (appId: string, name: string, template: string) => {
+  public createComponent = async (
+    appId: string,
+    name: string,
+    template: string,
+  ) => {
     return this.componentService.createComponent(appId, name, template);
   };
 
@@ -62,7 +81,10 @@ export class Service {
     return this.componentService.updateComponent(componentId, form);
   };
 
-  public deletePluginToComponent = async (id: string, installation_id: string) => {
+  public deletePluginToComponent = async (
+    id: string,
+    installation_id: string,
+  ) => {
     return this.componentService.deletePluginToComponent(id, installation_id);
   };
 
@@ -75,44 +97,116 @@ export class Service {
   };
 
   // Worker methods
-  public upgradeWorker = async (appId: string, componentName: string, workerName: string, version: number, upgradeType: string) => {
-    return this.workerService.upgradeWorker(appId, componentName, workerName, version, upgradeType);
+  public upgradeWorker = async (
+    appId: string,
+    componentName: string,
+    workerName: string,
+    version: number,
+    upgradeType: string,
+  ) => {
+    return this.workerService.upgradeWorker(
+      appId,
+      componentName,
+      workerName,
+      version,
+      upgradeType,
+    );
   };
 
-  public findWorker = async (appId: string, componentId: string, param = { count: 100, precise: true }) => {
+  public findWorker = async (
+    appId: string,
+    componentId: string,
+    param = { count: 100, precise: true },
+  ) => {
     return this.workerService.findWorker(appId, componentId, param);
   };
 
-  public deleteWorker = async (appId: string, componentId: string, workerName: string) => {
+  public deleteWorker = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+  ) => {
     return this.workerService.deleteWorker(appId, componentId, workerName);
   };
 
-  public createWorker = async (appId: string, componentID: string, name: string) => {
+  public createWorker = async (
+    appId: string,
+    componentID: string,
+    name: string,
+  ) => {
     return this.workerService.createWorker(appId, componentID, name);
   };
 
-  public getParticularWorker = async (appId: string, componentId: string, workerName: string) => {
-    return this.workerService.getParticularWorker(appId, componentId, workerName);
+  public getParticularWorker = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+  ) => {
+    return this.workerService.getParticularWorker(
+      appId,
+      componentId,
+      workerName,
+    );
   };
 
-  public interruptWorker = async (appId: string, componentId: string, workerName: string) => {
+  public interruptWorker = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+  ) => {
     return this.workerService.interruptWorker(appId, componentId, workerName);
   };
 
-  public resumeWorker = async (appId: string, componentId: string, workerName: string) => {
+  public resumeWorker = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+  ) => {
     return this.workerService.resumeWorker(appId, componentId, workerName);
   };
 
-  public invokeWorkerAwait = async (appId: string, componentId: string, workerName: string, functionName: string, payload: any) => {
-    return this.workerService.invokeWorkerAwait(appId, componentId, workerName, functionName, payload);
+  public invokeWorkerAwait = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+    functionName: string,
+    payload: any,
+  ) => {
+    return this.workerService.invokeWorkerAwait(
+      appId,
+      componentId,
+      workerName,
+      functionName,
+      payload,
+    );
   };
 
-  public invokeEphemeralAwait = async (appId: string, componentId: string, functionName: string, payload: any) => {
-    return this.workerService.invokeEphemeralAwait(appId, componentId, functionName, payload);
+  public invokeEphemeralAwait = async (
+    appId: string,
+    componentId: string,
+    functionName: string,
+    payload: any,
+  ) => {
+    return this.workerService.invokeEphemeralAwait(
+      appId,
+      componentId,
+      functionName,
+      payload,
+    );
   };
 
-  public getOplog = async (appId: string, componentId: string, workerName: string, searchQuery: string) => {
-    return this.workerService.getOplog(appId, componentId, workerName, searchQuery);
+  public getOplog = async (
+    appId: string,
+    componentId: string,
+    workerName: string,
+    searchQuery: string,
+  ) => {
+    return this.workerService.getOplog(
+      appId,
+      componentId,
+      workerName,
+      searchQuery,
+    );
   };
 
   // API methods
@@ -157,11 +251,18 @@ export class Service {
     return this.pluginService.createPlugin(appId, pluginData);
   };
 
-  public registerPlugin = async (appId: string, manifestFileLocation: string) => {
+  public registerPlugin = async (
+    appId: string,
+    manifestFileLocation: string,
+  ) => {
     return this.pluginService.registerPlugin(appId, manifestFileLocation);
   };
 
-  public deletePlugin = async (appId: string, name: string, version: string) => {
+  public deletePlugin = async (
+    appId: string,
+    name: string,
+    version: string,
+  ) => {
     return this.pluginService.deletePlugin(appId, name, version);
   };
 
@@ -183,11 +284,19 @@ export class Service {
     return this.appService.buildApp(appId, componentNames);
   };
 
-  public updateWorkers = async (appId: string, componentNames?: string[], updateMode: string = "auto") => {
+  public updateWorkers = async (
+    appId: string,
+    componentNames?: string[],
+    updateMode: string = "auto",
+  ) => {
     return this.appService.updateWorkers(appId, componentNames, updateMode);
   };
 
-  public deployWorkers = async (appId: string, componentNames?: string[], updateWorkers?: boolean) => {
+  public deployWorkers = async (
+    appId: string,
+    componentNames?: string[],
+    updateWorkers?: boolean,
+  ) => {
     return this.appService.deployWorkers(appId, componentNames, updateWorkers);
   };
 
@@ -196,7 +305,10 @@ export class Service {
   };
 
   // Manifest methods
-  public getComponentYamlPath = async (appId: string, componentName: string) => {
+  public getComponentYamlPath = async (
+    appId: string,
+    componentName: string,
+  ) => {
     return this.manifestService.getComponentYamlPath(appId, componentName);
   };
 
@@ -212,8 +324,16 @@ export class Service {
     return this.manifestService.getAppManifest(appId);
   };
 
-  public saveComponentManifest = async (appId: string, componentId: string, manifest: string) => {
-    return this.manifestService.saveComponentManifest(appId, componentId, manifest);
+  public saveComponentManifest = async (
+    appId: string,
+    componentId: string,
+    manifest: string,
+  ) => {
+    return this.manifestService.saveComponentManifest(
+      appId,
+      componentId,
+      manifest,
+    );
   };
 
   public saveAppManifest = async (appId: string, manifest: string) => {
@@ -224,7 +344,10 @@ export class Service {
     return this.manifestService.getAppYamlContent(appId);
   };
 
-  public getComponentYamlContent = async (appId: string, componentName: string) => {
+  public getComponentYamlContent = async (
+    appId: string,
+    componentName: string,
+  ) => {
     return this.manifestService.getComponentYamlContent(appId, componentName);
   };
 }

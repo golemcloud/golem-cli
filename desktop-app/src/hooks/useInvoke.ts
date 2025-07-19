@@ -32,7 +32,7 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
 
   const fetchFunctionDetails = useCallback(async () => {
     try {
-      const data = await API.getComponentByIdAsKey(appId!);
+      const data = await API.componentService.getComponentByIdAsKey(appId!);
       setComponentList(data);
       const matchingComponent =
         data?.[componentId].versions?.[data?.[componentId].versions.length - 1];
@@ -125,21 +125,25 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
     setResultValue("");
   };
 
-  const onInvoke = async (parsedValue: unknown[] | { params: Array<{ value: unknown; typ: any; name: string }> }) => {
+  const onInvoke = async (
+    parsedValue:
+      | unknown[]
+      | { params: Array<{ value: unknown; typ: any; name: string }> },
+  ) => {
     try {
       if (!functionDetails) {
         throw new Error("No function details loaded.");
       }
 
       let params: Array<{ value: unknown; typ: any; name?: string }>;
-      
+
       // Handle both old format (array) and new format (object with params)
       if (Array.isArray(parsedValue)) {
         // Old format - convert to new format
         params = parsedValue.map((value, index) => ({
           value,
           typ: functionDetails.parameters[index]?.typ,
-          name: functionDetails.parameters[index]?.name
+          name: functionDetails.parameters[index]?.name,
         }));
       } else {
         // New format - use directly
@@ -150,7 +154,7 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
       let response;
 
       if (isWorkerInvoke) {
-        response = await API.invokeWorkerAwait(
+        response = await API.workerService.invokeWorkerAwait(
           appId!,
           componentId,
           workerName!,
@@ -158,9 +162,14 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
           { params },
         );
       } else {
-        response = await API.invokeEphemeralAwait(appId!, componentId, functionName, {
-          params,
-        });
+        response = await API.workerService.invokeEphemeralAwait(
+          appId!,
+          componentId,
+          functionName,
+          {
+            params,
+          },
+        );
       }
 
       const newValue = JSON.stringify(response?.result_json, null, 2);

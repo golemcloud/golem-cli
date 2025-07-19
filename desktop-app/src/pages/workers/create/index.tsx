@@ -81,7 +81,7 @@ export default function CreateWorker() {
     }, {});
     rest.args = rest.args.filter(x => x.trim().length > 0);
 
-    API.createWorker(appId, componentID, values.name).then(
+    API.workerService.createWorker(appId, componentID, values.name).then(
       (response: { component_name: string; worker_name: string }) => {
         navigate(
           `/app/${appId}/components/${componentId}/workers/${response.worker_name}`,

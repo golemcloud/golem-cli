@@ -40,7 +40,7 @@ export default function APISettings() {
 
   useEffect(() => {
     if (apiName) {
-      API.getApi(appId!, apiName).then(response => {
+      API.apiService.getApi(appId!, apiName).then(response => {
         setApiDetails(response);
         const selectedApi = response.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);
@@ -52,7 +52,7 @@ export default function APISettings() {
     setIsDeleting(true);
     try {
       if (type === "version") {
-        await API.deleteApi(
+        await API.apiService.deleteApi(
           appId!,
           activeApiDetails.id!,
           activeApiDetails.version,
@@ -73,7 +73,7 @@ export default function APISettings() {
         setShowConfirmDialog(false);
       } else if (type === "all") {
         await Promise.all(
-          apiDetails.map(api => API.deleteApi(appId!, api.id!, api.version)),
+          apiDetails.map(api => API.apiService.deleteApi(appId!, api.id!, api.version)),
         );
         toast({
           title: "All versions deleted",
@@ -83,7 +83,7 @@ export default function APISettings() {
         navigate(`/app/${appId}/apis`);
         setShowConfirmAllDialog(false);
       } else {
-        await API.putApi(activeApiDetails.id!, activeApiDetails.version, {
+        await API.apiService.putApi(activeApiDetails.id!, activeApiDetails.version, {
           ...activeApiDetails,
           routes: [],
         });

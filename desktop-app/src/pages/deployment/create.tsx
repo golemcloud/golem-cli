@@ -112,7 +112,7 @@ export default function CreateDeployment() {
       try {
         setIsLoading(true);
         setFetchError(null);
-        const response = await API.getApiList(appId!);
+        const response = await API.apiService.getApiList(appId!);
         const transformedData = Object.values(
           response.reduce(
             (acc, api) => {
@@ -165,7 +165,7 @@ export default function CreateDeployment() {
         },
         apiDefinitions: data.definitions,
       };
-      await API.createDeployment(appId!, payload.site.host);
+      await API.deploymentService.createDeployment(appId!, payload.site.host);
       toast({
         title: "Deployment was successful",
         duration: 3000,

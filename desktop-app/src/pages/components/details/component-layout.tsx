@@ -49,55 +49,55 @@ const createMenuItems = (
   componentId: string,
   componentType: string,
 ): SidebarMenuProps[] => [
-  {
-    title: "Overview",
-    url: `/app/${appId}/components/${componentId}`,
-    icon: Home,
-  },
-  {
-    title: "Workers",
-    url: `/app/${appId}/components/${componentId}/workers`,
-    icon: Pickaxe,
-    isHidden: componentType === "Ephemeral",
-  },
-  {
-    title: "Invoke",
-    url: `/app/${appId}/components/${componentId}/invoke`,
-    icon: Workflow,
-    isHidden: componentType === "Durable",
-  },
-  {
-    title: "Exports",
-    url: `/app/${appId}/components/${componentId}/exports`,
-    icon: ArrowRightFromLine,
-  },
-  // {
-  //   title: "Update",
-  //   url: `/app/${appId}/components/${componentId}/update`,
-  //   icon: Pencil,
-  // },
-  {
-    title: "Files",
-    url: `/app/${appId}/components/${componentId}/files`,
-    icon: Folder,
-  },
-  {
-    title: "Plugins",
-    url: `/app/${appId}/components/${componentId}/plugins`,
-    icon: ToyBrick,
-  },
-  {
-    title: "Info",
-    url: `/app/${appId}/components/${componentId}/info`,
-    icon: Info,
-  },
-  {
-    title: "Settings",
-    url: `/app/${appId}/components/${componentId}/settings`,
-    icon: Settings,
-    isHidden: componentType === "Ephemeral",
-  },
-];
+    {
+      title: "Overview",
+      url: `/app/${appId}/components/${componentId}`,
+      icon: Home,
+    },
+    {
+      title: "Workers",
+      url: `/app/${appId}/components/${componentId}/workers`,
+      icon: Pickaxe,
+      isHidden: componentType === "Ephemeral",
+    },
+    {
+      title: "Invoke",
+      url: `/app/${appId}/components/${componentId}/invoke`,
+      icon: Workflow,
+      isHidden: componentType === "Durable",
+    },
+    {
+      title: "Exports",
+      url: `/app/${appId}/components/${componentId}/exports`,
+      icon: ArrowRightFromLine,
+    },
+    // {
+    //   title: "Update",
+    //   url: `/app/${appId}/components/${componentId}/update`,
+    //   icon: Pencil,
+    // },
+    {
+      title: "Files",
+      url: `/app/${appId}/components/${componentId}/files`,
+      icon: Folder,
+    },
+    {
+      title: "Plugins",
+      url: `/app/${appId}/components/${componentId}/plugins`,
+      icon: ToyBrick,
+    },
+    {
+      title: "Info",
+      url: `/app/${appId}/components/${componentId}/info`,
+      icon: Info,
+    },
+    {
+      title: "Settings",
+      url: `/app/${appId}/components/${componentId}/settings`,
+      icon: Settings,
+      isHidden: componentType === "Ephemeral",
+    },
+  ];
 
 /**
  * Layout component for the component details page
@@ -124,9 +124,9 @@ export const ComponentLayout = () => {
   const handleBuildComponent = () => {
     if (!appId || !currentComponent?.componentName) return;
     setLoadingStates(prev => ({ ...prev, build: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.buildApp(appId, [currentComponent.componentName])
+    API.appService.buildApp(appId, [currentComponent.componentName])
       .then(result => {
         if (result.success) {
           toast({
@@ -158,9 +158,9 @@ export const ComponentLayout = () => {
   const handleUpdateWorkers = () => {
     if (!appId || !currentComponent?.componentName) return;
     setLoadingStates(prev => ({ ...prev, updateWorkers: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.updateWorkers(appId, [currentComponent.componentName])
+    API.appService.updateWorkers(appId, [currentComponent.componentName])
       .then(result => {
         if (result.success) {
           toast({
@@ -192,9 +192,9 @@ export const ComponentLayout = () => {
   const handleDeployWorkers = () => {
     if (!appId || !currentComponent?.componentName) return;
     setLoadingStates(prev => ({ ...prev, deployWorkers: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.deployWorkers(appId, [currentComponent.componentName])
+    API.appService.deployWorkers(appId, [currentComponent.componentName])
       .then(result => {
         if (result.success) {
           toast({
@@ -226,9 +226,9 @@ export const ComponentLayout = () => {
   const handleCleanComponent = () => {
     if (!appId || !currentComponent?.componentName) return;
     setLoadingStates(prev => ({ ...prev, clean: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.cleanApp(appId, [currentComponent.componentName])
+    API.appService.cleanApp(appId, [currentComponent.componentName])
       .then(result => {
         if (result.success) {
           toast({
@@ -260,7 +260,7 @@ export const ComponentLayout = () => {
   const handleViewComponentYaml = async () => {
     if (!appId || !currentComponent?.componentName) return;
     try {
-      const yamlContent = await API.getComponentYamlContent(
+      const yamlContent = await API.manifestService.getComponentYamlContent(
         appId,
         currentComponent.componentName,
       );
@@ -278,9 +278,9 @@ export const ComponentLayout = () => {
   const handleDeployComponent = () => {
     if (!appId || !currentComponent?.componentName) return;
     setLoadingStates(prev => ({ ...prev, deployComponent: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.deployWorkers(appId, [currentComponent.componentName])
+    API.appService.deployWorkers(appId, [currentComponent.componentName])
       .then(result => {
         if (result.success) {
           toast({
@@ -313,7 +313,7 @@ export const ComponentLayout = () => {
   const fetchComponent = useCallback(async () => {
     if (componentId) {
       try {
-        const response = await API.getComponentByIdAsKey(appId!);
+        const response = await API.componentService.getComponentByIdAsKey(appId!);
         setCurrentComponent(response[componentId]);
       } catch (error) {
         console.error("Error fetching component:", error);

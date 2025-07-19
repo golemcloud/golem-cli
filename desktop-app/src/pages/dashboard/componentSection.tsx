@@ -26,7 +26,7 @@ export const ComponentsSection = forwardRef<ComponentsSectionRef>((_, ref) => {
 
   const fetchComponents = async () => {
     if (appId) {
-      let response = await API.getComponentByIdAsKey(appId);
+      let response = await API.componentService.getComponentByIdAsKey(appId);
       setComponents(response);
     }
   };

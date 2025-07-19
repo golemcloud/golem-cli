@@ -24,7 +24,7 @@ export default function WorkerDetails() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getParticularWorker(appId!, componentId, workerName).then(
+      API.workerService.getParticularWorker(appId!, componentId, workerName).then(
         response => {
           setWorkerDetails(response);
         },
@@ -82,7 +82,7 @@ export default function WorkerDetails() {
   }, []);
 
   const getOpLog = async () => {
-    API.getOplog(appId!, componentId, workerName, "").then(response => {
+    API.workerService.getOplog(appId!, componentId, workerName, "").then(response => {
       const terminalData = [] as Terminal[];
       const invocationList = [] as Invocation[];
       response.forEach((_item: OplogWithIndex) => {

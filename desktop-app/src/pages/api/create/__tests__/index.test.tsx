@@ -247,7 +247,7 @@ describe("CreateAPI", () => {
 
     it("should handle successful API creation", async () => {
       const { API } = await import("@/service");
-      (API.createApi as any).mockResolvedValue({ id: "new-api-id" });
+      (API.apiService.createApi as any).mockResolvedValue({ id: "new-api-id" });
 
       renderCreateAPI();
       const user = userEvent.setup();
@@ -268,7 +268,7 @@ describe("CreateAPI", () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(API.createApi).toHaveBeenCalled();
+        expect(API.apiService.createApi).toHaveBeenCalled();
         expect(mockNavigate).toHaveBeenCalled();
       });
     });
@@ -277,7 +277,7 @@ describe("CreateAPI", () => {
   describe("Loading States", () => {
     it("should show loading state during API creation", async () => {
       const { API } = await import("@/service");
-      (API.createApi as any).mockImplementation(
+      (API.apiService.createApi as any).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
 
@@ -308,7 +308,7 @@ describe("CreateAPI", () => {
   describe("Error Handling", () => {
     it("should handle API creation errors", async () => {
       const { API } = await import("@/service");
-      (API.createApi as any).mockRejectedValue(new Error("Creation failed"));
+      (API.apiService.createApi as any).mockRejectedValue(new Error("Creation failed"));
 
       renderCreateAPI();
       const user = userEvent.setup();
@@ -322,7 +322,7 @@ describe("CreateAPI", () => {
 
       await waitFor(() => {
         // API should have been called and failed
-        expect(API.createApi).toHaveBeenCalled();
+        expect(API.apiService.createApi).toHaveBeenCalled();
         // Should not navigate away on error
         expect(mockNavigate).not.toHaveBeenCalled();
       });
@@ -357,7 +357,7 @@ describe("CreateAPI", () => {
   describe("Navigation", () => {
     it("should navigate back on successful creation", async () => {
       const { API } = await import("@/service");
-      (API.createApi as any).mockResolvedValue({ id: "new-api-id" });
+      (API.apiService.createApi as any).mockResolvedValue({ id: "new-api-id" });
 
       renderCreateAPI();
       const user = userEvent.setup();

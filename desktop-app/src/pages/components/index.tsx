@@ -122,7 +122,7 @@ export const ComponentCard = React.memo(
           >
             {formatRelativeTime(
               data.versions?.[data.versions?.length - 1].createdAt ||
-                new Date(),
+              new Date(),
             )}
           </CardDescription>
         </CardHeader>
@@ -210,7 +210,7 @@ const Components = () => {
    */
   const fetchComponentsAndMetrics = useCallback(async () => {
     try {
-      const response = await API.getComponentByIdAsKey(appId!);
+      const response = await API.componentService.getComponentByIdAsKey(appId!);
       setComponentList(response);
       setFilteredComponents(response);
 
@@ -219,7 +219,7 @@ const Components = () => {
       // Map over each component to fetch worker info
       const workerPromises = Object.values(response).map(async comp => {
         if (comp.componentId) {
-          const worker = await API.findWorker(appId!, comp.componentId, {
+          const worker = await API.workerService.findWorker(appId!, comp.componentId, {
             count: 100,
             precise: true,
           });

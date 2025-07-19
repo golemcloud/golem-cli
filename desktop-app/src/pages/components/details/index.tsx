@@ -19,14 +19,14 @@ export const ComponentDetails = () => {
 
     // Fetch component info and worker status in parallel
     Promise.all([
-      API.getComponentByIdAsKey(appId!),
-      API.findWorker(appId!, componentId),
+      API.componentService.getComponentByIdAsKey(appId!),
+      API.workerService.findWorker(appId!, componentId),
     ])
       .then(([componentMap, workerResponse]) => {
         // 1. Set the component data
         const foundComponent = componentMap[componentId] || null;
         setComponent(foundComponent);
-        API.getComponentYamlPath(appId!, foundComponent.componentName!).then(
+        API.manifestService.getComponentYamlPath(appId!, foundComponent.componentName!).then(
           yamlPath => console.log("Component YAML Path:", yamlPath),
         );
 
@@ -110,9 +110,8 @@ export const ComponentDetails = () => {
 
             {/* Exports & Worker Status */}
             <div
-              className={`grid gap-4 ${
-                component.componentType === "Durable" ? "md:grid-cols-2" : ""
-              }`}
+              className={`grid gap-4 ${component.componentType === "Durable" ? "md:grid-cols-2" : ""
+                }`}
             >
               <ExportsList
                 exports={

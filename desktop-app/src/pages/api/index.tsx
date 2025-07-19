@@ -27,7 +27,7 @@ export const APIs = () => {
   const { appId } = useParams<{ appId: string }>();
 
   useEffect(() => {
-    API.getApiList(appId!).then(response => {
+    API.apiService.getApiList(appId!).then(response => {
       const newData = removeDuplicateApis(response);
       setApis(newData);
       setSearchedApi(newData);

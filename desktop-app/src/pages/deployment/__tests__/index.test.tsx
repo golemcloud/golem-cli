@@ -192,9 +192,9 @@ describe("DeploymentList", () => {
 
     // Set up default mocks
     const { API } = await import("@/service");
-    (API.getApiList as any).mockResolvedValue(mockApiList);
-    (API.getDeploymentApi as any).mockResolvedValue(mockDeployments);
-    (API.deleteDeployment as any).mockResolvedValue(true);
+    (API.apiService.getApiList as any).mockResolvedValue(mockApiList);
+    (API.deploymentService.getDeploymentApi as any).mockResolvedValue(mockDeployments);
+    (API.deploymentService.deleteDeployment as any).mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -296,7 +296,7 @@ describe("DeploymentList", () => {
       const confirmButton = screen.getByText("Confirm Delete");
       await user.click(confirmButton);
 
-      expect(API.deleteDeployment).toHaveBeenCalledWith(
+      expect(API.deploymentService.deleteDeployment).toHaveBeenCalledWith(
         "test-app-id",
         "localhost:8080",
       );
@@ -320,16 +320,16 @@ describe("DeploymentList", () => {
       renderDeploymentList();
 
       await waitFor(() => {
-        expect(API.getDeploymentApi).toHaveBeenCalledWith("test-app-id");
-        expect(API.getApiList).toHaveBeenCalledWith("test-app-id");
+        expect(API.deploymentService.getDeploymentApi).toHaveBeenCalledWith("test-app-id");
+        expect(API.apiService.getApiList).toHaveBeenCalledWith("test-app-id");
       });
     });
 
     it("should handle empty deployment list", async () => {
       const { API } = await import("@/service");
-      (API.getApiList as any).mockResolvedValue(mockApiList);
-      (API.getDeploymentApi as any).mockResolvedValue([]);
-      (API.getApiList as any).mockResolvedValue([]);
+      (API.apiService.getApiList as any).mockResolvedValue(mockApiList);
+      (API.deploymentService.getDeploymentApi as any).mockResolvedValue([]);
+      (API.apiService.getApiList as any).mockResolvedValue([]);
 
       renderDeploymentList();
 
@@ -344,8 +344,8 @@ describe("DeploymentList", () => {
   describe("Error Handling", () => {
     it("should handle API errors gracefully", async () => {
       const { API } = await import("@/service");
-      (API.getApiList as any).mockRejectedValue(new Error("API Error"));
-      (API.getApiList as any).mockResolvedValue([]);
+      (API.apiService.getApiList as any).mockRejectedValue(new Error("API Error"));
+      (API.apiService.getApiList as any).mockResolvedValue([]);
 
       renderDeploymentList();
 
@@ -367,7 +367,7 @@ describe("DeploymentList", () => {
 
     it("should handle delete deployment errors", async () => {
       const { API } = await import("@/service");
-      (API.deleteDeployment as any).mockRejectedValue(
+      (API.deploymentService.deleteDeployment as any).mockRejectedValue(
         new Error("Delete failed"),
       );
 
@@ -391,7 +391,7 @@ describe("DeploymentList", () => {
       await user.click(confirmButton);
 
       // Should handle error gracefully
-      expect(API.deleteDeployment).toHaveBeenCalledWith(
+      expect(API.deploymentService.deleteDeployment).toHaveBeenCalledWith(
         "test-app-id",
         "localhost:8080",
       );
@@ -438,8 +438,8 @@ describe("DeploymentList", () => {
       }));
 
       const { API } = await import("@/service");
-      (API.getApiList as any).mockResolvedValue(mockApiList);
-      (API.getDeploymentApi as any).mockResolvedValue(largeDeploymentList);
+      (API.apiService.getApiList as any).mockResolvedValue(mockApiList);
+      (API.deploymentService.getDeploymentApi as any).mockResolvedValue(largeDeploymentList);
 
       const startTime = performance.now();
       renderDeploymentList();
@@ -483,10 +483,10 @@ describe("DeploymentList", () => {
   describe("Loading States", () => {
     it("should show loading state while fetching data", async () => {
       const { API } = await import("@/service");
-      (API.getApiList as any).mockImplementation(
+      (API.apiService.getApiList as any).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
-      (API.getDeploymentApi as any).mockResolvedValue([]);
+      (API.deploymentService.getDeploymentApi as any).mockResolvedValue([]);
 
       renderDeploymentList();
 

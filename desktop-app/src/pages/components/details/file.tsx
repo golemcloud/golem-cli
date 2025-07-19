@@ -21,7 +21,7 @@ export default function FileManager() {
 
   useEffect(() => {
     if (componentId) {
-      API.getComponentByIdAsKey(appId!).then(response => {
+      API.componentService.getComponentByIdAsKey(appId!).then(response => {
         const componentData = response[componentId];
         const versionList = componentData?.versionList || [];
         setVersionList(versionList);

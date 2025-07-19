@@ -44,8 +44,8 @@ export default function YamlUploader() {
       try {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
-          API.getApi(appId, apiName),
-          API.getComponentByIdAsKey(appId!),
+          API.apiService.getApi(appId, apiName),
+          API.componentService.getComponentByIdAsKey(appId!),
         ]);
         setActiveApiDetails(apiResponse!);
       } catch (error) {
@@ -83,7 +83,7 @@ export default function YamlUploader() {
 
       // const apiResponse = await API.getApi(apiName!);
       // const selectedApi = apiResponse.find(api => api.version === version);
-      await API.callApi(
+      await API.apiService.callApi(
         ENDPOINT.putApi(activeApiDetails?.id!, version!),
         "PUT",
         payload,

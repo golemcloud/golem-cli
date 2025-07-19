@@ -52,7 +52,7 @@ const CreateAPI = () => {
   const onSubmit = async (values: CreateApiFormValues) => {
     try {
       setIsSubmitting(true);
-      await API.createApi(appId!, {
+      await API.apiService.createApi(appId!, {
         id: values.apiName,
         version: values.version,
         routes: [],

@@ -158,16 +158,16 @@ const CreateRoute = () => {
     while ((match = queryParamRegex.exec(path)) !== null) {
       queryParams[match[1]] = match[2]; // key -> param
     }
-    
+
     const pathParamsObj = Object.fromEntries(
       Object.keys(pathParams).map(key => [key, { name: key, type: "string" }])
     );
-    
+
     setVariableSuggestions({
       path: pathParamsObj,
       query: queryParams,
     });
-    
+
     updateContextVariables(pathParamsObj);
   };
 
@@ -212,8 +212,8 @@ const CreateRoute = () => {
       try {
         setIsLoading(true);
         const [apiResponse, componentResponse] = await Promise.all([
-          API.getApi(appId!, apiName),
-          API.getComponentByIdAsKey(appId!),
+          API.apiService.getApi(appId!, apiName),
+          API.componentService.getComponentByIdAsKey(appId!),
         ]);
         const selectedApi = apiResponse.find(api => api.version === version);
         setActiveApiDetails(selectedApi!);
@@ -292,7 +292,7 @@ const CreateRoute = () => {
     try {
       setIsSubmitting(true);
 
-      const apiResponse = await API.getApi(appId!, apiName!);
+      const apiResponse = await API.apiService.getApi(appId!, apiName!);
       const selectedApi = apiResponse.find(api => api.version === version);
       if (!selectedApi) {
         toast({
@@ -307,7 +307,7 @@ const CreateRoute = () => {
         route => !(route.path === path && route.method === method),
       );
       selectedApi.routes?.push(values);
-      await API.putApi(
+      await API.apiService.putApi(
         appId!,
         activeApiDetails.version,
         selectedApi,
@@ -349,7 +349,7 @@ const CreateRoute = () => {
     componentId: string,
   ) => {
     try {
-      const workersData = (await API.findWorker(appId, componentId)).workers as Worker[];
+      const workersData = (await API.workerService.findWorker(appId, componentId)).workers as Worker[];
       console.log("workersData", workersData);
       const workerNames = (workersData || []).map((w) => `"${w.workerName}"`) || [];
       setWorkerSuggestions(workerNames);
@@ -397,7 +397,7 @@ const CreateRoute = () => {
         loadWorkerSuggestions(appId!, componentId),
         loadResponseSuggestions(componentId, version, componentList)
       ]);
-      
+
       // Update context variables with new data
       const currentPath = form.getValues("path") || "/";
       extractDynamicParams(currentPath);
@@ -498,7 +498,7 @@ const CreateRoute = () => {
                                   loadWorkerSuggestions(appId!, componentId),
                                   loadResponseSuggestions(componentId, "0", componentList)
                                 ]);
-                                
+
                                 // Update context variables with new data
                                 const currentPath = form.getValues("path") || "/";
                                 extractDynamicParams(currentPath);

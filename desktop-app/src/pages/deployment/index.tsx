@@ -77,7 +77,7 @@ const RoutesCard = ({
                   variant="secondary"
                   className={cn(
                     HTTP_METHOD_COLOR[
-                      endpoint.method as keyof typeof HTTP_METHOD_COLOR
+                    endpoint.method as keyof typeof HTTP_METHOD_COLOR
                     ],
                     "w-16 text-center justify-center",
                   )}
@@ -126,12 +126,12 @@ export default function Deployments() {
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        const response = await API.getApiList(appId!);
+        const response = await API.apiService.getApiList(appId!);
         setApiList(response);
 
         const uniqueApis = removeDuplicateApis(response);
         const allDeployments = await Promise.all(
-          uniqueApis.map(() => API.getDeploymentApi(appId!)),
+          uniqueApis.map(() => API.deploymentService.getDeploymentApi(appId!)),
         );
 
         const flattenedDeployments = allDeployments.flat().filter(Boolean);
@@ -160,7 +160,7 @@ export default function Deployments() {
     if (!selectedDeploymentHost) return;
 
     try {
-      await API.deleteDeployment(appId!, selectedDeploymentHost);
+      await API.deploymentService.deleteDeployment(appId!, selectedDeploymentHost);
       setDeployments(prev =>
         prev.filter(d => d.site.host !== selectedDeploymentHost),
       );
@@ -273,40 +273,39 @@ export default function Deployments() {
                                 a =>
                                   a.id === api.id && a.version === api.version,
                               )?.routes?.length || 0) > 0 && (
-                                <button
-                                  onClick={() =>
-                                    toggleExpanded(
-                                      deployment.site.host,
-                                      api.id,
-                                      api.version,
-                                    )
-                                  }
-                                  className="p-1 hover:bg-accent rounded-md"
-                                >
-                                  <ChevronRight
-                                    className={`w-4 h-4 text-muted-foreground transition-transform ${
-                                      expandedDeployment.includes(
+                                  <button
+                                    onClick={() =>
+                                      toggleExpanded(
+                                        deployment.site.host,
+                                        api.id,
+                                        api.version,
+                                      )
+                                    }
+                                    className="p-1 hover:bg-accent rounded-md"
+                                  >
+                                    <ChevronRight
+                                      className={`w-4 h-4 text-muted-foreground transition-transform ${expandedDeployment.includes(
                                         `${deployment.site.host}.${api.id}.${api.version}`,
                                       )
-                                        ? "rotate-90"
-                                        : ""
-                                    }`}
-                                  />
-                                </button>
-                              )}
+                                          ? "rotate-90"
+                                          : ""
+                                        }`}
+                                    />
+                                  </button>
+                                )}
                             </div>
                           </div>
 
                           {expandedDeployment.includes(
                             `${deployment.site.host}.${api.id}.${api.version}`,
                           ) && (
-                            <RoutesCard
-                              apiId={api.id}
-                              version={api.version}
-                              apiList={apiList}
-                              host={deployment.site.host}
-                            />
-                          )}
+                              <RoutesCard
+                                apiId={api.id}
+                                version={api.version}
+                                apiList={apiList}
+                                host={deployment.site.host}
+                              />
+                            )}
                         </div>
                       ))}
                     </div>

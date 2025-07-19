@@ -150,7 +150,7 @@ describe("WorkerList", () => {
   describe("Component Rendering", () => {
     it("should render the worker list page", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -163,7 +163,7 @@ describe("WorkerList", () => {
 
     it("should render search input", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -176,7 +176,7 @@ describe("WorkerList", () => {
 
     it("should render create worker button", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -187,7 +187,7 @@ describe("WorkerList", () => {
 
     it("should display worker status badges", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -200,7 +200,7 @@ describe("WorkerList", () => {
 
     it("should display worker creation dates", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -213,7 +213,7 @@ describe("WorkerList", () => {
   describe("Search Functionality", () => {
     it("should filter workers based on search input", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -236,7 +236,7 @@ describe("WorkerList", () => {
 
     it("should filter workers by status", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -259,7 +259,7 @@ describe("WorkerList", () => {
 
     it("should show no results when search yields no matches", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -282,7 +282,7 @@ describe("WorkerList", () => {
   describe("Worker Interactions", () => {
     it("should navigate to worker details when clicking on worker card", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -303,7 +303,7 @@ describe("WorkerList", () => {
 
     it("should handle create worker button click", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -324,12 +324,12 @@ describe("WorkerList", () => {
   describe("Data Loading", () => {
     it("should load workers on component mount", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
       await waitFor(() => {
-        expect(API.findWorker).toHaveBeenCalledWith(
+        expect(API.workerService.findWorker).toHaveBeenCalledWith(
           "test-app-id",
           "test-component-id",
         );
@@ -407,7 +407,7 @@ describe("WorkerList", () => {
       ];
 
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: unsortedWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: unsortedWorkers });
 
       renderWorkerList();
 
@@ -423,7 +423,7 @@ describe("WorkerList", () => {
   describe("Error Handling", () => {
     it("should handle API errors gracefully", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockRejectedValue(new Error("API Error"));
+      (API.workerService.findWorker as any).mockRejectedValue(new Error("API Error"));
 
       renderWorkerList();
 
@@ -437,7 +437,7 @@ describe("WorkerList", () => {
 
     it("should handle empty worker list", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: [] });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: [] });
 
       renderWorkerList();
 
@@ -455,7 +455,7 @@ describe("WorkerList", () => {
   describe("Loading States", () => {
     it("should show loading state while fetching workers", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockImplementation(
+      (API.workerService.findWorker as any).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
 
@@ -471,7 +471,7 @@ describe("WorkerList", () => {
   describe("Status Display", () => {
     it("should display worker status with correct colors", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -513,7 +513,7 @@ describe("WorkerList", () => {
       }));
 
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: largeWorkerList });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: largeWorkerList });
 
       const startTime = performance.now();
       renderWorkerList();
@@ -532,7 +532,7 @@ describe("WorkerList", () => {
   describe("Accessibility", () => {
     it("should support keyboard navigation", async () => {
       const { API } = await import("@/service");
-      (API.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();

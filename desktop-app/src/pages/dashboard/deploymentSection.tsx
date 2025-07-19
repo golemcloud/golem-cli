@@ -16,12 +16,11 @@ export function DeploymentSection() {
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        const response = await API.getApiList(appId!);
-        const newData = removeDuplicateApis(response);
-        const deploymentPromises = newData.map(_ =>
-          API.getDeploymentApi(appId!),
-        );
-        const allDeployments = await Promise.all(deploymentPromises);
+        const response = await API.apiService.getApiList(appId!);
+        const uniqueApis = [...new Set(response.map((api: any) => api.id))];
+        const [allDeployments] = await Promise.all([
+          API.deploymentService.getDeploymentApi(appId!),
+        ]);
         const combinedDeployments = allDeployments.flat().filter(Boolean);
         setDeployments(combinedDeployments);
       } catch (error) {

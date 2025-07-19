@@ -26,7 +26,7 @@ export default function YamlViewer() {
     } else if (appId) {
       // If no content was passed via state, fetch it
       setIsLoading(true);
-      API.getAppYamlContent(appId)
+      API.manifestService.getAppYamlContent(appId)
         .then(content => {
           setYamlContent(content);
         })

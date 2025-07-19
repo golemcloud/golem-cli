@@ -103,7 +103,7 @@ export default function CreatePlugin() {
   });
 
   useEffect(() => {
-    API.getComponentByIdAsKey(appId!).then(async response => {
+    API.componentService.getComponentByIdAsKey(appId!).then(async response => {
       setComponentApiList(response);
     });
   }, []);
@@ -128,8 +128,8 @@ export default function CreatePlugin() {
             <form
               onSubmit={form.handleSubmit(async (data: CreatePluginFormData) => {
                 try {
-                  await API.createPlugin(appId!, data);
-                  
+                  await API.pluginService.createPlugin(appId!, data);
+
                   navigate(`/app/${appId}/plugins`);
                   toast({
                     title: "Plugin created successfully",
@@ -162,7 +162,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.name &&
-                              "border-red-500 focus-visible:ring-red-500",
+                            "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -187,7 +187,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.version &&
-                              "border-red-500 focus-visible:ring-red-500",
+                            "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -213,7 +213,7 @@ export default function CreatePlugin() {
                         {...field}
                         className={cn(
                           form.formState.errors.description &&
-                            "border-red-500 focus-visible:ring-red-500",
+                          "border-red-500 focus-visible:ring-red-500",
                         )}
                       />
                     </FormControl>
@@ -239,7 +239,7 @@ export default function CreatePlugin() {
                           {...field}
                           className={cn(
                             form.formState.errors.homepage &&
-                              "border-red-500 focus-visible:ring-red-500",
+                            "border-red-500 focus-visible:ring-red-500",
                           )}
                         />
                       </FormControl>
@@ -266,7 +266,7 @@ export default function CreatePlugin() {
                             readOnly
                             className={cn(
                               form.formState.errors.icon &&
-                                "border-red-500 focus-visible:ring-red-500",
+                              "border-red-500 focus-visible:ring-red-500",
                             )}
                           />
                           <Button
@@ -361,7 +361,7 @@ export default function CreatePlugin() {
                               {...field}
                               className={cn(
                                 form.formState.errors.specs?.validateUrl &&
-                                  "border-red-500 focus-visible:ring-red-500",
+                                "border-red-500 focus-visible:ring-red-500",
                               )}
                             />
                           </FormControl>
@@ -383,7 +383,7 @@ export default function CreatePlugin() {
                               {...field}
                               className={cn(
                                 form.formState.errors.specs?.transformUrl &&
-                                  "border-red-500 focus-visible:ring-red-500",
+                                "border-red-500 focus-visible:ring-red-500",
                               )}
                             />
                           </FormControl>
@@ -451,14 +451,14 @@ export default function CreatePlugin() {
                             <Input
                               placeholder={
                                 form.watch("specs.type") === "OplogProcessor" ? "path/to/oplog-processor.wasm" :
-                                form.watch("specs.type") === "App" ? "path/to/app.wasm" :
-                                "path/to/library.wasm"
+                                  form.watch("specs.type") === "App" ? "path/to/app.wasm" :
+                                    "path/to/library.wasm"
                               }
                               {...field}
                               readOnly
                               className={cn(
                                 form.formState.errors.specs?.component &&
-                                  "border-red-500 focus-visible:ring-red-500",
+                                "border-red-500 focus-visible:ring-red-500",
                               )}
                             />
                             <Button

@@ -42,7 +42,7 @@ export function PluginView() {
 
   useEffect(() => {
     if (pluginId) {
-      API.getPluginByName(appId!, pluginId!).then(res => {
+      API.pluginService.getPluginByName(appId!, pluginId!).then(res => {
         setPlugins(res);
         const selectedVersion = version
           ? res.find(p => p.version === version)
@@ -66,7 +66,7 @@ export function PluginView() {
 
   const handleDelete = () => {
     if (!currentVersion) return;
-    API.deletePlugin(appId!, currentVersion.name, currentVersion.version)
+    API.pluginService.deletePlugin(appId!, currentVersion.name, currentVersion.version)
       .then(() => {
         if (plugins.length > 1) {
           navigate(`/app/${appId}/plugins/${plugins[0].name}/${plugins[0].version}`);

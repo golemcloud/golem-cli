@@ -27,11 +27,11 @@ const APIDetails = () => {
 
   useEffect(() => {
     if (apiName) {
-      API.getApi(appId!, apiName).then(response => {
+      API.apiService.getApi(appId!, apiName).then(response => {
         const selectedApi = response.find(r => r.version == version);
         setActiveApiDetails(selectedApi!);
       });
-      API.getDeploymentApi(appId!).then(response => {
+      API.deploymentService.getDeploymentApi(appId!).then(response => {
         const result = [] as Deployment[];
         response.forEach((deployment: Deployment) => {
           if (deployment.apiDefinitions.length > 0) {
@@ -101,7 +101,7 @@ const APIDetails = () => {
                             variant="secondary"
                             className={
                               HTTP_METHOD_COLOR[
-                                route.method as keyof typeof HTTP_METHOD_COLOR
+                              route.method as keyof typeof HTTP_METHOD_COLOR
                               ]
                             }
                           >

@@ -171,7 +171,7 @@ export default function WorkerInfo() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getParticularWorker(appId!, componentId, workerName).then(
+      API.workerService.getParticularWorker(appId!, componentId, workerName).then(
         response => {
           setWorkerDetails(response);
         },

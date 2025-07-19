@@ -57,7 +57,7 @@ export default function Plugins() {
   useEffect(() => {
     const fetchPlugins = async () => {
       try {
-        const plugins = await API.getPlugins(appId!);
+        const plugins = await API.pluginService.getPlugins(appId!);
         const pluginMap: Record<string, string[]> = {};
         plugins.forEach(({ name, version }) => {
           if (!pluginMap[name]) {
@@ -82,7 +82,7 @@ export default function Plugins() {
   }, []);
 
   const refreshComponent = () => {
-    API.getComponentByIdAsKey(appId!).then(response => {
+    API.componentService.getComponentByIdAsKey(appId!).then(response => {
       setComponent(response[componentId]);
       const data = response[componentId];
       const versionList = data.versionList || [];
@@ -101,7 +101,7 @@ export default function Plugins() {
 
     const fetchComponent = fetchedComponent
       ? Promise.resolve(fetchedComponent)
-      : API.getComponentByIdAndVersion(appId!, componentId, version);
+      : API.componentService.getComponentByIdAndVersion(appId!, componentId, version);
 
     fetchComponent.then(response => {
       setPlugins(response?.installedPlugins || []);
@@ -121,7 +121,7 @@ export default function Plugins() {
     const versionList = component.versionList || [];
     const latestVersion = versionList[versionList.length - 1];
     if (latestVersion === versionChange) {
-      API.deletePluginToComponent(componentId, pluginId).then(() => {
+      API.componentService.deletePluginToComponent(componentId, pluginId).then(() => {
         toast({
           title: "Plugin deleted successfully",
           description:
@@ -140,7 +140,7 @@ export default function Plugins() {
       version: newPlugin.version,
       parameters: {},
     };
-    API.addPluginToComponent(componentId, pluginData)
+    API.componentService.addPluginToComponent(componentId, pluginData)
       .then(() => {
         toast({
           title: "Plugin added successfully",

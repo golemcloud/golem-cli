@@ -83,7 +83,7 @@ export default function WorkerLive() {
   }, [debouncedActiveTab, debouncedSearchQuery]);
 
   const getOpLog = async (search: string) => {
-    API.getOplog(
+    API.workerService.getOplog(
       appId!,
       componentId,
       workerName,

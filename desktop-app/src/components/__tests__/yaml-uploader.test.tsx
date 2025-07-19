@@ -129,9 +129,9 @@ describe("YamlUploader", () => {
     });
 
     // Mock API responses
-    mockAPI.getApi.mockResolvedValue(mockApi);
-    mockAPI.getComponentByIdAsKey.mockResolvedValue({});
-    mockAPI.callApi.mockResolvedValue({});
+    mockAPI.apiService.getApi.mockResolvedValue(mockApi);
+    mockAPI.componentService.getComponentByIdAsKey.mockResolvedValue({});
+    mockAPI.apiService.callApi.mockResolvedValue({});
 
     // Mock yaml.load
     mockYamlLoad.mockReturnValue({
@@ -347,7 +347,7 @@ describe("YamlUploader", () => {
       await user.click(uploadButton);
 
       await waitFor(() => {
-        expect(mockAPI.callApi).toHaveBeenCalledWith(
+        expect(mockAPI.apiService.callApi).toHaveBeenCalledWith(
           "/api/test-api/v1.0.0",
           "PUT",
           expect.any(String),
@@ -358,7 +358,7 @@ describe("YamlUploader", () => {
 
     it("should handle submission errors", async () => {
       const user = userEvent.setup();
-      mockAPI.callApi.mockRejectedValue(new Error("API Error"));
+      mockAPI.apiService.callApi.mockRejectedValue(new Error("API Error"));
 
       const consoleSpy = vi
         .spyOn(console, "error")
@@ -480,15 +480,15 @@ describe("YamlUploader", () => {
       );
 
       await waitFor(() => {
-        expect(mockAPI.getApi).toHaveBeenCalledWith("test-app-id", "test-api");
-        expect(mockAPI.getComponentByIdAsKey).toHaveBeenCalledWith(
+        expect(mockAPI.apiService.getApi).toHaveBeenCalledWith("test-app-id", "test-api");
+        expect(mockAPI.componentService.getComponentByIdAsKey).toHaveBeenCalledWith(
           "test-app-id",
         );
       });
     });
 
     it("should handle fetch errors", async () => {
-      mockAPI.getApi.mockRejectedValue(new Error("API Error"));
+      mockAPI.apiService.getApi.mockRejectedValue(new Error("API Error"));
 
       const consoleSpy = vi
         .spyOn(console, "error")
@@ -572,7 +572,7 @@ describe("YamlUploader", () => {
       );
 
       // Should not call API when apiName is missing
-      expect(mockAPI.getApi).not.toHaveBeenCalled();
+      expect(mockAPI.apiService.getApi).not.toHaveBeenCalled();
     });
   });
 });

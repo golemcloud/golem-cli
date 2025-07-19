@@ -47,9 +47,9 @@ export const Dashboard = () => {
   const handleBuildApp = () => {
     if (!appId) return;
     setLoadingStates(prev => ({ ...prev, build: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.buildApp(appId)
+    API.appService.buildApp(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -81,9 +81,9 @@ export const Dashboard = () => {
   const handleUpdateWorkers = () => {
     if (!appId) return;
     setLoadingStates(prev => ({ ...prev, updateWorkers: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.updateWorkers(appId)
+    API.appService.updateWorkers(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -115,9 +115,9 @@ export const Dashboard = () => {
   const handleDeployWorkers = () => {
     if (!appId) return;
     setLoadingStates(prev => ({ ...prev, deployWorkers: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.deployWorkers(appId)
+    API.appService.deployWorkers(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -149,9 +149,9 @@ export const Dashboard = () => {
   const handleCleanApp = () => {
     if (!appId) return;
     setLoadingStates(prev => ({ ...prev, clean: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.cleanApp(appId)
+    API.appService.cleanApp(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -183,9 +183,9 @@ export const Dashboard = () => {
   const handleDeployApp = () => {
     if (!appId) return;
     setLoadingStates(prev => ({ ...prev, deployApp: true }));
-    
+
     // Run async operation without blocking using .then()
-    API.deployWorkers(appId)
+    API.appService.deployWorkers(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -219,7 +219,7 @@ export const Dashboard = () => {
   const handleViewYaml = async () => {
     if (!appId) return;
     try {
-      const yamlContent = await API.getAppYamlContent(appId);
+      const yamlContent = await API.manifestService.getAppYamlContent(appId);
       setYamlContent(yamlContent);
       setIsYamlModalOpen(true);
     } catch (error) {

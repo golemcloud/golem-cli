@@ -45,10 +45,10 @@ export default function WorkerManage() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getComponentByIdAsKey(appId!).then(response => {
-        setComponentList(response[componentId]);
+      API.componentService.getComponentByIdAsKey(appId!).then(response => {
+        setComponentList(response.find((x: any) => x.componentId === componentId));
       });
-      API.getParticularWorker(appId!, componentId, workerName).then(
+      API.workerService.getParticularWorker(appId!, componentId, workerName).then(
         response => {
           setWorkerDetails(response);
           setUpgradeTo(`${response?.componentVersion}`);
@@ -58,7 +58,7 @@ export default function WorkerManage() {
   }, [componentId, workerName]);
 
   const handleUpgrade = () => {
-    API.upgradeWorker(
+    API.workerService.upgradeWorker(
       appId!,
       componentList.componentName!,
       (workerDetails as any)?.workerName,
@@ -73,7 +73,7 @@ export default function WorkerManage() {
   };
 
   const handleDelete = () => {
-    API.deleteWorker(appId!, componentId, workerName).then(() => {
+    API.workerService.deleteWorker(appId!, componentId, workerName).then(() => {
       toast({
         title: "Worker deleted successfully",
         duration: 3000,
@@ -84,7 +84,7 @@ export default function WorkerManage() {
   };
 
   const onResumeWorker = () => {
-    API.resumeWorker(appId!, componentId, workerName).then(() => {
+    API.workerService.resumeWorker(appId!, componentId, workerName).then(() => {
       toast({
         title: "Worker resumed",
         duration: 3000,
@@ -93,7 +93,7 @@ export default function WorkerManage() {
   };
 
   const onInterruptWorker = () => {
-    API.interruptWorker(appId!, componentId, workerName).then(() => {
+    API.workerService.interruptWorker(appId!, componentId, workerName).then(() => {
       toast({
         title: "Worker interrupted",
         duration: 3000,

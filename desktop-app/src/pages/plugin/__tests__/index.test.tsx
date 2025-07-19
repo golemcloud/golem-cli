@@ -137,7 +137,7 @@ describe("PluginList", () => {
   describe("Component Rendering", () => {
     it("should render the plugin list page", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -150,7 +150,7 @@ describe("PluginList", () => {
 
     it("should render search input", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -163,7 +163,7 @@ describe("PluginList", () => {
 
     it("should render create plugin button", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -174,7 +174,7 @@ describe("PluginList", () => {
 
     it("should display plugin details", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -189,7 +189,7 @@ describe("PluginList", () => {
 
     it("should display plugin versions", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -204,7 +204,7 @@ describe("PluginList", () => {
   describe("Search Functionality", () => {
     it("should filter plugins based on search input", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -227,7 +227,7 @@ describe("PluginList", () => {
 
     it("should show no results when search yields no matches", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -248,7 +248,7 @@ describe("PluginList", () => {
 
     it("should clear search results when input is cleared", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -278,7 +278,7 @@ describe("PluginList", () => {
   describe("Plugin Interactions", () => {
     it("should navigate to plugin details when clicking on plugin card", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -299,7 +299,7 @@ describe("PluginList", () => {
 
     it("should handle create plugin button click", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -320,18 +320,18 @@ describe("PluginList", () => {
   describe("Data Loading", () => {
     it("should load plugins on component mount", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
       await waitFor(() => {
-        expect(API.getPlugins).toHaveBeenCalledWith("test-app-id");
+        expect(API.pluginService.getPlugins).toHaveBeenCalledWith("test-app-id");
       });
     });
 
     it("should handle empty plugin list", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue([]);
+      (API.pluginService.getPlugins as any).mockResolvedValue([]);
 
       renderPluginList();
 
@@ -349,7 +349,7 @@ describe("PluginList", () => {
   describe("Error Handling", () => {
     it("should handle API errors gracefully", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockRejectedValue(new Error("API Error"));
+      (API.pluginService.getPlugins as any).mockRejectedValue(new Error("API Error"));
 
       renderPluginList();
 
@@ -368,7 +368,7 @@ describe("PluginList", () => {
   describe("Plugin Status and Types", () => {
     it("should display different plugin types with appropriate icons", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -382,7 +382,7 @@ describe("PluginList", () => {
 
     it("should display plugin types with badges", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -419,7 +419,7 @@ describe("PluginList", () => {
       }));
 
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(largePluginList);
+      (API.pluginService.getPlugins as any).mockResolvedValue(largePluginList);
 
       const startTime = performance.now();
       renderPluginList();
@@ -438,7 +438,7 @@ describe("PluginList", () => {
   describe("Layout and Styling", () => {
     it("should have proper grid layout for plugin cards", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -452,7 +452,7 @@ describe("PluginList", () => {
 
     it("should display plugin information in cards", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -469,7 +469,7 @@ describe("PluginList", () => {
   describe("Accessibility", () => {
     it("should have proper ARIA labels and structure", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -485,7 +485,7 @@ describe("PluginList", () => {
 
     it("should support keyboard navigation", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockResolvedValue(mockPlugins);
+      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -509,7 +509,7 @@ describe("PluginList", () => {
   describe("Loading States", () => {
     it("should show loading state while fetching plugins", async () => {
       const { API } = await import("@/service");
-      (API.getPlugins as any).mockImplementation(
+      (API.pluginService.getPlugins as any).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
 

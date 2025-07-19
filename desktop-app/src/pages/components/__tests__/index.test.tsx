@@ -134,8 +134,8 @@ describe("Components", () => {
   describe("Component Rendering", () => {
     it("should render the components page", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -146,8 +146,8 @@ describe("Components", () => {
 
     it("should render search input", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -160,8 +160,8 @@ describe("Components", () => {
 
     it("should render create component button", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -172,8 +172,8 @@ describe("Components", () => {
 
     it("should render component cards", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -187,8 +187,8 @@ describe("Components", () => {
   describe("Search Functionality", () => {
     it("should filter components based on search input", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();
@@ -209,8 +209,8 @@ describe("Components", () => {
 
     it("should show empty state when search yields no matches", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();
@@ -232,8 +232,8 @@ describe("Components", () => {
   describe("Component Interactions", () => {
     it("should navigate to component details when clicking on component card", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();
@@ -254,8 +254,8 @@ describe("Components", () => {
 
     it("should handle create component button click", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();
@@ -276,7 +276,7 @@ describe("Components", () => {
   describe("Error Handling", () => {
     it("should handle API errors gracefully", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockRejectedValue(
+      (API.componentService.getComponentByIdAsKey as any).mockRejectedValue(
         new Error("API Error"),
       );
 
@@ -289,8 +289,8 @@ describe("Components", () => {
 
     it("should handle empty component list", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue({});
-      (API.findWorker as any).mockResolvedValue({ workers: [] });
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue({});
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: [] });
 
       renderComponents();
 
@@ -304,10 +304,10 @@ describe("Components", () => {
   describe("Loading States", () => {
     it("should show loading state while fetching components", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockImplementation(
+      (API.componentService.getComponentByIdAsKey as any).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
-      (API.findWorker as any).mockResolvedValue({ workers: [] });
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: [] });
 
       renderComponents();
 
@@ -318,8 +318,8 @@ describe("Components", () => {
   describe("Data Display", () => {
     it("should display component metadata correctly", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -348,8 +348,8 @@ describe("Components", () => {
       );
 
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(largeComponentsList);
-      (API.findWorker as any).mockResolvedValue({ workers: [] });
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(largeComponentsList);
+      (API.workerService.findWorker as any).mockResolvedValue({ workers: [] });
 
       const startTime = performance.now();
       renderComponents();
@@ -368,8 +368,8 @@ describe("Components", () => {
   describe("Accessibility", () => {
     it("should have proper ARIA labels and structure", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -385,8 +385,8 @@ describe("Components", () => {
 
     it("should support keyboard navigation", async () => {
       const { API } = await import("@/service");
-      (API.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.findWorker as any).mockResolvedValue(mockWorkers);
+      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
+      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();

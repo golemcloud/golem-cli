@@ -92,7 +92,7 @@ export default function APINewVersion() {
       try {
         setIsLoading(true);
         setFetchError(null);
-        const response = await API.getApi(appId!, apiName);
+        const response = await API.apiService.getApi(appId!, apiName);
         setApiDetails(response);
         setActiveApiDetails(response[response.length - 1]);
       } catch (error) {
@@ -150,7 +150,7 @@ export default function APINewVersion() {
         createdAt: new Date().toISOString(),
       };
       console.log(payload);
-      await API.createApiVersion(appId!, payload);
+      await API.apiService.createApiVersion(appId!, payload);
       // .then(() => {
       navigate(`/app/${appId}/apis/${apiName}/version/${values.version}`);
       // });

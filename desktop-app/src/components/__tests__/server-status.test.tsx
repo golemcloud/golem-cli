@@ -37,7 +37,7 @@ describe("ServerStatus", () => {
   });
 
   it("renders server status component with loading state initially", () => {
-    (API.checkHealth as any).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (API.appService.checkHealth as any).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<ServerStatus />);
 
@@ -45,7 +45,7 @@ describe("ServerStatus", () => {
   });
 
   it("displays healthy status when connected", async () => {
-    (API.checkHealth as any).mockResolvedValue({});
+    (API.appService.checkHealth as any).mockResolvedValue({});
 
     render(<ServerStatus />);
 
@@ -56,7 +56,7 @@ describe("ServerStatus", () => {
   });
 
   it("displays unhealthy status when disconnected", async () => {
-    (API.checkHealth as any).mockRejectedValue(new Error("Connection failed"));
+    (API.appService.checkHealth as any).mockRejectedValue(new Error("Connection failed"));
 
     render(<ServerStatus />);
 
@@ -67,7 +67,7 @@ describe("ServerStatus", () => {
   });
 
   it("displays connecting status when loading", () => {
-    (API.checkHealth as any).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (API.appService.checkHealth as any).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<ServerStatus />);
 
@@ -77,7 +77,7 @@ describe("ServerStatus", () => {
   });
 
   it("has correct text color based on status", async () => {
-    (API.checkHealth as any).mockResolvedValue({});
+    (API.appService.checkHealth as any).mockResolvedValue({});
 
     render(<ServerStatus />);
 

@@ -29,7 +29,7 @@ export default function WorkerList() {
   const { appId, componentId } = useParams();
 
   useEffect(() => {
-    API.findWorker(appId!, componentId!).then(res => {
+    API.workerService.findWorker(appId!, componentId!).then(res => {
       const sortedData = res.workers.sort(
         (a: Worker, b: Worker) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
