@@ -9,23 +9,35 @@ import {
 import { API } from "@/service";
 import { ComponentList } from "@/types/component.ts";
 import { ArrowRight, LayoutGrid, PlusCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useImperativeHandle, forwardRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ComponentCard } from "../components";
 
-export const ComponentsSection = () => {
+export interface ComponentsSectionRef {
+  refreshComponents: () => Promise<void>;
+}
+
+export const ComponentsSection = forwardRef<ComponentsSectionRef>((_, ref) => {
   const navigate = useNavigate();
   const { appId } = useParams<{ appId: string }>();
   const [components, setComponents] = useState<{
     [key: string]: ComponentList;
   }>({});
 
-  useEffect(() => {
-    (async () => {
-      let response = await API.getComponentByIdAsKey(appId!);
+  const fetchComponents = async () => {
+    if (appId) {
+      let response = await API.getComponentByIdAsKey(appId);
       setComponents(response);
-    })();
-  }, []);
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    refreshComponents: fetchComponents,
+  }));
+
+  useEffect(() => {
+    fetchComponents();
+  }, [appId]);
   return (
     <ErrorBoundary>
       <Card className="rounded-lg lg:col-span-2">
@@ -79,4 +91,4 @@ export const ComponentsSection = () => {
       </Card>
     </ErrorBoundary>
   );
-};
+});

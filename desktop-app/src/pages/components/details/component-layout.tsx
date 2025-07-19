@@ -25,6 +25,7 @@ import {
   Trash2,
   FileText,
   Send,
+  Loader2,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -109,141 +110,151 @@ export const ComponentLayout = () => {
   const [currentComponent, setCurrentComponent] =
     useState<ComponentList | null>(null);
   const [currentMenu, setCurrentMenu] = useState("Overview");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({
+    build: false,
+    updateWorkers: false,
+    deployWorkers: false,
+    deployComponent: false,
+    clean: false,
+  });
   const [isYamlModalOpen, setIsYamlModalOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState<string>("");
 
   // Component-level action handlers
-  const handleBuildComponent = async () => {
+  const handleBuildComponent = () => {
     if (!appId || !currentComponent?.componentName) return;
-    setIsLoading(true);
-    try {
-      const result = await API.buildApp(appId, [
-        currentComponent.componentName,
-      ]);
-
-      if (result.success) {
-        toast({
-          title: "Build Completed",
-          description: `Component ${currentComponent.componentName} build completed successfully.`,
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, build: true }));
+    
+    // Run async operation without blocking using .then()
+    API.buildApp(appId, [currentComponent.componentName])
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Build Completed",
+            description: `Component ${currentComponent.componentName} build completed successfully.`,
+          });
+        } else {
+          showLog({
+            title: "Component Build Failed",
+            logs: result.logs,
+            status: "error",
+            operation: `Build ${currentComponent.componentName}`,
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Component Build Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: `Build ${currentComponent.componentName}`,
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Component Build Failed",
-        logs: String(error),
-        status: "error",
-        operation: `Build ${currentComponent.componentName}`,
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, build: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
-  const handleUpdateWorkers = async () => {
+  const handleUpdateWorkers = () => {
     if (!appId || !currentComponent?.componentName) return;
-    setIsLoading(true);
-    try {
-      const result = await API.updateWorkers(appId, [
-        currentComponent.componentName,
-      ]);
-
-      if (result.success) {
-        toast({
-          title: "Workers Update Completed",
-          description: `Workers for ${currentComponent.componentName} updated successfully.`,
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, updateWorkers: true }));
+    
+    // Run async operation without blocking using .then()
+    API.updateWorkers(appId, [currentComponent.componentName])
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Workers Update Completed",
+            description: `Workers for ${currentComponent.componentName} updated successfully.`,
+          });
+        } else {
+          showLog({
+            title: "Workers Update Failed",
+            logs: result.logs,
+            status: "error",
+            operation: `Update Workers for ${currentComponent.componentName}`,
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Workers Update Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: `Update Workers for ${currentComponent.componentName}`,
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Workers Update Failed",
-        logs: String(error),
-        status: "error",
-        operation: `Update Workers for ${currentComponent.componentName}`,
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, updateWorkers: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
-  const handleDeployWorkers = async () => {
+  const handleDeployWorkers = () => {
     if (!appId || !currentComponent?.componentName) return;
-    setIsLoading(true);
-    try {
-      const result = await API.deployWorkers(appId, [
-        currentComponent.componentName,
-      ]);
-
-      if (result.success) {
-        toast({
-          title: "Deployment Completed",
-          description: `Workers for ${currentComponent.componentName} deployed successfully.`,
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, deployWorkers: true }));
+    
+    // Run async operation without blocking using .then()
+    API.deployWorkers(appId, [currentComponent.componentName])
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Deployment Completed",
+            description: `Workers for ${currentComponent.componentName} deployed successfully.`,
+          });
+        } else {
+          showLog({
+            title: "Deployment Failed",
+            logs: result.logs,
+            status: "error",
+            operation: `Deploy Workers for ${currentComponent.componentName}`,
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Deployment Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: `Deploy Workers for ${currentComponent.componentName}`,
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Deployment Failed",
-        logs: String(error),
-        status: "error",
-        operation: `Deploy Workers for ${currentComponent.componentName}`,
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, deployWorkers: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
-  const handleCleanComponent = async () => {
+  const handleCleanComponent = () => {
     if (!appId || !currentComponent?.componentName) return;
-    setIsLoading(true);
-    try {
-      const result = await API.cleanApp(appId, [
-        currentComponent.componentName,
-      ]);
-
-      if (result.success) {
-        toast({
-          title: "Clean Completed",
-          description: `Component ${currentComponent.componentName} cleaned successfully.`,
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, clean: true }));
+    
+    // Run async operation without blocking using .then()
+    API.cleanApp(appId, [currentComponent.componentName])
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Clean Completed",
+            description: `Component ${currentComponent.componentName} cleaned successfully.`,
+          });
+        } else {
+          showLog({
+            title: "Component Clean Failed",
+            logs: result.logs,
+            status: "error",
+            operation: `Clean ${currentComponent.componentName}`,
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Component Clean Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: `Clean ${currentComponent.componentName}`,
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Component Clean Failed",
-        logs: String(error),
-        status: "error",
-        operation: `Clean ${currentComponent.componentName}`,
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, clean: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleViewComponentYaml = async () => {
@@ -264,37 +275,38 @@ export const ComponentLayout = () => {
     }
   };
 
-  const handleDeployComponent = async () => {
+  const handleDeployComponent = () => {
     if (!appId || !currentComponent?.componentName) return;
-    setIsLoading(true);
-    try {
-      const result = await API.deployWorkers(appId, [
-        currentComponent.componentName,
-      ]);
-
-      if (result.success) {
-        toast({
-          title: "Component Deployment Completed",
-          description: `Component ${currentComponent.componentName} deployed successfully.`,
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, deployComponent: true }));
+    
+    // Run async operation without blocking using .then()
+    API.deployWorkers(appId, [currentComponent.componentName])
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Component Deployment Completed",
+            description: `Component ${currentComponent.componentName} deployed successfully.`,
+          });
+        } else {
+          showLog({
+            title: "Component Deployment Failed",
+            logs: result.logs,
+            status: "error",
+            operation: `Deploy ${currentComponent.componentName}`,
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Component Deployment Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: `Deploy ${currentComponent.componentName}`,
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Component Deployment Failed",
-        logs: String(error),
-        status: "error",
-        operation: `Deploy ${currentComponent.componentName}`,
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, deployComponent: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   // Fetch component data
@@ -372,10 +384,14 @@ export const ComponentLayout = () => {
             variant="outline"
             size="sm"
             onClick={handleBuildComponent}
-            disabled={isLoading}
+            disabled={loadingStates.build}
             className="text-xs h-7"
           >
-            <Play className="h-3 w-3 mr-1" />
+            {loadingStates.build ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Play className="h-3 w-3 mr-1" />
+            )}
             Build
           </Button>
           {currentComponent?.componentType === "Durable" && (
@@ -384,20 +400,28 @@ export const ComponentLayout = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleUpdateWorkers}
-                disabled={isLoading}
+                disabled={loadingStates.updateWorkers}
                 className="text-xs h-7"
               >
-                <RefreshCw className="h-3 w-3 mr-1" />
+                {loadingStates.updateWorkers ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
                 Update
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleDeployWorkers}
-                disabled={isLoading}
+                disabled={loadingStates.deployWorkers}
                 className="text-xs h-7"
               >
-                <Upload className="h-3 w-3 mr-1" />
+                {loadingStates.deployWorkers ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <Upload className="h-3 w-3 mr-1" />
+                )}
                 Deploy
               </Button>
             </>
@@ -406,20 +430,28 @@ export const ComponentLayout = () => {
             variant="outline"
             size="sm"
             onClick={handleDeployComponent}
-            disabled={isLoading}
+            disabled={loadingStates.deployComponent}
             className="text-xs h-7"
           >
-            <Send className="h-3 w-3 mr-1" />
+            {loadingStates.deployComponent ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Send className="h-3 w-3 mr-1" />
+            )}
             Deploy Component
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleCleanComponent}
-            disabled={isLoading}
+            disabled={loadingStates.clean}
             className="text-xs h-7"
           >
-            <Trash2 className="h-3 w-3 mr-1" />
+            {loadingStates.clean ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Trash2 className="h-3 w-3 mr-1" />
+            )}
             Clean
           </Button>
           <Button
@@ -439,7 +471,7 @@ export const ComponentLayout = () => {
       currentComponent?.componentType,
       currentMenu,
       handleNavigateHome,
-      isLoading,
+      loadingStates,
     ],
   );
 

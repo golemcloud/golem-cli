@@ -1,13 +1,13 @@
-import { ComponentsSection } from "@/pages/dashboard/componentSection.tsx";
+import { ComponentsSection, ComponentsSectionRef } from "@/pages/dashboard/componentSection.tsx";
 import { APISection } from "@/pages/dashboard/apiSection.tsx";
 import { DeploymentSection } from "@/pages/dashboard/deploymentSection.tsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { storeService } from "@/lib/settings.ts";
 import { API } from "@/service";
 import { toast } from "@/hooks/use-toast";
-import { Play, RefreshCw, Upload, Trash2, FileText, Send } from "lucide-react";
+import { Play, RefreshCw, Upload, Trash2, FileText, Send, Loader2 } from "lucide-react";
 import { YamlViewerModal } from "@/components/yaml-viewer-modal";
 import { useLogViewer } from "@/contexts/log-viewer-context";
 
@@ -15,8 +15,15 @@ export const Dashboard = () => {
   const { appId } = useParams();
   const navigate = useNavigate();
   const { showLog } = useLogViewer();
+  const componentsSectionRef = useRef<ComponentsSectionRef>(null);
   const [appName, setAppName] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({
+    build: false,
+    updateWorkers: false,
+    deployWorkers: false,
+    deployApp: false,
+    clean: false,
+  });
   const [isYamlModalOpen, setIsYamlModalOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState<string>("");
 
@@ -37,159 +44,176 @@ export const Dashboard = () => {
     }
   }, [appId, navigate]);
 
-  const handleBuildApp = async () => {
+  const handleBuildApp = () => {
     if (!appId) return;
-    setIsLoading(true);
-    try {
-      const result = await API.buildApp(appId);
-
-      if (result.success) {
-        toast({
-          title: "Build Completed",
-          description: "Application build completed successfully.",
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, build: true }));
+    
+    // Run async operation without blocking using .then()
+    API.buildApp(appId)
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Build Completed",
+            description: "Application build completed successfully.",
+          });
+        } else {
+          showLog({
+            title: "Build Failed",
+            logs: result.logs,
+            status: "error",
+            operation: "Build App",
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Build Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: "Build App",
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Build Failed",
-        logs: String(error),
-        status: "error",
-        operation: "Build App",
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, build: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
-  const handleUpdateWorkers = async () => {
+  const handleUpdateWorkers = () => {
     if (!appId) return;
-    setIsLoading(true);
-    try {
-      const result = await API.updateWorkers(appId);
-
-      if (result.success) {
-        toast({
-          title: "Workers Update Completed",
-          description: "Worker update process completed successfully.",
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, updateWorkers: true }));
+    
+    // Run async operation without blocking using .then()
+    API.updateWorkers(appId)
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Workers Update Completed",
+            description: "Worker update process completed successfully.",
+          });
+        } else {
+          showLog({
+            title: "Workers Update Failed",
+            logs: result.logs,
+            status: "error",
+            operation: "Update Workers",
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Workers Update Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: "Update Workers",
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Workers Update Failed",
-        logs: String(error),
-        status: "error",
-        operation: "Update Workers",
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, updateWorkers: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
-  const handleDeployWorkers = async () => {
+  const handleDeployWorkers = () => {
     if (!appId) return;
-    setIsLoading(true);
-    try {
-      const result = await API.deployWorkers(appId);
-
-      if (result.success) {
-        toast({
-          title: "Deployment Completed",
-          description: "Worker deployment completed successfully.",
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, deployWorkers: true }));
+    
+    // Run async operation without blocking using .then()
+    API.deployWorkers(appId)
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Deployment Completed",
+            description: "Worker deployment completed successfully.",
+          });
+        } else {
+          showLog({
+            title: "Deployment Failed",
+            logs: result.logs,
+            status: "error",
+            operation: "Deploy Workers",
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Deployment Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: "Deploy Workers",
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Deployment Failed",
-        logs: String(error),
-        status: "error",
-        operation: "Deploy Workers",
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, deployWorkers: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
-  const handleCleanApp = async () => {
+  const handleCleanApp = () => {
     if (!appId) return;
-    setIsLoading(true);
-    try {
-      const result = await API.cleanApp(appId);
-
-      if (result.success) {
-        toast({
-          title: "Clean Completed",
-          description: "Application clean process completed successfully.",
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, clean: true }));
+    
+    // Run async operation without blocking using .then()
+    API.cleanApp(appId)
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Clean Completed",
+            description: "Application clean process completed successfully.",
+          });
+        } else {
+          showLog({
+            title: "Clean Failed",
+            logs: result.logs,
+            status: "error",
+            operation: "Clean App",
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Clean Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: "Clean App",
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Clean Failed",
-        logs: String(error),
-        status: "error",
-        operation: "Clean App",
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, clean: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
-  const handleDeployApp = async () => {
+  const handleDeployApp = () => {
     if (!appId) return;
-    setIsLoading(true);
-    try {
-      const result = await API.deployWorkers(appId);
-
-      if (result.success) {
-        toast({
-          title: "Deploy Completed",
-          description: "Application deployment completed successfully.",
-        });
-      } else {
+    setLoadingStates(prev => ({ ...prev, deployApp: true }));
+    
+    // Run async operation without blocking using .then()
+    API.deployWorkers(appId)
+      .then(result => {
+        if (result.success) {
+          toast({
+            title: "Deploy Completed",
+            description: "Application deployment completed successfully.",
+          });
+          // Refresh components list after successful deployment
+          return componentsSectionRef.current?.refreshComponents();
+        } else {
+          showLog({
+            title: "Deploy Failed",
+            logs: result.logs,
+            status: "error",
+            operation: "Deploy App",
+          });
+        }
+      })
+      .catch(error => {
         showLog({
           title: "Deploy Failed",
-          logs: result.logs,
+          logs: String(error),
           status: "error",
           operation: "Deploy App",
         });
-      }
-    } catch (error) {
-      showLog({
-        title: "Deploy Failed",
-        logs: String(error),
-        status: "error",
-        operation: "Deploy App",
+      })
+      .finally(() => {
+        setLoadingStates(prev => ({ ...prev, deployApp: false }));
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleViewYaml = async () => {
@@ -226,45 +250,65 @@ export const Dashboard = () => {
             variant="outline"
             size="sm"
             onClick={handleBuildApp}
-            disabled={isLoading}
+            disabled={loadingStates.build}
           >
-            <Play className="h-4 w-4 mr-2" />
+            {loadingStates.build ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4 mr-2" />
+            )}
             Build App
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleUpdateWorkers}
-            disabled={isLoading}
+            disabled={loadingStates.updateWorkers}
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
+            {loadingStates.updateWorkers ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
             Update Workers
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleDeployWorkers}
-            disabled={isLoading}
+            disabled={loadingStates.deployWorkers}
           >
-            <Upload className="h-4 w-4 mr-2" />
+            {loadingStates.deployWorkers ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
             Deploy Workers
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleDeployApp}
-            disabled={isLoading}
+            disabled={loadingStates.deployApp}
           >
-            <Send className="h-4 w-4 mr-2" />
+            {loadingStates.deployApp ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4 mr-2" />
+            )}
             Deploy App
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleCleanApp}
-            disabled={isLoading}
+            disabled={loadingStates.clean}
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            {loadingStates.clean ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4 mr-2" />
+            )}
             Clean App
           </Button>
           <Button variant="outline" size="sm" onClick={handleViewYaml}>
@@ -275,7 +319,7 @@ export const Dashboard = () => {
       </div>
 
       <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6 min-h-[85vh] mb-8">
-        <ComponentsSection />
+        <ComponentsSection ref={componentsSectionRef} />
         <div className="grid grid-cols-1 gap-4 flex-col">
           <DeploymentSection />
           <APISection />
