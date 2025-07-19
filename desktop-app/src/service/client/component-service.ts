@@ -162,6 +162,7 @@ export class ComponentService {
 
     try {
       // Use CLI to uninstall plugin from component
+      const componentName = component.componentName || componentId;
       const args = [
         "plugin",
         "uninstall",
@@ -169,7 +170,7 @@ export class ComponentService {
         pluginName,
         "--plugin-version",
         pluginVersion,
-        component.componentName,
+        componentName,
       ];
 
       return await this.cliService.callCLI(appId, "component", args);
@@ -179,6 +180,40 @@ export class ComponentService {
     }
   };
 
+  public getInstalledPlugins = async (appId: string, componentId: string) => {
+    // Get the component details to find the component name
+    const component = await this.getComponentById(appId, componentId);
+    if (!component) {
+      throw new Error(`Component with ID ${componentId} not found`);
+    }
+
+    try {
+      // Use CLI to get installed plugins for component
+      const componentName = component.componentName || componentId;
+      const args = [
+        "plugin",
+        "get",
+        componentName,
+      ];
+
+      const result = await this.cliService.callCLI(appId, "component", args);
+      
+      // The CLI returns an array of plugin objects with this structure:
+      // [{"id":"...","pluginName":"...","pluginVersion":"...","pluginRegistered":true,"priority":1,"parameters":{}}]
+      
+      // Transform the CLI response to match our InstalledPlugin interface
+      return (result || []).map((plugin: any) => ({
+        id: plugin.id,
+        name: plugin.pluginName,
+        version: plugin.pluginVersion,
+        priority: plugin.priority,
+        parameters: plugin.parameters || {},
+      }));
+    } catch (error) {
+      console.error("Failed to get installed plugins:", error);
+      throw error;
+    }
+  };
 
   public addPluginToComponentWithApp = async (
     appId: string,
@@ -195,6 +230,7 @@ export class ComponentService {
 
     try {
       // Use CLI to install plugin to component
+      const componentName = component.componentName || componentId;
       const args = [
         "plugin",
         "install",
@@ -204,7 +240,7 @@ export class ComponentService {
         version,
         "--priority",
         priority.toString(),
-        component.componentName || componentId,
+        componentName,
       ];
 
       // Add parameters if provided (note: this might need adjustment based on actual CLI spec)

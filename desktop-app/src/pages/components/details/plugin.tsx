@@ -19,7 +19,6 @@ import { useEffect, useState } from "react";
 import { API } from "@/service";
 import { useParams } from "react-router-dom";
 import {
-  Component,
   ComponentList,
   InstalledPlugin,
 } from "@/types/component.ts";
@@ -98,20 +97,27 @@ export default function Plugins() {
     });
   };
 
-  const handleVersionChange = (
-    version: number,
-    fetchedComponent?: Component,
-  ) => {
+  const handleVersionChange = (version: number) => {
     setVersionChange(version);
 
-    const fetchComponent = fetchedComponent
-      ? Promise.resolve(fetchedComponent)
-      : API.componentService.getComponentByIdAndVersion(appId!, componentId, version);
-
-    fetchComponent.then(response => {
-      setPlugins(response?.installedPlugins || []);
-      setFilteredPlugins(response?.installedPlugins || []);
-    });
+    // Fetch installed plugins using the CLI command
+    API.componentService.getInstalledPlugins(appId!, componentId)
+      .then(installedPlugins => {
+        setPlugins(installedPlugins);
+        setFilteredPlugins(installedPlugins);
+      })
+      .catch(error => {
+        console.error("Failed to fetch installed plugins:", error);
+        toast({
+          title: "Failed to fetch installed plugins",
+          description: `An error occurred while fetching installed plugins. ${error}`,
+          variant: "destructive",
+          duration: 5000,
+        });
+        // Fallback to empty array
+        setPlugins([]);
+        setFilteredPlugins([]);
+      });
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
