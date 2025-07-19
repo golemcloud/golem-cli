@@ -12,12 +12,12 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { API } from "@/service";
-import { Plugin } from "@/types/plugin";
+import { PluginList } from "@/types/plugin";
 
-export default function PluginList() {
+export default function PluginListPage() {
   const navigate = useNavigate();
-  const [plugins, setPlugins] = useState<Plugin[]>([]);
-  const [pluginsApi, setPluginsApi] = useState<Plugin[]>([]);
+  const [plugins, setPlugins] = useState<PluginList[]>([]);
+  const [pluginsApi, setPluginsApi] = useState<PluginList[]>([]);
   const { appId } = useParams<{ appId: string }>();
   useEffect(() => {
     const fetchPlugins = async () => {
@@ -60,54 +60,64 @@ export default function PluginList() {
       {/* Plugin List */}
       {plugins.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plugins.map(plugin => (
-            <Card
-              key={plugin.name}
-              className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow from-background to-muted border-border bg-gradient-to-br"
-              onClick={() =>
-                navigate(
-                  `/app/${appId}/plugins/${plugin.name}/${plugin.version}`,
-                )
-              }
-            >
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg font-bold">
-                    {plugin.name}
-                  </CardTitle>
-                  <Badge variant="secondary" className="text-sm">
-                    {plugin.version}
-                  </Badge>
-                </div>
-                <CardDescription className="text-sm text-gray-500">
-                  {plugin.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="rounded-full text-sm">
-                    {plugin.specs.type}
-                  </Badge>
-                  {plugin.specs.type === "OplogProcessor" && (
+          {plugins.map(pluginGroup => {
+            const latestVersion = pluginGroup.versions[0]; // Versions are sorted descending
+            return (
+              <Card
+                key={pluginGroup.name}
+                className="flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow from-background to-muted border-border bg-gradient-to-br"
+                onClick={() =>
+                  navigate(
+                    `/app/${appId}/plugins/${pluginGroup.name}/${latestVersion.version}`,
+                  )
+                }
+              >
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg font-bold">
+                      {pluginGroup.name}
+                    </CardTitle>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant="secondary" className="text-sm">
+                        {latestVersion.version} (latest)
+                      </Badge>
+                      {pluginGroup.versions.length > 1 && (
+                        <Badge variant="outline" className="text-xs">
+                          {pluginGroup.versions.length} versions
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <CardDescription className="text-sm text-gray-500">
+                    {latestVersion.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className="rounded-full text-sm">
-                      Component Version: {plugin.specs.componentVersion}
+                      {latestVersion.type}
                     </Badge>
-                  )}
-                  <Badge
-                    variant="outline"
-                    className="flex items-center rounded-full text-sm"
-                  >
-                    {plugin.scope.type === "Global" ? (
-                      <Globe className="w-4 h-4 mr-1" />
-                    ) : (
-                      <Component className="w-4 h-4 mr-1" />
+                    {latestVersion.type === "Oplog Processor" && latestVersion.oplogProcessorComponentVersion !== undefined && (
+                      <Badge variant="outline" className="rounded-full text-sm">
+                        Component Version: {latestVersion.oplogProcessorComponentVersion}
+                      </Badge>
                     )}
-                    {plugin.scope.type} (scope)
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <Badge
+                      variant="outline"
+                      className="flex items-center rounded-full text-sm"
+                    >
+                      {latestVersion.scope.toLowerCase() === "global" ? (
+                        <Globe className="w-4 h-4 mr-1" />
+                      ) : (
+                        <Component className="w-4 h-4 mr-1" />
+                      )}
+                      {latestVersion.scope} (scope)
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg">

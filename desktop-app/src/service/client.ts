@@ -4,7 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { parseErrorResponse } from "@/service/error-handler.ts";
 import { Api } from "@/types/api.ts";
 import { Component, ComponentList } from "@/types/component.ts";
-import { Plugin } from "@/types/plugin";
+import { Plugin, PluginList } from "@/types/plugin";
 import { invoke } from "@tauri-apps/api/core";
 import { settingsService } from "@/lib/settings.ts";
 import {
@@ -49,7 +49,7 @@ export class Service {
     if (!hasComponents) {
       return [];
     }
-    
+
     const r = await this.callCLI(appId, "component", ["list"]);
     return r as Component[];
   };
@@ -292,9 +292,14 @@ export class Service {
     name: string,
     template: string,
   ) => {
-    console.log(appId)
+    console.log(appId);
     try {
-      console.log("Creating component with name:", name, "and template:", template);
+      console.log(
+        "Creating component with name:",
+        name,
+        "and template:",
+        template,
+      );
       await this.callCLI(appId, "component", ["new", template, name]);
     } catch (error) {
       console.error("Error in createComponent:", error);
@@ -444,7 +449,7 @@ export class Service {
     return Api;
   };
 
-  public createApi = async (appId:string, payload: HttpApiDefinition) => {
+  public createApi = async (appId: string, payload: HttpApiDefinition) => {
     // should use the app's YAML file
     const path = await this.getAppYamlPath(appId);
     if (!path) {
@@ -716,16 +721,34 @@ export class Service {
     );
   };
 
-  public getPlugins = async (appId: string): Promise<Plugin[]> => {
-    return await this.callCLI(appId, "plugin", ["list"]);
+  public getPlugins = async (appId: string): Promise<PluginList[]> => {
+    const rawPlugins = await this.callCLI(appId, "plugin", ["list"]);
+
+    // Group plugins by name
+    const grouped = rawPlugins.reduce(
+      (acc: Record<string, Plugin[]>, plugin: Plugin) => {
+        if (!acc[plugin.name]) {
+          acc[plugin.name] = [];
+        }
+        acc[plugin.name].push(plugin);
+        return acc;
+      },
+      {},
+    );
+
+    // Convert to PluginList array
+    return Object.entries(grouped).map(([name, versions]) => ({
+      name,
+      versions: versions.sort((a, b) => b.version.localeCompare(a.version)), // Sort versions descending
+    }));
   };
 
   public getPluginByName = async (
     appId: string,
     name: string,
-    version: string,
   ): Promise<Plugin[]> => {
-    return await this.callCLI(appId, "plugin", ["get", name, version]);
+    const allPlugins = await this.callCLI(appId, "plugin", ["list"]);
+    return allPlugins.filter((plugin: Plugin) => plugin.name === name);
   };
 
   // public downloadComponent = async (

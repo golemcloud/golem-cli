@@ -106,7 +106,6 @@ export default function CreatePlugin() {
   });
 
   useEffect(() => {
-    const { appId } = useParams<{ appId: string }>();
     API.getComponentByIdAsKey(appId!).then(async response => {
       setComponentApiList(response);
     });
