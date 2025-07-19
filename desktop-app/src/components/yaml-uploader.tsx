@@ -30,10 +30,10 @@ export default function YamlUploader() {
   const path = queryParams.get("path");
   const method = queryParams.get("method");
   const reload = queryParams.get("reload");
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [yamlContent, setYamlContent] = useState<string>("");
-  const [fileName, setFileName] = useState<string>("");
+  const [_fileName, setFileName] = useState<string>("");
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeApiDetails, setActiveApiDetails] = useState<Api | null>(null);
@@ -43,13 +43,13 @@ export default function YamlUploader() {
       if (!apiName) return;
       try {
         setIsLoading(true);
-        const [apiResponse, componentResponse] = await Promise.all([
+        const [apiResponse, _componentResponse] = await Promise.all([
           API.apiService.getApi(appId, apiName),
           API.componentService.getComponentByIdAsKey(appId!),
         ]);
         setActiveApiDetails(apiResponse!);
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
+      } catch (_error) {
+        console.error("Failed to fetch data:", _error);
         setError("Failed to load required data. Please try again.");
       } finally {
         setIsLoading(false);
@@ -70,23 +70,25 @@ export default function YamlUploader() {
       // Validate YAML before setting content
       yaml.load(content);
       setYamlContent(content);
-    } catch (error) {
+    } catch {
       setError("Invalid YAML file.");
       // You might want to show an error toast or message here
     }
   };
 
-  const onSubmit = async (payload: any) => {
+  const onSubmit = async (payload: unknown) => {
     try {
       setIsSubmitting(true);
-      await API.apiService.callApi(
-        ENDPOINT.putApi(activeApiDetails?.id!, version!),
-        "PUT",
-        payload,
-        { "Content-Type": "application/yaml" },
-      ).then(() => {
-        navigate(`/apis/${apiName}/version/${version}?reload=${!reload}`);
-      });
+      await API.apiService
+        .callApi(
+          ENDPOINT.putApi(activeApiDetails?.id!, version!),
+          "PUT",
+          payload,
+          { "Content-Type": "application/yaml" },
+        )
+        .then(() => {
+          navigate(`/apis/${apiName}/version/${version}?reload=${!reload}`);
+        });
     } catch (error) {
       console.error("Failed to create route:", error);
     } finally {
@@ -98,13 +100,13 @@ export default function YamlUploader() {
     isValid: boolean;
     errors: ValidationError[];
   } {
-    let parsedData: any;
+    let parsedData: unknown;
     const errors: ValidationError[] = [];
 
     // Step 1: Parse YAML to JSON
     try {
       parsedData = yaml.load(yamlString);
-    } catch (error) {
+    } catch {
       return {
         isValid: false,
         errors: ["Invalid YAML format."],
@@ -133,7 +135,7 @@ export default function YamlUploader() {
       errors.push("Invalid or missing 'routes' array.");
     } else {
       // Step 3: Validate each route
-      parsedData.routes.forEach((route: any) => {
+      parsedData.routes.forEach((route: Route) => {
         if (
           !route.method ||
           ![

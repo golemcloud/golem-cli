@@ -486,7 +486,7 @@ describe("WAVE format conversion", () => {
             {
               name: "delete",
               typ: { type: "unit" },
-            } as any,
+            },
           ],
         },
       };
@@ -545,7 +545,7 @@ describe("WAVE format conversion", () => {
                     {
                       name: "cancelled",
                       typ: { type: "unit" },
-                    } as any,
+                    },
                   ],
                 },
               },
@@ -667,7 +667,7 @@ describe("WAVE format conversion", () => {
               {
                 name: "timeout",
                 typ: { type: "unit" },
-              } as any,
+              },
             ],
           },
         },

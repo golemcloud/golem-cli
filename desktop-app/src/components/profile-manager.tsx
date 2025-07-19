@@ -201,9 +201,9 @@ export const ProfileManager = () => {
           <DialogHeader>
             <DialogTitle>Delete Profile</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the "
-              {deleteConfirmDialog.profileName}" profile? This action cannot be
-              undone.
+              Are you sure you want to delete the &quot;
+              {deleteConfirmDialog.profileName}&quot; profile? This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type MockedFunction } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { FileNode, FolderStructure } from "../file-manager";
 import { FileStructure } from "@/types/component";
@@ -11,7 +11,15 @@ vi.mock("@/lib/utils", () => ({
 }));
 
 vi.mock("@/components/ui/collapsible", () => ({
-  Collapsible: ({ children, open, onOpenChange }: any) => (
+  Collapsible: ({
+    children,
+    open,
+    onOpenChange,
+  }: {
+    children: React.ReactNode;
+    open: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => (
     <div
       data-testid="collapsible"
       data-open={open}
@@ -20,10 +28,18 @@ vi.mock("@/components/ui/collapsible", () => ({
       {children}
     </div>
   ),
-  CollapsibleContent: ({ children }: any) => (
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="collapsible-content">{children}</div>
   ),
-  CollapsibleTrigger: ({ children, style, className }: any) => (
+  CollapsibleTrigger: ({
+    children,
+    style,
+    className,
+  }: {
+    children: React.ReactNode;
+    style?: React.CSSProperties;
+    className?: string;
+  }) => (
     <button
       data-testid="collapsible-trigger"
       style={style}
@@ -38,7 +54,7 @@ vi.mock("lucide-react", () => ({
   ChevronDown: () => <span data-testid="chevron-down">▼</span>,
   ChevronRight: () => <span data-testid="chevron-right">▶</span>,
   File: () => <span data-testid="file-icon">📄</span>,
-  Folder: ({ className }: any) => (
+  Folder: ({ className }: { className?: string }) => (
     <span data-testid="folder-icon" className={className}>
       📁
     </span>
@@ -60,7 +76,11 @@ describe("FolderStructure", () => {
 
   describe("Basic rendering", () => {
     it("should render empty state when no files provided", () => {
-      (utils.parseFileStructure as any).mockReturnValue({
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue({
         name: "root",
         type: "folder",
         children: [],
@@ -80,18 +100,28 @@ describe("FolderStructure", () => {
           { name: "main.rs", type: "file" },
         ],
       };
-      (utils.parseFileStructure as any).mockReturnValue(mockRootNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(mockRootNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
-      expect(utils.parseFileStructure as any).toHaveBeenCalledWith(
-        mockFileStructure,
-      );
+      expect(
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >,
+      ).toHaveBeenCalledWith(mockFileStructure);
       expect(screen.getByText("root")).toBeInTheDocument();
     });
 
     it("should apply correct container styling", () => {
-      (utils.parseFileStructure as any).mockReturnValue({
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue({
         name: "root",
         type: "folder",
         children: [],
@@ -112,7 +142,11 @@ describe("FolderStructure", () => {
   describe("FolderStructureNode - File Rendering", () => {
     it("should render file node correctly", () => {
       const fileNode: FileNode = { name: "test.rs", type: "file" };
-      (utils.parseFileStructure as any).mockReturnValue(fileNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(fileNode);
 
       render(
         <FolderStructure
@@ -130,7 +164,11 @@ describe("FolderStructure", () => {
         type: "file",
         permissions: "rwxr-xr-x",
       };
-      (utils.parseFileStructure as any).mockReturnValue(fileNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(fileNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -153,7 +191,11 @@ describe("FolderStructure", () => {
           },
         ],
       };
-      (utils.parseFileStructure as any).mockReturnValue(nestedNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(nestedNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -170,7 +212,11 @@ describe("FolderStructure", () => {
         type: "folder",
         children: [{ name: "main.rs", type: "file" }],
       };
-      (utils.parseFileStructure as any).mockReturnValue(folderNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(folderNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -185,7 +231,11 @@ describe("FolderStructure", () => {
         type: "folder",
         children: [],
       };
-      (utils.parseFileStructure as any).mockReturnValue(folderNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(folderNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -202,7 +252,11 @@ describe("FolderStructure", () => {
         type: "folder",
         children: [{ name: "child.txt", type: "file" }],
       };
-      (utils.parseFileStructure as any).mockReturnValue(folderNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(folderNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -230,7 +284,11 @@ describe("FolderStructure", () => {
           },
         ],
       };
-      (utils.parseFileStructure as any).mockReturnValue(nestedStructure);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(nestedStructure);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -248,7 +306,11 @@ describe("FolderStructure", () => {
         type: "folder",
         children: [{ name: "hidden.txt", type: "file" }],
       };
-      (utils.parseFileStructure as any).mockReturnValue(folderNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(folderNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -265,7 +327,11 @@ describe("FolderStructure", () => {
           { name: "file1.txt", type: "file" },
         ],
       };
-      (utils.parseFileStructure as any).mockReturnValue(mixedNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(mixedNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -278,7 +344,11 @@ describe("FolderStructure", () => {
 
   describe("Edge cases", () => {
     it("should handle empty folder structure", () => {
-      (utils.parseFileStructure as any).mockReturnValue({
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue({
         name: "empty",
         type: "folder",
         children: [],
@@ -295,7 +365,11 @@ describe("FolderStructure", () => {
         type: "folder",
         children: [],
       };
-      (utils.parseFileStructure as any).mockReturnValue(emptyFolder);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(emptyFolder);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -314,7 +388,11 @@ describe("FolderStructure", () => {
           },
         ],
       };
-      (utils.parseFileStructure as any).mockReturnValue(longNamesNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(longNamesNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -336,7 +414,11 @@ describe("FolderStructure", () => {
           { name: "file-with-dashes_and_underscores.txt", type: "file" },
         ],
       };
-      (utils.parseFileStructure as any).mockReturnValue(specialCharsNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(specialCharsNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -368,7 +450,11 @@ describe("FolderStructure", () => {
         ],
       };
 
-      (utils.parseFileStructure as any).mockReturnValue(deeplyNested);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(deeplyNested);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -386,7 +472,11 @@ describe("FolderStructure", () => {
         type: "folder",
         children: [],
       };
-      (utils.parseFileStructure as any).mockReturnValue(folderNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(folderNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 
@@ -400,7 +490,11 @@ describe("FolderStructure", () => {
         type: "folder" as "folder",
         children: [{ name: "child.txt", type: "file" as "file" }],
       };
-      (utils.parseFileStructure as any).mockReturnValue(folderNode);
+      (
+        utils.parseFileStructure as MockedFunction<
+          typeof utils.parseFileStructure
+        >
+      ).mockReturnValue(folderNode);
 
       render(<FolderStructure data={mockFileStructure} />);
 

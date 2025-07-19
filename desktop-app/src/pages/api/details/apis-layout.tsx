@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/select.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { SelectValue } from "@radix-ui/react-select";
-import YamlUploader from "@/components/yaml-uploader.tsx";
 import { NavRoutes } from "@/components/nav-route.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { HttpApiDefinition } from "@/types/golemManifest.ts";
@@ -152,7 +151,7 @@ export const ApiLayout = () => {
                   defaultValue={version}
                   onValueChange={version => {
                     const selectedApi = sortedVersions.find(
-                      (api: any) => api.version === version,
+                      (api: HttpApiDefinition) => api.version === version,
                     );
                     if (selectedApi) {
                       navigate(

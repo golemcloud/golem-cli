@@ -7,4 +7,3 @@ export let API: Service = new Service();
 (async () => {
   API = new Service();
 })();
-

@@ -313,7 +313,9 @@ describe("worker utilities", () => {
 
       // Mock getComputedStyle function
       const originalGetComputedStyle = window.getComputedStyle;
-      window.getComputedStyle = vi.fn(() => mockComputedStyle as any);
+      window.getComputedStyle = vi.fn(
+        () => mockComputedStyle as CSSStyleDeclaration,
+      );
 
       document.body.appendChild(textarea);
 
@@ -638,7 +640,7 @@ describe("worker utilities", () => {
     it("should return error for unknown types", () => {
       const field: TypeField = {
         name: "testField",
-        typ: { type: "UnknownType" as any },
+        typ: { type: "UnknownType" },
       };
 
       expect(validateJsonStructure("test", field)).toBe(

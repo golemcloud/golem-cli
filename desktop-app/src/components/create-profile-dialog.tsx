@@ -55,7 +55,13 @@ export const CreateProfileDialog = ({
     try {
       setLoading(true);
 
-      const options: any = {
+      const options: {
+        setActive?: boolean;
+        componentUrl?: string;
+        workerUrl?: string;
+        cloudUrl?: string;
+        defaultFormat?: string;
+      } = {
         setActive: formData.setActive,
         defaultFormat: formData.defaultFormat,
       };

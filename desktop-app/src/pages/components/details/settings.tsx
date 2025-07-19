@@ -30,14 +30,22 @@ export default function ComponentSettings() {
   const handleDeleteAll = async () => {
     setIsDeleting(true);
     try {
-      const response = await API.workerService.findWorker(appId!, componentId!, {
-        count: 100,
-        precise: true,
-      });
+      const response = await API.workerService.findWorker(
+        appId!,
+        componentId!,
+        {
+          count: 100,
+          precise: true,
+        },
+      );
 
       await Promise.allSettled(
-        response?.workers.map((worker: any) =>
-          API.workerService.deleteWorker(appId!, componentId!, worker.workerName),
+        response?.workers.map((worker: Worker) =>
+          API.workerService.deleteWorker(
+            appId!,
+            componentId!,
+            worker.workerName,
+          ),
         ),
       );
 

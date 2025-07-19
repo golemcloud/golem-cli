@@ -34,17 +34,17 @@ vi.mock("@tauri-apps/api/path", () => ({
 }));
 
 describe("tauri&web utilities", () => {
-  let mockMatchMedia: any;
-  let mockGlobalFetch: any;
-  let mockWebSocket: any;
-  let mockCreateElement: any;
-  let mockAppendChild: any;
-  let mockRemoveChild: any;
-  let mockCreateObjectURL: any;
-  let mockRevokeObjectURL: any;
-  let originalWindow: any;
-  let originalDocument: any;
-  let originalURL: any;
+  let mockMatchMedia: ReturnType<typeof vi.fn>;
+  let mockGlobalFetch: ReturnType<typeof vi.fn>;
+  let mockWebSocket: ReturnType<typeof vi.fn>;
+  let mockCreateElement: ReturnType<typeof vi.fn>;
+  let mockAppendChild: ReturnType<typeof vi.fn>;
+  let mockRemoveChild: ReturnType<typeof vi.fn>;
+  let mockCreateObjectURL: ReturnType<typeof vi.fn>;
+  let mockRevokeObjectURL: ReturnType<typeof vi.fn>;
+  let originalWindow: typeof globalThis.window | undefined;
+  let originalDocument: typeof globalThis.document | undefined;
+  let originalURL: typeof globalThis.URL | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -220,7 +220,7 @@ describe("tauri&web utilities", () => {
       const { fetchData } = await import("../tauri&web");
       const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
       const mockTauriFetch = vi.mocked(tauriFetch);
-      mockTauriFetch.mockResolvedValue({ ok: true } as any);
+      mockTauriFetch.mockResolvedValue({ ok: true } as Response);
 
       await fetchData("http://test.com");
 

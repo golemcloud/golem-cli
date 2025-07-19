@@ -89,7 +89,7 @@ export const ComponentCard = React.memo(
     const latestVersion = data.versions?.[data.versions?.length - 1];
     // Count total exports using a helper function
     const exportCount = calculateExportFunctions(
-      (latestVersion?.metadata?.exports as any) || [],
+      (latestVersion?.metadata?.exports as string[]) || [],
     ).length;
     // Convert component size from bytes to kilobytes
     const componentSize = Math.round(
@@ -122,7 +122,7 @@ export const ComponentCard = React.memo(
           >
             {formatRelativeTime(
               data.versions?.[data.versions?.length - 1].createdAt ||
-              new Date(),
+                new Date(),
             )}
           </CardDescription>
         </CardHeader>
@@ -219,10 +219,14 @@ const Components = () => {
       // Map over each component to fetch worker info
       const workerPromises = Object.values(response).map(async comp => {
         if (comp.componentId) {
-          const worker = await API.workerService.findWorker(appId!, comp.componentId, {
-            count: 100,
-            precise: true,
-          });
+          const worker = await API.workerService.findWorker(
+            appId!,
+            comp.componentId,
+            {
+              count: 100,
+              precise: true,
+            },
+          );
 
           // Initialize status with all metrics set to 0
           const status = { ...DEFAULT_WORKER_STATUS };

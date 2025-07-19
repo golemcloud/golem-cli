@@ -2,7 +2,23 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import React from "react";
 import DeploymentList from "../index";
+
+interface MockDialogProps {
+  children: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+interface MockButtonProps {
+  children: React.ReactNode;
+  onClick?: () => void;
+  variant?: string;
+  disabled?: boolean;
+  asChild?: boolean;
+  [key: string]: unknown;
+}
 
 // Mock dependencies
 const mockNavigate = vi.fn();
@@ -30,16 +46,24 @@ vi.mock("@/components/errorBoundary", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children, className }: any) => (
+  Card: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <div className={className} data-testid="card">
       {children}
     </div>
   ),
-  CardContent: ({ children }: any) => <div>{children}</div>,
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children, open, onOpenChange }: any) => (
+  Dialog: ({ children, open, onOpenChange }: MockDialogProps) => (
     <div>
       <div data-trigger onClick={() => onOpenChange?.(true)}>
         {children[0]}
@@ -47,12 +71,24 @@ vi.mock("@/components/ui/dialog", () => ({
       {open && <div data-testid="dialog">{children.slice(1)}</div>}
     </div>
   ),
-  DialogContent: ({ children }: any) => <div>{children}</div>,
-  DialogDescription: ({ children }: any) => <p>{children}</p>,
-  DialogFooter: ({ children }: any) => <div>{children}</div>,
-  DialogHeader: ({ children }: any) => <div>{children}</div>,
-  DialogTitle: ({ children }: any) => <h2>{children}</h2>,
-  DialogTrigger: ({ children }: any) => <div>{children}</div>,
+  DialogContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <p>{children}</p>
+  ),
+  DialogFooter: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2>{children}</h2>
+  ),
+  DialogTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 vi.mock("@/components/ui/button", () => ({
@@ -63,7 +99,7 @@ vi.mock("@/components/ui/button", () => ({
     disabled,
     asChild,
     ...props
-  }: any) => {
+  }: MockButtonProps) => {
     if (asChild) {
       return (
         <div onClick={onClick} {...props}>
@@ -85,7 +121,13 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/badge", () => ({
-  Badge: ({ children, className }: any) => (
+  Badge: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <span className={className} data-testid="badge">
       {children}
     </span>
@@ -192,9 +234,15 @@ describe("DeploymentList", () => {
 
     // Set up default mocks
     const { API } = await import("@/service");
-    (API.apiService.getApiList as any).mockResolvedValue(mockApiList);
-    (API.deploymentService.getDeploymentApi as any).mockResolvedValue(mockDeployments);
-    (API.deploymentService.deleteDeployment as any).mockResolvedValue(true);
+    (API.apiService.getApiList as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockApiList,
+    );
+    (
+      API.deploymentService.getDeploymentApi as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(mockDeployments);
+    (
+      API.deploymentService.deleteDeployment as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -320,16 +368,24 @@ describe("DeploymentList", () => {
       renderDeploymentList();
 
       await waitFor(() => {
-        expect(API.deploymentService.getDeploymentApi).toHaveBeenCalledWith("test-app-id");
+        expect(API.deploymentService.getDeploymentApi).toHaveBeenCalledWith(
+          "test-app-id",
+        );
         expect(API.apiService.getApiList).toHaveBeenCalledWith("test-app-id");
       });
     });
 
     it("should handle empty deployment list", async () => {
       const { API } = await import("@/service");
-      (API.apiService.getApiList as any).mockResolvedValue(mockApiList);
-      (API.deploymentService.getDeploymentApi as any).mockResolvedValue([]);
-      (API.apiService.getApiList as any).mockResolvedValue([]);
+      (API.apiService.getApiList as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockApiList,
+      );
+      (
+        API.deploymentService.getDeploymentApi as ReturnType<typeof vi.fn>
+      ).mockResolvedValue([]);
+      (API.apiService.getApiList as ReturnType<typeof vi.fn>).mockResolvedValue(
+        [],
+      );
 
       renderDeploymentList();
 
@@ -344,8 +400,12 @@ describe("DeploymentList", () => {
   describe("Error Handling", () => {
     it("should handle API errors gracefully", async () => {
       const { API } = await import("@/service");
-      (API.apiService.getApiList as any).mockRejectedValue(new Error("API Error"));
-      (API.apiService.getApiList as any).mockResolvedValue([]);
+      (API.apiService.getApiList as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("API Error"),
+      );
+      (API.apiService.getApiList as ReturnType<typeof vi.fn>).mockResolvedValue(
+        [],
+      );
 
       renderDeploymentList();
 
@@ -367,9 +427,9 @@ describe("DeploymentList", () => {
 
     it("should handle delete deployment errors", async () => {
       const { API } = await import("@/service");
-      (API.deploymentService.deleteDeployment as any).mockRejectedValue(
-        new Error("Delete failed"),
-      );
+      (
+        API.deploymentService.deleteDeployment as ReturnType<typeof vi.fn>
+      ).mockRejectedValue(new Error("Delete failed"));
 
       renderDeploymentList();
       const user = userEvent.setup();
@@ -438,8 +498,12 @@ describe("DeploymentList", () => {
       }));
 
       const { API } = await import("@/service");
-      (API.apiService.getApiList as any).mockResolvedValue(mockApiList);
-      (API.deploymentService.getDeploymentApi as any).mockResolvedValue(largeDeploymentList);
+      (API.apiService.getApiList as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockApiList,
+      );
+      (
+        API.deploymentService.getDeploymentApi as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(largeDeploymentList);
 
       const startTime = performance.now();
       renderDeploymentList();
@@ -483,10 +547,14 @@ describe("DeploymentList", () => {
   describe("Loading States", () => {
     it("should show loading state while fetching data", async () => {
       const { API } = await import("@/service");
-      (API.apiService.getApiList as any).mockImplementation(
+      (
+        API.apiService.getApiList as ReturnType<typeof vi.fn>
+      ).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
-      (API.deploymentService.getDeploymentApi as any).mockResolvedValue([]);
+      (
+        API.deploymentService.getDeploymentApi as ReturnType<typeof vi.fn>
+      ).mockResolvedValue([]);
 
       renderDeploymentList();
 

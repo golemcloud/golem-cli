@@ -29,7 +29,7 @@ export function ServerStatus() {
           timestamp: new Date().toISOString(),
           uptime: 0,
         });
-      } catch (error) {
+      } catch {
         setStatus({
           status: "unhealthy",
           timestamp: new Date().toISOString(),
@@ -57,7 +57,7 @@ export function ServerStatus() {
   }
 
   const statusContent =
-    status && status?.status[0].toUpperCase() + status?.status.slice(1);
+    status?.status ? status.status[0].toUpperCase() + status.status.slice(1) : "";
 
   return (
     <TooltipProvider>

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -32,7 +32,21 @@ vi.mock("@/lib/settings", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, size, variant, className }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    size,
+    variant,
+    className,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    size?: string;
+    variant?: string;
+    className?: string;
+  }) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -46,25 +60,51 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children, className, onClick }: any) => (
+  Card: ({
+    children,
+    className,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    onClick?: () => void;
+  }) => (
     <div className={className} onClick={onClick} data-testid="card">
       {children}
     </div>
   ),
-  CardContent: ({ children, className }: any) => (
+  CardContent: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <div className={className} data-testid="card-content">
       {children}
     </div>
   ),
-  CardDescription: ({ children }: any) => (
+  CardDescription: ({ children }: { children: React.ReactNode }) => (
     <p data-testid="card-description">{children}</p>
   ),
-  CardHeader: ({ children, className }: any) => (
+  CardHeader: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <div className={className} data-testid="card-header">
       {children}
     </div>
   ),
-  CardTitle: ({ children, className }: any) => (
+  CardTitle: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <h2 className={className} data-testid="card-title">
       {children}
     </h2>
@@ -72,7 +112,9 @@ vi.mock("@/components/ui/card", () => ({
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
+  ),
 }));
 
 // Mock lucide-react icons
@@ -114,7 +156,11 @@ describe("Home Page", () => {
   describe("Initial rendering", () => {
     it("should render main heading and create button", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue([]);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
 
       await act(async () => {
         render(
@@ -130,7 +176,11 @@ describe("Home Page", () => {
 
     it("should render action cards", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue([]);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
 
       await act(async () => {
         render(
@@ -157,7 +207,11 @@ describe("Home Page", () => {
 
     it("should render recent applications section", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue([]);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
 
       await act(async () => {
         render(
@@ -177,7 +231,11 @@ describe("Home Page", () => {
   describe("App loading", () => {
     it("should load and display recent apps", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       await act(async () => {
         render(
@@ -197,7 +255,11 @@ describe("Home Page", () => {
 
     it("should show no recent apps message when list is empty", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue([]);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
 
       await act(async () => {
         render(
@@ -219,9 +281,11 @@ describe("Home Page", () => {
         .spyOn(console, "error")
         .mockImplementation(() => {});
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockRejectedValue(
-        new Error("Failed to load"),
-      );
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockRejectedValue(new Error("Failed to load"));
 
       await act(async () => {
         render(
@@ -245,7 +309,11 @@ describe("Home Page", () => {
   describe("Navigation", () => {
     it("should navigate to app creation when create button is clicked", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue([]);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -266,7 +334,11 @@ describe("Home Page", () => {
 
     it("should navigate to app creation when header button is clicked", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue([]);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -285,7 +357,11 @@ describe("Home Page", () => {
 
     it("should navigate to app when recent app is clicked", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -314,13 +390,27 @@ describe("Home Page", () => {
       const { open } = await import("@tauri-apps/plugin-dialog");
       const { settingsService } = await import("@/lib/settings");
 
-      (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockResolvedValue("/path/to/new/app");
-      (settingsService.validateGolemApp as any).mockResolvedValue({
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
+      (open as MockedFunction<typeof open>).mockResolvedValue(
+        "/path/to/new/app",
+      );
+      (
+        settingsService.validateGolemApp as MockedFunction<
+          typeof settingsService.validateGolemApp
+        >
+      ).mockResolvedValue({
         isValid: true,
         yamlPath: "/path/to/new/app/golem.yaml",
       });
-      (settingsService.addApp as any).mockResolvedValue(true);
+      (
+        settingsService.addApp as MockedFunction<
+          typeof settingsService.addApp
+        >
+      ).mockResolvedValue(true);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -350,9 +440,19 @@ describe("Home Page", () => {
       const { settingsService } = await import("@/lib/settings");
       const { toast } = await import("@/hooks/use-toast");
 
-      (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockResolvedValue("/path/to/invalid/app");
-      (settingsService.validateGolemApp as any).mockResolvedValue({
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
+      (open as MockedFunction<typeof open>).mockResolvedValue(
+        "/path/to/invalid/app",
+      );
+      (
+        settingsService.validateGolemApp as MockedFunction<
+          typeof settingsService.validateGolemApp
+        >
+      ).mockResolvedValue({
         isValid: false,
         yamlPath: "",
       });
@@ -383,8 +483,12 @@ describe("Home Page", () => {
       const { open } = await import("@tauri-apps/plugin-dialog");
       const { settingsService } = await import("@/lib/settings");
 
-      (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockResolvedValue(null);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
+      (open as MockedFunction<typeof open>).mockResolvedValue(null);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -410,8 +514,14 @@ describe("Home Page", () => {
       const { settingsService } = await import("@/lib/settings");
       const { toast } = await import("@/hooks/use-toast");
 
-      (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockRejectedValue(new Error("Dialog error"));
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
+      (open as MockedFunction<typeof open>).mockRejectedValue(
+        new Error("Dialog error"),
+      );
 
       const user = userEvent.setup();
       await act(async () => {
@@ -438,8 +548,12 @@ describe("Home Page", () => {
       const { open } = await import("@tauri-apps/plugin-dialog");
       const { settingsService } = await import("@/lib/settings");
 
-      (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockImplementation(
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
+      (open as MockedFunction<typeof open>).mockImplementation(
         () => new Promise(resolve => setTimeout(() => resolve("/path"), 100)),
       );
 
@@ -468,7 +582,11 @@ describe("Home Page", () => {
   describe("App search functionality", () => {
     it("should filter apps based on search term", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -493,7 +611,11 @@ describe("Home Page", () => {
 
     it("should show no matching message when search has no results", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -518,7 +640,11 @@ describe("Home Page", () => {
 
     it("should search by folder location", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -552,7 +678,11 @@ describe("Home Page", () => {
       }));
 
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(manyApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(manyApps);
 
       await act(async () => {
         render(
@@ -577,7 +707,11 @@ describe("Home Page", () => {
       }));
 
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(manyApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(manyApps);
 
       const user = userEvent.setup();
       await act(async () => {
@@ -617,7 +751,11 @@ describe("Home Page", () => {
       ];
 
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(unsortedApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(unsortedApps);
 
       await act(async () => {
         render(
@@ -648,7 +786,11 @@ describe("Home Page", () => {
       };
 
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue([recentApp]);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([recentApp]);
 
       await act(async () => {
         render(

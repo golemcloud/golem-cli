@@ -171,11 +171,11 @@ export default function WorkerInfo() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.workerService.getParticularWorker(appId!, componentId, workerName).then(
-        response => {
-          setWorkerDetails(response);
-        },
-      );
+      API.workerService
+        .getParticularWorker(appId!, componentId, workerName)
+        .then(response => {
+          setWorkerDetails(response as Worker);
+        });
     }
   }, [appId, componentId, workerName]);
 

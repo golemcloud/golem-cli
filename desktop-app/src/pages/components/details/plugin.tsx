@@ -18,10 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { API } from "@/service";
 import { useParams } from "react-router-dom";
-import {
-  ComponentList,
-  InstalledPlugin,
-} from "@/types/component.ts";
+import { ComponentList, InstalledPlugin } from "@/types/component.ts";
 import { toast } from "@/hooks/use-toast.ts";
 import {
   Dialog,
@@ -45,7 +42,9 @@ export default function Plugins() {
   const [versionChange, setVersionChange] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [pluginToDelete, setPluginToDelete] = useState<InstalledPlugin | null>(null);
+  const [pluginToDelete, setPluginToDelete] = useState<InstalledPlugin | null>(
+    null,
+  );
   const [newPlugin, setNewPlugin] = useState({
     name: "",
     priority: 1,
@@ -103,7 +102,8 @@ export default function Plugins() {
     setVersionChange(version);
 
     // Fetch installed plugins using the CLI command
-    API.componentService.getInstalledPlugins(appId!, componentId)
+    API.componentService
+      .getInstalledPlugins(appId!, componentId)
       .then(installedPlugins => {
         setPlugins(installedPlugins);
         setFilteredPlugins(installedPlugins);
@@ -153,28 +153,31 @@ export default function Plugins() {
   // Confirm delete action - actually deletes the plugin
   const confirmDeletePlugin = () => {
     if (pluginToDelete) {
-      API.componentService.deletePluginToComponentWithApp(
-        appId!,
-        componentId,
-        pluginToDelete.id  // Use installation ID
-      ).then(() => {
-        toast({
-          title: "Plugin deleted successfully",
-          description:
-            "Plugin has been deleted successfully. Please check the latest version of the component.",
-          duration: 3000,
+      API.componentService
+        .deletePluginToComponentWithApp(
+          appId!,
+          componentId,
+          pluginToDelete.id, // Use installation ID
+        )
+        .then(() => {
+          toast({
+            title: "Plugin deleted successfully",
+            description:
+              "Plugin has been deleted successfully. Please check the latest version of the component.",
+            duration: 3000,
+          });
+          refreshComponent();
+          setIsDeleteDialogOpen(false);
+          setPluginToDelete(null);
+        })
+        .catch(error => {
+          toast({
+            title: "Failed to delete plugin",
+            description: `An error occurred while deleting the plugin. ${error}`,
+            variant: "destructive",
+            duration: 5000,
+          });
         });
-        refreshComponent();
-        setIsDeleteDialogOpen(false);
-        setPluginToDelete(null);
-      }).catch(error => {
-        toast({
-          title: "Failed to delete plugin",
-          description: `An error occurred while deleting the plugin. ${error}`,
-          variant: "destructive",
-          duration: 5000,
-        });
-      });
     }
   };
 
@@ -185,7 +188,8 @@ export default function Plugins() {
       version: newPlugin.version,
       parameters: {},
     };
-    API.componentService.addPluginToComponentWithApp(appId!, componentId, pluginData)
+    API.componentService
+      .addPluginToComponentWithApp(appId!, componentId, pluginData)
       .then(() => {
         toast({
           title: "Plugin added successfully",
@@ -325,19 +329,20 @@ export default function Plugins() {
           <DialogContent>
             <DialogTitle>Confirm Plugin Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the plugin "{pluginToDelete?.name}" (version {pluginToDelete?.version})?
+              Are you sure you want to delete the plugin &quot;
+              {pluginToDelete?.name}&quot; (version {pluginToDelete?.version})?
               This action cannot be undone.
             </DialogDescription>
             <div className="flex justify-end mt-4 gap-2">
               <DialogClose asChild>
-                <Button variant="outline" onClick={() => setPluginToDelete(null)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setPluginToDelete(null)}
+                >
                   Cancel
                 </Button>
               </DialogClose>
-              <Button
-                variant="destructive"
-                onClick={confirmDeletePlugin}
-              >
+              <Button variant="destructive" onClick={confirmDeletePlugin}>
                 Delete Plugin
               </Button>
             </div>

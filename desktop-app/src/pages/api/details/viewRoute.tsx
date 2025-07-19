@@ -37,7 +37,7 @@ function CodeBlock({ code, label, allowCopy = false }: CodeBlockProps) {
         duration: 2000,
       });
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       toast({
         variant: "destructive",
         description: "Failed to copy code",
@@ -69,10 +69,10 @@ function CodeBlock({ code, label, allowCopy = false }: CodeBlockProps) {
         <code>
           {Array.isArray(code)
             ? code.map((line, index) => (
-              <div key={index} className="py-1">
-                {line}
-              </div>
-            ))
+                <div key={index} className="py-1">
+                  {line}
+                </div>
+              ))
             : code}
         </code>
       </pre>
@@ -113,10 +113,11 @@ function PathParameters({ url }: { url: string }) {
           <Badge
             key={param.name}
             variant="outline"
-            className={`font-mono text-sm ${param.type === "path"
+            className={`font-mono text-sm ${
+              param.type === "path"
                 ? "border-blue-500 dark:border-blue-500"
                 : "border-gray-500 dark:border-gray-500"
-              }`}
+            }`}
           >
             <span className="text-purple-600 dark:text-purple-400">
               {param.name}
@@ -198,7 +199,7 @@ export const ApiRoute = () => {
                   variant="secondary"
                   className={
                     HTTP_METHOD_COLOR[
-                    currentRoute.method as keyof typeof HTTP_METHOD_COLOR
+                      currentRoute.method as keyof typeof HTTP_METHOD_COLOR
                     ]
                   }
                 >
@@ -239,8 +240,9 @@ export const ApiRoute = () => {
                   Component
                 </h2>
                 <CodeBlock
-                  code={`${currentRoute?.binding?.componentName
-                    } / v${currentRoute?.binding?.componentVersion}`}
+                  code={`${
+                    currentRoute?.binding?.componentName
+                  } / v${currentRoute?.binding?.componentVersion}`}
                   label="component name"
                   allowCopy={false}
                 />

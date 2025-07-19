@@ -23,7 +23,9 @@ describe("parseErrorResponse", () => {
 
   it("should handle string error responses", () => {
     const mockParsedMessage = "Parsed error message";
-    (parseErrorMessage as any).mockReturnValue(mockParsedMessage);
+    (parseErrorMessage as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockParsedMessage,
+    );
 
     const result = parseErrorResponse("Raw error string");
 
@@ -341,7 +343,9 @@ describe("parseErrorResponse", () => {
 
   it("should handle generic object errors", () => {
     const mockParsedMessage = "Parsed object error";
-    (parseErrorMessage as any).mockReturnValue(mockParsedMessage);
+    (parseErrorMessage as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockParsedMessage,
+    );
 
     const errorObj = { someProperty: "value" };
     const result = parseErrorResponse(errorObj);

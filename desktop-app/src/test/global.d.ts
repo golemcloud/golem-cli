@@ -1,9 +1,10 @@
 /// <reference types="vitest" />
+/// <reference types="vitest/globals" />
 /// <reference types="@testing-library/jest-dom" />
 
 declare global {
   namespace Vi {
-    interface JestAssertion<T = any> extends jest.Matchers<void, T> {}
+    interface JestAssertion<T = unknown> extends jest.Matchers<void, T> {}
   }
 }
 

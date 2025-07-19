@@ -9,7 +9,17 @@ vi.mock("@/components/theme-provider.tsx", () => ({
 }));
 
 vi.mock("@monaco-editor/react", () => ({
-  default: ({ value, onChange, onMount, theme }: any) => {
+  default: ({
+    value,
+    onChange,
+    onMount,
+    theme,
+  }: {
+    value?: string;
+    onChange?: (value: string) => void;
+    onMount?: (editor: unknown, monaco: unknown) => void;
+    theme?: string;
+  }) => {
     const mockEditor = {
       getModel: () => ({
         getLanguageId: () => "yaml",
@@ -158,9 +168,7 @@ describe("YamlEditor", () => {
 
       it("should handle undefined onChange callback", () => {
         expect(() => {
-          render(
-            <YamlEditor value="test: value" onChange={undefined as any} />,
-          );
+          render(<YamlEditor value="test: value" onChange={vi.fn()} />);
         }).not.toThrow();
       });
 

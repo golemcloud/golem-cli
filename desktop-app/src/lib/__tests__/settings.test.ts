@@ -17,9 +17,15 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   exists: vi.fn(),
 }));
 
+interface MockStore {
+  get: ReturnType<typeof vi.fn>;
+  set: ReturnType<typeof vi.fn>;
+  save: ReturnType<typeof vi.fn>;
+}
+
 describe("SettingsService", () => {
   let service: SettingsService;
-  let mockStore: any;
+  let mockStore: MockStore;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -31,7 +37,7 @@ describe("SettingsService", () => {
     };
 
     const { load } = await import("@tauri-apps/plugin-store");
-    (load as any).mockResolvedValue(mockStore);
+    (load as ReturnType<typeof vi.fn>).mockResolvedValue(mockStore);
 
     service = new SettingsService();
   });
@@ -142,7 +148,7 @@ describe("SettingsService", () => {
       ];
 
       mockStore.get.mockResolvedValue(mockApps);
-      (exists as any)
+      (exists as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(true) // app1 - valid
         .mockResolvedValueOnce(false) // app2 - invalid
         .mockResolvedValueOnce(true); // app3 - valid
@@ -203,7 +209,7 @@ describe("SettingsService", () => {
       ];
 
       mockStore.get.mockResolvedValue(mockApps);
-      (exists as any).mockResolvedValue(true);
+      (exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
       await service.getApps();
 
@@ -431,7 +437,7 @@ describe("SettingsService", () => {
   describe("validateGolemApp", () => {
     it("should validate existing golem app", async () => {
       const folderPath = "/path/to/golem/project";
-      (exists as any).mockResolvedValue(true);
+      (exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
       const result = await service.validateGolemApp(folderPath);
 
@@ -444,7 +450,7 @@ describe("SettingsService", () => {
 
     it("should invalidate non-golem app", async () => {
       const folderPath = "/path/to/regular/project";
-      (exists as any).mockResolvedValue(false);
+      (exists as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
       const result = await service.validateGolemApp(folderPath);
 
@@ -459,7 +465,9 @@ describe("SettingsService", () => {
         .spyOn(console, "error")
         .mockImplementation(() => {});
       const folderPath = "/path/to/project";
-      (exists as any).mockRejectedValue(new Error("File system error"));
+      (exists as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("File system error"),
+      );
 
       const result = await service.validateGolemApp(folderPath);
 
@@ -509,7 +517,7 @@ describe("SettingsService", () => {
         .spyOn(console, "error")
         .mockImplementation(() => {});
       mockStore.get.mockResolvedValue(mockApps);
-      (exists as any)
+      (exists as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(true)
         .mockRejectedValueOnce(new Error("File system error"));
 

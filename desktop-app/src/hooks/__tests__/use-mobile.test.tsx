@@ -1,11 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useIsMobile } from "../use-mobile"; // Adjust import path as needed
 
 describe("useIsMobile", () => {
-  let mockMatchMedia: any;
-  let mockAddEventListener: any;
-  let mockRemoveEventListener: any;
+  let mockMatchMedia: MockedFunction<typeof window.matchMedia>;
+  let mockAddEventListener: MockedFunction<
+    (event: string, callback: Function) => void
+  >;
+  let mockRemoveEventListener: MockedFunction<
+    (event: string, callback: Function) => void
+  >;
   let changeCallback: Function | null = null;
 
   beforeEach(() => {

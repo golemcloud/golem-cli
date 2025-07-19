@@ -1,4 +1,5 @@
 import { convertValuesToWaveArgs, convertPayloadToWaveArgs } from "@/lib/wave";
+import { Typ } from "@/types/component";
 import { CLIService } from "./cli-service";
 import { ComponentService } from "./component-service";
 
@@ -129,7 +130,7 @@ export class WorkerService {
     componentId: string,
     workerName: string,
     functionName: string,
-    payload: any,
+    payload: { params?: unknown[] } | unknown[] | undefined,
   ) => {
     // Get component name for proper worker identification
     const component = await this.componentService.getComponentById(
@@ -140,9 +141,9 @@ export class WorkerService {
 
     // Convert payload to individual WAVE-formatted arguments using enhanced converter
     let waveArgs: string[];
-    if (payload.params && Array.isArray(payload.params)) {
+    if (payload && typeof payload === 'object' && !Array.isArray(payload) && 'params' in payload && Array.isArray(payload.params)) {
       // Use the enhanced payload converter that handles all WIT types
-      waveArgs = convertPayloadToWaveArgs(payload);
+      waveArgs = convertPayloadToWaveArgs(payload as { params: Array<{ value: unknown; typ?: Typ }> });
     } else if (Array.isArray(payload)) {
       // Legacy format - array of raw values
       waveArgs = convertValuesToWaveArgs(payload);
@@ -163,7 +164,7 @@ export class WorkerService {
     appId: string,
     componentId: string,
     functionName: string,
-    payload: any,
+    payload: { params?: unknown[] } | unknown[] | undefined,
   ) => {
     // Get component name for ephemeral worker identification
     const component = await this.componentService.getComponentById(
@@ -174,9 +175,9 @@ export class WorkerService {
 
     // Convert payload to individual WAVE-formatted arguments using enhanced converter
     let waveArgs: string[];
-    if (payload.params && Array.isArray(payload.params)) {
+    if (payload && typeof payload === 'object' && !Array.isArray(payload) && 'params' in payload && Array.isArray(payload.params)) {
       // Use the enhanced payload converter that handles all WIT types
-      waveArgs = convertPayloadToWaveArgs(payload);
+      waveArgs = convertPayloadToWaveArgs(payload as { params: Array<{ value: unknown; typ?: Typ }> });
     } else if (Array.isArray(payload)) {
       // Legacy format - array of raw values
       waveArgs = convertValuesToWaveArgs(payload);

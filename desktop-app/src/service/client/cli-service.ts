@@ -7,7 +7,7 @@ export class CLIService {
     appId: string,
     command: string,
     subcommands: string[],
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     // find folder location
     const app = await settingsService.getAppById(appId);
     if (!app) {
@@ -21,14 +21,14 @@ export class CLIService {
         subcommands,
         folderPath: app.folderLocation,
       });
-    } catch (e) {
+    } catch (_e) {
       toast({
         title: "Error in calling golem CLI",
-        description: String(e),
+        description: String(_e),
         variant: "destructive",
         duration: 5000,
       });
-      throw new Error("Error in calling golem CLI: " + String(e));
+      throw new Error("Error in calling golem CLI: " + String(_e));
     }
 
     let parsedResult;
@@ -36,7 +36,7 @@ export class CLIService {
     if (match) {
       try {
         parsedResult = JSON.parse(match[0]);
-      } catch (e) {
+      } catch {
         // some actions do not return JSON
       }
     }
@@ -47,7 +47,7 @@ export class CLIService {
     appId: string,
     command: string,
     subcommands: string[],
-  ): Promise<{ result: any; logs: string; success: boolean }> => {
+  ): Promise<{ result: unknown; logs: string; success: boolean }> => {
     // find folder location
     const app = await settingsService.getAppById(appId);
     if (!app) {
@@ -73,7 +73,7 @@ export class CLIService {
     if (match) {
       try {
         parsedResult = JSON.parse(match[0]);
-      } catch (e) {
+      } catch {
         // some actions do not return JSON
       }
     }

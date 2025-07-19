@@ -5,7 +5,6 @@ import { ArrowRight, Globe, Layers, PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API } from "@/service";
 import ErrorBoundary from "@/components/errorBoundary";
-import { removeDuplicateApis } from "@/lib/utils";
 import { Deployment } from "@/types/deployments";
 
 export function DeploymentSection() {
@@ -17,7 +16,9 @@ export function DeploymentSection() {
     const fetchDeployments = async () => {
       try {
         const response = await API.apiService.getApiList(appId!);
-        const uniqueApis = [...new Set(response.map((api: any) => api.id))];
+        const _uniqueApis = [
+          ...new Set(response.map((api: { id: string }) => api.id)),
+        ];
         const [allDeployments] = await Promise.all([
           API.deploymentService.getDeploymentApi(appId!),
         ]);

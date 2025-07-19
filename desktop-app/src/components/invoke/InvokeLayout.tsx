@@ -1,11 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ComponentExportFunction, Export } from "@/types/component.ts";
 import { cn } from "@/lib/utils";
-import {
-  ClipboardCopy,
-  Presentation,
-  TableIcon,
-} from "lucide-react";
+import { ClipboardCopy, Presentation, TableIcon } from "lucide-react";
 import { DynamicForm } from "@/pages/workers/details/dynamic-form.tsx";
 import { SectionCard } from "./SectionCard";
 import { parseToJsonEditor, parseTypesData } from "@/lib/worker";
@@ -16,10 +12,10 @@ interface InvokeLayoutProps {
   name: string;
   urlFn: string;
   onNavigateToFunction: (exportName: string, functionName: string) => void;
-  
+
   // Function details
   functionDetails: ComponentExportFunction | null;
-  
+
   // Form state
   viewMode: string;
   setViewMode: (mode: string) => void;
@@ -27,7 +23,7 @@ interface InvokeLayoutProps {
   setValue: (value: string) => void;
   resultValue: string;
   setResultValue: (value: string) => void;
-  
+
   // Actions
   onValueChange: (value: string) => void;
   onInvoke: (args: unknown[]) => void;
@@ -57,7 +53,7 @@ export function InvokeLayout({
           {/* Sidebar with exports */}
           <div className="border-r px-8 py-4 min-w-[300px]">
             <div className="flex flex-col gap-4 overflow-scroll h-[85vh]">
-              {parsedExports.map((exportItem,index) => (
+              {parsedExports.map((exportItem, index) => (
                 <div key={exportItem.name + index} className="border-b pb-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 font-bold pb-4">
@@ -71,7 +67,9 @@ export function InvokeLayout({
                           <li key={fn.name}>
                             <Button
                               variant="ghost"
-                              onClick={() => onNavigateToFunction(exportItem.name, fn.name)}
+                              onClick={() =>
+                                onNavigateToFunction(exportItem.name, fn.name)
+                              }
                               className={cn(
                                 "w-full flex items-center px-3 py-2 rounded-md text-sm font-medium justify-start",
                                 urlFn === fn.name
@@ -110,7 +108,9 @@ export function InvokeLayout({
                         setViewMode("form");
                       }}
                       className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "form" ? "bg-primary/20 hover:text-primary " : ""
+                        viewMode === "form"
+                          ? "bg-primary/20 hover:text-primary "
+                          : ""
                       }`}
                     >
                       <ClipboardCopy className="h-4 w-4 mr-1" />
@@ -123,7 +123,9 @@ export function InvokeLayout({
                         setViewMode("preview");
                       }}
                       className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "preview" ? "bg-primary/20 hover:text-primary " : ""
+                        viewMode === "preview"
+                          ? "bg-primary/20 hover:text-primary "
+                          : ""
                       }`}
                     >
                       <Presentation className="h-4 w-4 mr-1" />
@@ -135,7 +137,9 @@ export function InvokeLayout({
                       variant="outline"
                       onClick={() => setViewMode("types")}
                       className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "types" ? "bg-primary/20 hover:text-primary " : ""
+                        viewMode === "types"
+                          ? "bg-primary/20 hover:text-primary "
+                          : ""
                       }`}
                     >
                       <TableIcon className="h-4 w-4 mr-1" />
@@ -159,7 +163,14 @@ export function InvokeLayout({
                   <SectionCard
                     title="Preview"
                     description="Preview the current function invocation arguments"
-                    value={value || JSON.stringify(parseToJsonEditor(functionDetails), null, 2)}
+                    value={
+                      value ||
+                      JSON.stringify(
+                        parseToJsonEditor(functionDetails),
+                        null,
+                        2,
+                      )
+                    }
                     onValueChange={onValueChange}
                     copyToClipboard={copyToClipboard}
                     functionDetails={functionDetails}
@@ -179,13 +190,21 @@ export function InvokeLayout({
                   <SectionCard
                     title="Types"
                     description="Types of the function arguments"
-                    value={JSON.stringify(parseTypesData(functionDetails), null, 2)}
+                    value={JSON.stringify(
+                      parseTypesData(functionDetails),
+                      null,
+                      2,
+                    )}
                     functionDetails={functionDetails}
                     exportName={name}
                     functionName={urlFn}
                     copyToClipboard={() => {
                       navigator.clipboard.writeText(
-                        JSON.stringify(parseTypesData(functionDetails), null, 2),
+                        JSON.stringify(
+                          parseTypesData(functionDetails),
+                          null,
+                          2,
+                        ),
                       );
                     }}
                     readOnly={true}

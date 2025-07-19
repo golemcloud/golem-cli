@@ -11,7 +11,7 @@ interface YamlEditorProps {
 
 export function YamlEditor({ value, onChange }: YamlEditorProps) {
   const monacoRef = useRef<Monaco | null>(null);
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const [markers, setMarkers] = useState<
     {
       severity: string;
@@ -30,12 +30,12 @@ export function YamlEditor({ value, onChange }: YamlEditorProps) {
     const model = editorRef.current.getModel();
     if (!model) return;
 
-    const markers: any[] = [];
+    const markers: monaco.editor.IMarkerData[] = [];
 
     try {
       yaml.loadAll(
         content,
-        doc => {
+        _doc => {
           // This function will be called for each document in the YAML file
         },
         {

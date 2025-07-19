@@ -42,7 +42,7 @@ export default function WorkerList() {
   useEffect(() => {
     const lowerCaseQuery = searchQuery.toLowerCase();
     const filtered = workerList.filter(
-      (worker: any) =>
+      (worker: Worker) =>
         worker.workerName?.toLowerCase().includes(lowerCaseQuery) ||
         worker.status?.toLowerCase().includes(lowerCaseQuery),
     );
@@ -90,7 +90,7 @@ export default function WorkerList() {
             </div>
           ) : (
             <div className="overflow-auto max-h-[70vh] space-y-4">
-              {filteredWorkers.map((worker: any, index) => (
+              {filteredWorkers.map((worker: Worker, index) => (
                 <Card
                   key={index}
                   className="rounded-lg border border-border bg-muted hover:bg-muted/80 hover:shadow-lg transition cursor-pointer"

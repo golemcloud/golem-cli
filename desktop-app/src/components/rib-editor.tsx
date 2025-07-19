@@ -9,7 +9,7 @@ interface MonacoEditorProps extends EditorProps {
   language?: string;
   height?: string;
   scriptKeys?: string[];
-  suggestVariable?: Record<string, any>;
+  suggestVariable?: Record<string, unknown>;
   disabled?: boolean;
   allowExpand?: boolean;
   allowCopy?: boolean;
@@ -25,7 +25,7 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
       suggestVariable,
       disabled = false,
       allowExpand = true,
-      allowCopy = false,
+      _allowCopy = false,
       ...props
     },
     ref,
@@ -220,7 +220,7 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
                 // Extract local variables
                 const variableRegex =
                   /let\s+(\w+)\s*=\s*(\{[\s\S]*?\}|\[[\s\S]*?\]|"[^"]*"|'[^']*'|\d+)/g;
-                let localVariables: Record<string, any> = {};
+                let localVariables: Record<string, unknown> = {};
 
                 let match;
                 while ((match = variableRegex.exec(code)) !== null) {
@@ -232,7 +232,7 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
                         ? JSON.parse(varValue.replace(/(\w+):/g, '"$1":'))
                         : varValue.replace(/['"]/g, "");
                     localVariables[varName] = value;
-                  } catch (e) {
+                  } catch {
                     localVariables[varName] = varValue; // Store as string if parsing fails
                   }
                 }
@@ -246,13 +246,13 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
                 };
 
                 const getObjectKeys = (
-                  obj: any,
+                  obj: unknown,
                   prefix = "",
                 ): Array<{
                   label: string;
                   insertText: string;
-                  kind: any;
-                  range: any;
+                  kind: typeof monacoInstance.languages.CompletionItemKind.Property;
+                  range: typeof range;
                 }> =>
                   Object.entries(obj).flatMap(([key, value]) =>
                     typeof value === "object"
@@ -315,7 +315,7 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
                   ).values(),
                 );
                 // Ensure scriptKeys is always an array and filter out invalid values
-                const validScriptKeys = (scriptKeys || []).filter(key => true);
+                const validScriptKeys = (scriptKeys || []).filter(_key => true);
 
                 const functionSuggestions = validScriptKeys.map(fn => ({
                   label: fn,
@@ -393,7 +393,6 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
       setRigEditorTheme(resolvedTheme === "dark");
     }, [resolvedTheme, monacoInstance]);
 
-
     function setRigEditorTheme(isDarkMode: boolean) {
       if (!monacoInstance) return;
       monacoInstance.editor.setTheme(
@@ -435,7 +434,7 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
               top: 5,
             },
           }}
-          onMount={(editor, monaco) => {
+          onMount={(editor, _monaco) => {
             editor.onDidFocusEditorWidget(() => setIsFocused(true));
             editor.onDidBlurEditorWidget(() => setIsFocused(false));
 

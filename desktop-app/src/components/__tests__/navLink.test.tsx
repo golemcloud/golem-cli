@@ -11,7 +11,15 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useLocation: () => mockUseLocation(),
-    Link: ({ to, children, className }: any) => (
+    Link: ({
+      to,
+      children,
+      className,
+    }: {
+      to: string;
+      children: React.ReactNode;
+      className?: string;
+    }) => (
       <a href={to} className={className}>
         {children}
       </a>

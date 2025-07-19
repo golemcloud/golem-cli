@@ -12,50 +12,80 @@ vi.mock("@/lib/utils", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children }: any) => <div data-testid="card">{children}</div>,
-  CardContent: ({ children }: any) => (
+  Card: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="card">{children}</div>
+  ),
+  CardContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="card-content">{children}</div>
   ),
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
+  ),
 }));
 
 vi.mock("@/components/ui/label", () => ({
-  Label: ({ children }: any) => <label>{children}</label>,
+  Label: ({ children }: { children: React.ReactNode }) => (
+    <label>{children}</label>
+  ),
 }));
 
 vi.mock("@/components/ui/textarea", () => ({
-  Textarea: (props: any) => <textarea {...props} />,
+  Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+    <textarea {...props} />
+  ),
 }));
 
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ children }: any) => <div role="combobox">{children}</div>,
-  SelectContent: ({ children }: any) => <div>{children}</div>,
-  SelectItem: ({ children, value }: any) => (
-    <div data-value={value}>{children}</div>
+  Select: ({ children }: { children: React.ReactNode }) => (
+    <div role="combobox">{children}</div>
   ),
-  SelectTrigger: ({ children }: any) => <button>{children}</button>,
-  SelectValue: ({ placeholder }: any) => <span>{placeholder}</span>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  SelectItem: ({
+    children,
+    value,
+  }: {
+    children: React.ReactNode;
+    value: string;
+  }) => <div data-value={value}>{children}</div>,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button>{children}</button>
+  ),
+  SelectValue: ({ placeholder }: { placeholder?: string }) => (
+    <span>{placeholder}</span>
+  ),
 }));
 
 vi.mock("@/components/ui/radio-group", () => ({
-  RadioGroup: ({ children, ...props }: any) => (
+  RadioGroup: ({
+    children,
+    ...props
+  }: { children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) => (
     <div role="radiogroup" {...props}>
       {children}
     </div>
   ),
-  RadioGroupItem: (props: any) => <input type="radio" {...props} />,
+  RadioGroupItem: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input type="radio" {...props} />
+  ),
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: any) => (
+  Button: ({
+    children,
+    ...props
+  }: {
+    children: React.ReactNode;
+  } & React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props}>{children}</button>
   ),
 }));
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DynamicForm, nonStringPrimitives } from "../dynamic-form";
@@ -75,72 +105,122 @@ vi.mock("@/lib/utils", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children }: any) => <div data-testid="card">{children}</div>,
-  CardContent: ({ children }: any) => (
+  Card: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="card">{children}</div>
+  ),
+  CardContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="card-content">{children}</div>
   ),
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} />,
-}));
-
-vi.mock("@/components/ui/label", () => ({
-  Label: ({ children, htmlFor }: any) => (
-    <label htmlFor={htmlFor}>{children}</label>
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
   ),
 }));
 
+vi.mock("@/components/ui/label", () => ({
+  Label: ({
+    children,
+    htmlFor,
+  }: {
+    children: React.ReactNode;
+    htmlFor?: string;
+  }) => <label htmlFor={htmlFor}>{children}</label>,
+}));
+
 vi.mock("@/components/ui/radio-group", () => ({
-  RadioGroup: ({ children, onValueChange, ...props }: any) => (
+  RadioGroup: ({
+    children,
+    onValueChange,
+    ...props
+  }: {
+    children: React.ReactNode;
+    onValueChange?: (value: string) => void;
+  } & React.HTMLAttributes<HTMLDivElement>) => (
     <div
       role="radiogroup"
       {...props}
-      onChange={(e: any) => onValueChange?.(e.target.value)}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+        onValueChange?.(e.target.value)
+      }
     >
       {children}
     </div>
   ),
-  RadioGroupItem: ({ value, id, ...props }: any) => (
+  RadioGroupItem: ({
+    value,
+    id,
+    ...props
+  }: {
+    value: string;
+    id: string;
+  } & React.InputHTMLAttributes<HTMLInputElement>) => (
     <input type="radio" value={value} id={id} {...props} />
   ),
 }));
 
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ children, onValueChange }: any) => (
+  Select: ({
+    children,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    onValueChange?: (value: string) => void;
+  }) => (
     <div role="combobox" onClick={() => onValueChange?.("option1")}>
       {children}
     </div>
   ),
-  SelectContent: ({ children }: any) => <div>{children}</div>,
-  SelectItem: ({ children, value }: any) => (
-    <div data-value={value}>{children}</div>
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
   ),
-  SelectTrigger: ({ children }: any) => <button>{children}</button>,
-  SelectValue: ({ placeholder }: any) => (
+  SelectItem: ({
+    children,
+    value,
+  }: {
+    children: React.ReactNode;
+    value: string;
+  }) => <div data-value={value}>{children}</div>,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button>{children}</button>
+  ),
+  SelectValue: ({ placeholder }: { placeholder?: string }) => (
     <span>{placeholder || "Select..."}</span>
   ),
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick }: any) => (
-    <button onClick={onClick}>{children}</button>
-  ),
+  Button: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => <button onClick={onClick}>{children}</button>,
 }));
 
 vi.mock("@/components/ui/textarea", () => ({
-  Textarea: (props: any) => <textarea {...props} />,
+  Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+    <textarea {...props} />
+  ),
 }));
 
 vi.mock("react-code-blocks", () => ({
-  CodeBlock: ({ text }: any) => <pre>{text}</pre>,
+  CodeBlock: ({ text }: { text: string }) => <pre>{text}</pre>,
   dracula: {},
 }));
 
 vi.mock("@/components/ui/popover", () => ({
-  Popover: ({ children }: any) => <div>{children}</div>,
-  PopoverContent: ({ children }: any) => <div>{children}</div>,
-  PopoverTrigger: ({ children }: any) => <div>{children}</div>,
+  Popover: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  PopoverContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  PopoverTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 describe("DynamicForm", () => {
@@ -267,7 +347,9 @@ describe("DynamicForm", () => {
 
     it("should render form with complex JSON input field", async () => {
       const { parseToJsonEditor } = await import("@/lib/worker");
-      (parseToJsonEditor as any).mockReturnValue([{ field: "value" }]);
+      (
+        parseToJsonEditor as MockedFunction<typeof parseToJsonEditor>
+      ).mockReturnValue([{ field: "value" }]);
 
       const functionDetails: ComponentExportFunction = {
         name: "testFunction",
@@ -410,7 +492,9 @@ describe("DynamicForm", () => {
   describe("Form validation", () => {
     it("should validate required fields and show errors", async () => {
       const { validateJsonStructure } = await import("@/lib/worker");
-      (validateJsonStructure as any).mockReturnValue("Field is required");
+      (
+        validateJsonStructure as MockedFunction<typeof validateJsonStructure>
+      ).mockReturnValue("Field is required");
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -441,7 +525,9 @@ describe("DynamicForm", () => {
 
     it("should validate JSON fields and show parse errors", async () => {
       const { sanitizeInput } = await import("@/lib/utils");
-      (sanitizeInput as any).mockReturnValue("invalid json");
+      (
+        sanitizeInput as MockedFunction<typeof sanitizeInput>
+      ).mockReturnValue("invalid json");
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -478,7 +564,9 @@ describe("DynamicForm", () => {
 
     it("should clear errors when input changes", async () => {
       const { validateJsonStructure } = await import("@/lib/worker");
-      (validateJsonStructure as any).mockReturnValue("Field is required");
+      (
+        validateJsonStructure as MockedFunction<typeof validateJsonStructure>
+      ).mockReturnValue("Field is required");
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -515,7 +603,9 @@ describe("DynamicForm", () => {
   describe("Form submission", () => {
     it("should submit form with valid string data", async () => {
       const { validateJsonStructure } = await import("@/lib/worker");
-      (validateJsonStructure as any).mockReturnValue(null); // No validation errors
+      (
+        validateJsonStructure as MockedFunction<typeof validateJsonStructure>
+      ).mockReturnValue(null); // No validation errors
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -545,7 +635,9 @@ describe("DynamicForm", () => {
 
     it("should submit form with valid integer data", async () => {
       const { validateJsonStructure } = await import("@/lib/worker");
-      (validateJsonStructure as any).mockReturnValue(null);
+      (
+        validateJsonStructure as MockedFunction<typeof validateJsonStructure>
+      ).mockReturnValue(null);
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -576,7 +668,9 @@ describe("DynamicForm", () => {
 
     it("should submit form with valid boolean data", async () => {
       const { validateJsonStructure } = await import("@/lib/worker");
-      (validateJsonStructure as any).mockReturnValue(null);
+      (
+        validateJsonStructure as MockedFunction<typeof validateJsonStructure>
+      ).mockReturnValue(null);
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -610,9 +704,15 @@ describe("DynamicForm", () => {
       );
       const { sanitizeInput } = await import("@/lib/utils");
 
-      (validateJsonStructure as any).mockReturnValue(null);
-      (parseToJsonEditor as any).mockReturnValue([{ field: "value" }]);
-      (sanitizeInput as any).mockReturnValue('{"field": "updated"}');
+      (
+        validateJsonStructure as MockedFunction<typeof validateJsonStructure>
+      ).mockReturnValue(null);
+      (
+        parseToJsonEditor as MockedFunction<typeof parseToJsonEditor>
+      ).mockReturnValue([{ field: "value" }]);
+      (
+        sanitizeInput as MockedFunction<typeof sanitizeInput>
+      ).mockReturnValue('{"field": "updated"}');
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -646,7 +746,9 @@ describe("DynamicForm", () => {
 
     it("should submit form with multiple parameters", async () => {
       const { validateJsonStructure } = await import("@/lib/worker");
-      (validateJsonStructure as any).mockReturnValue(null);
+      (
+        validateJsonStructure as MockedFunction<typeof validateJsonStructure>
+      ).mockReturnValue(null);
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -670,7 +772,9 @@ describe("DynamicForm", () => {
       // Fill in string field
       const textInputs = screen.getAllByRole("textbox");
       const textInput = textInputs[0]; // First textbox should be the string input
-      await user.type(textInput, "test");
+      if (textInput) {
+        await user.type(textInput, "test");
+      }
 
       // Fill in number field
       const numInput = screen.getByRole("spinbutton");
@@ -691,7 +795,9 @@ describe("DynamicForm", () => {
   describe("Form reset functionality", () => {
     it("should reset form when function details change", async () => {
       const { parseToJsonEditor } = await import("@/lib/worker");
-      (parseToJsonEditor as any).mockReturnValue(["initial"]);
+      (
+        parseToJsonEditor as MockedFunction<typeof parseToJsonEditor>
+      ).mockReturnValue(["initial"]);
 
       const functionDetails1: ComponentExportFunction = {
         name: "testFunction1",
@@ -776,14 +882,16 @@ describe("DynamicForm", () => {
 
     it("should handle unknown field types gracefully", async () => {
       const { parseToJsonEditor } = await import("@/lib/worker");
-      (parseToJsonEditor as any).mockReturnValue([{ field: "value" }]);
+      (
+        parseToJsonEditor as MockedFunction<typeof parseToJsonEditor>
+      ).mockReturnValue([{ field: "value" }]);
 
       const functionDetails: ComponentExportFunction = {
         name: "testFunction",
         parameters: [
           {
             name: "unknownParam",
-            typ: { type: "UnknownType" as any },
+            typ: { type: "UnknownType" },
             type: "unknownParam",
           },
         ],

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -25,7 +25,17 @@ vi.mock("@/service", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, variant, size }: any) => (
+  Button: ({
+    children,
+    onClick,
+    variant,
+    size,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    variant?: string;
+    size?: string;
+  }) => (
     <button onClick={onClick} data-variant={variant} data-size={size}>
       {children}
     </button>
@@ -33,11 +43,19 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
+  ),
 }));
 
 vi.mock("@/components/ui/badge", () => ({
-  Badge: ({ children, className }: any) => (
+  Badge: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <span className={className} data-testid="badge">
       {children}
     </span>
@@ -45,14 +63,28 @@ vi.mock("@/components/ui/badge", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children, className, onClick }: any) => (
+  Card: ({
+    children,
+    className,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    onClick?: () => void;
+  }) => (
     <div className={className} onClick={onClick} data-testid="card">
       {children}
     </div>
   ),
-  CardContent: ({ children }: any) => <div>{children}</div>,
-  CardHeader: ({ children }: any) => <div>{children}</div>,
-  CardTitle: ({ children }: any) => <h3>{children}</h3>,
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardTitle: ({ children }: { children: React.ReactNode }) => (
+    <h3>{children}</h3>
+  ),
 }));
 
 vi.mock("lucide-react", () => ({
@@ -150,7 +182,11 @@ describe("WorkerList", () => {
   describe("Component Rendering", () => {
     it("should render the worker list page", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -163,7 +199,11 @@ describe("WorkerList", () => {
 
     it("should render search input", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -176,7 +216,11 @@ describe("WorkerList", () => {
 
     it("should render create worker button", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -187,7 +231,11 @@ describe("WorkerList", () => {
 
     it("should display worker status badges", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -200,7 +248,11 @@ describe("WorkerList", () => {
 
     it("should display worker creation dates", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -213,7 +265,11 @@ describe("WorkerList", () => {
   describe("Search Functionality", () => {
     it("should filter workers based on search input", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -236,7 +292,11 @@ describe("WorkerList", () => {
 
     it("should filter workers by status", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -259,7 +319,11 @@ describe("WorkerList", () => {
 
     it("should show no results when search yields no matches", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -282,7 +346,11 @@ describe("WorkerList", () => {
   describe("Worker Interactions", () => {
     it("should navigate to worker details when clicking on worker card", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -303,7 +371,11 @@ describe("WorkerList", () => {
 
     it("should handle create worker button click", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();
@@ -324,7 +396,11 @@ describe("WorkerList", () => {
   describe("Data Loading", () => {
     it("should load workers on component mount", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -407,7 +483,11 @@ describe("WorkerList", () => {
       ];
 
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: unsortedWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: unsortedWorkers });
 
       renderWorkerList();
 
@@ -423,7 +503,11 @@ describe("WorkerList", () => {
   describe("Error Handling", () => {
     it("should handle API errors gracefully", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockRejectedValue(new Error("API Error"));
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockRejectedValue(new Error("API Error"));
 
       renderWorkerList();
 
@@ -437,7 +521,11 @@ describe("WorkerList", () => {
 
     it("should handle empty worker list", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: [] });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: [] });
 
       renderWorkerList();
 
@@ -455,7 +543,11 @@ describe("WorkerList", () => {
   describe("Loading States", () => {
     it("should show loading state while fetching workers", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockImplementation(
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
 
@@ -471,7 +563,11 @@ describe("WorkerList", () => {
   describe("Status Display", () => {
     it("should display worker status with correct colors", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
 
@@ -513,7 +609,11 @@ describe("WorkerList", () => {
       }));
 
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: largeWorkerList });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: largeWorkerList });
 
       const startTime = performance.now();
       renderWorkerList();
@@ -532,7 +632,11 @@ describe("WorkerList", () => {
   describe("Accessibility", () => {
     it("should support keyboard navigation", async () => {
       const { API } = await import("@/service");
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: mockWorkers });
+      (
+        API.workerService.findWorker as MockedFunction<
+          typeof API.workerService.findWorker
+        >
+      ).mockResolvedValue({ workers: mockWorkers });
 
       renderWorkerList();
       const user = userEvent.setup();

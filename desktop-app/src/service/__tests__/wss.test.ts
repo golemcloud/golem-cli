@@ -9,8 +9,14 @@ vi.mock("@/lib/tauri&web.ts", () => ({
   },
 }));
 
+interface MockWebSocket {
+  send: ReturnType<typeof vi.fn>;
+  close: ReturnType<typeof vi.fn>;
+  onMessage: ReturnType<typeof vi.fn>;
+}
+
 describe("WSS (WebSocket Service)", () => {
-  let mockWebSocket: any;
+  let mockWebSocket: MockWebSocket;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,7 +35,9 @@ describe("WSS (WebSocket Service)", () => {
   describe("getConnection", () => {
     it("should create WSS connection with localhost URL", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       const wss = await WSS.getConnection("/api/websocket");
 
@@ -41,7 +49,9 @@ describe("WSS (WebSocket Service)", () => {
 
     it("should replace http with ws in URL", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       await WSS.getConnection("/test");
 
@@ -52,9 +62,9 @@ describe("WSS (WebSocket Service)", () => {
 
     it("should handle connection failures", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockRejectedValue(
-        new Error("Connection failed"),
-      );
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockRejectedValue(new Error("Connection failed"));
 
       await expect(WSS.getConnection("/fail")).rejects.toThrow(
         "Connection failed",
@@ -64,7 +74,9 @@ describe("WSS (WebSocket Service)", () => {
     it("should use fallback when fetchCurrentIP returns null", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
       // (fetchCurrentIP as any).mockResolvedValue(null);
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       await WSS.getConnection("/fallback");
 
@@ -80,7 +92,9 @@ describe("WSS (WebSocket Service)", () => {
 
     beforeEach(async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
       wss = await WSS.getConnection("/test");
     });
 
@@ -153,9 +167,11 @@ describe("WSS (WebSocket Service)", () => {
         );
 
         // Simulate message received
-        const receivedCallback = mockWebSocket.onMessage.mock.calls[0][0];
+        const receivedCallback = mockWebSocket.onMessage.mock.calls[0]?.[0];
         const testMessage = { type: "test", data: "message" };
-        receivedCallback(testMessage);
+        if (receivedCallback) {
+          receivedCallback(testMessage);
+        }
 
         expect(messageHandler).toHaveBeenCalledWith(testMessage);
       });
@@ -165,7 +181,9 @@ describe("WSS (WebSocket Service)", () => {
   describe("URL construction", () => {
     it("should handle paths with leading slash", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       await WSS.getConnection("/api/stream");
 
@@ -176,7 +194,9 @@ describe("WSS (WebSocket Service)", () => {
 
     it("should handle paths without leading slash", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       await WSS.getConnection("api/stream");
 
@@ -187,7 +207,9 @@ describe("WSS (WebSocket Service)", () => {
 
     it("should handle empty path", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       await WSS.getConnection("");
 
@@ -198,7 +220,9 @@ describe("WSS (WebSocket Service)", () => {
 
     it("should handle complex URLs with query parameters", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       await WSS.getConnection("/api/stream?token=abc123&channel=main");
 
@@ -212,7 +236,9 @@ describe("WSS (WebSocket Service)", () => {
     it("should propagate connection errors", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
       const connectionError = new Error("WebSocket connection failed");
-      (UniversalWebSocket.connect as any).mockRejectedValue(connectionError);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockRejectedValue(connectionError);
 
       await expect(WSS.getConnection("/error")).rejects.toThrow(
         "WebSocket connection failed",
@@ -224,7 +250,9 @@ describe("WSS (WebSocket Service)", () => {
       mockWebSocket.send.mockImplementation(() => {
         throw new Error("Send failed");
       });
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       const wss = await WSS.getConnection("/test");
 
@@ -238,7 +266,9 @@ describe("WSS (WebSocket Service)", () => {
       mockWebSocket.close.mockImplementation(() => {
         throw new Error("Close failed");
       });
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       const wss = await WSS.getConnection("/test");
 
@@ -251,7 +281,9 @@ describe("WSS (WebSocket Service)", () => {
   describe("Integration scenarios", () => {
     it("should support full websocket lifecycle", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       // Create connection
       const wss = await WSS.getConnection("/lifecycle");
@@ -265,8 +297,10 @@ describe("WSS (WebSocket Service)", () => {
       wss.send(testMessage);
 
       // Simulate receiving message
-      const registeredCallback = mockWebSocket.onMessage.mock.calls[0][0];
-      registeredCallback({ action: "pong" });
+      const registeredCallback = mockWebSocket.onMessage.mock.calls[0]?.[0];
+      if (registeredCallback) {
+        registeredCallback({ action: "pong" });
+      }
 
       // Close connection
       wss.close();
@@ -283,7 +317,9 @@ describe("WSS (WebSocket Service)", () => {
 
     it("should handle rapid send operations", async () => {
       const { UniversalWebSocket } = await import("@/lib/tauri&web.ts");
-      (UniversalWebSocket.connect as any).mockResolvedValue(mockWebSocket);
+      (
+        UniversalWebSocket.connect as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWebSocket);
 
       const wss = await WSS.getConnection("/rapid");
 

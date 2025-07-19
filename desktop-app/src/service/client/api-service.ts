@@ -36,12 +36,14 @@ export class APIService {
           component.componentId!,
         );
         let APIList = manifest.httpApi;
-        if (APIList) {
+        if (APIList && APIList.definitions) {
           for (const apiListKey in APIList.definitions) {
             let data = APIList.definitions[apiListKey];
-            data.id = apiListKey;
-            data.componentId = component.componentId;
-            result.push(data);
+            if (data) {
+              data.id = apiListKey;
+              data.componentId = component.componentId;
+              result.push(data);
+            }
           }
         }
       } catch (e) {
@@ -55,12 +57,14 @@ export class APIService {
     }
     const manifest = await this.manifestService.getAppManifest(appId);
     let APIList = manifest.httpApi;
-    if (APIList) {
+    if (APIList && APIList.definitions) {
       for (const apiListKey in APIList.definitions) {
         let data = APIList.definitions[apiListKey];
-        data.id = apiListKey;
-        data.componentId = undefined; // This is not from a component
-        result.push(data);
+        if (data) {
+          data.id = apiListKey;
+          data.componentId = undefined; // This is not from a component
+          result.push(data);
+        }
       }
     }
 
@@ -175,7 +179,6 @@ export class APIService {
       await this.manifestService.saveAppManifest(id, manifest.toString());
     }
   };
-
 
   public async createApiVersion(appId: string, payload: HttpApiDefinition) {
     // We need to know if the definition came from a component and store it there

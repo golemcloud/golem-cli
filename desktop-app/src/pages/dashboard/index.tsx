@@ -1,4 +1,7 @@
-import { ComponentsSection, ComponentsSectionRef } from "@/pages/dashboard/componentSection.tsx";
+import {
+  ComponentsSection,
+  ComponentsSectionRef,
+} from "@/pages/dashboard/componentSection.tsx";
 import { APISection } from "@/pages/dashboard/apiSection.tsx";
 import { DeploymentSection } from "@/pages/dashboard/deploymentSection.tsx";
 import { useEffect, useState, useRef } from "react";
@@ -7,7 +10,15 @@ import { Button } from "@/components/ui/button";
 import { storeService } from "@/lib/settings.ts";
 import { API } from "@/service";
 import { toast } from "@/hooks/use-toast";
-import { Play, RefreshCw, Upload, Trash2, FileText, Send, Loader2 } from "lucide-react";
+import {
+  Play,
+  RefreshCw,
+  Upload,
+  Trash2,
+  FileText,
+  Send,
+  Loader2,
+} from "lucide-react";
 import { YamlViewerModal } from "@/components/yaml-viewer-modal";
 import { useLogViewer } from "@/contexts/log-viewer-context";
 
@@ -49,7 +60,8 @@ export const Dashboard = () => {
     setLoadingStates(prev => ({ ...prev, build: true }));
 
     // Run async operation without blocking using .then()
-    API.appService.buildApp(appId)
+    API.appService
+      .buildApp(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -83,7 +95,8 @@ export const Dashboard = () => {
     setLoadingStates(prev => ({ ...prev, updateWorkers: true }));
 
     // Run async operation without blocking using .then()
-    API.appService.updateWorkers(appId)
+    API.appService
+      .updateWorkers(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -117,7 +130,8 @@ export const Dashboard = () => {
     setLoadingStates(prev => ({ ...prev, deployWorkers: true }));
 
     // Run async operation without blocking using .then()
-    API.appService.deployWorkers(appId)
+    API.appService
+      .deployWorkers(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -151,7 +165,8 @@ export const Dashboard = () => {
     setLoadingStates(prev => ({ ...prev, clean: true }));
 
     // Run async operation without blocking using .then()
-    API.appService.cleanApp(appId)
+    API.appService
+      .cleanApp(appId)
       .then(result => {
         if (result.success) {
           toast({
@@ -185,7 +200,8 @@ export const Dashboard = () => {
     setLoadingStates(prev => ({ ...prev, deployApp: true }));
 
     // Run async operation without blocking using .then()
-    API.appService.deployWorkers(appId)
+    API.appService
+      .deployWorkers(appId)
       .then(result => {
         if (result.success) {
           toast({

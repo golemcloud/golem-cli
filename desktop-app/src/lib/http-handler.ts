@@ -9,17 +9,19 @@
  */
 export function isHttpIncomingHandler(exportName: string): boolean {
   if (!exportName) return false;
-  
+
   const normalizedName = exportName.toLowerCase();
-  
+
   // Check for various HTTP incoming handler patterns
   const patterns = [
     "http/incoming-handler",
-    "wasi:http/incoming-handler", 
-    "golem:http/incoming-handler"
+    "wasi:http/incoming-handler",
+    "golem:http/incoming-handler",
   ];
-  
-  return patterns.some(pattern => normalizedName.includes(pattern.toLowerCase()));
+
+  return patterns.some(pattern =>
+    normalizedName.includes(pattern.toLowerCase()),
+  );
 }
 
 /**
@@ -30,12 +32,9 @@ export function isHttpIncomingHandler(exportName: string): boolean {
  */
 export function isHttpHandlerFunction(exportName: string): boolean {
   const isHttpHandler = isHttpIncomingHandler(exportName);
-  
+
   return isHttpHandler;
 }
-
-
-
 
 /**
  * Checks if HTTP handler can be directly invoked (based on export name only)
@@ -49,6 +48,6 @@ export function canInvokeHttpHandler(exportName: string): boolean {
   if (isHttpHandlerFunction(exportName)) {
     return false;
   }
-  
+
   return true; // Not an HTTP handler, normal invocation rules apply
 }

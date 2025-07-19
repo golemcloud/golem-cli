@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -40,7 +40,15 @@ vi.mock("@/components/navbar.tsx", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+  }) => (
     <button onClick={onClick} disabled={disabled}>
       {children}
     </button>
@@ -48,19 +56,37 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children, onClick, className }: any) => (
+  Card: ({
+    children,
+    onClick,
+    className,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    className?: string;
+  }) => (
     <div className={className} onClick={onClick} data-testid="card">
       {children}
     </div>
   ),
-  CardContent: ({ children }: any) => <div>{children}</div>,
-  CardDescription: ({ children }: any) => <p>{children}</p>,
-  CardHeader: ({ children }: any) => <div>{children}</div>,
-  CardTitle: ({ children }: any) => <h2>{children}</h2>,
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardDescription: ({ children }: { children: React.ReactNode }) => (
+    <p>{children}</p>
+  ),
+  CardHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2>{children}</h2>
+  ),
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
+  ),
 }));
 
 vi.mock("lucide-react", () => ({
@@ -101,7 +127,11 @@ describe("Application Workflow Integration Tests", () => {
   describe("Home to App Navigation Flow", () => {
     it("should navigate from home page to app when clicking on recent app", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
       const TestApp = () => (
@@ -145,13 +175,27 @@ describe("Application Workflow Integration Tests", () => {
       const { settingsService } = await import("@/lib/settings");
       // const { toast } = await import('@/hooks/use-toast');
 
-      (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockResolvedValue("/path/to/new/app");
-      (settingsService.validateGolemApp as any).mockResolvedValue({
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
+      (open as MockedFunction<typeof open>).mockResolvedValue(
+        "/path/to/new/app",
+      );
+      (
+        settingsService.validateGolemApp as MockedFunction<
+          typeof settingsService.validateGolemApp
+        >
+      ).mockResolvedValue({
         isValid: true,
         yamlPath: "/path/to/new/app/golem.yaml",
       });
-      (settingsService.addApp as any).mockResolvedValue(true);
+      (
+        settingsService.addApp as MockedFunction<
+          typeof settingsService.addApp
+        >
+      ).mockResolvedValue(true);
 
       const user = userEvent.setup();
       const TestApp = () => (
@@ -198,9 +242,19 @@ describe("Application Workflow Integration Tests", () => {
       const { settingsService } = await import("@/lib/settings");
       const { toast } = await import("@/hooks/use-toast");
 
-      (settingsService.getApps as any).mockResolvedValue([]);
-      (open as any).mockResolvedValue("/path/to/invalid/app");
-      (settingsService.validateGolemApp as any).mockResolvedValue({
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue([]);
+      (open as MockedFunction<typeof open>).mockResolvedValue(
+        "/path/to/invalid/app",
+      );
+      (
+        settingsService.validateGolemApp as MockedFunction<
+          typeof settingsService.validateGolemApp
+        >
+      ).mockResolvedValue({
         isValid: false,
         yamlPath: "",
       });
@@ -233,17 +287,23 @@ describe("Application Workflow Integration Tests", () => {
         getComponents: vi.fn().mockRejectedValue(new Error("API Error")),
         checkHealth: vi.fn().mockResolvedValue(true),
       };
-      (Service as any).mockImplementation(() => mockService);
+      vi.mocked(Service).mockImplementation(
+        () => mockService as unknown as InstanceType<typeof Service>,
+      );
 
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const TestAppWithService = () => {
         const [error, setError] = React.useState<string | null>(null);
 
         React.useEffect(() => {
-          const service = new Service("http://localhost:3000");
-          service.getComponents("app-1").catch(err => {
+          const service = new Service();
+          service.componentService.getComponentByIdAsKey("app-1").catch((err: Error) => {
             setError(err.message);
           });
         }, []);
@@ -274,7 +334,11 @@ describe("Application Workflow Integration Tests", () => {
   describe("Search and Filter Integration", () => {
     it("should filter apps in real-time during search", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
 
@@ -313,7 +377,11 @@ describe("Application Workflow Integration Tests", () => {
     it("should maintain app state across navigation", async () => {
       const { settingsService } = await import("@/lib/settings");
       let appsCallCount = 0;
-      (settingsService.getApps as any).mockImplementation(() => {
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockImplementation(() => {
         appsCallCount++;
         return Promise.resolve(mockApps);
       });
@@ -373,7 +441,11 @@ describe("Application Workflow Integration Tests", () => {
       }));
 
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(manyApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(manyApps);
 
       const startTime = performance.now();
 
@@ -398,7 +470,11 @@ describe("Application Workflow Integration Tests", () => {
 
     it("should debounce search input to avoid excessive filtering", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
 
@@ -428,7 +504,11 @@ describe("Application Workflow Integration Tests", () => {
   describe("Accessibility Integration", () => {
     it("should provide keyboard navigation throughout the app", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       const user = userEvent.setup();
 
@@ -454,7 +534,11 @@ describe("Application Workflow Integration Tests", () => {
 
     it("should maintain proper ARIA labels and roles", async () => {
       const { settingsService } = await import("@/lib/settings");
-      (settingsService.getApps as any).mockResolvedValue(mockApps);
+      (
+        settingsService.getApps as MockedFunction<
+          typeof settingsService.getApps
+        >
+      ).mockResolvedValue(mockApps);
 
       render(
         <MemoryRouter initialEntries={["/"]}>

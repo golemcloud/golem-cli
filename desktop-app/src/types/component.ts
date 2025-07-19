@@ -255,13 +255,13 @@ function parseType(typeStr: string): Typ {
     if (parts.length === 2) {
       return {
         type: "result",
-        ok: parseType(parts[0]),
-        err: parseType(parts[1]),
+        ok: parseType(parts[0]!),
+        err: parseType(parts[1]!),
       };
     } else if (parts.length === 1) {
       return {
         type: "result",
-        ok: parseType(parts[0]),
+        ok: parseType(parts[0]!),
       };
     }
   }

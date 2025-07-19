@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import React from "react";
 import { useToast, toast, reducer } from "../use-toast";
+
+type ToastControl = {
+  id: string;
+  dismiss: () => void;
+  update: (
+    props: Partial<{
+      id: string;
+      title?: React.ReactNode;
+      description?: React.ReactNode;
+    }>,
+  ) => void;
+};
 
 // Helper function to reset the memory state
 function resetToastState() {
@@ -212,7 +225,7 @@ describe("useToast and toast system", () => {
       resetToastState();
 
       const { result } = renderHook(() => useToast());
-      let toastControl: any;
+      let toastControl: ToastControl;
 
       act(() => {
         toastControl = toast({ title: "Original Title" });
@@ -233,7 +246,7 @@ describe("useToast and toast system", () => {
       resetToastState();
 
       const { result } = renderHook(() => useToast());
-      let toastControl: any;
+      let toastControl: ToastControl;
 
       act(() => {
         toastControl = toast({ title: "Test Toast" });
@@ -337,7 +350,7 @@ describe("useToast and toast system", () => {
       resetToastState();
 
       const { result } = renderHook(() => useToast());
-      let toastControl: any;
+      let toastControl: ToastControl;
 
       act(() => {
         toastControl = toast({ title: "Test Toast" });
@@ -365,7 +378,7 @@ describe("useToast and toast system", () => {
 
       const setTimeoutSpy = vi.spyOn(global, "setTimeout");
       renderHook(() => useToast());
-      let toastControl: any;
+      let toastControl: ToastControl;
 
       act(() => {
         toastControl = toast({ title: "Test Toast" });
@@ -455,7 +468,7 @@ describe("useToast and toast system", () => {
       resetToastState();
 
       const { result } = renderHook(() => useToast());
-      const controls: any[] = [];
+      const controls: ToastControl[] = [];
 
       // Create multiple toasts rapidly
       act(() => {

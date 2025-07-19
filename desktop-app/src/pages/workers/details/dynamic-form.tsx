@@ -1,11 +1,23 @@
 import { useEffect, useState } from "react";
-import { ComponentExportFunction } from "@/types/component";
+import { ComponentExportFunction, Typ, Field } from "@/types/component";
 import { Card, CardContent } from "@/components/ui/card";
 import { CircleSlash2, Info, Play, TimerReset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canInvokeHttpHandler } from "@/lib/http-handler";
 import { RecursiveParameterInput } from "@/components/invoke/RecursiveParameterInput";
 
+export const nonStringPrimitives = [
+  "S64",
+  "S32", 
+  "S16",
+  "S8",
+  "U64",
+  "U32",
+  "U16", 
+  "U8",
+  "Bool",
+  "Enum",
+];
 
 export const DynamicForm = ({
   functionDetails,
@@ -14,39 +26,52 @@ export const DynamicForm = ({
   exportName = "",
 }: {
   functionDetails: ComponentExportFunction;
-  onInvoke: (args: unknown[] | { params: Array<{ value: unknown; typ: any; name: string }> }) => void;
+  onInvoke: (
+    args:
+      | unknown[]
+      | { params: Array<{ value: unknown; typ: Typ; name: string }> },
+  ) => void;
   resetResult: () => void;
   exportName?: string;
 }) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [recursiveFormData, setRecursiveFormData] = useState<Record<string, unknown>>({});
+  const [recursiveFormData, setRecursiveFormData] = useState<
+    Record<string, unknown>
+  >({});
 
   useEffect(() => {
     initialRecursiveFormData();
   }, [functionDetails]);
 
   const initialRecursiveFormData = () => {
-    if (!functionDetails.parameters || functionDetails.parameters.length === 0) {
+    if (
+      !functionDetails.parameters ||
+      functionDetails.parameters.length === 0
+    ) {
       setRecursiveFormData({});
       return;
     }
 
-    const initialData = functionDetails.parameters.reduce((acc, param) => {
-      acc[param.name] = createEmptyValue(param.typ);
-      return acc;
-    }, {} as Record<string, unknown>);
+    const initialData = functionDetails.parameters.reduce(
+      (acc, param) => {
+        acc[param.name] = createEmptyValue(param.typ);
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    );
     setRecursiveFormData(initialData);
   };
 
-  const createEmptyValue = (typeDef: any): unknown => {
+  const createEmptyValue = (typeDef: Typ): unknown => {
     const typeStr = typeDef.type?.toLowerCase();
     switch (typeStr) {
-      case "record":
+      case "record": {
         const record: Record<string, unknown> = {};
-        typeDef.fields?.forEach((field: any) => {
+        typeDef.fields?.forEach((field: Field) => {
           record[field.name] = createEmptyValue(field.typ);
         });
         return record;
+      }
       case "list":
         return [];
       case "option":
@@ -55,6 +80,7 @@ export const DynamicForm = ({
         // For variants, create the first case as default
         if (typeDef.cases && typeDef.cases.length > 0) {
           const firstCase = typeDef.cases[0];
+          if (!firstCase) return null;
           if (typeof firstCase === "string") {
             // Unit variant - just return the case name
             return firstCase;
@@ -82,7 +108,9 @@ export const DynamicForm = ({
       case "tuple":
         // For tuples, create array with empty values for each element
         if (typeDef.fields && typeDef.fields.length > 0) {
-          return typeDef.fields.map((field: any) => createEmptyValue(field.typ));
+          return typeDef.fields.map((field: Field) =>
+            createEmptyValue(field.typ),
+          );
         }
         return [];
       case "f64":
@@ -101,8 +129,6 @@ export const DynamicForm = ({
     }
   };
 
-
-
   const handleRecursiveParameterChange = (path: string, value: unknown) => {
     const updateNestedValue = (
       obj: Record<string, unknown>,
@@ -110,19 +136,25 @@ export const DynamicForm = ({
       value: unknown,
     ): Record<string, unknown> => {
       const [current, ...rest] = pathArray;
+      if (!current) return obj;
       if (rest.length === 0) {
         return { ...obj, [current]: value };
       }
       return {
         ...obj,
-        [current]: updateNestedValue((obj[current] as Record<string, unknown>) || {}, rest, value),
+        [current]: updateNestedValue(
+          (obj[current] as Record<string, unknown>) || {},
+          rest,
+          value,
+        ),
       };
     };
 
-    setRecursiveFormData(prev => updateNestedValue(prev, path.split("."), value));
+    setRecursiveFormData(prev =>
+      updateNestedValue(prev, path.split("."), value),
+    );
     resetResult();
   };
-
 
   const handleSubmit = () => {
     // Check if HTTP handler can be invoked directly
@@ -130,26 +162,27 @@ export const DynamicForm = ({
 
     if (!canInvoke) {
       setErrors({
-        root: "This HTTP handler cannot be invoked directly via CLI."
+        root: "This HTTP handler cannot be invoked directly via CLI.",
       });
       return;
     }
 
     // Use recursive form data with type information
-    const result: { params: Array<{ value: unknown; typ: any; name: string }> } = { params: [] };
+    const result: {
+      params: Array<{ value: unknown; typ: Typ; name: string }>;
+    } = { params: [] };
     if (functionDetails.parameters) {
       functionDetails.parameters.forEach(param => {
         const value = recursiveFormData[param.name];
         result.params.push({
           value,
           typ: param.typ,
-          name: param.name
+          name: param.name,
         });
       });
     }
     onInvoke(result);
   };
-
 
   return (
     <div>
@@ -166,7 +199,9 @@ export const DynamicForm = ({
                       Cannot invoke HTTP handler directly
                     </h4>
                     <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                      This is an HTTP incoming handler that is designed to be triggered by incoming HTTP requests, not direct CLI invocation.
+                      This is an HTTP incoming handler that is designed to be
+                      triggered by incoming HTTP requests, not direct CLI
+                      invocation.
                     </p>
                   </div>
                 </div>
@@ -174,7 +209,7 @@ export const DynamicForm = ({
             )}
 
             {functionDetails.parameters &&
-              functionDetails.parameters.length > 0 ? (
+            functionDetails.parameters.length > 0 ? (
               // Recursive form layout
               <div className="space-y-4">
                 {functionDetails.parameters.map(parameter => (
@@ -203,7 +238,9 @@ export const DynamicForm = ({
             {/* Display root errors */}
             {errors.root && (
               <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-sm text-red-700 dark:text-red-300">{errors.root}</p>
+                <p className="text-sm text-red-700 dark:text-red-300">
+                  {errors.root}
+                </p>
               </div>
             )}
           </CardContent>

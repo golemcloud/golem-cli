@@ -7,7 +7,7 @@ export class ProfileService {
    * Get all available CLI profiles
    */
   public async getProfiles(): Promise<Profile[]> {
-    return await this.callCLIGlobal("profile", ["list"]);
+    return (await this.callCLIGlobal("profile", ["list"])) as Profile[];
   }
 
   /**
@@ -37,7 +37,7 @@ export class ProfileService {
     if (profileName) {
       args.push(profileName);
     }
-    return await this.callCLIGlobal("profile", args);
+    return (await this.callCLIGlobal("profile", args)) as Profile;
   }
 
   /**
@@ -89,7 +89,7 @@ export class ProfileService {
   private async callCLIGlobal(
     command: string,
     subcommands: string[],
-  ): Promise<any> {
+  ): Promise<unknown> {
     let result: string;
     try {
       result = await invoke("call_golem_command", {
@@ -97,10 +97,10 @@ export class ProfileService {
         subcommands,
         folderPath: "/", // Use root folder for global commands
       });
-    } catch (e) {
+    } catch (_e) {
       toast({
         title: "Error in calling golem CLI",
-        description: String(e),
+        description: String(_e),
         variant: "destructive",
         duration: 5000,
       });
@@ -112,7 +112,7 @@ export class ProfileService {
     if (match) {
       try {
         parsedResult = JSON.parse(match[0]);
-      } catch (e) {
+      } catch {
         // some actions do not return JSON
       }
     }

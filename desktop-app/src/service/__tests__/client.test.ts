@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Service } from "../client";
-import { toast } from "@/hooks/use-toast";
-import { ComponentType } from "@/types/component";
+import { toast as _toast } from "@/hooks/use-toast";
+import { ComponentType as _ComponentType } from "@/types/component";
 
 // Mock dependencies
 vi.mock("@/lib/settings", () => ({
@@ -39,7 +39,7 @@ describe("Service", () => {
   let service: Service;
 
   beforeEach(() => {
-    service = new Service("http://localhost:3000");
+    service = new Service();
     vi.clearAllMocks();
   });
 
@@ -48,8 +48,15 @@ describe("Service", () => {
   });
 
   describe("constructor", () => {
-    it("should initialize with baseUrl", () => {
-      expect(service.baseUrl).toBe("http://localhost:3000");
+    it("should initialize all services", () => {
+      expect(service.cliService).toBeDefined();
+      expect(service.componentService).toBeDefined();
+      expect(service.workerService).toBeDefined();
+      expect(service.apiService).toBeDefined();
+      expect(service.pluginService).toBeDefined();
+      expect(service.deploymentService).toBeDefined();
+      expect(service.appService).toBeDefined();
+      expect(service.manifestService).toBeDefined();
     });
   });
 });

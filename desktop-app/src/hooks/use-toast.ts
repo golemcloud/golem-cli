@@ -142,7 +142,9 @@ const TOAST_LARGE_MESSAGE_LIMIT = 200;
 let globalLogViewer: ReturnType<typeof useLogViewer> | null = null;
 
 // Function to set up global log viewer reference
-export function setupGlobalLogViewer(logViewer: ReturnType<typeof useLogViewer>) {
+export function setupGlobalLogViewer(
+  logViewer: ReturnType<typeof useLogViewer>,
+) {
   globalLogViewer = logViewer;
 }
 
@@ -150,21 +152,26 @@ function toast({ ...props }: Toast) {
   const id = genId();
 
   // Check if message is too large for toast
-  const messageText = String(props.title || "") + String(props.description || "");
+  const messageText =
+    String(props.title || "") + String(props.description || "");
   const isLargeMessage = messageText.length > TOAST_LARGE_MESSAGE_LIMIT;
 
   // If message is large and we have access to global log viewer, use it instead
   if (isLargeMessage && globalLogViewer) {
-    const status = props.variant === "destructive" ? "error" : 
-                   props.variant === "success" ? "success" : "info";
-    
+    const status =
+      props.variant === "destructive"
+        ? "error"
+        : props.variant === "success"
+          ? "success"
+          : "info";
+
     globalLogViewer.showLog({
       title: String(props.title || "Message"),
       logs: String(props.description || ""),
       status,
       operation: "Toast Message",
     });
-    
+
     // Return a dummy object to maintain compatibility
     return {
       id: id,

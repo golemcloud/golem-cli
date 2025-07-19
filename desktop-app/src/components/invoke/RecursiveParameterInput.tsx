@@ -2,7 +2,13 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,7 +29,10 @@ const TypeBadge = ({ type }: { type: string }) => (
   </span>
 );
 
-const createEmptyValue = (typeDef: Typ, visited = new Set<string>()): unknown => {
+const createEmptyValue = (
+  typeDef: Typ,
+  visited = new Set<string>(),
+): unknown => {
   const typeStr = typeDef.type?.toLowerCase();
 
   // Prevent infinite recursion for self-referencing types
@@ -34,12 +43,13 @@ const createEmptyValue = (typeDef: Typ, visited = new Set<string>()): unknown =>
   visited.add(typeKey);
 
   switch (typeStr) {
-    case "record":
+    case "record": {
       const record: Record<string, unknown> = {};
       typeDef.fields?.forEach(field => {
         record[field.name] = createEmptyValue(field.typ, visited);
       });
       return record;
+    }
 
     case "list":
       return [];
@@ -47,7 +57,7 @@ const createEmptyValue = (typeDef: Typ, visited = new Set<string>()): unknown =>
     case "option":
       return null;
 
-    case "variant":
+    case "variant": {
       // For variants, create the first case as default
       if (typeDef.cases && typeDef.cases.length > 0) {
         const firstCase = typeDef.cases[0];
@@ -60,6 +70,7 @@ const createEmptyValue = (typeDef: Typ, visited = new Set<string>()): unknown =>
         }
       }
       return null;
+    }
 
     case "str":
     case "chr":
@@ -85,7 +96,9 @@ const createEmptyValue = (typeDef: Typ, visited = new Set<string>()): unknown =>
     case "tuple":
       // For tuples, create array with empty values for each element
       if (typeDef.fields && typeDef.fields.length > 0) {
-        return typeDef.fields.map(field => createEmptyValue(field.typ, visited));
+        return typeDef.fields.map(field =>
+          createEmptyValue(field.typ, visited),
+        );
       }
       return [];
 
@@ -106,13 +119,9 @@ const createEmptyValue = (typeDef: Typ, visited = new Set<string>()): unknown =>
   }
 };
 
-export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = ({
-  name,
-  typeDef,
-  value,
-  onChange,
-  path = "",
-}) => {
+export const RecursiveParameterInput: React.FC<
+  RecursiveParameterInputProps
+> = ({ name, typeDef, value, onChange, path = "" }) => {
   const currentPath = path ? `${path}.${name}` : name;
 
   const handleValueChange = (newValue: unknown) => {
@@ -126,14 +135,16 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
         return (
           <Card className="bg-card/60 border-border/20">
             <CardContent className="p-4 space-y-4">
-              {typeDef.fields?.map((field) => (
+              {typeDef.fields?.map(field => (
                 <div key={field.name}>
                   <RecursiveParameterInput
                     name={field.name}
                     typeDef={field.typ}
                     value={(value as Record<string, unknown>)?.[field.name]}
                     onChange={(_, fieldValue) => {
-                      const newValue = { ...(value as Record<string, unknown> || {}) };
+                      const newValue = {
+                        ...((value as Record<string, unknown>) || {}),
+                      };
                       newValue[field.name] = fieldValue;
                       handleValueChange(newValue);
                     }}
@@ -152,16 +163,18 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
               value={(() => {
                 if (typeof value === "string") return value;
                 if (value && typeof value === "object" && value !== null) {
-                  const entries = Object.entries(value as Record<string, unknown>);
+                  const entries = Object.entries(
+                    value as Record<string, unknown>,
+                  );
                   if (entries.length === 1) {
                     return entries[0][0]; // Return the case name
                   }
                 }
                 return "";
               })()}
-              onValueChange={(selectedType) => {
+              onValueChange={selectedType => {
                 const selectedCase = typeDef.cases?.find(
-                  (c) => (typeof c === "string" ? c : c.name) === selectedType
+                  c => (typeof c === "string" ? c : c.name) === selectedType,
                 );
                 if (selectedCase) {
                   if (typeof selectedCase === "string") {
@@ -181,8 +194,9 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                 <SelectValue placeholder="Select variant..." />
               </SelectTrigger>
               <SelectContent>
-                {typeDef.cases?.map((caseItem) => {
-                  const caseName = typeof caseItem === "string" ? caseItem : caseItem.name;
+                {typeDef.cases?.map(caseItem => {
+                  const caseName =
+                    typeof caseItem === "string" ? caseItem : caseItem.name;
                   return (
                     <SelectItem key={caseName} value={caseName}>
                       {caseName}
@@ -192,14 +206,15 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
               </SelectContent>
             </Select>
             {(() => {
-              if (!value || typeof value !== "object" || value === null) return null;
+              if (!value || typeof value !== "object" || value === null)
+                return null;
 
               // Handle the case where value is a variant record like { caseName: caseValue }
               const entries = Object.entries(value as Record<string, unknown>);
               if (entries.length === 1) {
                 const [caseKey, caseValue] = entries[0];
                 const selectedCase = typeDef.cases?.find(
-                  (c) => (typeof c === "string" ? c : c.name) === caseKey
+                  c => (typeof c === "string" ? c : c.name) === caseKey,
                 );
 
                 if (selectedCase && typeof selectedCase !== "string") {
@@ -237,7 +252,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                         typeDef={typeDef.inner!}
                         value={item}
                         onChange={(_, newValue) => {
-                          const newArray = [...(value as unknown[] || [])];
+                          const newArray = [...((value as unknown[]) || [])];
                           newArray[index] = newValue;
                           handleValueChange(newArray);
                         }}
@@ -249,7 +264,9 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        const newArray = (value as unknown[]).filter((_, i) => i !== index);
+                        const newArray = (value as unknown[]).filter(
+                          (_, i) => i !== index,
+                        );
                         handleValueChange(newArray);
                       }}
                       className="p-2 text-destructive hover:text-destructive/80"
@@ -270,7 +287,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
               size="sm"
               onClick={() => {
                 const newItem = createEmptyValue(typeDef.inner!);
-                handleValueChange([...(value as unknown[] || []), newItem]);
+                handleValueChange([...((value as unknown[]) || []), newItem]);
               }}
               className="flex items-center gap-1 text-primary hover:text-primary/80"
             >
@@ -287,10 +304,16 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
               <input
                 type="checkbox"
                 checked={value !== null && value !== undefined}
-                onChange={(e) => handleValueChange(e.target.checked ? createEmptyValue(typeDef.inner!) : null)}
+                onChange={e =>
+                  handleValueChange(
+                    e.target.checked ? createEmptyValue(typeDef.inner!) : null,
+                  )
+                }
                 className="rounded border-border/20"
               />
-              <span className="text-sm text-muted-foreground">Optional value</span>
+              <span className="text-sm text-muted-foreground">
+                Optional value
+              </span>
             </div>
             {value !== null && value !== undefined && (
               <RecursiveParameterInput
@@ -311,7 +334,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
             type="text"
             placeholder={`Enter ${name}...`}
             value={(value as string) || ""}
-            onChange={(e) => handleValueChange(e.target.value)}
+            onChange={e => handleValueChange(e.target.value)}
           />
         );
 
@@ -319,7 +342,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
         return (
           <RadioGroup
             value={String(value)}
-            onValueChange={(checked) => handleValueChange(checked === "true")}
+            onValueChange={checked => handleValueChange(checked === "true")}
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="true" id={`${currentPath}-true`} />
@@ -336,14 +359,15 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
         return (
           <Select
             value={(value as string) || ""}
-            onValueChange={(selectedValue) => handleValueChange(selectedValue)}
+            onValueChange={selectedValue => handleValueChange(selectedValue)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select an option" />
             </SelectTrigger>
             <SelectContent>
-              {(typeDef.cases || []).map((option) => {
-                const optionName = typeof option === "string" ? option : option.name;
+              {(typeDef.cases || []).map(option => {
+                const optionName =
+                  typeof option === "string" ? option : option.name;
                 return (
                   <SelectItem key={optionName} value={optionName}>
                     {optionName}
@@ -358,23 +382,28 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
         return (
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground">Select flags:</div>
-            {(typeDef.names || []).map((flagName) => (
+            {(typeDef.names || []).map(flagName => (
               <div key={flagName} className="flex items-center space-x-2">
                 <input
                   type="checkbox"
                   id={`${currentPath}-${flagName}`}
                   checked={Array.isArray(value) && value.includes(flagName)}
-                  onChange={(e) => {
+                  onChange={e => {
                     const currentFlags = Array.isArray(value) ? value : [];
                     if (e.target.checked) {
                       handleValueChange([...currentFlags, flagName]);
                     } else {
-                      handleValueChange(currentFlags.filter(f => f !== flagName));
+                      handleValueChange(
+                        currentFlags.filter(f => f !== flagName),
+                      );
                     }
                   }}
                   className="rounded border-border/20"
                 />
-                <Label htmlFor={`${currentPath}-${flagName}`} className="text-sm">
+                <Label
+                  htmlFor={`${currentPath}-${flagName}`}
+                  className="text-sm"
+                >
                   {flagName}
                 </Label>
               </div>
@@ -388,15 +417,22 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
             <div className="flex items-center gap-4">
               <Label className="text-sm font-medium">Result type:</Label>
               <RadioGroup
-                value={value && typeof value === "object" && value !== null && "ok" in value ? "ok" : "err"}
-                onValueChange={(resultType) => {
+                value={
+                  value &&
+                  typeof value === "object" &&
+                  value !== null &&
+                  "ok" in value
+                    ? "ok"
+                    : "err"
+                }
+                onValueChange={resultType => {
                   if (resultType === "ok") {
                     handleValueChange({
-                      ok: typeDef.ok ? createEmptyValue(typeDef.ok) : null
+                      ok: typeDef.ok ? createEmptyValue(typeDef.ok) : null,
                     });
                   } else {
                     handleValueChange({
-                      err: typeDef.err ? createEmptyValue(typeDef.err) : null
+                      err: typeDef.err ? createEmptyValue(typeDef.err) : null,
                     });
                   }
                 }}
@@ -412,7 +448,8 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
               </RadioGroup>
             </div>
             {(() => {
-              if (!value || typeof value !== "object" || value === null) return null;
+              if (!value || typeof value !== "object" || value === null)
+                return null;
 
               const resultValue = value as Record<string, unknown>;
 
@@ -423,7 +460,9 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                       name="ok"
                       typeDef={typeDef.ok}
                       value={resultValue.ok}
-                      onChange={(_, newValue) => handleValueChange({ ok: newValue })}
+                      onChange={(_, newValue) =>
+                        handleValueChange({ ok: newValue })
+                      }
                       path={currentPath}
                     />
                   )}
@@ -432,7 +471,9 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                       name="err"
                       typeDef={typeDef.err}
                       value={resultValue.err}
-                      onChange={(_, newValue) => handleValueChange({ err: newValue })}
+                      onChange={(_, newValue) =>
+                        handleValueChange({ err: newValue })
+                      }
                       path={currentPath}
                     />
                   )}
@@ -453,7 +494,9 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
                   typeDef={field.typ}
                   value={Array.isArray(value) ? value[index] : undefined}
                   onChange={(_, newValue) => {
-                    const newTuple = Array.isArray(value) ? [...value] : new Array(typeDef.fields?.length || 0);
+                    const newTuple = Array.isArray(value)
+                      ? [...value]
+                      : new Array(typeDef.fields?.length || 0);
                     newTuple[index] = newValue;
                     handleValueChange(newTuple);
                   }}
@@ -479,7 +522,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
             type="number"
             placeholder={`Enter ${name}...`}
             value={(value as number) || ""}
-            onChange={(e) => handleValueChange(Number(e.target.value))}
+            onChange={e => handleValueChange(Number(e.target.value))}
             step={typeStr.startsWith("f") ? "0.01" : "1"}
             min={typeStr.startsWith("u") ? "0" : undefined}
           />
@@ -490,7 +533,7 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
           <Textarea
             placeholder={`Enter ${name} (JSON format)...`}
             value={JSON.stringify(value, null, 2)}
-            onChange={(e) => {
+            onChange={e => {
               try {
                 const parsed = JSON.parse(e.target.value);
                 handleValueChange(parsed);

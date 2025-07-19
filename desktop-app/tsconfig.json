@@ -29,8 +29,6 @@
     "noImplicitThis": true,
     "noUncheckedIndexedAccess": true,
 
-    
-
     /* Paths and Aliases */
     "baseUrl": ".",
     "paths": {
@@ -38,8 +36,8 @@
     },
 
     /* Testing */
-    "types": ["vitest/globals", "@testing-library/jest-dom"]
+    "types": ["vitest/globals", "@testing-library/jest-dom", "vitest"]
   },
-  "include": ["src"],
+  "include": ["src", "src/test/vitest.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

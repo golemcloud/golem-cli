@@ -11,7 +11,12 @@ import { useDebounce } from "@/hooks/debounce"; // Import the "debounce" hook
 import { formatTimestampInDateTimeFormat } from "@/lib/utils";
 import { API } from "@/service";
 import { WSS } from "@/service/wss";
-import { Invocation, OplogWithIndex, Terminal, WsMessage } from "@/types/worker.ts";
+import {
+  Invocation,
+  OplogWithIndex,
+  Terminal,
+  WsMessage,
+} from "@/types/worker.ts";
 import { RotateCw, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -83,33 +88,35 @@ export default function WorkerLive() {
   }, [debouncedActiveTab, debouncedSearchQuery]);
 
   const getOpLog = async (search: string) => {
-    API.workerService.getOplog(
-      appId!,
-      componentId,
-      workerName,
-      `${debouncedActiveTab === "log" ? "" : "ExportedFunctionInvoked"
-      } ${search}`,
-    ).then(response => {
-      const terminalData = [] as Terminal[];
-      const invocationList = [] as Invocation[];
-      response.forEach((_item: OplogWithIndex) => {
-        const item = _item[1]
-        if (item.type === "ExportedFunctionInvoked") {
-          invocationList.push({
-            timestamp: item.timestamp,
-            function: item.functionName
-          });
-
-        } else {
-          terminalData.push({
-            timestamp: item.timestamp,
-            message: item.type
-          });
-        }
+    API.workerService
+      .getOplog(
+        appId!,
+        componentId,
+        workerName,
+        `${
+          debouncedActiveTab === "log" ? "" : "ExportedFunctionInvoked"
+        } ${search}`,
+      )
+      .then(response => {
+        const terminalData = [] as Terminal[];
+        const invocationList = [] as Invocation[];
+        (response as OplogWithIndex[]).forEach((_item: OplogWithIndex) => {
+          const item = _item[1];
+          if (item.type === "ExportedFunctionInvoked") {
+            invocationList.push({
+              timestamp: item.timestamp,
+              function: item.functionName,
+            });
+          } else {
+            terminalData.push({
+              timestamp: item.timestamp,
+              message: item.type,
+            });
+          }
+        });
+        setInvocationData(invocationList);
+        setTerminal(terminalData);
       });
-      setInvocationData(invocationList);
-      setTerminal(terminalData);
-    });
   };
 
   return (

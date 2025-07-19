@@ -5,7 +5,34 @@ import {
   TypeField,
 } from "@/types/component.ts";
 
-function buildJsonSkeleton(field: Field): any {
+// Raw type structure from external sources
+interface RawType {
+  type?: string;
+  items?: RawType[];
+  fields?: RawTypeField[];
+  cases?: RawTypeCase[];
+  inner?: RawType;
+}
+
+interface RawTypeField {
+  name: string;
+  typ: RawType;
+}
+
+interface RawTypeCase {
+  name: string;
+  typ?: RawType;
+}
+
+interface RawParameterData {
+  parameters: Array<{ typ: RawType }>;
+}
+
+interface RawTypesInput {
+  parameters: Array<{ typ: RawType }>;
+}
+
+function buildJsonSkeleton(field: Field): unknown {
   const { type, fields, cases, names, inner } = field.typ;
   const typeStr = type?.toLowerCase();
   switch (typeStr) {
@@ -29,7 +56,7 @@ function buildJsonSkeleton(field: Field): any {
       return 0;
 
     case "record": {
-      const obj: Record<string, any> = {};
+      const obj: Record<string, unknown> = {};
       fields?.forEach((subField: Field) => {
         obj[subField.name] = buildJsonSkeleton(subField);
       });
@@ -88,7 +115,9 @@ function buildJsonSkeleton(field: Field): any {
                 name: "",
               })
             : null,
-        err: cases ? `enum (${cases.map((c: any) => c.name).join(", ")})` : "",
+        err: cases
+          ? `enum (${(cases as Case[]).map(c => c.name).join(", ")})`
+          : "",
       };
     }
 
@@ -165,9 +194,12 @@ export function getCaretCoordinates(
 
   properties.forEach((prop: string) => {
     if (
-      Object.prototype.hasOwnProperty.call(styles as Record<string, any>, prop)
+      Object.prototype.hasOwnProperty.call(
+        styles as Record<string, string>,
+        prop,
+      )
     ) {
-      style.setProperty(prop, (styles as Record<string, any>)[prop]);
+      style.setProperty(prop, (styles as Record<string, string>)[prop]);
     }
   });
 
@@ -187,7 +219,7 @@ export function getCaretCoordinates(
   return coordinates;
 }
 
-function parseType(typ: any): any {
+function parseType(typ: RawType): Typ {
   if (!typ) return null;
 
   const typeMap: Record<string, string> = {
@@ -210,7 +242,7 @@ function parseType(typ: any): any {
 
   switch (typ.type) {
     case "Tuple":
-      return typ.items.map((item: any) => parseType(item));
+      return typ.items.map((item: RawType) => parseType(item));
 
     case "List":
       return [parseType(typ.inner)]; // Annotate as <List>
@@ -226,7 +258,7 @@ function parseType(typ: any): any {
 
     case "Record":
       return Object.fromEntries(
-        typ.fields.map((field: any) => {
+        typ.fields.map((field: RawTypeField) => {
           if (field.typ.type === "Option" && field.typ.inner.type === "List") {
             return [
               `${field.name}<${field.typ.type}<List>>`,
@@ -250,7 +282,7 @@ function parseType(typ: any): any {
 
     case "Variant":
       return Object.fromEntries(
-        typ.cases.map((variant: any) => [
+        typ.cases.map((variant: RawTypeCase) => [
           `${variant.name}<${variant.typ.type}>`, // Annotate variant name with type
           parseType(variant.typ),
         ]),
@@ -261,12 +293,12 @@ function parseType(typ: any): any {
   }
 }
 
-export function parseTooltipTypesData(data: any) {
-  return data.parameters.map((item: any) => parseType(item.typ));
+export function parseTooltipTypesData(data: RawParameterData) {
+  return data.parameters.map((item: { typ: RawType }) => parseType(item.typ));
 }
 
-export function parseTypesData(input: any): any {
-  function transformType(typ: any): any {
+export function parseTypesData(input: RawTypesInput): { items: TypeField[] } {
+  function transformType(typ: RawType): TypeField {
     if (!typ || typeof typ !== "object") return typ;
 
     switch (typ.type) {
@@ -300,7 +332,7 @@ export function parseTypesData(input: any): any {
       case "Record":
         return {
           type: "Record",
-          fields: (typ.fields || []).map((field: any) => ({
+          fields: (typ.fields || []).map((field: RawTypeField) => ({
             name: field.name,
             typ: transformType(field.typ),
           })),
@@ -309,7 +341,7 @@ export function parseTypesData(input: any): any {
       case "Variant":
         return {
           type: "Variant",
-          cases: (typ.cases || []).map((variant: any) => ({
+          cases: (typ.cases || []).map((variant: RawTypeCase) => ({
             name: variant.name,
             typ: transformType(variant.typ),
           })),
@@ -325,7 +357,7 @@ export function parseTypesData(input: any): any {
       case "Tuple":
         return {
           type: "Tuple",
-          items: (typ.items || []).map((item: any) => transformType(item)),
+          items: (typ.items || []).map((item: RawType) => transformType(item)),
         };
 
       default:
@@ -336,7 +368,9 @@ export function parseTypesData(input: any): any {
   return {
     typ: {
       type: "Tuple",
-      items: input.parameters.map((param: any) => transformType(param.typ)),
+      items: input.parameters.map((param: { typ: RawType }) =>
+        transformType(param.typ),
+      ),
     },
   };
 }
@@ -346,7 +380,7 @@ function normalizeType(type: string): string {
 }
 
 export function validateJsonStructure(
-  data: any,
+  data: unknown,
   field: TypeField,
 ): string | null {
   const { type, fields, cases, names, inner } = field.typ;

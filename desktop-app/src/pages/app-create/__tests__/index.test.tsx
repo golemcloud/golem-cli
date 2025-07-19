@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -33,7 +33,19 @@ vi.mock("@/lib/settings", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, variant, className }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    variant,
+    className,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    variant?: string;
+    className?: string;
+  }) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -46,35 +58,63 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children, className }: any) => (
+  Card: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <div className={className} data-testid="card">
       {children}
     </div>
   ),
-  CardContent: ({ children }: any) => <div>{children}</div>,
-  CardDescription: ({ children }: any) => <p>{children}</p>,
-  CardHeader: ({ children }: any) => <div>{children}</div>,
-  CardTitle: ({ children }: any) => <h2>{children}</h2>,
-}));
-
-vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} />,
-}));
-
-vi.mock("@/components/ui/label", () => ({
-  Label: ({ children, htmlFor }: any) => (
-    <label htmlFor={htmlFor}>{children}</label>
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardDescription: ({ children }: { children: React.ReactNode }) => (
+    <p>{children}</p>
+  ),
+  CardHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2>{children}</h2>
   ),
 }));
 
+vi.mock("@/components/ui/input", () => ({
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
+  ),
+}));
+
+vi.mock("@/components/ui/label", () => ({
+  Label: ({
+    children,
+    htmlFor,
+  }: {
+    children: React.ReactNode;
+    htmlFor?: string;
+  }) => <label htmlFor={htmlFor}>{children}</label>,
+}));
+
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ children, value, onValueChange }: any) => (
+  Select: ({
+    children,
+    value,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    value?: string;
+    onValueChange?: (value: string) => void;
+  }) => (
     <div>
       <select
         id="language"
         role="combobox"
         value={value}
-        onChange={e => onValueChange(e.target.value)}
+        onChange={e => onValueChange?.(e.target.value)}
       >
         <option value="" disabled hidden>
           Select a language
@@ -83,19 +123,33 @@ vi.mock("@/components/ui/select", () => ({
       </select>
     </div>
   ),
-  SelectContent: ({ children }: any) => <>{children}</>,
-  SelectItem: ({ children, value }: any) => (
-    <option value={value}>{children}</option>
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
   ),
+  SelectItem: ({
+    children,
+    value,
+  }: {
+    children: React.ReactNode;
+    value: string;
+  }) => <option value={value}>{children}</option>,
   SelectTrigger: () => null,
   SelectValue: () => null,
 }));
 
 vi.mock("@/components/ui/tooltip", () => ({
-  TooltipProvider: ({ children }: any) => <div>{children}</div>,
-  Tooltip: ({ children }: any) => <div>{children}</div>,
-  TooltipTrigger: ({ children }: any) => <div>{children}</div>,
-  TooltipContent: ({ children }: any) => <div>{children}</div>,
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  Tooltip: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 vi.mock("lucide-react", () => ({
@@ -235,7 +289,9 @@ describe("CreateApplication", () => {
 
     it("should handle folder selection", async () => {
       const { open } = await import("@tauri-apps/plugin-dialog");
-      (open as any).mockResolvedValue("/path/to/folder");
+      (open as MockedFunction<typeof open>).mockResolvedValue(
+        "/path/to/folder",
+      );
 
       renderCreateApplication();
       const user = userEvent.setup();
@@ -268,9 +324,17 @@ describe("CreateApplication", () => {
       const { settingsService } = await import("@/lib/settings");
       const { toast } = await import("@/hooks/use-toast");
 
-      (open as any).mockResolvedValue("/path/to/folder");
-      (invoke as any).mockResolvedValue("app-id-123");
-      (settingsService.addApp as any).mockResolvedValue(true);
+      (open as MockedFunction<typeof open>).mockResolvedValue(
+        "/path/to/folder",
+      );
+      (invoke as MockedFunction<typeof invoke>).mockResolvedValue(
+        "app-id-123",
+      );
+      (
+        settingsService.addApp as MockedFunction<
+          typeof settingsService.addApp
+        >
+      ).mockResolvedValue(true);
 
       renderCreateApplication();
       const user = userEvent.setup();
@@ -310,8 +374,12 @@ describe("CreateApplication", () => {
       const { open } = await import("@tauri-apps/plugin-dialog");
       const { toast } = await import("@/hooks/use-toast");
 
-      (open as any).mockResolvedValue("/path/to/folder");
-      (invoke as any).mockRejectedValue(new Error("Creation failed"));
+      (open as MockedFunction<typeof open>).mockResolvedValue(
+        "/path/to/folder",
+      );
+      (invoke as MockedFunction<typeof invoke>).mockRejectedValue(
+        new Error("Creation failed"),
+      );
 
       renderCreateApplication();
       const user = userEvent.setup();
@@ -341,7 +409,7 @@ describe("CreateApplication", () => {
 
     it("should handle folder selection cancellation", async () => {
       const { open } = await import("@tauri-apps/plugin-dialog");
-      (open as any).mockResolvedValue(null);
+      (open as MockedFunction<typeof open>).mockResolvedValue(null);
 
       renderCreateApplication();
       const user = userEvent.setup();
@@ -363,8 +431,10 @@ describe("CreateApplication", () => {
       const { invoke } = await import("@tauri-apps/api/core");
       const { open } = await import("@tauri-apps/plugin-dialog");
 
-      (open as any).mockResolvedValue("/path/to/folder");
-      (invoke as any).mockImplementation(
+      (open as MockedFunction<typeof open>).mockResolvedValue(
+        "/path/to/folder",
+      );
+      (invoke as MockedFunction<typeof invoke>).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
 

@@ -2,7 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import React from "react";
 import Components from "../index";
+
+interface MockButtonProps {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  variant?: string;
+  size?: string;
+}
 
 // Mock dependencies
 const mockNavigate = vi.fn();
@@ -29,7 +38,13 @@ vi.mock("@/components/errorBoundary", () => ({
 }));
 
 vi.mock("@/components/ui/badge", () => ({
-  Badge: ({ children, className }: any) => (
+  Badge: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <span className={className} data-testid="badge">
       {children}
     </span>
@@ -37,7 +52,7 @@ vi.mock("@/components/ui/badge", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, variant, size }: any) => (
+  Button: ({ children, onClick, disabled, variant, size }: MockButtonProps) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -50,19 +65,29 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children, className, onClick }: any) => (
+  Card: ({ children, className, onClick }: MockButtonProps) => (
     <div className={className} onClick={onClick} data-testid="card">
       {children}
     </div>
   ),
-  CardContent: ({ children }: any) => <div>{children}</div>,
-  CardDescription: ({ children }: any) => <p>{children}</p>,
-  CardHeader: ({ children }: any) => <div>{children}</div>,
-  CardTitle: ({ children }: any) => <h2>{children}</h2>,
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardDescription: ({ children }: { children: React.ReactNode }) => (
+    <p>{children}</p>
+  ),
+  CardHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2>{children}</h2>
+  ),
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
+  ),
 }));
 
 vi.mock("@/lib/utils", () => ({
@@ -134,8 +159,12 @@ describe("Components", () => {
   describe("Component Rendering", () => {
     it("should render the components page", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -146,8 +175,12 @@ describe("Components", () => {
 
     it("should render search input", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -160,8 +193,12 @@ describe("Components", () => {
 
     it("should render create component button", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -172,8 +209,12 @@ describe("Components", () => {
 
     it("should render component cards", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -187,8 +228,12 @@ describe("Components", () => {
   describe("Search Functionality", () => {
     it("should filter components based on search input", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();
@@ -209,8 +254,12 @@ describe("Components", () => {
 
     it("should show empty state when search yields no matches", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();
@@ -232,8 +281,12 @@ describe("Components", () => {
   describe("Component Interactions", () => {
     it("should navigate to component details when clicking on component card", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();
@@ -254,8 +307,12 @@ describe("Components", () => {
 
     it("should handle create component button click", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();
@@ -276,9 +333,9 @@ describe("Components", () => {
   describe("Error Handling", () => {
     it("should handle API errors gracefully", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockRejectedValue(
-        new Error("API Error"),
-      );
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockRejectedValue(new Error("API Error"));
 
       renderComponents();
 
@@ -289,8 +346,12 @@ describe("Components", () => {
 
     it("should handle empty component list", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue({});
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: [] });
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({});
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ workers: [] });
 
       renderComponents();
 
@@ -304,10 +365,14 @@ describe("Components", () => {
   describe("Loading States", () => {
     it("should show loading state while fetching components", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockImplementation(
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: [] });
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ workers: [] });
 
       renderComponents();
 
@@ -318,8 +383,12 @@ describe("Components", () => {
   describe("Data Display", () => {
     it("should display component metadata correctly", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -348,8 +417,12 @@ describe("Components", () => {
       );
 
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(largeComponentsList);
-      (API.workerService.findWorker as any).mockResolvedValue({ workers: [] });
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(largeComponentsList);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ workers: [] });
 
       const startTime = performance.now();
       renderComponents();
@@ -368,8 +441,12 @@ describe("Components", () => {
   describe("Accessibility", () => {
     it("should have proper ARIA labels and structure", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
 
@@ -385,8 +462,12 @@ describe("Components", () => {
 
     it("should support keyboard navigation", async () => {
       const { API } = await import("@/service");
-      (API.componentService.getComponentByIdAsKey as any).mockResolvedValue(mockComponents);
-      (API.workerService.findWorker as any).mockResolvedValue(mockWorkers);
+      (
+        API.componentService.getComponentByIdAsKey as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockComponents);
+      (
+        API.workerService.findWorker as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockWorkers);
 
       renderComponents();
       const user = userEvent.setup();

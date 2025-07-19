@@ -1,17 +1,61 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { RibEditor } from "../rib-editor";
 import { useTheme } from "../theme-provider";
 import { useMonaco } from "@monaco-editor/react";
 
+interface MockEditor {
+  onDidFocusEditorWidget: ReturnType<typeof vi.fn>;
+  onDidBlurEditorWidget: ReturnType<typeof vi.fn>;
+}
+
+interface MockMonaco {
+  languages: {
+    register: ReturnType<typeof vi.fn>;
+    setLanguageConfiguration: ReturnType<typeof vi.fn>;
+    setMonarchTokensProvider: ReturnType<typeof vi.fn>;
+    registerCompletionItemProvider: ReturnType<typeof vi.fn>;
+    CompletionItemKind: {
+      Property: string;
+      Variable: string;
+      Function: string;
+    };
+  };
+  editor: {
+    defineTheme: ReturnType<typeof vi.fn>;
+    setTheme: ReturnType<typeof vi.fn>;
+  };
+}
+
+interface MockCompletionProvider {
+  triggerCharacters?: string[];
+}
+
 // Mock dependencies
 vi.mock("../theme-provider", () => ({
   useTheme: vi.fn(),
 }));
 
+interface MockMonacoEditorProps {
+  onMount?: (editor: MockEditor, monaco: MockMonaco) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  _onChange?: (value: string | undefined) => void;
+  value?: string;
+  language?: string;
+  theme?: string;
+  options?: { readOnly?: boolean };
+}
+
 vi.mock("@monaco-editor/react", () => ({
-  default: ({ onMount, onFocus, onBlur, onChange, ...props }: any) => (
+  default: ({
+    onMount,
+    onFocus,
+    onBlur,
+    _onChange,
+    ...props
+  }: MockMonacoEditorProps) => (
     <div
       data-testid="monaco-editor"
       data-value={props.value}
@@ -22,7 +66,7 @@ vi.mock("@monaco-editor/react", () => ({
       onBlur={() => onBlur?.()}
       onClick={() => {
         // Simulate Monaco editor onMount
-        const mockEditor = {
+        const mockEditor: MockEditor = {
           onDidFocusEditorWidget: vi.fn(callback => {
             callback();
             return { dispose: vi.fn() };
@@ -32,13 +76,24 @@ vi.mock("@monaco-editor/react", () => ({
             return { dispose: vi.fn() };
           }),
         };
-        const mockMonaco = {
+        const mockMonacoForMount: MockMonaco = {
+          languages: {
+            register: vi.fn(),
+            setLanguageConfiguration: vi.fn(),
+            setMonarchTokensProvider: vi.fn(),
+            registerCompletionItemProvider: vi.fn(() => ({ dispose: vi.fn() })),
+            CompletionItemKind: {
+              Property: "Property",
+              Variable: "Variable",
+              Function: "Function",
+            },
+          },
           editor: {
             defineTheme: vi.fn(),
             setTheme: vi.fn(),
           },
         };
-        onMount?.(mockEditor, mockMonaco);
+        onMount?.(mockEditor, mockMonacoForMount);
       }}
     >
       Monaco Editor Mock
@@ -52,7 +107,7 @@ vi.mock("@/lib/utils", () => ({
 }));
 
 describe("RibEditor", () => {
-  const mockMonaco = {
+  const mockMonaco: MockMonaco = {
     languages: {
       register: vi.fn(),
       setLanguageConfiguration: vi.fn(),
@@ -71,13 +126,17 @@ describe("RibEditor", () => {
   };
 
   const mockTheme = {
-    theme: "light",
+    theme: "light" as const,
+    setTheme: vi.fn(),
+    resolvedTheme: "light" as const,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useTheme as any).mockReturnValue(mockTheme);
-    (useMonaco as any).mockReturnValue(mockMonaco);
+    (useTheme as MockedFunction<typeof useTheme>).mockReturnValue(mockTheme);
+    (useMonaco as MockedFunction<typeof useMonaco>).mockReturnValue(
+      mockMonaco,
+    );
   });
 
   afterEach(() => {
@@ -268,7 +327,11 @@ describe("RibEditor", () => {
     });
 
     it("should use dark theme when theme is dark", () => {
-      (useTheme as any).mockReturnValue({ theme: "dark" });
+      (useTheme as MockedFunction<typeof useTheme>).mockReturnValue({
+        theme: "dark" as const,
+        setTheme: vi.fn(),
+        resolvedTheme: "dark" as const,
+      });
 
       render(<RibEditor />);
 
@@ -281,7 +344,11 @@ describe("RibEditor", () => {
     it("should update theme when theme provider changes", () => {
       const { rerender } = render(<RibEditor />);
 
-      (useTheme as any).mockReturnValue({ theme: "dark" });
+      (useTheme as MockedFunction<typeof useTheme>).mockReturnValue({
+        theme: "dark" as const,
+        setTheme: vi.fn(),
+        resolvedTheme: "dark" as const,
+      });
       rerender(<RibEditor />);
 
       expect(screen.getByTestId("monaco-editor")).toHaveAttribute(
@@ -328,7 +395,7 @@ describe("RibEditor", () => {
         providerCalls.length > 0 &&
         providerCalls[0] &&
         providerCalls[0].length > 1
-          ? (providerCalls[0] as any)[1]
+          ? (providerCalls[0] as [unknown, MockCompletionProvider])[1]
           : null;
 
       expect(provider?.triggerCharacters).toEqual(
@@ -420,7 +487,7 @@ describe("RibEditor", () => {
       const mockDispose = vi.fn();
       mockMonaco.languages.registerCompletionItemProvider.mockReturnValue({
         dispose: mockDispose,
-      } as any);
+      } as Record<string, unknown>);
 
       const { unmount } = render(<RibEditor />);
       unmount();
@@ -430,7 +497,7 @@ describe("RibEditor", () => {
 
     it("should handle cleanup when no provider exists", () => {
       mockMonaco.languages.registerCompletionItemProvider.mockReturnValue(
-        null as any,
+        null as unknown as { dispose: () => void },
       );
 
       const { unmount } = render(<RibEditor />);
@@ -442,7 +509,7 @@ describe("RibEditor", () => {
 
   describe("Edge cases", () => {
     it("should handle missing Monaco instance gracefully", () => {
-      (useMonaco as any).mockReturnValue(null);
+      (useMonaco as MockedFunction<typeof useMonaco>).mockReturnValue(null);
 
       expect(() => render(<RibEditor />)).not.toThrow();
     });
@@ -464,7 +531,11 @@ describe("RibEditor", () => {
     });
 
     it("should handle null suggestVariable", () => {
-      render(<RibEditor suggestVariable={null as any} />);
+      render(
+        <RibEditor
+          suggestVariable={null as unknown as Record<string, unknown>}
+        />,
+      );
 
       expect(
         mockMonaco.languages.registerCompletionItemProvider,

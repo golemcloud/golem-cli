@@ -92,3 +92,5 @@ export const ComponentsSection = forwardRef<ComponentsSectionRef>((_, ref) => {
     </ErrorBoundary>
   );
 });
+
+ComponentsSection.displayName = "ComponentsSection";

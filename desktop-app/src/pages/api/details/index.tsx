@@ -101,7 +101,7 @@ const APIDetails = () => {
                             variant="secondary"
                             className={
                               HTTP_METHOD_COLOR[
-                              route.method as keyof typeof HTTP_METHOD_COLOR
+                                route.method as keyof typeof HTTP_METHOD_COLOR
                               ]
                             }
                           >

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction, type Mocked } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GolemCliPathSetting } from "../golem-cli-path";
@@ -20,7 +20,19 @@ vi.mock("@/lib/settings", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, variant, type }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    variant,
+    type,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    variant?: string;
+    type?: string;
+  }) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -34,11 +46,19 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} data-testid="input" />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} data-testid="input" />
+  ),
 }));
 
 vi.mock("@/components/ui/label", () => ({
-  Label: ({ children, htmlFor }: any) => (
+  Label: ({
+    children,
+    htmlFor,
+  }: {
+    children: React.ReactNode;
+    htmlFor?: string;
+  }) => (
     <label htmlFor={htmlFor} data-testid="label">
       {children}
     </label>
@@ -46,17 +66,35 @@ vi.mock("@/components/ui/label", () => ({
 }));
 
 vi.mock("lucide-react", () => ({
-  FolderOpen: ({ size, className }: any) => (
+  FolderOpen: ({
+    size,
+    className,
+  }: {
+    size?: number | string;
+    className?: string;
+  }) => (
     <span data-testid="folder-open-icon" data-size={size} className={className}>
       📁
     </span>
   ),
-  Save: ({ size, className }: any) => (
+  Save: ({
+    size,
+    className,
+  }: {
+    size?: number | string;
+    className?: string;
+  }) => (
     <span data-testid="save-icon" data-size={size} className={className}>
       💾
     </span>
   ),
-  Check: ({ size, className }: any) => (
+  Check: ({
+    size,
+    className,
+  }: {
+    size?: number | string;
+    className?: string;
+  }) => (
     <span data-testid="check-icon" data-size={size} className={className}>
       ✓
     </span>
@@ -65,9 +103,13 @@ vi.mock("lucide-react", () => ({
 
 describe("GolemCliPathSetting", () => {
   // Get properly typed mock references
-  let mockOpen: any;
-  let mockToast: any;
-  let mockSettingsService: any;
+  let mockOpen: MockedFunction<
+    typeof import("@tauri-apps/plugin-dialog").open
+  >;
+  let mockToast: MockedFunction<typeof import("@/hooks/use-toast").toast>;
+  let mockSettingsService: Mocked<
+    typeof import("@/lib/settings").settingsService
+  >;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -321,8 +363,8 @@ describe("GolemCliPathSetting", () => {
       const user = userEvent.setup();
 
       // Create a promise we can control
-      let resolveSave: (value: any) => void;
-      const savePromise = new Promise(resolve => {
+      let resolveSave: (value: boolean) => void;
+      const savePromise = new Promise<boolean>(resolve => {
         resolveSave = resolve;
       });
       mockSettingsService.setGolemCliPath.mockReturnValue(savePromise);
@@ -470,8 +512,8 @@ describe("GolemCliPathSetting", () => {
       const user = userEvent.setup();
 
       // Create a promise we can control
-      let resolveSave: (value: any) => void;
-      const savePromise = new Promise(resolve => {
+      let resolveSave: (value: boolean) => void;
+      const savePromise = new Promise<boolean>(resolve => {
         resolveSave = resolve;
       });
       mockSettingsService.setGolemCliPath.mockReturnValue(savePromise);
@@ -551,7 +593,7 @@ describe("GolemCliPathSetting", () => {
       const user = userEvent.setup();
 
       // Return an array instead of string (should not update input)
-      mockOpen.mockResolvedValue(["/path/to/golem-cli"] as any);
+      mockOpen.mockResolvedValue(["/path/to/golem-cli"] as string[] | null);
 
       render(<GolemCliPathSetting />);
 

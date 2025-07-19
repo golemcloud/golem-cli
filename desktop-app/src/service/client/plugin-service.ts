@@ -17,12 +17,12 @@ export class PluginService {
     const rawPlugins = await this.cliService.callCLI(appId, "plugin", ["list"]);
 
     // Group plugins by name
-    const grouped = rawPlugins.reduce(
+    const grouped = (rawPlugins as Plugin[]).reduce(
       (acc: Record<string, Plugin[]>, plugin: Plugin) => {
         if (!acc[plugin.name]) {
           acc[plugin.name] = [];
         }
-        acc[plugin.name].push(plugin);
+        acc[plugin.name]!.push(plugin);
         return acc;
       },
       {},
@@ -42,7 +42,7 @@ export class PluginService {
     name: string,
   ): Promise<Plugin[]> => {
     const allPlugins = await this.cliService.callCLI(appId, "plugin", ["list"]);
-    return allPlugins.filter((plugin: Plugin) => plugin.name === name);
+    return (allPlugins as Plugin[]).filter((plugin: Plugin) => plugin.name === name);
   };
 
   public createPlugin = async (

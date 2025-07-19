@@ -4,7 +4,6 @@ import { API } from "@/service";
 import { WSS } from "@/service/wss";
 import {
   Invocation,
-  OplogEntry,
   OplogWithIndex,
   Terminal,
   Worker,
@@ -24,11 +23,11 @@ export default function WorkerDetails() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.workerService.getParticularWorker(appId!, componentId, workerName).then(
-        response => {
-          setWorkerDetails(response);
-        },
-      );
+      API.workerService
+        .getParticularWorker(appId!, componentId, workerName)
+        .then(response => {
+          setWorkerDetails(response as Worker);
+        });
     }
   }, [componentId, workerName]);
 
@@ -82,27 +81,28 @@ export default function WorkerDetails() {
   }, []);
 
   const getOpLog = async () => {
-    API.workerService.getOplog(appId!, componentId, workerName, "").then(response => {
-      const terminalData = [] as Terminal[];
-      const invocationList = [] as Invocation[];
-      response.forEach((_item: OplogWithIndex) => {
-        const item = _item[1];
-        if (item.type === "ExportedFunctionInvoked") {
-          invocationList.push({
-            timestamp: item.timestamp,
-            function: item.functionName,
-          });
-
-        } else {
-          terminalData.push({
-            timestamp: item.timestamp,
-            message: item.type
-          });
-        }
+    API.workerService
+      .getOplog(appId!, componentId, workerName, "")
+      .then(response => {
+        const terminalData = [] as Terminal[];
+        const invocationList = [] as Invocation[];
+        (response as OplogWithIndex[]).forEach((_item: OplogWithIndex) => {
+          const item = _item[1];
+          if (item.type === "ExportedFunctionInvoked") {
+            invocationList.push({
+              timestamp: item.timestamp,
+              function: item.functionName,
+            });
+          } else {
+            terminalData.push({
+              timestamp: item.timestamp,
+              message: item.type,
+            });
+          }
+        });
+        setInvocationData(invocationList);
+        setTerminal(terminalData);
       });
-      setInvocationData(invocationList);
-      setTerminal(terminalData);
-    });
   };
 
   return (

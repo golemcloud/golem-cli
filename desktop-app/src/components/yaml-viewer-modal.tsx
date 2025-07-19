@@ -51,7 +51,11 @@ export function YamlViewerModal({
               "The application manifest has been saved successfully.",
           });
         } else if (componentId) {
-          await API.manifestService.saveComponentManifest(appId, componentId, content);
+          await API.manifestService.saveComponentManifest(
+            appId,
+            componentId,
+            content,
+          );
           toast({
             title: "Component YAML Saved",
             description: "The component manifest has been saved successfully.",

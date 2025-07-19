@@ -74,7 +74,7 @@ interface LocalSpan {
   spanId: string;
   start: string;
   parentId: string | null;
-  linkedContext: any | null;
+  linkedContext: unknown | null;
   attributes: Attribute[];
   inherited: boolean;
 }
@@ -83,22 +83,22 @@ interface CreateEntry extends BaseLogEntry {
   type: "Create";
   workerId: WorkerId;
   componentVersion: number;
-  args: any[];
-  env: Record<string, any>;
+  args: unknown[];
+  env: Record<string, unknown>;
   accountId: string;
   parent: string | null;
   componentSize: number;
   initialTotalLinearMemorySize: number;
-  initialActivePlugins: any[];
+  initialActivePlugins: unknown[];
 }
 
 interface ExportedFunctionInvokedEntry extends BaseLogEntry {
   type: "ExportedFunctionInvoked";
   functionName: string;
-  request: any[];
+  request: unknown[];
   idempotencyKey: string;
   traceId: string;
-  traceStates: any[];
+  traceStates: unknown[];
   invocationContext: LocalSpan[][];
 }
 
@@ -107,7 +107,7 @@ interface ResponseType {
     type: string;
     items?: { type: string }[];
   };
-  value: any;
+  value: unknown;
 }
 
 interface ExportedFunctionCompletedEntry extends BaseLogEntry {

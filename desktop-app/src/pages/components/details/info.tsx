@@ -130,8 +130,9 @@ export default function ComponentInfo() {
             ].map(([label, value], index) => (
               <div
                 key={label}
-                className={`grid grid-cols-[180px,1fr] items-center gap-4 py-3 ${index !== 4 ? "border-b" : ""
-                  }`}
+                className={`grid grid-cols-[180px,1fr] items-center gap-4 py-3 ${
+                  index !== 4 ? "border-b" : ""
+                }`}
               >
                 <div className="font-medium text-muted-foreground">{label}</div>
                 <div className="font-mono">{value}</div>

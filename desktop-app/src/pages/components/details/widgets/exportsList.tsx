@@ -24,7 +24,7 @@ export function ExportsList({ exports }: { exports: string[] }) {
             <CommandList>
               <CommandEmpty>No exports found.</CommandEmpty>
               <CommandGroup>
-                {exports.map((endpoint: any, index) => (
+                {exports.map((endpoint: string, index) => (
                   <CommandItem
                     key={`${endpoint.exportName || endpoint}-${endpoint.name || index}`}
                     className="flex items-center justify-between"

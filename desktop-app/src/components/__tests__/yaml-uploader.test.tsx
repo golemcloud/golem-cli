@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction, type Mocked } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -13,9 +13,13 @@ vi.mock("js-yaml", () => ({
 
 vi.mock("@/service", () => ({
   API: {
-    getApi: vi.fn(),
-    getComponentByIdAsKey: vi.fn(),
-    callApi: vi.fn(),
+    apiService: {
+      getApi: vi.fn(),
+      putApi: vi.fn(),
+    },
+    componentService: {
+      getComponentByIdAsKey: vi.fn(),
+    },
   },
 }));
 
@@ -26,7 +30,15 @@ vi.mock("@/service/endpoints", () => ({
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children, open, onOpenChange }: any) => (
+  Dialog: ({
+    children,
+    open,
+    onOpenChange,
+  }: {
+    children: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => (
     <div
       data-testid="dialog"
       data-open={open}
@@ -35,22 +47,32 @@ vi.mock("@/components/ui/dialog", () => ({
       {children}
     </div>
   ),
-  DialogContent: ({ children }: any) => (
+  DialogContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-content">{children}</div>
   ),
-  DialogHeader: ({ children }: any) => (
+  DialogHeader: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-header">{children}</div>
   ),
-  DialogTitle: ({ children }: any) => (
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
     <h2 data-testid="dialog-title">{children}</h2>
   ),
-  DialogTrigger: ({ children }: any) => (
+  DialogTrigger: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-trigger">{children}</div>
   ),
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, variant }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    variant,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    variant?: string;
+  }) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -63,11 +85,19 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} data-testid="input" />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} data-testid="input" />
+  ),
 }));
 
 vi.mock("@/components/yaml-editor", () => ({
-  YamlEditor: ({ value, onChange }: any) => (
+  YamlEditor: ({
+    value,
+    onChange,
+  }: {
+    value?: string;
+    onChange?: (value: string) => void;
+  }) => (
     <textarea
       data-testid="yaml-editor"
       value={value}
@@ -105,9 +135,11 @@ describe("YamlUploader", () => {
   };
 
   // Mock references
-  let mockYamlLoad: any;
-  let mockAPI: any;
-  let mockUseParams: any;
+  let mockYamlLoad: MockedFunction<typeof yaml.load>;
+  let mockAPI: Mocked<typeof import("@/service").API>;
+  let mockUseParams: MockedFunction<
+    () => { appId: string; apiName: string; version: string }
+  >;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -129,9 +161,9 @@ describe("YamlUploader", () => {
     });
 
     // Mock API responses
-    mockAPI.apiService.getApi.mockResolvedValue(mockApi);
-    mockAPI.componentService.getComponentByIdAsKey.mockResolvedValue({});
-    mockAPI.apiService.callApi.mockResolvedValue({});
+    (mockAPI.apiService.getApi as MockedFunction<typeof mockAPI.apiService.getApi>).mockResolvedValue(mockApi as any);
+    (mockAPI.componentService.getComponentByIdAsKey as MockedFunction<typeof mockAPI.componentService.getComponentByIdAsKey>).mockResolvedValue({});
+    (mockAPI.apiService.putApi as MockedFunction<typeof mockAPI.apiService.putApi>).mockResolvedValue(undefined);
 
     // Mock yaml.load
     mockYamlLoad.mockReturnValue({
@@ -347,7 +379,7 @@ describe("YamlUploader", () => {
       await user.click(uploadButton);
 
       await waitFor(() => {
-        expect(mockAPI.apiService.callApi).toHaveBeenCalledWith(
+        expect(mockAPI.apiService.putApi).toHaveBeenCalledWith(
           "/api/test-api/v1.0.0",
           "PUT",
           expect.any(String),
@@ -358,7 +390,7 @@ describe("YamlUploader", () => {
 
     it("should handle submission errors", async () => {
       const user = userEvent.setup();
-      mockAPI.apiService.callApi.mockRejectedValue(new Error("API Error"));
+      (mockAPI.apiService.putApi as MockedFunction<typeof mockAPI.apiService.putApi>).mockRejectedValue(new Error("API Error"));
 
       const consoleSpy = vi
         .spyOn(console, "error")
@@ -480,15 +512,18 @@ describe("YamlUploader", () => {
       );
 
       await waitFor(() => {
-        expect(mockAPI.apiService.getApi).toHaveBeenCalledWith("test-app-id", "test-api");
-        expect(mockAPI.componentService.getComponentByIdAsKey).toHaveBeenCalledWith(
+        expect(mockAPI.apiService.getApi).toHaveBeenCalledWith(
           "test-app-id",
+          "test-api",
         );
+        expect(
+          mockAPI.componentService.getComponentByIdAsKey,
+        ).toHaveBeenCalledWith("test-app-id");
       });
     });
 
     it("should handle fetch errors", async () => {
-      mockAPI.apiService.getApi.mockRejectedValue(new Error("API Error"));
+      (mockAPI.apiService.getApi as MockedFunction<typeof mockAPI.apiService.getApi>).mockRejectedValue(new Error("API Error"));
 
       const consoleSpy = vi
         .spyOn(console, "error")
@@ -559,7 +594,7 @@ describe("YamlUploader", () => {
 
     it("should handle missing apiName parameter", async () => {
       // Mock useParams to return undefined apiName
-      mockUseParams.mockReturnValue({
+      (mockUseParams as MockedFunction<any>).mockReturnValue({
         apiName: undefined,
         version: "v1.0.0",
         appId: "test-app-id",

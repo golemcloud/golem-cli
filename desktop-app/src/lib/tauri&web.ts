@@ -6,7 +6,9 @@ import type { Event } from "@tauri-apps/api/event";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { writeFile } from "@tauri-apps/plugin-fs";
 
-const isTauri = typeof window !== "undefined" && (window as any).__TAURI__;
+const isTauri =
+  typeof window !== "undefined" &&
+  (window as { __TAURI__?: unknown }).__TAURI__;
 
 export type Theme = "dark" | "light" | "system";
 

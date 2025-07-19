@@ -17,7 +17,7 @@ Object.defineProperty(window, "matchMedia", {
 });
 
 // Mock Tauri API
-(global as any).__TAURI__ = {
+(global as unknown as { __TAURI__: unknown }).__TAURI__ = {
   invoke: vi.fn(),
   convertFileSrc: vi.fn(),
 };

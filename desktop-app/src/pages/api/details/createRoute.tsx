@@ -31,7 +31,11 @@ import { toast } from "@/hooks/use-toast";
 import { parseTypeForTooltip } from "@/lib/utils.ts";
 import { API } from "@/service";
 import type { GatewayBindingType, MethodPattern } from "@/types/api";
-import { parseExportString, type Component, type ComponentList } from "@/types/component";
+import {
+  parseExportString,
+  type Component,
+  type ComponentList,
+} from "@/types/component";
 import type { Worker } from "@/types/worker";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -132,13 +136,11 @@ const CreateRoute = () => {
     [] as string[],
   );
   const [variableSuggestions, setVariableSuggestions] = useState(
-    {} as Record<string, any>,
+    {} as Record<string, unknown>,
   );
-  const [workerSuggestions, setWorkerSuggestions] = useState(
-    [] as string[],
-  );
+  const [workerSuggestions, setWorkerSuggestions] = useState([] as string[]);
   const [contextVariables, setContextVariables] = useState(
-    {} as Record<string, any>,
+    {} as Record<string, unknown>,
   );
 
   const extractDynamicParams = (path: string) => {
@@ -160,7 +162,7 @@ const CreateRoute = () => {
     }
 
     const pathParamsObj = Object.fromEntries(
-      Object.keys(pathParams).map(key => [key, { name: key, type: "string" }])
+      Object.keys(pathParams).map(key => [key, { name: key, type: "string" }]),
     );
 
     setVariableSuggestions({
@@ -171,16 +173,21 @@ const CreateRoute = () => {
     updateContextVariables(pathParamsObj);
   };
 
-  const updateContextVariables = (pathParams?: Record<string, { name: string; type: string }>) => {
+  const updateContextVariables = (
+    pathParams?: Record<string, { name: string; type: string }>,
+  ) => {
     const currentPathParams = pathParams || variableSuggestions.path || {};
     const newContextVariables = {
       request: {
         path: currentPathParams,
         body: { name: "body", type: "any" },
-        headers: { name: "headers", type: "Record" }
+        headers: { name: "headers", type: "Record" },
       },
       // Add worker names and function exports as top-level suggestions
-      ...workerSuggestions.reduce((acc, worker) => ({ ...acc, [worker]: worker }), {}),
+      ...workerSuggestions.reduce(
+        (acc, worker) => ({ ...acc, [worker]: worker }),
+        {},
+      ),
       ...responseSuggestions.reduce((acc, fn) => ({ ...acc, [fn]: fn }), {}),
     };
     setContextVariables(newContextVariables);
@@ -244,7 +251,11 @@ const CreateRoute = () => {
               if (componentId) {
                 Promise.all([
                   loadWorkerSuggestions(appId!, componentId),
-                  loadResponseSuggestions(componentId, String(versionId), componentResponse)
+                  loadResponseSuggestions(
+                    componentId,
+                    String(versionId),
+                    componentResponse,
+                  ),
                 ]);
                 form.setValue(
                   "binding.componentName",
@@ -307,15 +318,13 @@ const CreateRoute = () => {
         route => !(route.path === path && route.method === method),
       );
       selectedApi.routes?.push(values);
-      await API.apiService.putApi(
-        appId!,
-        activeApiDetails.version,
-        selectedApi,
-      ).then(() => {
-        navigate(
-          `/app/${appId}/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
-        );
-      });
+      await API.apiService
+        .putApi(appId!, activeApiDetails.version, selectedApi)
+        .then(() => {
+          navigate(
+            `/app/${appId}/apis/${apiName}/version/${version}/routes?path=${values.path == "/" ? "" : values.path}&method=${values.method}&reload=${!reload}`,
+          );
+        });
     } catch (error) {
       console.error("Failed to create route:", error);
       form.setError("root", {
@@ -344,13 +353,13 @@ const CreateRoute = () => {
     );
   };
 
-  const loadWorkerSuggestions = async (
-    appId: string,
-    componentId: string,
-  ) => {
+  const loadWorkerSuggestions = async (appId: string, componentId: string) => {
     try {
-      const workersData = (await API.workerService.findWorker(appId, componentId)).workers as Worker[];
-      const workerNames = (workersData || []).map((w) => `"${w.workerName}"`) || [];
+      const workersData = (
+        await API.workerService.findWorker(appId, componentId)
+      ).workers as Worker[];
+      const workerNames =
+        (workersData || []).map(w => `"${w.workerName}"`) || [];
       setWorkerSuggestions(workerNames);
       return workerNames;
     } catch (error) {
@@ -370,12 +379,14 @@ const CreateRoute = () => {
     const exportedFunctions = componentResponse?.[componentId]?.versions?.find(
       (data: Component) => data.componentVersion?.toString() === version,
     );
-    const data = (exportedFunctions?.metadata?.exports || []).map(parseExportString);
+    const data = (exportedFunctions?.metadata?.exports || []).map(
+      parseExportString,
+    );
 
-    const output = (data as any[]).flatMap((item: any) =>
-      (item.functions || []).map((func: any) => {
+    const output = (data as Export[]).flatMap((item: Export) =>
+      (item.functions || []).map((func: Function) => {
         const param = (func.parameters || [])
-          .map((p: any) => {
+          .map((p: Parameter) => {
             const { short } = parseTypeForTooltip(p.typ);
             return `${p.name}: ${short}`;
           })
@@ -390,11 +401,14 @@ const CreateRoute = () => {
   const onVersionChange = async (version: string) => {
     form.setValue("binding.componentVersion", +version);
     const componentName = form.getValues("binding.componentName");
-    const componentId = getComponentIdByName(componentName || "", componentList);
+    const componentId = getComponentIdByName(
+      componentName || "",
+      componentList,
+    );
     if (componentId) {
-      const [workers, exports] = await Promise.all([
+      const [_workers, _exports] = await Promise.all([
         loadWorkerSuggestions(appId!, componentId),
-        loadResponseSuggestions(componentId, version, componentList)
+        loadResponseSuggestions(componentId, version, componentList),
       ]);
 
       // Update context variables with new data
@@ -486,20 +500,25 @@ const CreateRoute = () => {
                         <FormItem>
                           <FormLabel required>Component</FormLabel>
                           <Select
-                            onValueChange={async (name) => {
+                            onValueChange={async name => {
                               form.setValue("binding.componentName", name);
                               const componentId = getComponentIdByName(
                                 name,
                                 componentList,
                               );
                               if (componentId) {
-                                const [workers, exports] = await Promise.all([
+                                const [_workers, _exports] = await Promise.all([
                                   loadWorkerSuggestions(appId!, componentId),
-                                  loadResponseSuggestions(componentId, "0", componentList)
+                                  loadResponseSuggestions(
+                                    componentId,
+                                    "0",
+                                    componentList,
+                                  ),
                                 ]);
 
                                 // Update context variables with new data
-                                const currentPath = form.getValues("path") || "/";
+                                const currentPath =
+                                  form.getValues("path") || "/";
                                 extractDynamicParams(currentPath);
                               }
                             }}
@@ -566,77 +585,73 @@ const CreateRoute = () => {
                       )}
                     />
                   </div>
-                  {filterMethod(form.watch("binding.type")).length >
-                    0 && (
-                      <div className="grid grid-cols-3 gap-4 mt-4">
-                        <FormField
-                          control={form.control}
-                          name="method"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel required>Method</FormLabel>
-                              <Select
-                                onValueChange={v =>
-                                  form.setValue("method", v as MethodPattern)
-                                }
-                                value={
-                                  field.value ||
-                                  filterMethod(
-                                    form.watch("binding.type"),
-                                  )[0]
-                                }
-                                disabled={
-                                  !(
-                                    form.watch("binding.type") &&
-                                    filterMethod(
-                                      form.watch("binding.type"),
-                                    ).length > 0
-                                  )
-                                }
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select Method">
-                                      {" "}
-                                      {field.value}{" "}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {form.watch("binding.type") &&
-                                    filterMethod(
-                                      form.watch("binding.type"),
-                                    ).map((v: string) => (
+                  {filterMethod(form.watch("binding.type")).length > 0 && (
+                    <div className="grid grid-cols-3 gap-4 mt-4">
+                      <FormField
+                        control={form.control}
+                        name="method"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel required>Method</FormLabel>
+                            <Select
+                              onValueChange={v =>
+                                form.setValue("method", v as MethodPattern)
+                              }
+                              value={
+                                field.value ||
+                                filterMethod(form.watch("binding.type"))[0]
+                              }
+                              disabled={
+                                !(
+                                  form.watch("binding.type") &&
+                                  filterMethod(form.watch("binding.type"))
+                                    .length > 0
+                                )
+                              }
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Method">
+                                    {" "}
+                                    {field.value}{" "}
+                                  </SelectValue>
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {form.watch("binding.type") &&
+                                  filterMethod(form.watch("binding.type")).map(
+                                    (v: string) => (
                                       <SelectItem value={v} key={v}>
                                         {v}
                                       </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                                    ),
+                                  )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="path"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel required>Path</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="/api/v1/resource/<param>"
-                                  {...field}
-                                  onChange={e => handlePathChange(e)}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
+                      <FormField
+                        control={form.control}
+                        name="path"
+                        render={({ field }) => (
+                          <FormItem className="col-span-2">
+                            <FormLabel required>Path</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="/api/v1/resource/<param>"
+                                {...field}
+                                onChange={e => handlePathChange(e)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -722,10 +737,11 @@ const CreateRoute = () => {
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent
-                                className={`${responseSuggestions.length === 0
-                                  ? "max-w-[450px]"
-                                  : "w-[450px]"
-                                  }  p-4`}
+                                className={`${
+                                  responseSuggestions.length === 0
+                                    ? "max-w-[450px]"
+                                    : "w-[450px]"
+                                }  p-4`}
                                 align="start"
                                 sideOffset={5}
                               >

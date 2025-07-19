@@ -81,13 +81,13 @@ export default function CreateWorker() {
     }, {});
     rest.args = rest.args.filter(x => x.trim().length > 0);
 
-    API.workerService.createWorker(appId, componentID, values.name).then(
-      (response: { component_name: string; worker_name: string }) => {
+    API.workerService
+      .createWorker(appId, componentID, values.name)
+      .then((response: { component_name: string; worker_name: string }) => {
         navigate(
           `/app/${appId}/components/${componentId}/workers/${response.worker_name}`,
         );
-      },
-    );
+      });
   }
 
   return (
@@ -130,7 +130,10 @@ export default function CreateWorker() {
                 <FormLabel>Environment Variables</FormLabel>
                 <div className="space-y-2 pt-2">
                   {envFields.map((field, index) => (
-                    <div key={field.name + field.componentId} className="flex gap-2">
+                    <div
+                      key={field.name + field.componentId}
+                      className="flex gap-2"
+                    >
                       <Input
                         placeholder="Key"
                         {...form.register(`env.${index}.key`)}

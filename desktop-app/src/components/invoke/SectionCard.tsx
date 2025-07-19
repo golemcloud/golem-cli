@@ -7,20 +7,17 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CodeBlock, dracula } from "react-code-blocks";
-import {
-  Check,
-  ClipboardCopy,
-  Info,
-  Play,
-  TimerReset,
-} from "lucide-react";
+import { Check, ClipboardCopy, Info, Play, TimerReset } from "lucide-react";
 import ReactJson from "@microlink/react-json-view";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { ComponentExportFunction } from "@/types/component.ts";
 import { sanitizeInput } from "@/lib/utils";
 import { parseTooltipTypesData } from "@/lib/worker";
-import { isHttpHandlerFunction, canInvokeHttpHandler } from "@/lib/http-handler";
+import {
+  isHttpHandlerFunction,
+  canInvokeHttpHandler,
+} from "@/lib/http-handler";
 
 export interface SectionCardProps {
   title: string;
@@ -47,7 +44,6 @@ export function SectionCard({
   onInvoke = () => {},
   onReset = () => {},
   exportName = "",
-  functionName = "",
 }: SectionCardProps) {
   const { theme } = useTheme();
   const [copied, setCopied] = useState(false);
@@ -65,29 +61,29 @@ export function SectionCard({
     try {
       const sanitizedValue = sanitizeInput(value);
       const parsedValue = JSON.parse(sanitizedValue);
-      
+
       // Check if HTTP handler can be invoked directly
       const canInvoke = canInvokeHttpHandler(exportName);
-      
+
       if (!canInvoke) {
-        setErrors({ 
-          root: "This HTTP handler cannot be invoked directly via CLI. It should be triggered by HTTP requests." 
+        setErrors({
+          root: "This HTTP handler cannot be invoked directly via CLI. It should be triggered by HTTP requests.",
         });
         return;
       }
-      
+
       // Special handling for HTTP incoming handlers - accept any valid JSON
       const isHttpHandler = isHttpHandlerFunction(exportName);
-      
+
       if (isHttpHandler) {
         // For HTTP handlers, we're more permissive with validation
         onInvoke(parsedValue);
         return;
       }
-      
+
       // Let CLI handle validation for other function types
       onInvoke(parsedValue);
-    } catch (error) {
+    } catch {
       setErrors({ root: "Invalid JSON format" });
     }
   };
@@ -154,13 +150,15 @@ export function SectionCard({
                     Cannot invoke HTTP handler directly
                   </h4>
                   <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                    This is an HTTP incoming handler that is designed to be triggered by incoming HTTP requests, not direct CLI invocation.
+                    This is an HTTP incoming handler that is designed to be
+                    triggered by incoming HTTP requests, not direct CLI
+                    invocation.
                   </p>
                 </div>
               </div>
             </div>
           )}
-          
+
           {readOnly ? (
             <ReactJson
               src={JSON.parse(value || "{}")}

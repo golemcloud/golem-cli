@@ -55,17 +55,19 @@ function convertValueWithType(value: unknown, typ?: Typ): string {
     case "enum":
       return String(value);
 
-    case "option":
+    case "option": {
       if (value === null || value === undefined) return "none";
       const innerValue = convertValueWithType(value, typ.inner);
       return typ.inner && isSimpleType(typ.inner.type)
         ? innerValue
         : `some(${innerValue})`;
+    }
 
-    case "list":
+    case "list": {
       if (!Array.isArray(value)) return convertBasicValue(value);
       const items = value.map(item => convertValueWithType(item, typ.inner));
       return `[${items.join(", ")}]`;
+    }
 
     case "record":
       return convertRecord(value, typ);

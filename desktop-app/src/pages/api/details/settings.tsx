@@ -73,7 +73,9 @@ export default function APISettings() {
         setShowConfirmDialog(false);
       } else if (type === "all") {
         await Promise.all(
-          apiDetails.map(api => API.apiService.deleteApi(appId!, api.id!, api.version)),
+          apiDetails.map(api =>
+            API.apiService.deleteApi(appId!, api.id!, api.version),
+          ),
         );
         toast({
           title: "All versions deleted",
@@ -83,10 +85,14 @@ export default function APISettings() {
         navigate(`/app/${appId}/apis`);
         setShowConfirmAllDialog(false);
       } else {
-        await API.apiService.putApi(activeApiDetails.id!, activeApiDetails.version, {
-          ...activeApiDetails,
-          routes: [],
-        });
+        await API.apiService.putApi(
+          activeApiDetails.id!,
+          activeApiDetails.version,
+          {
+            ...activeApiDetails,
+            routes: [],
+          },
+        );
         toast({
           title: "All routes deleted",
           description: "All routes have been deleted successfully.",

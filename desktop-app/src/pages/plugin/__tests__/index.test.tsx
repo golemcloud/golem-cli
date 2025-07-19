@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -22,7 +22,17 @@ vi.mock("@/service", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, variant, size }: any) => (
+  Button: ({
+    children,
+    onClick,
+    variant,
+    size,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    variant?: string;
+    size?: string;
+  }) => (
     <button onClick={onClick} data-variant={variant} data-size={size}>
       {children}
     </button>
@@ -30,11 +40,19 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => <input {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
+  ),
 }));
 
 vi.mock("@/components/ui/badge", () => ({
-  Badge: ({ children, className }: any) => (
+  Badge: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <span className={className} data-testid="badge">
       {children}
     </span>
@@ -42,15 +60,31 @@ vi.mock("@/components/ui/badge", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children, className, onClick }: any) => (
+  Card: ({
+    children,
+    className,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    onClick?: () => void;
+  }) => (
     <div className={className} onClick={onClick} data-testid="card">
       {children}
     </div>
   ),
-  CardContent: ({ children }: any) => <div>{children}</div>,
-  CardDescription: ({ children }: any) => <p>{children}</p>,
-  CardHeader: ({ children }: any) => <div>{children}</div>,
-  CardTitle: ({ children }: any) => <h3>{children}</h3>,
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardDescription: ({ children }: { children: React.ReactNode }) => (
+    <p>{children}</p>
+  ),
+  CardHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  CardTitle: ({ children }: { children: React.ReactNode }) => (
+    <h3>{children}</h3>
+  ),
 }));
 
 vi.mock("lucide-react", () => ({
@@ -137,7 +171,11 @@ describe("PluginList", () => {
   describe("Component Rendering", () => {
     it("should render the plugin list page", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -150,7 +188,11 @@ describe("PluginList", () => {
 
     it("should render search input", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -163,7 +205,11 @@ describe("PluginList", () => {
 
     it("should render create plugin button", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -174,7 +220,11 @@ describe("PluginList", () => {
 
     it("should display plugin details", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -189,7 +239,11 @@ describe("PluginList", () => {
 
     it("should display plugin versions", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -204,7 +258,11 @@ describe("PluginList", () => {
   describe("Search Functionality", () => {
     it("should filter plugins based on search input", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -227,7 +285,11 @@ describe("PluginList", () => {
 
     it("should show no results when search yields no matches", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -248,7 +310,11 @@ describe("PluginList", () => {
 
     it("should clear search results when input is cleared", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -278,7 +344,11 @@ describe("PluginList", () => {
   describe("Plugin Interactions", () => {
     it("should navigate to plugin details when clicking on plugin card", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -299,7 +369,11 @@ describe("PluginList", () => {
 
     it("should handle create plugin button click", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -320,18 +394,26 @@ describe("PluginList", () => {
   describe("Data Loading", () => {
     it("should load plugins on component mount", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
       await waitFor(() => {
-        expect(API.pluginService.getPlugins).toHaveBeenCalledWith("test-app-id");
+        expect(API.pluginService.getPlugins).toHaveBeenCalledWith(
+          "test-app-id",
+        );
       });
     });
 
     it("should handle empty plugin list", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue([]);
+      (
+        API.pluginService.getPlugins as ReturnType<typeof vi.fn>
+      ).mockResolvedValue([]);
 
       renderPluginList();
 
@@ -349,7 +431,9 @@ describe("PluginList", () => {
   describe("Error Handling", () => {
     it("should handle API errors gracefully", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockRejectedValue(new Error("API Error"));
+      (
+        API.pluginService.getPlugins as ReturnType<typeof vi.fn>
+      ).mockRejectedValue(new Error("API Error"));
 
       renderPluginList();
 
@@ -368,7 +452,11 @@ describe("PluginList", () => {
   describe("Plugin Status and Types", () => {
     it("should display different plugin types with appropriate icons", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -382,7 +470,11 @@ describe("PluginList", () => {
 
     it("should display plugin types with badges", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -419,7 +511,9 @@ describe("PluginList", () => {
       }));
 
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(largePluginList);
+      (
+        API.pluginService.getPlugins as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(largePluginList);
 
       const startTime = performance.now();
       renderPluginList();
@@ -438,7 +532,11 @@ describe("PluginList", () => {
   describe("Layout and Styling", () => {
     it("should have proper grid layout for plugin cards", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -452,7 +550,11 @@ describe("PluginList", () => {
 
     it("should display plugin information in cards", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -469,7 +571,11 @@ describe("PluginList", () => {
   describe("Accessibility", () => {
     it("should have proper ARIA labels and structure", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
 
@@ -485,7 +591,11 @@ describe("PluginList", () => {
 
     it("should support keyboard navigation", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockResolvedValue(mockPlugins);
+      (
+        API.pluginService.getPlugins as MockedFunction<
+          typeof API.pluginService.getPlugins
+        >
+      ).mockResolvedValue(mockPlugins);
 
       renderPluginList();
       const user = userEvent.setup();
@@ -509,7 +619,9 @@ describe("PluginList", () => {
   describe("Loading States", () => {
     it("should show loading state while fetching plugins", async () => {
       const { API } = await import("@/service");
-      (API.pluginService.getPlugins as any).mockImplementation(
+      (
+        API.pluginService.getPlugins as ReturnType<typeof vi.fn>
+      ).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
 

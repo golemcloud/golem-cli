@@ -107,15 +107,18 @@ const CreateComponent = () => {
   const { appId } = useParams();
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    API.componentService.createComponent(appId!, values.name, values.template).then(() => {
-      toast({
-        title: `Component ${values.name} created successfully!`,
-        description: "Please deploy your component to see it on the dashboard",
-        duration: 8000,
-        variant: "default",
+    API.componentService
+      .createComponent(appId!, values.name, values.template)
+      .then(() => {
+        toast({
+          title: `Component ${values.name} created successfully!`,
+          description:
+            "Please deploy your component to see it on the dashboard",
+          duration: 8000,
+          variant: "default",
+        });
+        navigate(`/app/${appId}/components`);
       });
-      navigate(`/app/${appId}/components`);
-    });
   }
 
   return (

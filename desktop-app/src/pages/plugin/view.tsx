@@ -66,10 +66,16 @@ export function PluginView() {
 
   const handleDelete = () => {
     if (!currentVersion) return;
-    API.pluginService.deletePlugin(appId!, currentVersion.name, currentVersion.version)
+    API.pluginService
+      .deletePlugin(appId!, currentVersion.name, currentVersion.version)
       .then(() => {
         if (plugins.length > 1) {
-          navigate(`/app/${appId}/plugins/${plugins[0].name}/${plugins[0].version}`);
+          const nextPlugin = plugins[0];
+          if (nextPlugin) {
+            navigate(
+              `/app/${appId}/plugins/${nextPlugin.name}/${nextPlugin.version}`,
+            );
+          }
         } else {
           navigate(`/app/${appId}/plugins`);
         }
@@ -166,12 +172,15 @@ export function PluginView() {
                     <>
                       {currentVersion.oplogProcessorComponentId && (
                         <Badge variant="outline">
-                          Component ID: {currentVersion.oplogProcessorComponentId}
+                          Component ID:{" "}
+                          {currentVersion.oplogProcessorComponentId}
                         </Badge>
                       )}
-                      {currentVersion.oplogProcessorComponentVersion !== undefined && (
+                      {currentVersion.oplogProcessorComponentVersion !==
+                        undefined && (
                         <Badge variant="outline">
-                          Component Version: {currentVersion.oplogProcessorComponentVersion}
+                          Component Version:{" "}
+                          {currentVersion.oplogProcessorComponentVersion}
                         </Badge>
                       )}
                     </>

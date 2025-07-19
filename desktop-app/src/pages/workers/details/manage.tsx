@@ -46,30 +46,37 @@ export default function WorkerManage() {
   useEffect(() => {
     if (componentId && workerName) {
       API.componentService.getComponentByIdAsKey(appId!).then(response => {
-        setComponentList(response.find((x: any) => x.componentId === componentId));
+        const componentListArray = Object.values(response as Record<string, ComponentList>);
+        const foundComponent = componentListArray.find((x: ComponentList) => x.componentId === componentId);
+        if (foundComponent) {
+          setComponentList(foundComponent);
+        }
       });
-      API.workerService.getParticularWorker(appId!, componentId, workerName).then(
-        response => {
-          setWorkerDetails(response);
-          setUpgradeTo(`${response?.componentVersion}`);
-        },
-      );
+      API.workerService
+        .getParticularWorker(appId!, componentId, workerName)
+        .then(response => {
+          const worker = response as Worker;
+          setWorkerDetails(worker);
+          setUpgradeTo(`${worker?.componentVersion}`);
+        });
     }
   }, [componentId, workerName]);
 
   const handleUpgrade = () => {
-    API.workerService.upgradeWorker(
-      appId!,
-      componentList.componentName!,
-      (workerDetails as any)?.workerName,
-      Number(upgradeTo),
-      upgradeType,
-    ).then(() => {
-      toast({
-        title: "Worker upgraded Initiated",
-        duration: 3000,
+    API.workerService
+      .upgradeWorker(
+        appId!,
+        componentList.componentName!,
+        workerDetails?.workerName,
+        Number(upgradeTo),
+        upgradeType,
+      )
+      .then(() => {
+        toast({
+          title: "Worker upgraded Initiated",
+          duration: 3000,
+        });
       });
-    });
   };
 
   const handleDelete = () => {
@@ -93,12 +100,14 @@ export default function WorkerManage() {
   };
 
   const onInterruptWorker = () => {
-    API.workerService.interruptWorker(appId!, componentId, workerName).then(() => {
-      toast({
-        title: "Worker interrupted",
-        duration: 3000,
+    API.workerService
+      .interruptWorker(appId!, componentId, workerName)
+      .then(() => {
+        toast({
+          title: "Worker interrupted",
+          duration: 3000,
+        });
       });
-    });
   };
 
   const versionListGreaterThan =

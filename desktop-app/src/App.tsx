@@ -12,7 +12,7 @@ import { appRoutes } from "./routes";
 // Component to set up global log viewer reference
 const ToastSetup = () => {
   const logViewer = useLogViewer();
-  
+
   useEffect(() => {
     setupGlobalLogViewer(logViewer);
   }, [logViewer]);

@@ -65,7 +65,7 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
         } else {
           // Components version - find export string and parse it
           const exportItemText = matchingComponent?.exports?.find(
-            (item: any) => name === item,
+            (item: string) => name === item,
           );
           if (!exportItemText) {
             throw new Error("Export item not found.");
@@ -128,14 +128,14 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
   const onInvoke = async (
     parsedValue:
       | unknown[]
-      | { params: Array<{ value: unknown; typ: any; name: string }> },
+      | { params: Array<{ value: unknown; typ: Typ; name: string }> },
   ) => {
     try {
       if (!functionDetails) {
         throw new Error("No function details loaded.");
       }
 
-      let params: Array<{ value: unknown; typ: any; name?: string }>;
+      let params: Array<{ value: unknown; typ: Typ; name?: string }>;
 
       // Handle both old format (array) and new format (object with params)
       if (Array.isArray(parsedValue)) {

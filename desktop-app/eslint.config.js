@@ -41,7 +41,7 @@ export default [
       "react/jsx-uses-react": "off",
       "react/jsx-no-target-blank": "off",
       "react-refresh/only-export-components": [
-        "warn",
+        "off",
         { allowConstantExport: true },
       ],
       "react/prop-types": "off",
@@ -98,7 +98,7 @@ export default [
       "react/jsx-uses-react": "off", // React 17+ doesn't require React to be in scope
       "react/jsx-no-target-blank": "off",
       "react-refresh/only-export-components": [
-        "warn",
+        "off",
         { allowConstantExport: true },
       ],
       // Disable prop-types as it's not used in this project
@@ -126,13 +126,45 @@ export default [
       "no-constant-binary-expression": "off",
       "no-unreachable": "off",
       "no-import-assign": "off",
-
-      
     },
     settings: {
       react: {
         version: "detect",
       },
+    },
+  },
+  {
+    files: ["vite.config.ts", "vitest.config.ts"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        project: "./tsconfig.node.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
+      globals: {
+        ...globals.node,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
+    rules: {
+      ...pluginJs.configs.recommended.rules,
+      ...tseslint.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-explicit-any": "error",
+      "no-unused-vars": "off",
+      "no-undef": "off",
+      "no-redeclare": "off",
+      "no-constant-binary-expression": "off",
+      "no-unreachable": "off",
+      "no-import-assign": "off",
     },
   },
   {

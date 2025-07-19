@@ -184,13 +184,21 @@ export class ComponentService {
       // [{"id":"...","pluginName":"...","pluginVersion":"...","pluginRegistered":true,"priority":1,"parameters":{}}]
 
       // Transform the CLI response to match our InstalledPlugin interface
-      return (result || []).map((plugin: any) => ({
-        id: plugin.id,
-        name: plugin.pluginName,
-        version: plugin.pluginVersion,
-        priority: plugin.priority,
-        parameters: plugin.parameters || {},
-      }));
+      return ((result as Array<{
+        id: string;
+        pluginName: string;
+        pluginVersion: string;
+        priority: number;
+        parameters?: Record<string, unknown>;
+      }>) || []).map(
+        (plugin) => ({
+          id: plugin.id,
+          name: plugin.pluginName,
+          version: plugin.pluginVersion,
+          priority: plugin.priority,
+          parameters: plugin.parameters || {},
+        }),
+      );
     } catch (error) {
       console.error("Failed to get installed plugins:", error);
       throw error;
@@ -200,7 +208,12 @@ export class ComponentService {
   public addPluginToComponentWithApp = async (
     appId: string,
     componentId: string,
-    form: any,
+    form: {
+      name: string;
+      version: string;
+      priority: number;
+      parameters?: Record<string, unknown>;
+    },
   ) => {
     const { name, version, priority, parameters } = form;
 

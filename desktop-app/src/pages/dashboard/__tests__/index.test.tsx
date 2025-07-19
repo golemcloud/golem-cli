@@ -44,7 +44,15 @@ vi.mock("@/pages/dashboard/deploymentSection", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, variant }: any) => (
+  Button: ({
+    children,
+    onClick,
+    variant,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    variant?: string;
+  }) => (
     <button onClick={onClick} data-variant={variant}>
       {children}
     </button>
@@ -58,11 +66,13 @@ describe("Dashboard", () => {
     mockUseParams.mockReturnValue({ appId: "test-app-id" });
     // Reset mock to default values
     const { storeService } = await import("@/lib/settings");
-    (storeService.getAppById as any).mockResolvedValue({
+    (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: "test-app-id",
       name: "Test App",
     });
-    (storeService.updateAppLastOpened as any).mockResolvedValue(true);
+    (
+      storeService.updateAppLastOpened as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -92,7 +102,9 @@ describe("Dashboard", () => {
 
     it("should render with default app name when app not found", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue(null);
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        null,
+      );
 
       renderDashboard();
 
@@ -112,7 +124,7 @@ describe("Dashboard", () => {
 
     it("should render back to apps button", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "Test App",
       });
@@ -126,7 +138,7 @@ describe("Dashboard", () => {
 
     it("should render all dashboard sections", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "Test App",
       });
@@ -144,7 +156,7 @@ describe("Dashboard", () => {
   describe("Navigation", () => {
     it("should navigate to home when back button is clicked", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "Test App",
       });
@@ -199,7 +211,7 @@ describe("Dashboard", () => {
 
     it("should handle app loading errors gracefully", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockRejectedValue(
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error("Failed to load app"),
       );
 
@@ -214,7 +226,7 @@ describe("Dashboard", () => {
   describe("Layout", () => {
     it("should have proper grid layout structure", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "Test App",
       });
@@ -230,7 +242,7 @@ describe("Dashboard", () => {
 
     it("should display app information in a bordered container", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "Test App",
       });
@@ -247,7 +259,9 @@ describe("Dashboard", () => {
   describe("Error Handling", () => {
     it("should handle missing app gracefully", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue(null);
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        null,
+      );
 
       renderDashboard();
 
@@ -259,7 +273,7 @@ describe("Dashboard", () => {
 
     it("should handle app with missing name", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "",
       });
@@ -275,7 +289,7 @@ describe("Dashboard", () => {
   describe("Accessibility", () => {
     it("should have proper heading structure", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "Test App",
       });
@@ -296,7 +310,7 @@ describe("Dashboard", () => {
 
     it("should support keyboard navigation", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "Test App",
       });
@@ -316,7 +330,7 @@ describe("Dashboard", () => {
   describe("Component Integration", () => {
     it("should pass app context to child components", async () => {
       const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as any).mockResolvedValue({
+      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: "test-app-id",
         name: "Test App",
       });

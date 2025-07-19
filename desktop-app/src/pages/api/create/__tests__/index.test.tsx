@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -28,7 +28,17 @@ vi.mock("@/components/errorBoundary", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, type }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    type,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    type?: string;
+  }) => (
     <button onClick={onClick} disabled={disabled} type={type}>
       {children}
     </button>
@@ -36,8 +46,8 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/input", () => ({
-  Input: (props: any) => {
-    const handleChange = (e: any) => {
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (props.onChange) {
         props.onChange(e);
       }
@@ -51,25 +61,48 @@ let sharedFormData = { apiName: "", version: "0.1.0" };
 
 vi.mock("@/components/ui/form", () => {
   return {
-    Form: ({ children }: any) => <div>{children}</div>,
-    FormControl: ({ children }: any) => <div>{children}</div>,
-    FormField: ({ render, name }: any) => {
+    Form: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    FormControl: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    FormField: ({
+      render,
+      name,
+    }: {
+      render: (props: {
+        field: {
+          name: string;
+          value: string;
+          onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+        };
+        fieldState: { error: null };
+      }) => React.ReactNode;
+      name?: string;
+    }) => {
       const fieldName = name || "test";
       const field = {
         name: fieldName,
         value:
           sharedFormData[fieldName as keyof typeof sharedFormData] ||
           (fieldName === "version" ? "0.1.0" : ""),
-        onChange: (e: any) => {
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
           const newValue = e.target.value;
           sharedFormData = { ...sharedFormData, [fieldName]: newValue };
         },
       };
       return <div>{render({ field, fieldState: { error: null } })}</div>;
     },
-    FormItem: ({ children }: any) => <div>{children}</div>,
-    FormLabel: ({ children }: any) => <label>{children}</label>,
-    FormMessage: ({ children }: any) => <span>{children}</span>,
+    FormItem: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    FormLabel: ({ children }: { children: React.ReactNode }) => (
+      <label>{children}</label>
+    ),
+    FormMessage: ({ children }: { children: React.ReactNode }) => (
+      <span>{children}</span>
+    ),
   };
 });
 
@@ -77,7 +110,7 @@ vi.mock("react-hook-form", () => {
   return {
     useForm: () => ({
       register: vi.fn(),
-      handleSubmit: vi.fn(fn => async (e: any) => {
+      handleSubmit: vi.fn(fn => async (e?: React.FormEvent) => {
         e?.preventDefault?.();
         try {
           return await fn(sharedFormData);
@@ -247,7 +280,11 @@ describe("CreateAPI", () => {
 
     it("should handle successful API creation", async () => {
       const { API } = await import("@/service");
-      (API.apiService.createApi as any).mockResolvedValue({ id: "new-api-id" });
+      (
+        API.apiService.createApi as MockedFunction<
+          typeof API.apiService.createApi
+        >
+      ).mockResolvedValue({ id: "new-api-id" });
 
       renderCreateAPI();
       const user = userEvent.setup();
@@ -277,7 +314,11 @@ describe("CreateAPI", () => {
   describe("Loading States", () => {
     it("should show loading state during API creation", async () => {
       const { API } = await import("@/service");
-      (API.apiService.createApi as any).mockImplementation(
+      (
+        API.apiService.createApi as MockedFunction<
+          typeof API.apiService.createApi
+        >
+      ).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100)),
       );
 
@@ -308,7 +349,11 @@ describe("CreateAPI", () => {
   describe("Error Handling", () => {
     it("should handle API creation errors", async () => {
       const { API } = await import("@/service");
-      (API.apiService.createApi as any).mockRejectedValue(new Error("Creation failed"));
+      (
+        API.apiService.createApi as MockedFunction<
+          typeof API.apiService.createApi
+        >
+      ).mockRejectedValue(new Error("Creation failed"));
 
       renderCreateAPI();
       const user = userEvent.setup();
@@ -357,7 +402,11 @@ describe("CreateAPI", () => {
   describe("Navigation", () => {
     it("should navigate back on successful creation", async () => {
       const { API } = await import("@/service");
-      (API.apiService.createApi as any).mockResolvedValue({ id: "new-api-id" });
+      (
+        API.apiService.createApi as MockedFunction<
+          typeof API.apiService.createApi
+        >
+      ).mockResolvedValue({ id: "new-api-id" });
 
       renderCreateAPI();
       const user = userEvent.setup();

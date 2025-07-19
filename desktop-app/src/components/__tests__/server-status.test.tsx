@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, type MockedFunction } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { ServerStatus } from "../server-status";
 import { API } from "@/service";
@@ -37,7 +38,11 @@ describe("ServerStatus", () => {
   });
 
   it("renders server status component with loading state initially", () => {
-    (API.appService.checkHealth as any).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (
+      API.appService.checkHealth as MockedFunction<
+        typeof API.appService.checkHealth
+      >
+    ).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<ServerStatus />);
 
@@ -45,7 +50,11 @@ describe("ServerStatus", () => {
   });
 
   it("displays healthy status when connected", async () => {
-    (API.appService.checkHealth as any).mockResolvedValue({});
+    (
+      API.appService.checkHealth as MockedFunction<
+        typeof API.appService.checkHealth
+      >
+    ).mockResolvedValue(true);
 
     render(<ServerStatus />);
 
@@ -56,7 +65,11 @@ describe("ServerStatus", () => {
   });
 
   it("displays unhealthy status when disconnected", async () => {
-    (API.appService.checkHealth as any).mockRejectedValue(new Error("Connection failed"));
+    (
+      API.appService.checkHealth as MockedFunction<
+        typeof API.appService.checkHealth
+      >
+    ).mockRejectedValue(new Error("Connection failed"));
 
     render(<ServerStatus />);
 
@@ -67,7 +80,11 @@ describe("ServerStatus", () => {
   });
 
   it("displays connecting status when loading", () => {
-    (API.appService.checkHealth as any).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (
+      API.appService.checkHealth as MockedFunction<
+        typeof API.appService.checkHealth
+      >
+    ).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<ServerStatus />);
 
@@ -77,7 +94,11 @@ describe("ServerStatus", () => {
   });
 
   it("has correct text color based on status", async () => {
-    (API.appService.checkHealth as any).mockResolvedValue({});
+    (
+      API.appService.checkHealth as MockedFunction<
+        typeof API.appService.checkHealth
+      >
+    ).mockResolvedValue(true);
 
     render(<ServerStatus />);
 
