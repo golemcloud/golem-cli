@@ -19,7 +19,6 @@ import { useEffect, useState } from "react";
 import { API } from "@/service";
 import { useParams } from "react-router-dom";
 import {
-  Component,
   ComponentList,
   InstalledPlugin,
 } from "@/types/component.ts";
@@ -36,7 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 export default function Plugins() {
-  const { componentId = "" } = useParams();
+  const { componentId = "", appId } = useParams();
   const [component, setComponent] = useState<ComponentList>(
     {} as ComponentList,
   );
@@ -45,27 +44,34 @@ export default function Plugins() {
   const [versionList, setVersionList] = useState<number[]>([]);
   const [versionChange, setVersionChange] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [pluginToDelete, setPluginToDelete] = useState<InstalledPlugin | null>(null);
   const [newPlugin, setNewPlugin] = useState({
     name: "",
     priority: 1,
     version: "",
   });
-  const [availabePlugin, setAvailabePlugin] = useState<
+  const [availablePlugin, setAvailablePlugin] = useState<
     Record<string, string[]>
   >({});
 
   useEffect(() => {
     const fetchPlugins = async () => {
       try {
-        const plugins = await API.getPlugins();
+        const plugins = await API.pluginService.getPlugins(appId!);
         const pluginMap: Record<string, string[]> = {};
-        plugins.forEach(({ name, version }) => {
+        plugins.forEach(({ name, versions }) => {
           if (!pluginMap[name]) {
             pluginMap[name] = [];
           }
-          pluginMap[name].push(version);
+          // Extract version strings from the versions array
+          versions.forEach(plugin => {
+            if (!pluginMap[name].includes(plugin.version)) {
+              pluginMap[name].push(plugin.version);
+            }
+          });
         });
-        setAvailabePlugin(pluginMap);
+        setAvailablePlugin(pluginMap);
       } catch (error) {
         toast({
           title: "Failed to fetch plugins",
@@ -82,7 +88,7 @@ export default function Plugins() {
   }, []);
 
   const refreshComponent = () => {
-    API.getComponentByIdAsKey().then(response => {
+    API.componentService.getComponentByIdAsKey(appId!).then(response => {
       setComponent(response[componentId]);
       const data = response[componentId];
       const versionList = data.versionList || [];
@@ -93,20 +99,27 @@ export default function Plugins() {
     });
   };
 
-  const handleVersionChange = (
-    version: number,
-    fetchedComponent?: Component,
-  ) => {
+  const handleVersionChange = (version: number) => {
     setVersionChange(version);
 
-    const fetchComponent = fetchedComponent
-      ? Promise.resolve(fetchedComponent)
-      : API.getComponentByIdAndVersion(componentId, version);
-
-    fetchComponent.then(response => {
-      setPlugins(response.installedPlugins || []);
-      setFilteredPlugins(response.installedPlugins || []);
-    });
+    // Fetch installed plugins using the CLI command
+    API.componentService.getInstalledPlugins(appId!, componentId)
+      .then(installedPlugins => {
+        setPlugins(installedPlugins);
+        setFilteredPlugins(installedPlugins);
+      })
+      .catch(error => {
+        console.error("Failed to fetch installed plugins:", error);
+        toast({
+          title: "Failed to fetch installed plugins",
+          description: `An error occurred while fetching installed plugins. ${error}`,
+          variant: "destructive",
+          duration: 5000,
+        });
+        // Fallback to empty array
+        setPlugins([]);
+        setFilteredPlugins([]);
+      });
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,12 +129,35 @@ export default function Plugins() {
     );
   };
 
-  // Handle delete action
+  // Handle delete action - opens confirmation dialog
   const handleDeletePlugin = (pluginId: string) => {
     const versionList = component.versionList || [];
     const latestVersion = versionList[versionList.length - 1];
     if (latestVersion === versionChange) {
-      API.deletePluginToComponent(componentId, pluginId).then(() => {
+      // Find the plugin details by ID
+      const plugin = plugins.find(p => p.id === pluginId);
+      if (plugin) {
+        setPluginToDelete(plugin);
+        setIsDeleteDialogOpen(true);
+      } else {
+        toast({
+          title: "Plugin not found",
+          description: "Could not find the plugin to delete.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+    }
+  };
+
+  // Confirm delete action - actually deletes the plugin
+  const confirmDeletePlugin = () => {
+    if (pluginToDelete) {
+      API.componentService.deletePluginToComponentWithApp(
+        appId!,
+        componentId,
+        pluginToDelete.id  // Use installation ID
+      ).then(() => {
         toast({
           title: "Plugin deleted successfully",
           description:
@@ -129,6 +165,15 @@ export default function Plugins() {
           duration: 3000,
         });
         refreshComponent();
+        setIsDeleteDialogOpen(false);
+        setPluginToDelete(null);
+      }).catch(error => {
+        toast({
+          title: "Failed to delete plugin",
+          description: `An error occurred while deleting the plugin. ${error}`,
+          variant: "destructive",
+          duration: 5000,
+        });
       });
     }
   };
@@ -140,7 +185,7 @@ export default function Plugins() {
       version: newPlugin.version,
       parameters: {},
     };
-    API.addPluginToComponent(componentId, pluginData)
+    API.componentService.addPluginToComponentWithApp(appId!, componentId, pluginData)
       .then(() => {
         toast({
           title: "Plugin added successfully",
@@ -149,6 +194,7 @@ export default function Plugins() {
         });
         refreshComponent();
         setIsDialogOpen(false);
+        setNewPlugin({ name: "", priority: 1, version: "" });
       })
       .catch(error => {
         toast({
@@ -211,8 +257,8 @@ export default function Plugins() {
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.keys(availabePlugin).length > 0 ? (
-                      Object.keys(availabePlugin).map(plugin => (
+                    {Object.keys(availablePlugin).length > 0 ? (
+                      Object.keys(availablePlugin).map(plugin => (
                         <SelectItem key={plugin} value={plugin}>
                           {plugin}
                         </SelectItem>
@@ -240,7 +286,7 @@ export default function Plugins() {
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {(availabePlugin[newPlugin.name || ""] || []).map(
+                    {(availablePlugin[newPlugin.name || ""] || []).map(
                       version => (
                         <SelectItem key={version} value={version}>
                           {version}
@@ -270,6 +316,30 @@ export default function Plugins() {
                 <Button variant="outline">Cancel</Button>
               </DialogClose>
               <Button onClick={handleAddPlugin}>Add</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogTitle>Confirm Plugin Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the plugin "{pluginToDelete?.name}" (version {pluginToDelete?.version})?
+              This action cannot be undone.
+            </DialogDescription>
+            <div className="flex justify-end mt-4 gap-2">
+              <DialogClose asChild>
+                <Button variant="outline" onClick={() => setPluginToDelete(null)}>
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                variant="destructive"
+                onClick={confirmDeletePlugin}
+              >
+                Delete Plugin
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

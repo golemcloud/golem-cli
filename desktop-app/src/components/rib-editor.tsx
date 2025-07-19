@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // @ts-nocheck
 import { useTheme } from "@/components/theme-provider.tsx";
 import { cn } from "@/lib/utils";
@@ -32,7 +30,7 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
     },
     ref,
   ) => {
-    const { theme } = useTheme();
+    const { resolvedTheme } = useTheme();
     const [isFocused, setIsFocused] = useState(false);
     const monacoInstance = useMonaco();
     const monoRef = useRef(null);
@@ -392,8 +390,9 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
           "editorCursor.foreground": "#000000",
         },
       });
-      setRigEditorTheme(theme === "dark");
-    }, [theme, monacoInstance]);
+      setRigEditorTheme(resolvedTheme === "dark");
+    }, [resolvedTheme, monacoInstance]);
+
 
     function setRigEditorTheme(isDarkMode: boolean) {
       if (!monacoInstance) return;
@@ -415,7 +414,7 @@ export const RibEditor = forwardRef<HTMLDivElement, MonacoEditorProps>(
           value={value}
           onChange={onChange}
           language={"rib"}
-          theme={theme === "dark" ? "rigDarkTheme" : "rigLightTheme"}
+          theme={resolvedTheme === "dark" ? "rigDarkTheme" : "rigLightTheme"}
           options={{
             minimap: { enabled: false },
             scrollBeyondLastLine: false,

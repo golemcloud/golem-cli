@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // @ts-nocheck
 import { useTheme } from "@/components/theme-provider.tsx";
 import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
@@ -24,7 +22,7 @@ export function YamlEditor({ value, onChange }: YamlEditorProps) {
       message: string;
     }[]
   >([]);
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   const validateYaml = (content: string, monaco: Monaco) => {
     if (!editorRef.current) return;
@@ -145,7 +143,7 @@ export function YamlEditor({ value, onChange }: YamlEditorProps) {
       <Editor
         defaultLanguage="yaml"
         value={value}
-        theme={theme == "dark" ? "vs-dark" : "vs-light"}
+        theme={resolvedTheme === "dark" ? "vs-dark" : "vs-light"}
         onChange={handleEditorChange}
         onMount={handleEditorDidMount}
         options={{

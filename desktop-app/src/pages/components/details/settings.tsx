@@ -19,37 +19,37 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { API } from "@/service";
-import { Worker } from "@/types/worker";
 
 export default function ComponentSettings() {
   const { toast } = useToast();
   const [showConfirmAllDialog, setShowConfirmAllDialog] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const { componentId } = useParams();
+  const { componentId, appId } = useParams();
   const navigate = useNavigate();
 
   const handleDeleteAll = async () => {
     setIsDeleting(true);
     try {
-      const response = await API.findWorker(componentId!, {
+      const response = await API.workerService.findWorker(appId!, componentId!, {
         count: 100,
         precise: true,
       });
 
       await Promise.allSettled(
-        response?.workers.map((worker: Worker) =>
-          API.deleteWorker(componentId!, worker.workerId.workerName),
+        response?.workers.map((worker: any) =>
+          API.workerService.deleteWorker(appId!, componentId!, worker.workerName),
         ),
       );
 
       toast({
-        title: "All versions deleted",
-        description: "All API versions have been deleted successfully.",
+        title: "All workers deleted",
+        description: `All workers for component ${componentId} have been deleted`,
         duration: 3000,
       });
 
-      navigate(`/components/${componentId}`);
+      navigate(`/app/${appId}/components/${componentId}`);
     } catch (error) {
+      console.error(error);
       toast({
         title: "Error",
         description: "Failed to delete some or all workers.",

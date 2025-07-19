@@ -23,7 +23,7 @@ export function ServerStatus() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        await API.checkHealth();
+        await API.appService.checkHealth();
         setStatus({
           status: "healthy",
           timestamp: new Date().toISOString(),

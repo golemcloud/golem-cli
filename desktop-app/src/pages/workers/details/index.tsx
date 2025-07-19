@@ -5,6 +5,7 @@ import { WSS } from "@/service/wss";
 import {
   Invocation,
   OplogEntry,
+  OplogWithIndex,
   Terminal,
   Worker,
   WsMessage,
@@ -15,7 +16,7 @@ import { useParams } from "react-router-dom";
 import { InvocationsChart } from "./widgets/invocationCharts";
 
 export default function WorkerDetails() {
-  const { componentId = "", workerName = "" } = useParams();
+  const { componentId = "", workerName = "", appId } = useParams();
   const [workerDetails, setWorkerDetails] = useState({} as Worker);
   const wsRef = useRef<WSS | null>(null);
   const [invocationData, setInvocationData] = useState<Invocation[]>([]);
@@ -23,9 +24,11 @@ export default function WorkerDetails() {
 
   useEffect(() => {
     if (componentId && workerName) {
-      API.getParticularWorker(componentId, workerName).then(response => {
-        setWorkerDetails(response);
-      });
+      API.workerService.getParticularWorker(appId!, componentId, workerName).then(
+        response => {
+          setWorkerDetails(response);
+        },
+      );
     }
   }, [componentId, workerName]);
 
@@ -33,7 +36,7 @@ export default function WorkerDetails() {
     async function fetchData() {
       setInvocationData([]);
       setTerminal([]);
-      await getopLog();
+      await getOpLog();
       const initWebSocket = async () => {
         try {
           const url = `/v1/components/${componentId}/workers/${workerName}/connect`;
@@ -68,6 +71,7 @@ export default function WorkerDetails() {
 
       initWebSocket();
     }
+
     fetchData();
 
     return () => {
@@ -77,20 +81,22 @@ export default function WorkerDetails() {
     };
   }, []);
 
-  const getopLog = async () => {
-    API.getOplog(componentId, workerName, 100, "").then(response => {
+  const getOpLog = async () => {
+    API.workerService.getOplog(appId!, componentId, workerName, "").then(response => {
       const terminalData = [] as Terminal[];
       const invocationList = [] as Invocation[];
-      response.entries.forEach((item: OplogEntry) => {
-        if (item.entry.type === "Log") {
-          terminalData.push({
-            timestamp: item.entry.timestamp,
-            message: item.entry.message,
-          });
-        } else if (item.entry.type === "ExportedFunctionInvoked") {
+      response.forEach((_item: OplogWithIndex) => {
+        const item = _item[1];
+        if (item.type === "ExportedFunctionInvoked") {
           invocationList.push({
-            timestamp: item.entry.timestamp,
-            function: item.entry.function_name,
+            timestamp: item.timestamp,
+            function: item.functionName,
+          });
+
+        } else {
+          terminalData.push({
+            timestamp: item.timestamp,
+            message: item.type
           });
         }
       });
