@@ -5,8 +5,61 @@ import pluginReact from "eslint-plugin-react";
 import pluginReactRefresh from "eslint-plugin-react-refresh";
 
 export default [
+  // JavaScript files
   {
-    files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
+    files: ["**/*.{js,mjs,cjs,jsx}"],
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        // Vitest globals
+        vi: "readonly",
+        describe: "readonly",
+        it: "readonly",
+        expect: "readonly",
+        beforeEach: "readonly",
+        afterEach: "readonly",
+        afterAll: "readonly",
+        beforeAll: "readonly",
+      },
+    },
+    plugins: {
+      react: pluginReact,
+      "react-refresh": pluginReactRefresh,
+    },
+    rules: {
+      ...pluginJs.configs.recommended.rules,
+      ...pluginReact.configs.recommended.rules,
+      "react/react-in-jsx-scope": "off",
+      "react/jsx-uses-react": "off",
+      "react/jsx-no-target-blank": "off",
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
+      "react/prop-types": "off",
+      "react/no-unknown-property": [
+        "error",
+        { ignore: ["cmdk-input-wrapper"] },
+      ],
+      "no-useless-escape": "off",
+    },
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
+  },
+  // TypeScript files
+  {
+    files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -73,6 +126,8 @@ export default [
       "no-constant-binary-expression": "off",
       "no-unreachable": "off",
       "no-import-assign": "off",
+
+      
     },
     settings: {
       react: {
