@@ -5,6 +5,7 @@ import { parseErrorResponse } from "@/service/error-handler.ts";
 import { Api } from "@/types/api.ts";
 import { Component, ComponentList } from "@/types/component.ts";
 import { Plugin, PluginList } from "@/types/plugin";
+import { CreatePluginFormData } from "@/pages/plugin/create";
 import { invoke } from "@tauri-apps/api/core";
 import { settingsService } from "@/lib/settings.ts";
 import {
@@ -19,7 +20,7 @@ import {
   HttpApiDefinition,
   serializeHttpApiDefinition,
 } from "@/types/golemManifest.ts";
-import { parse, parseDocument, Document, YAMLMap } from "yaml";
+import { parse, parseDocument, Document, YAMLMap, stringify } from "yaml";
 import { convertValuesToWaveArgs, convertPayloadToWaveArgs } from "@/lib/wave";
 
 export class Service {
@@ -759,7 +760,31 @@ export class Service {
   //     ENDPOINT.downloadComponent(componentId, version),
   //   );
   // };
-  public createPlugin = async (appId: string, manifestFileLocation: string) => {
+  public createPlugin = async (appId: string, pluginData: CreatePluginFormData) => {
+    const app = await settingsService.getAppById(appId);
+    if (!app) {
+      throw new Error("App not found");
+    }
+
+    // Create plugin.yaml content
+    const pluginYaml = this.generatePluginYaml(pluginData);
+    
+    // Create plugin.yaml file using plugin name
+    const pluginFilePath = await join(app.folderLocation, `${pluginData.name}.yaml`);
+
+    // Write the plugin.yaml file
+    await writeTextFile(pluginFilePath, pluginYaml);
+
+    // Register the plugin using CLI
+    return await this.callCLI(appId, "plugin", ["register", pluginFilePath]);
+  };
+
+  private generatePluginYaml = (pluginData: CreatePluginFormData): string => {
+    // Use yaml library to stringify - data structure already matches YAML format
+    return stringify(pluginData);
+  };
+
+  public registerPlugin = async (appId: string, manifestFileLocation: string) => {
     return await this.callCLI(appId, "plugin", [
       "register",
       manifestFileLocation,
