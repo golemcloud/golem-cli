@@ -15,6 +15,8 @@ export default [
         },
         ecmaVersion: "latest",
         sourceType: "module",
+        project: "./tsconfig.json",
+        tsconfigRootDir: import.meta.dirname,
       },
       globals: {
         ...globals.browser,
@@ -61,7 +63,7 @@ export default [
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/ban-ts-comment": "off",
-      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-explicit-any": "error", // Prevent usage of any type
       // Disable base ESLint no-unused-vars to avoid conflicts with TypeScript version
       "no-unused-vars": "off",
       // Disable base ESLint no-undef to avoid conflicts with TypeScript version
