@@ -151,8 +151,7 @@ export class ComponentService {
   public deletePluginToComponentWithApp = async (
     appId: string,
     componentId: string,
-    pluginName: string,
-    pluginVersion: string,
+    installationId: string,
   ) => {
     // Get the component details to find the component name
     const component = await this.getComponentById(appId, componentId);
@@ -161,15 +160,13 @@ export class ComponentService {
     }
 
     try {
-      // Use CLI to uninstall plugin from component
+      // Use CLI to uninstall plugin from component using installation ID
       const componentName = component.componentName || componentId;
       const args = [
         "plugin",
         "uninstall",
-        "--plugin-name",
-        pluginName,
-        "--plugin-version",
-        pluginVersion,
+        "--installation-id",
+        installationId,
         componentName,
       ];
 

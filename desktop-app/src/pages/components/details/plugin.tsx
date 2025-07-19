@@ -44,6 +44,8 @@ export default function Plugins() {
   const [versionList, setVersionList] = useState<number[]>([]);
   const [versionChange, setVersionChange] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [pluginToDelete, setPluginToDelete] = useState<InstalledPlugin | null>(null);
   const [newPlugin, setNewPlugin] = useState({
     name: "",
     priority: 1,
@@ -127,35 +129,16 @@ export default function Plugins() {
     );
   };
 
-  // Handle delete action
+  // Handle delete action - opens confirmation dialog
   const handleDeletePlugin = (pluginId: string) => {
     const versionList = component.versionList || [];
     const latestVersion = versionList[versionList.length - 1];
     if (latestVersion === versionChange) {
       // Find the plugin details by ID
-      const pluginToDelete = plugins.find(plugin => plugin.id === pluginId);
-      if (pluginToDelete) {
-        API.componentService.deletePluginToComponentWithApp(
-          appId!,
-          componentId,
-          pluginToDelete.name,
-          pluginToDelete.version
-        ).then(() => {
-          toast({
-            title: "Plugin deleted successfully",
-            description:
-              "Plugin has been deleted successfully. Please check the latest version of the component.",
-            duration: 3000,
-          });
-          refreshComponent();
-        }).catch(error => {
-          toast({
-            title: "Failed to delete plugin",
-            description: `An error occurred while deleting the plugin. ${error}`,
-            variant: "destructive",
-            duration: 5000,
-          });
-        });
+      const plugin = plugins.find(p => p.id === pluginId);
+      if (plugin) {
+        setPluginToDelete(plugin);
+        setIsDeleteDialogOpen(true);
       } else {
         toast({
           title: "Plugin not found",
@@ -164,6 +147,34 @@ export default function Plugins() {
           duration: 5000,
         });
       }
+    }
+  };
+
+  // Confirm delete action - actually deletes the plugin
+  const confirmDeletePlugin = () => {
+    if (pluginToDelete) {
+      API.componentService.deletePluginToComponentWithApp(
+        appId!,
+        componentId,
+        pluginToDelete.id  // Use installation ID
+      ).then(() => {
+        toast({
+          title: "Plugin deleted successfully",
+          description:
+            "Plugin has been deleted successfully. Please check the latest version of the component.",
+          duration: 3000,
+        });
+        refreshComponent();
+        setIsDeleteDialogOpen(false);
+        setPluginToDelete(null);
+      }).catch(error => {
+        toast({
+          title: "Failed to delete plugin",
+          description: `An error occurred while deleting the plugin. ${error}`,
+          variant: "destructive",
+          duration: 5000,
+        });
+      });
     }
   };
 
@@ -305,6 +316,30 @@ export default function Plugins() {
                 <Button variant="outline">Cancel</Button>
               </DialogClose>
               <Button onClick={handleAddPlugin}>Add</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogTitle>Confirm Plugin Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the plugin "{pluginToDelete?.name}" (version {pluginToDelete?.version})? 
+              This action cannot be undone.
+            </DialogDescription>
+            <div className="flex justify-end mt-4 gap-2">
+              <DialogClose asChild>
+                <Button variant="outline" onClick={() => setPluginToDelete(null)}>
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button 
+                variant="destructive" 
+                onClick={confirmDeletePlugin}
+              >
+                Delete Plugin
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
