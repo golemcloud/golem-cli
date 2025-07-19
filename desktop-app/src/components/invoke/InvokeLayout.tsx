@@ -50,7 +50,6 @@ export function InvokeLayout({
   onInvoke,
   copyToClipboard,
 }: InvokeLayoutProps) {
-  console.log("parsedExports", parsedExports);
   return (
     <div className="flex">
       <div className="flex-1 flex flex-col bg-background">

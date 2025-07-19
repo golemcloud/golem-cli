@@ -2,7 +2,6 @@ import {
   HttpApiDefinition,
   serializeHttpApiDefinition,
 } from "@/types/golemManifest.ts";
-import { Api } from "@/types/api.ts";
 import { settingsService } from "@/lib/settings.ts";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
@@ -177,16 +176,6 @@ export class APIService {
     }
   };
 
-  public postApi = async (payload: Api) => {
-    // const r = await this.callApi(
-    //   ENDPOINT.postApi(),
-    //   "POST",
-    //   JSON.stringify(payload),
-    // );
-    // return r;
-
-    console.log(payload);
-  };
 
   public async createApiVersion(appId: string, payload: HttpApiDefinition) {
     // We need to know if the definition came from a component and store it there

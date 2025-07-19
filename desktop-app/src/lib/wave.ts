@@ -9,7 +9,6 @@ import { Parameter, Typ } from "@/types/component";
  * Main conversion function with recursive type handling
  */
 export function convertToWaveFormat(value: unknown, typ?: Typ): string {
-  console.log("convertToWaveFormat called with:", { value, typ });
   return convertValueWithType(value, typ);
 }
 
@@ -281,6 +280,5 @@ export function convertToWaveFormatWithType(
   value: unknown,
   parameter?: Parameter,
 ): string {
-  console.log("convertToWaveFormatWithType called with:", { value, parameter });
   return convertValueWithType(value, parameter?.typ);
 }

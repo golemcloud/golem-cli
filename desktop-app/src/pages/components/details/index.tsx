@@ -27,7 +27,7 @@ export const ComponentDetails = () => {
         const foundComponent = componentMap[componentId] || null;
         setComponent(foundComponent);
         API.manifestService.getComponentYamlPath(appId!, foundComponent.componentName!).then(
-          yamlPath => console.log("Component YAML Path:", yamlPath),
+          // 
         );
 
         // 2. Build a worker status map

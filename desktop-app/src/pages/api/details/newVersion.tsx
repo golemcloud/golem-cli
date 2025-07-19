@@ -149,7 +149,6 @@ export default function APINewVersion() {
         draft: true,
         createdAt: new Date().toISOString(),
       };
-      console.log(payload);
       await API.apiService.createApiVersion(appId!, payload);
       // .then(() => {
       navigate(`/app/${appId}/apis/${apiName}/version/${values.version}`);

@@ -350,7 +350,6 @@ const CreateRoute = () => {
   ) => {
     try {
       const workersData = (await API.workerService.findWorker(appId, componentId)).workers as Worker[];
-      console.log("workersData", workersData);
       const workerNames = (workersData || []).map((w) => `"${w.workerName}"`) || [];
       setWorkerSuggestions(workerNames);
       return workerNames;

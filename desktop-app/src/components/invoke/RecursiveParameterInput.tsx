@@ -120,7 +120,6 @@ export const RecursiveParameterInput: React.FC<RecursiveParameterInputProps> = (
   };
 
   const renderInput = () => {
-    console.log("typeDef", typeDef);
     const typeStr = typeDef.type?.toLowerCase();
     switch (typeStr) {
       case "record":

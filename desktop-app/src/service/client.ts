@@ -8,7 +8,6 @@ import { AppService } from "./client/app-service";
 import { ManifestService } from "./client/manifest-service";
 
 export class Service {
-  public baseUrl: string;
   public cliService: CLIService;
   public componentService: ComponentService;
   public workerService: WorkerService;
@@ -18,9 +17,7 @@ export class Service {
   public appService: AppService;
   public manifestService: ManifestService;
 
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl;
-
+  constructor() {
     // Initialize services in the correct order to handle dependencies
     this.cliService = new CLIService();
     this.componentService = new ComponentService(this.cliService);

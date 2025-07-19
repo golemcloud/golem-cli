@@ -35,8 +35,6 @@ export const DynamicForm = ({
       acc[param.name] = createEmptyValue(param.typ);
       return acc;
     }, {} as Record<string, unknown>);
-    console.log(functionDetails.parameters, "initialData", initialData);
-
     setRecursiveFormData(initialData);
   };
 

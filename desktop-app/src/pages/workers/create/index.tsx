@@ -130,7 +130,7 @@ export default function CreateWorker() {
                 <FormLabel>Environment Variables</FormLabel>
                 <div className="space-y-2 pt-2">
                   {envFields.map((field, index) => (
-                    <div key={field.appId} className="flex gap-2">
+                    <div key={field.name + field.componentId} className="flex gap-2">
                       <Input
                         placeholder="Key"
                         {...form.register(`env.${index}.key`)}

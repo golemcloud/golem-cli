@@ -211,8 +211,6 @@ export class WorkerService {
       fullWorkerName,
       `--query=${searchQuery}`,
     ]);
-    console.log(r);
-
     return r;
   };
 }

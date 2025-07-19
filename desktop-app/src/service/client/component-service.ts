@@ -117,14 +117,7 @@ export class ComponentService {
     name: string,
     template: string,
   ) => {
-    console.log(appId);
     try {
-      console.log(
-        "Creating component with name:",
-        name,
-        "and template:",
-        template,
-      );
       await this.cliService.callCLI(appId, "component", [
         "new",
         template,
@@ -142,10 +135,6 @@ export class ComponentService {
       name,
     ])) as Component[];
     return r as Component;
-  };
-
-  public updateComponent = async (componentId: string, form: FormData) => {
-    console.log(componentId, form);
   };
 
   public deletePluginToComponentWithApp = async (

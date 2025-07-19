@@ -79,10 +79,6 @@ export default function YamlUploader() {
   const onSubmit = async (payload: any) => {
     try {
       setIsSubmitting(true);
-      console.log(activeApiDetails);
-
-      // const apiResponse = await API.getApi(apiName!);
-      // const selectedApi = apiResponse.find(api => api.version === version);
       await API.apiService.callApi(
         ENDPOINT.putApi(activeApiDetails?.id!, version!),
         "PUT",
