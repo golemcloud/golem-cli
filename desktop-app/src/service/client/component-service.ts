@@ -187,17 +187,13 @@ export class ComponentService {
     try {
       // Use CLI to get installed plugins for component
       const componentName = component.componentName || componentId;
-      const args = [
-        "plugin",
-        "get",
-        componentName,
-      ];
+      const args = ["plugin", "get", componentName];
 
       const result = await this.cliService.callCLI(appId, "component", args);
-      
+
       // The CLI returns an array of plugin objects with this structure:
       // [{"id":"...","pluginName":"...","pluginVersion":"...","pluginRegistered":true,"priority":1,"parameters":{}}]
-      
+
       // Transform the CLI response to match our InstalledPlugin interface
       return (result || []).map((plugin: any) => ({
         id: plugin.id,

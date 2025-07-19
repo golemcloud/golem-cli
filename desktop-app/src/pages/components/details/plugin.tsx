@@ -319,13 +319,13 @@ export default function Plugins() {
             </div>
           </DialogContent>
         </Dialog>
-        
+
         {/* Delete Confirmation Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <DialogContent>
             <DialogTitle>Confirm Plugin Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the plugin "{pluginToDelete?.name}" (version {pluginToDelete?.version})? 
+              Are you sure you want to delete the plugin "{pluginToDelete?.name}" (version {pluginToDelete?.version})?
               This action cannot be undone.
             </DialogDescription>
             <div className="flex justify-end mt-4 gap-2">
@@ -334,8 +334,8 @@ export default function Plugins() {
                   Cancel
                 </Button>
               </DialogClose>
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={confirmDeletePlugin}
               >
                 Delete Plugin
