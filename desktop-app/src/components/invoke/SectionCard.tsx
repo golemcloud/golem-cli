@@ -13,11 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { ComponentExportFunction } from "@/types/component.ts";
 import { sanitizeInput } from "@/lib/utils";
-import { parseTooltipTypesData } from "@/lib/worker";
+import { parseTooltipTypesData, RawTypesInput } from "@/lib/worker";
 import {
   isHttpHandlerFunction,
   canInvokeHttpHandler,
 } from "@/lib/http-handler";
+import { InvokeParams } from "./InvokeLayout";
 
 export interface SectionCardProps {
   title: string;
@@ -27,7 +28,7 @@ export interface SectionCardProps {
   copyToClipboard?: () => void;
   readOnly?: boolean;
   functionDetails?: ComponentExportFunction;
-  onInvoke?: (args: unknown[]) => void;
+  onInvoke?: (args: InvokeParams) => void;
   onReset?: () => void;
   exportName?: string;
   functionName?: string;
@@ -109,7 +110,7 @@ export function SectionCard({
                     <PopoverContent className="w-[500px] p-2 text-[13px] bg-gray-800 text-white rounded-lg shadow-lg max-h-[500px] overflow-scroll">
                       <CodeBlock
                         text={JSON.stringify(
-                          parseTooltipTypesData(functionDetails),
+                          parseTooltipTypesData(functionDetails as RawTypesInput),
                           null,
                           2,
                         )}

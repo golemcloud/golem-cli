@@ -61,6 +61,7 @@ const createEmptyValue = (
       // For variants, create the first case as default
       if (typeDef.cases && typeDef.cases.length > 0) {
         const firstCase = typeDef.cases[0];
+        if(!firstCase) return {};
         if (typeof firstCase === "string") {
           // Unit variant - just return the case name
           return firstCase;
@@ -167,7 +168,7 @@ export const RecursiveParameterInput: React.FC<
                     value as Record<string, unknown>,
                   );
                   if (entries.length === 1) {
-                    return entries[0][0]; // Return the case name
+                    return entries[0]?.[0]; // Return the case name
                   }
                 }
                 return "";
@@ -212,7 +213,9 @@ export const RecursiveParameterInput: React.FC<
               // Handle the case where value is a variant record like { caseName: caseValue }
               const entries = Object.entries(value as Record<string, unknown>);
               if (entries.length === 1) {
-                const [caseKey, caseValue] = entries[0];
+                const entry = entries[0];
+                if (!entry) return null;
+                const [caseKey, caseValue] = entry;
                 const selectedCase = typeDef.cases?.find(
                   c => (typeof c === "string" ? c : c.name) === caseKey,
                 );

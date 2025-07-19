@@ -1,4 +1,5 @@
 import {
+  Case,
   ComponentExportFunction,
   Field,
   Typ,
@@ -12,6 +13,9 @@ interface RawType {
   fields?: RawTypeField[];
   cases?: RawTypeCase[];
   inner?: RawType;
+  names?: string[];
+  ok?: RawType;
+  err?: RawType;
 }
 
 interface RawTypeField {
@@ -28,7 +32,7 @@ interface RawParameterData {
   parameters: Array<{ typ: RawType }>;
 }
 
-interface RawTypesInput {
+export interface RawTypesInput {
   parameters: Array<{ typ: RawType }>;
 }
 
@@ -87,9 +91,9 @@ function buildJsonSkeleton(field: Field): unknown {
       if (cases && cases.length > 0) {
         // For the example for priority enum, show a practical example
         if (
-          cases.includes("low") &&
-          cases.includes("medium") &&
-          cases.includes("high")
+          (cases as string[]).includes("low") &&
+          (cases as string[]).includes("medium") &&
+          (cases as string[]).includes("high")
         ) {
           return "low";
         }
@@ -193,13 +197,11 @@ export function getCaretCoordinates(
   style.visibility = "hidden";
 
   properties.forEach((prop: string) => {
-    if (
-      Object.prototype.hasOwnProperty.call(
-        styles as Record<string, string>,
-        prop,
-      )
-    ) {
-      style.setProperty(prop, (styles as Record<string, string>)[prop]);
+    if (Object.prototype.hasOwnProperty.call(styles, prop)) {
+      const value = styles.getPropertyValue(prop);
+      if (value) {
+        style.setProperty(prop, value);
+      }
     }
   });
 
@@ -219,7 +221,7 @@ export function getCaretCoordinates(
   return coordinates;
 }
 
-function parseType(typ: RawType): Typ {
+function parseType(typ: RawType): Typ | null {
   if (!typ) return null;
 
   const typeMap: Record<string, string> = {
@@ -238,58 +240,94 @@ function parseType(typ: RawType): Typ {
     Str: "string",
   };
 
-  if (typeMap[typ.type]) return typeMap[typ.type];
+  if (typ.type && typeMap[typ.type]) {
+    const mappedType = typeMap[typ.type];
+    if (mappedType) return { type: mappedType };
+  }
 
   switch (typ.type) {
     case "Tuple":
-      return typ.items.map((item: RawType) => parseType(item));
+      if (!typ.items) return { type: "Tuple" };
+      return {
+        type: "Tuple",
+        fields: typ.items.map((item, index) => ({
+          name: `${index}`,
+          typ: parseType(item) || { type: "unknown" },
+        })),
+      };
 
     case "List":
-      return [parseType(typ.inner)]; // Annotate as <List>
+      if (!typ.inner) return { type: "List" };
+      return {
+        type: "List",
+        inner: parseType(typ.inner) || { type: "unknown" },
+      };
 
     case "Flags":
-      return typ.names;
+      return {
+        type: "Flags",
+        names: typ.names || [],
+      };
 
     case "Option":
-      return parseType(typ.inner); // Annotate as <Option>
+      if (!typ.inner) return { type: "Option" };
+      return {
+        type: "Option",
+        inner: parseType(typ.inner) || { type: "unknown" },
+      };
 
     case "Result":
-      return { ok: parseType(typ.ok.inner), err: { Enum: typ.err.cases } };
+      return {
+        type: "Result",
+        ok: typ.ok
+          ? parseType(typ.ok) || { type: "unknown" }
+          : { type: "unknown" },
+        err: typ.err
+          ? parseType(typ.err) || { type: "unknown" }
+          : { type: "unknown" },
+      };
 
     case "Record":
-      return Object.fromEntries(
-        typ.fields.map((field: RawTypeField) => {
-          if (field.typ.type === "Option" && field.typ.inner.type === "List") {
-            return [
-              `${field.name}<${field.typ.type}<List>>`,
-              parseType(field.typ),
-            ];
-          } else if (
-            field.typ.type === "Option" ||
-            field.typ.type === "List" ||
-            field.typ.type === "Flags" ||
-            field.typ.type === "Enum"
-          ) {
-            return [`${field.name}<${field.typ.type}>`, parseType(field.typ)];
-          } else {
-            return [`${field.name}`, parseType(field.typ)];
-          }
-        }),
-      );
+      if (!typ.fields) return { type: "Record", fields: [] };
+      return {
+        type: "Record",
+        fields: typ.fields.map((field: RawTypeField) => ({
+          name:
+            field.typ.inner?.type === "List"
+              ? `${field.name}<${field.typ.type}<List>>`
+              : field.typ.type === "Option" ||
+                  field.typ.type === "List" ||
+                  field.typ.type === "Flags" ||
+                  field.typ.type === "Enum"
+                ? `${field.name}<${field.typ.type}>`
+                : field.name,
+          typ: parseType(field.typ) || { type: "unknown" },
+        })),
+      };
 
     case "Enum":
-      return `${typ.cases.join(" | ")}`; // Format Enum as "case1 | case2 | case3"
+      if (!typ.cases) return { type: "Enum", cases: [] };
+      return {
+        type: "Enum",
+        cases: typ.cases.map(c => (typeof c === "string" ? c : c.name)),
+      };
 
     case "Variant":
-      return Object.fromEntries(
-        typ.cases.map((variant: RawTypeCase) => [
-          `${variant.name}<${variant.typ.type}>`, // Annotate variant name with type
-          parseType(variant.typ),
-        ]),
-      );
+      if (!typ.cases) return { type: "Variant", cases: [] };
+      return {
+        type: "Variant",
+        cases: typ.cases.map((variant: RawTypeCase) => ({
+          name: variant.typ?.type
+            ? `${variant.name}<${variant.typ.type}>`
+            : variant.name,
+          typ: variant.typ
+            ? parseType(variant.typ) || { type: "unknown" }
+            : { type: "unknown" },
+        })),
+      };
 
     default:
-      return "unknown";
+      return { type: "unknown" };
   }
 }
 
@@ -299,7 +337,8 @@ export function parseTooltipTypesData(data: RawParameterData) {
 
 export function parseTypesData(input: RawTypesInput): { items: TypeField[] } {
   function transformType(typ: RawType): TypeField {
-    if (!typ || typeof typ !== "object") return typ;
+    if (!typ || typeof typ !== "object")
+      return { name: "", typ: { type: "unknown" } };
 
     switch (typ.type) {
       case "Str":
@@ -315,63 +354,93 @@ export function parseTypesData(input: RawTypesInput): { items: TypeField[] } {
       case "F32":
       case "F64":
       case "Char":
-        return { type: typ.type };
+        return { name: "", typ: { type: typ.type } };
 
       case "List":
-        return { type: "List", inner: transformType(typ.inner) };
+        return {
+          name: "",
+          typ: {
+            type: "List",
+            inner: typ.inner
+              ? transformType(typ.inner).typ
+              : { type: "unknown" },
+          } as any,
+        };
 
       case "Option":
-        return { type: "Option", inner: transformType(typ.inner) };
+        return {
+          name: "",
+          typ: {
+            type: "Option",
+            inner: typ.inner
+              ? transformType(typ.inner).typ
+              : { type: "unknown" },
+          } as any,
+        };
 
       case "Enum":
-        return { type: "Enum", cases: typ.cases };
+        return { name: "", typ: { type: "Enum", cases: typ.cases } as any };
 
       case "Flags":
-        return { type: "Flags", names: typ.names };
+        return { name: "", typ: { type: "Flags", names: typ.names } as any };
 
       case "Record":
         return {
-          type: "Record",
-          fields: (typ.fields || []).map((field: RawTypeField) => ({
-            name: field.name,
-            typ: transformType(field.typ),
-          })),
+          name: "",
+          typ: {
+            type: "Record",
+            fields: (typ.fields || []).map((field: RawTypeField) => ({
+              name: field.name,
+              typ: transformType(field.typ).typ,
+            })),
+          } as any,
         };
 
       case "Variant":
         return {
-          type: "Variant",
-          cases: (typ.cases || []).map((variant: RawTypeCase) => ({
-            name: variant.name,
-            typ: transformType(variant.typ),
-          })),
+          name: "",
+          typ: {
+            type: "Variant",
+            cases: (typ.cases || []).map((variant: RawTypeCase) => ({
+              name: variant.name,
+              typ: variant.typ
+                ? transformType(variant.typ).typ
+                : { type: "unknown" },
+            })),
+          } as any,
         };
 
       case "Result":
         return {
-          type: "Result",
-          ok: transformType(typ.ok),
-          err: transformType(typ.err),
+          name: "",
+          typ: {
+            type: "Result",
+            ok: typ.ok ? transformType(typ.ok).typ : { type: "unknown" },
+            err: typ.err ? transformType(typ.err).typ : { type: "unknown" },
+          } as any,
         };
 
       case "Tuple":
         return {
-          type: "Tuple",
-          items: (typ.items || []).map((item: RawType) => transformType(item)),
+          name: "",
+          typ: {
+            type: "Tuple",
+            fields: (typ.items || []).map((item: RawType, index: number) => ({
+              name: `${index}`,
+              typ: transformType(item).typ,
+            })),
+          } as any,
         };
 
       default:
-        return { type: "Unknown" };
+        return { name: "", typ: { type: "Unknown" } };
     }
   }
 
   return {
-    typ: {
-      type: "Tuple",
-      items: input.parameters.map((param: { typ: RawType }) =>
-        transformType(param.typ),
-      ),
-    },
+    items: input.parameters.map((param: { typ: RawType }) =>
+      transformType(param.typ),
+    ),
   };
 }
 
@@ -450,8 +519,9 @@ export function validateJsonStructure(
         return `Expected an object for field "${field.name}", but got ${typeof data}`;
       }
       if (!fields) break;
+      const dataObj = data as Record<string, unknown>;
       for (const subField of fields) {
-        const error = validateJsonStructure(data[subField.name], subField);
+        const error = validateJsonStructure(dataObj[subField.name], subField);
         if (error) return error;
       }
       break;
@@ -466,8 +536,11 @@ export function validateJsonStructure(
         return `Expected ${fields.length} elements in tuple for field "${field.name}", but got ${data.length}`;
       }
       for (let i = 0; i < fields.length; i++) {
-        const error = validateJsonStructure(data[i], fields[i]);
-        if (error) return error;
+        const fieldItem = fields[i];
+        if (fieldItem) {
+          const error = validateJsonStructure(data[i], fieldItem);
+          if (error) return error;
+        }
       }
       break;
     }
@@ -507,8 +580,16 @@ export function validateJsonStructure(
     }
 
     case "enum": {
-      if (cases && !cases.includes(data)) {
-        return `Expected enum value to be one of [${cases.join(", ")}] for field "${field.name}"`;
+      if (typeof data !== "string") {
+        return `Expected a string for field "${field.name}", but got ${typeof data}`;
+      }
+      if (cases) {
+        const validValues = cases.map(c =>
+          typeof c === "string" ? c : c.name,
+        );
+        if (!validValues.includes(data)) {
+          return `Expected enum value to be one of [${validValues.join(", ")}] for field "${field.name}"`;
+        }
       }
       break;
     }
@@ -518,9 +599,14 @@ export function validateJsonStructure(
       if (typeof data !== "object" || data === null || Array.isArray(data)) {
         return `Expected an object for field "${field.name}", but got ${typeof data}`;
       }
+      const dataObj = data as Record<string, unknown>;
       const caseNames = cases.map(c => (typeof c === "string" ? c : c.name));
-      const selectedCase = Object.keys(data)[0];
-      if (!caseNames.includes(selectedCase)) {
+      const keys = Object.keys(dataObj);
+      if (keys.length === 0) {
+        return `Expected variant to have one of [${caseNames.join(", ")}] for field "${field.name}"`;
+      }
+      const selectedCase = keys[0];
+      if (!selectedCase || !caseNames.includes(selectedCase)) {
         return `Expected variant to be one of [${caseNames.join(", ")}] for field "${field.name}"`;
       }
       const selectedCaseField = cases.find(
@@ -529,7 +615,7 @@ export function validateJsonStructure(
       );
       if (selectedCaseField) {
         const error = validateJsonStructure(
-          data[selectedCase],
+          dataObj[selectedCase],
           selectedCaseField,
         );
         if (error) return error;
@@ -541,17 +627,22 @@ export function validateJsonStructure(
       if (typeof data !== "object" || data === null || Array.isArray(data)) {
         return `Expected an object for field "${field.name}", but got ${typeof data}`;
       }
-      if (data.ok !== null && data.ok !== undefined) {
-        const error = validateJsonStructure(data.ok, {
+      const dataObj = data as Record<string, unknown>;
+      if ("ok" in dataObj && dataObj.ok !== null && dataObj.ok !== undefined) {
+        const error = validateJsonStructure(dataObj.ok, {
           ...field,
           typ: field.typ.ok!,
           name: "",
         });
         if (error) return error;
       }
-      if (data.err !== null && data.err !== undefined) {
-        if (typeof data.err !== "string") {
-          return `Expected a string for field "${field.name}.err", but got ${typeof data.err}`;
+      if (
+        "err" in dataObj &&
+        dataObj.err !== null &&
+        dataObj.err !== undefined
+      ) {
+        if (typeof dataObj.err !== "string") {
+          return `Expected a string for field "${field.name}.err", but got ${typeof dataObj.err}`;
         }
       }
       break;

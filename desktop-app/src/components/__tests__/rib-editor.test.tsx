@@ -135,7 +135,7 @@ describe("RibEditor", () => {
     vi.clearAllMocks();
     (useTheme as MockedFunction<typeof useTheme>).mockReturnValue(mockTheme);
     (useMonaco as MockedFunction<typeof useMonaco>).mockReturnValue(
-      mockMonaco,
+      mockMonaco as unknown as ReturnType<typeof useMonaco>,
     );
   });
 
@@ -393,8 +393,8 @@ describe("RibEditor", () => {
         mockMonaco.languages.registerCompletionItemProvider.mock.calls;
       const provider =
         providerCalls.length > 0 &&
-        providerCalls[0] &&
-        providerCalls[0].length > 1
+          providerCalls[0] &&
+          providerCalls[0].length > 1
           ? (providerCalls[0] as [unknown, MockCompletionProvider])[1]
           : null;
 
@@ -431,7 +431,7 @@ describe("RibEditor", () => {
     it("should handle completion provider errors gracefully", () => {
       const consoleSpy = vi
         .spyOn(console, "error")
-        .mockImplementation(() => {});
+        .mockImplementation(() => { });
 
       // Mock a provider that throws an error
 

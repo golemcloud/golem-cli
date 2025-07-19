@@ -1,10 +1,18 @@
 import { Button } from "@/components/ui/button";
-import { ComponentExportFunction, Export } from "@/types/component.ts";
+import { ComponentExportFunction, Export, Typ } from "@/types/component.ts";
 import { cn } from "@/lib/utils";
 import { ClipboardCopy, Presentation, TableIcon } from "lucide-react";
 import { DynamicForm } from "@/pages/workers/details/dynamic-form.tsx";
 import { SectionCard } from "./SectionCard";
-import { parseToJsonEditor, parseTypesData } from "@/lib/worker";
+import { parseToJsonEditor, parseTypesData, RawTypesInput } from "@/lib/worker";
+
+export interface InvokeParams {
+  params: Array<{
+    value: unknown;
+    typ: Typ;
+    name: string;
+  }>;
+}
 
 interface InvokeLayoutProps {
   // Navigation data
@@ -26,7 +34,7 @@ interface InvokeLayoutProps {
 
   // Actions
   onValueChange: (value: string) => void;
-  onInvoke: (args: unknown[]) => void;
+  onInvoke: (args: InvokeParams) => void;
   copyToClipboard: () => void;
 }
 
@@ -107,11 +115,10 @@ export function InvokeLayout({
                         setResultValue("");
                         setViewMode("form");
                       }}
-                      className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "form"
-                          ? "bg-primary/20 hover:text-primary "
-                          : ""
-                      }`}
+                      className={`text-primary hover:bg-primary/10 hover:text-primary ${viewMode === "form"
+                        ? "bg-primary/20 hover:text-primary "
+                        : ""
+                        }`}
                     >
                       <ClipboardCopy className="h-4 w-4 mr-1" />
                       Form Layout
@@ -122,11 +129,10 @@ export function InvokeLayout({
                         setResultValue("");
                         setViewMode("preview");
                       }}
-                      className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "preview"
-                          ? "bg-primary/20 hover:text-primary "
-                          : ""
-                      }`}
+                      className={`text-primary hover:bg-primary/10 hover:text-primary ${viewMode === "preview"
+                        ? "bg-primary/20 hover:text-primary "
+                        : ""
+                        }`}
                     >
                       <Presentation className="h-4 w-4 mr-1" />
                       Json Layout
@@ -136,11 +142,10 @@ export function InvokeLayout({
                     <Button
                       variant="outline"
                       onClick={() => setViewMode("types")}
-                      className={`text-primary hover:bg-primary/10 hover:text-primary ${
-                        viewMode === "types"
-                          ? "bg-primary/20 hover:text-primary "
-                          : ""
-                      }`}
+                      className={`text-primary hover:bg-primary/10 hover:text-primary ${viewMode === "types"
+                        ? "bg-primary/20 hover:text-primary "
+                        : ""
+                        }`}
                     >
                       <TableIcon className="h-4 w-4 mr-1" />
                       Types
@@ -152,10 +157,9 @@ export function InvokeLayout({
                 {viewMode === "form" && functionDetails && (
                   <DynamicForm
                     functionDetails={functionDetails}
-                    onInvoke={data => onInvoke(data)}
+                    onInvoke={data => onInvoke(data as InvokeParams)}
                     resetResult={() => setResultValue("")}
                     exportName={name}
-                    functionName={urlFn}
                   />
                 )}
 
@@ -191,7 +195,7 @@ export function InvokeLayout({
                     title="Types"
                     description="Types of the function arguments"
                     value={JSON.stringify(
-                      parseTypesData(functionDetails),
+                      parseTypesData(functionDetails as RawTypesInput),
                       null,
                       2,
                     )}
@@ -201,7 +205,7 @@ export function InvokeLayout({
                     copyToClipboard={() => {
                       navigator.clipboard.writeText(
                         JSON.stringify(
-                          parseTypesData(functionDetails),
+                          parseTypesData(functionDetails as RawTypesInput),
                           null,
                           2,
                         ),
