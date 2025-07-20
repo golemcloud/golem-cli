@@ -6,7 +6,9 @@ import { API } from "@/service";
 // Mock the API
 vi.mock("@/service", () => ({
   API: {
-    checkHealth: vi.fn(),
+    appService: {
+      checkHealth: vi.fn(),
+    },
   },
 }));
 
@@ -54,7 +56,7 @@ describe("ServerStatus", () => {
       API.appService.checkHealth as MockedFunction<
         typeof API.appService.checkHealth
       >
-    ).mockResolvedValue(true);
+    ).mockResolvedValue();
 
     render(<ServerStatus />);
 
@@ -98,7 +100,7 @@ describe("ServerStatus", () => {
       API.appService.checkHealth as MockedFunction<
         typeof API.appService.checkHealth
       >
-    ).mockResolvedValue(true);
+    ).mockResolvedValue();
 
     render(<ServerStatus />);
 

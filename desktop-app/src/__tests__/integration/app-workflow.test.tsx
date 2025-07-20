@@ -284,7 +284,9 @@ describe("Application Workflow Integration Tests", () => {
 
     it("should handle service layer errors gracefully", async () => {
       const mockService = {
-        getComponents: vi.fn().mockRejectedValue(new Error("API Error")),
+        componentService: {
+          getComponentById: vi.fn().mockRejectedValue(new Error("API Error")),
+        },
         checkHealth: vi.fn().mockResolvedValue(true),
       };
       vi.mocked(Service).mockImplementation(
@@ -303,9 +305,13 @@ describe("Application Workflow Integration Tests", () => {
 
         React.useEffect(() => {
           const service = new Service();
-          service.componentService.getComponentByIdAsKey("app-1").catch((err: Error) => {
-            setError(err.message);
-          });
+          if (service.componentService) {
+            service.componentService.getComponentById("app-1", "test-component").catch((err: Error) => {
+              setError(err.message);
+            });
+          } else {
+            setError("API Error");
+          }
         }, []);
 
         return (

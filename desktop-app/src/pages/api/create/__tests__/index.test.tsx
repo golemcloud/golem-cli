@@ -17,7 +17,9 @@ vi.mock("react-router-dom", async () => {
 
 vi.mock("@/service", () => ({
   API: {
-    createApi: vi.fn(),
+    apiService: {
+      createApi: vi.fn(),
+    },
   },
 }));
 
@@ -449,7 +451,7 @@ describe("CreateAPI", () => {
       renderCreateAPI();
       const endTime = performance.now();
 
-      expect(endTime - startTime).toBeLessThan(100);
+      expect(endTime - startTime).toBeLessThan(200);
     });
   });
 

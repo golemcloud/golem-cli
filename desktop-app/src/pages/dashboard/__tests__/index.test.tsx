@@ -1,352 +1,469 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Dashboard } from "../index";
+import { BrowserRouter } from "react-router-dom";
+import { ComponentList } from "@/types/component";
+import { Deployment } from "@/types/deployments";
+import { HttpApiDefinition } from "@/types/golemManifest";
 
-// Mock dependencies
+// Mock lucide-react icons
+vi.mock("lucide-react", () => ({
+  Play: () => <div data-testid="play-icon">▶</div>,
+  RefreshCw: () => <div data-testid="refresh-icon">🔄</div>,
+  Upload: () => <div data-testid="upload-icon">⬆</div>,
+  Trash2: () => <div data-testid="trash-icon">🗑</div>,
+  FileText: () => <div data-testid="file-text-icon">📄</div>,
+  Send: () => <div data-testid="send-icon">📤</div>,
+  Loader2: () => <div data-testid="loader-icon" className="animate-spin">⏳</div>,
+  ArrowRight: () => <div data-testid="arrow-right">→</div>,
+  LayoutGrid: () => <div data-testid="layout-grid">⚏</div>,
+  PlusCircle: () => <div data-testid="plus-circle">➕</div>,
+  Globe: () => <div data-testid="globe">🌐</div>,
+  Layers: () => <div data-testid="layers">📚</div>,
+  Server: () => <div data-testid="server">🖥</div>,
+}));
+
+// Mock react-router-dom
 const mockNavigate = vi.fn();
-const mockUseParams = vi.fn().mockReturnValue({ appId: "test-app-id" });
+const mockAppId = "test-app-123";
 
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useParams: () => mockUseParams(),
+    useParams: () => ({ appId: mockAppId }),
   };
 });
 
-vi.mock("@/lib/settings", () => ({
-  storeService: {
-    getAppById: vi.fn().mockResolvedValue({
-      id: "test-app-id",
-      name: "Test App",
-    }),
-    updateAppLastOpened: vi.fn().mockResolvedValue(true),
+// Mock API service
+vi.mock("@/service", () => ({
+  API: {
+    appService: {
+      buildApp: vi.fn(),
+      updateWorkers: vi.fn(),
+      deployWorkers: vi.fn(),
+      cleanApp: vi.fn(),
+    },
+    componentService: {
+      getComponentByIdAsKey: vi.fn(),
+    },
+    deploymentService: {
+      getDeploymentApi: vi.fn(),
+    },
+    apiService: {
+      getApiList: vi.fn(),
+    },
+    manifestService: {
+      getAppYamlContent: vi.fn(),
+    },
   },
 }));
 
-vi.mock("@/pages/dashboard/componentSection", () => ({
-  ComponentsSection: () => (
-    <div data-testid="components-section">Components Section</div>
-  ),
+// Mock store service
+vi.mock("@/lib/settings.ts", () => ({
+  storeService: {
+    getAppById: vi.fn(),
+    updateAppLastOpened: vi.fn(),
+  },
 }));
 
-vi.mock("@/pages/dashboard/apiSection", () => ({
-  APISection: () => <div data-testid="api-section">API Section</div>,
+// Mock toast hook
+vi.mock("@/hooks/use-toast", () => ({
+  toast: vi.fn(),
 }));
 
-vi.mock("@/pages/dashboard/deploymentSection", () => ({
+// Mock log viewer context
+const mockShowLog = vi.fn();
+vi.mock("@/contexts/log-viewer-context", () => ({
+  useLogViewer: () => ({ showLog: mockShowLog }),
+}));
+
+// Mock section components
+vi.mock("@/pages/dashboard/componentSection.tsx", () => ({
+  ComponentsSection: vi.fn().mockImplementation(() => (
+    <div data-testid="components-section">
+      <h2>Components Section</h2>
+      <div>Component List Placeholder</div>
+    </div>
+  )),
+}));
+
+vi.mock("@/pages/dashboard/deploymentSection.tsx", () => ({
   DeploymentSection: () => (
-    <div data-testid="deployment-section">Deployment Section</div>
+    <div data-testid="deployment-section">
+      <h2>Deployment Section</h2>
+      <div>Deployment List Placeholder</div>
+    </div>
   ),
 }));
 
-vi.mock("@/components/ui/button", () => ({
-  Button: ({
-    children,
-    onClick,
-    variant,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    variant?: string;
-  }) => (
-    <button onClick={onClick} data-variant={variant}>
-      {children}
-    </button>
+vi.mock("@/pages/dashboard/apiSection.tsx", () => ({
+  APISection: () => (
+    <div data-testid="api-section">
+      <h2>API Section</h2>
+      <div>API List Placeholder</div>
+    </div>
   ),
 }));
+
+// Mock YAML Viewer Modal
+vi.mock("@/components/yaml-viewer-modal", () => ({
+  YamlViewerModal: ({ isOpen, title, yamlContent }: {
+    isOpen: boolean;
+    title: string;
+    yamlContent: string;
+  }) => 
+    isOpen ? (
+      <div data-testid="yaml-modal">
+        <h3>{title}</h3>
+        <pre data-testid="yaml-content">{yamlContent}</pre>
+        <button data-testid="close-yaml-modal">Close</button>
+      </div>
+    ) : null,
+}));
+
+// Mock utils
+vi.mock("@/lib/utils", () => ({
+  cn: (...inputs: (string | undefined | null | boolean)[]) => inputs.filter(Boolean).join(" "),
+  removeDuplicateApis: (apis: HttpApiDefinition[]) => apis,
+}));
+
+// Import mocked modules for test access
+import { API } from "@/service";
+import { storeService } from "@/lib/settings.ts";
+import { toast } from "@/hooks/use-toast";
+const mockAPI = vi.mocked(API);
+const mockStoreService = vi.mocked(storeService);
+const mockToast = vi.mocked(toast);
+
+// Test wrapper component
+const TestWrapper = ({ children }: { children: React.ReactNode }) => (
+  <BrowserRouter>{children}</BrowserRouter>
+);
 
 describe("Dashboard", () => {
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    // Set up default mock for useParams
-    mockUseParams.mockReturnValue({ appId: "test-app-id" });
-    // Reset mock to default values
-    const { storeService } = await import("@/lib/settings");
-    (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: "test-app-id",
-      name: "Test App",
-    });
-    (
-      storeService.updateAppLastOpened as ReturnType<typeof vi.fn>
-    ).mockResolvedValue(true);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  const renderDashboard = () => {
-    return render(
-      <MemoryRouter initialEntries={["/app/test-app-id"]}>
-        <Dashboard />
-      </MemoryRouter>,
-    );
+  const sampleApp = {
+    id: mockAppId,
+    name: "Test Application",
+    path: "/test/path",
+    lastOpened: new Date().toISOString(),
   };
 
-  describe("Component Rendering", () => {
-    it("should render the dashboard with app name", async () => {
-      renderDashboard();
+  const sampleComponents: { [key: string]: ComponentList } = {
+    "test-component-1": {
+      componentName: "user-service",
+      componentType: "Durable",
+      componentId: "test-component-1",
+      versionList: [1, 2, 3],
+      versions: [
+        {
+          componentId: "test-component-1",
+          componentName: "user-service",
+          componentVersion: 3,
+          componentType: "Durable" as const,
+          createdAt: "2024-01-01T00:00:00Z",
+        }
+      ],
+    },
+  };
 
-      // Verify the basic dashboard structure renders
-      await waitFor(() => {
-        expect(screen.getByText(/Working in/)).toBeInTheDocument();
-        expect(screen.getByText("Back to Apps")).toBeInTheDocument();
-        expect(screen.getByText("App ID:")).toBeInTheDocument();
-        expect(screen.getByText("test-app-id")).toBeInTheDocument();
-      });
+  const sampleDeployments: Deployment[] = [
+    {
+      deploymentId: "deploy-1",
+      deploymentName: "production",
+      componentName: "user-service",
+      componentVersion: 3,
+      status: "Running",
+      createdAt: "2024-01-01T00:00:00Z",
+    },
+  ];
+
+  const sampleApis: HttpApiDefinition[] = [
+    {
+      id: "api-1",
+      version: "1.0.0",
+      draft: false,
+      routes: [
+        {
+          method: "GET",
+          path: "/users",
+          binding: {
+            type: "wit-worker",
+            componentId: "test-component-1",
+            workerName: "user-service",
+            functionName: "get-users",
+          },
+        },
+      ],
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockShowLog.mockClear();
+    
+    // Setup default mock implementations
+    mockStoreService.getAppById.mockResolvedValue(sampleApp);
+    mockStoreService.updateAppLastOpened.mockResolvedValue(undefined);
+    mockAPI.componentService.getComponentByIdAsKey.mockResolvedValue(sampleComponents);
+    mockAPI.deploymentService.getDeploymentApi.mockResolvedValue(sampleDeployments);
+    mockAPI.apiService.getApiList.mockResolvedValue(sampleApis);
+    mockAPI.manifestService.getAppYamlContent.mockResolvedValue("apiVersion: v1\nkind: App");
+    
+    // Setup successful API responses by default
+    mockAPI.appService.buildApp.mockResolvedValue({ success: true, logs: "Build completed" });
+    mockAPI.appService.updateWorkers.mockResolvedValue({ success: true, logs: "Workers updated" });
+    mockAPI.appService.deployWorkers.mockResolvedValue({ success: true, logs: "Workers deployed" });
+    mockAPI.appService.cleanApp.mockResolvedValue({ success: true, logs: "App cleaned" });
+  });
+
+  it("renders the dashboard layout correctly", async () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
+
+    // Check main title and app name
+    await waitFor(() => {
+      expect(screen.getByText("Working in Test Application")).toBeInTheDocument();
     });
 
-    it("should render with default app name when app not found", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue(
-        null,
-      );
+    // Check back button
+    expect(screen.getByText("Back to Apps")).toBeInTheDocument();
 
-      renderDashboard();
+    // Check app actions section
+    expect(screen.getByText("App Actions")).toBeInTheDocument();
+    
+    // Check all action buttons are present
+    expect(screen.getByText("Build App")).toBeInTheDocument();
+    expect(screen.getByText("Update Workers")).toBeInTheDocument();
+    expect(screen.getByText("Deploy Workers")).toBeInTheDocument();
+    expect(screen.getByText("Deploy App")).toBeInTheDocument();
+    expect(screen.getByText("Clean App")).toBeInTheDocument();
+    expect(screen.getByText("View YAML")).toBeInTheDocument();
 
-      await waitFor(() => {
-        expect(screen.getByText("Working in App")).toBeInTheDocument();
-      });
-    });
+    // Check sections are rendered
+    expect(screen.getByTestId("components-section")).toBeInTheDocument();
+    expect(screen.getByTestId("deployment-section")).toBeInTheDocument();
+    expect(screen.getByTestId("api-section")).toBeInTheDocument();
+  });
 
-    it("should render app ID display", async () => {
-      renderDashboard();
+  it("navigates back to apps page when back button is clicked", () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText("App ID:")).toBeInTheDocument();
-        expect(screen.getByText("test-app-id")).toBeInTheDocument();
-      });
-    });
+    const backButton = screen.getByText("Back to Apps");
+    fireEvent.click(backButton);
 
-    it("should render back to apps button", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "Test App",
-      });
+    expect(mockNavigate).toHaveBeenCalledWith("/");
+  });
 
-      renderDashboard();
+  it("handles build app action successfully", async () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText("Back to Apps")).toBeInTheDocument();
-      });
-    });
+    const buildButton = screen.getByText("Build App");
+    fireEvent.click(buildButton);
 
-    it("should render all dashboard sections", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "Test App",
-      });
+    // Check loading state
+    expect(screen.getByTestId("loader-icon")).toBeInTheDocument();
 
-      renderDashboard();
-
-      await waitFor(() => {
-        expect(screen.getByTestId("components-section")).toBeInTheDocument();
-        expect(screen.getByTestId("api-section")).toBeInTheDocument();
-        expect(screen.getByTestId("deployment-section")).toBeInTheDocument();
+    // Wait for completion and check toast
+    await waitFor(() => {
+      expect(mockAPI.appService.buildApp).toHaveBeenCalledWith(mockAppId);
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Build Completed",
+        description: "Application build completed successfully.",
       });
     });
   });
 
-  describe("Navigation", () => {
-    it("should navigate to home when back button is clicked", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "Test App",
-      });
-
-      renderDashboard();
-      const user = userEvent.setup();
-
-      await waitFor(() => {
-        expect(screen.getByText("Back to Apps")).toBeInTheDocument();
-      });
-
-      const backButton = screen.getByText("Back to Apps");
-      await user.click(backButton);
-
-      expect(mockNavigate).toHaveBeenCalledWith("/");
+  it("handles build app failure with log display", async () => {
+    mockAPI.appService.buildApp.mockResolvedValue({
+      success: false,
+      logs: "Build failed: compilation error",
     });
 
-    it("should redirect to home when no app ID is provided", async () => {
-      // Mock useParams to return no appId
-      mockUseParams.mockReturnValue({});
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      renderDashboard();
+    const buildButton = screen.getByText("Build App");
+    fireEvent.click(buildButton);
 
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith("/");
+    await waitFor(() => {
+      expect(mockShowLog).toHaveBeenCalledWith({
+        title: "Build Failed",
+        logs: "Build failed: compilation error",
+        status: "error",
+        operation: "Build App",
       });
     });
   });
 
-  describe("Data Loading", () => {
-    it("should load app data on mount", async () => {
-      const { storeService } = await import("@/lib/settings");
+  it("handles update workers action successfully", async () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      renderDashboard();
+    const updateButton = screen.getByText("Update Workers");
+    fireEvent.click(updateButton);
 
-      await waitFor(() => {
-        expect(storeService.getAppById).toHaveBeenCalledWith("test-app-id");
-      });
-    });
-
-    it("should update app last opened on mount", async () => {
-      const { storeService } = await import("@/lib/settings");
-
-      renderDashboard();
-
-      await waitFor(() => {
-        expect(storeService.updateAppLastOpened).toHaveBeenCalledWith(
-          "test-app-id",
-        );
-      });
-    });
-
-    it("should handle app loading errors gracefully", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("Failed to load app"),
-      );
-
-      renderDashboard();
-
-      await waitFor(() => {
-        expect(screen.getByText("Working in App")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockAPI.appService.updateWorkers).toHaveBeenCalledWith(mockAppId);
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Workers Update Completed",
+        description: "Worker update process completed successfully.",
       });
     });
   });
 
-  describe("Layout", () => {
-    it("should have proper grid layout structure", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "Test App",
-      });
+  it("handles deploy workers action successfully", async () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      renderDashboard();
+    const deployButton = screen.getByText("Deploy Workers");
+    fireEvent.click(deployButton);
 
-      await waitFor(() => {
-        const gridElement =
-          screen.getByTestId("components-section").parentElement;
-        expect(gridElement).toHaveClass("grid");
-      });
-    });
-
-    it("should display app information in a bordered container", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "Test App",
-      });
-
-      renderDashboard();
-
-      await waitFor(() => {
-        const appInfoContainer = screen.getByText("App ID:").parentElement;
-        expect(appInfoContainer).toHaveClass("border", "rounded-lg");
+    await waitFor(() => {
+      expect(mockAPI.appService.deployWorkers).toHaveBeenCalledWith(mockAppId);
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Deployment Completed",
+        description: "Worker deployment completed successfully.",
       });
     });
   });
 
-  describe("Error Handling", () => {
-    it("should handle missing app gracefully", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue(
-        null,
-      );
+  it("opens YAML modal when View YAML is clicked", async () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      renderDashboard();
+    const viewYamlButton = screen.getByText("View YAML");
+    fireEvent.click(viewYamlButton);
 
-      await waitFor(() => {
-        expect(screen.getByText("Working in App")).toBeInTheDocument();
-        expect(screen.getByText("test-app-id")).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(mockAPI.manifestService.getAppYamlContent).toHaveBeenCalledWith(mockAppId);
+      expect(screen.getByTestId("yaml-modal")).toBeInTheDocument();
+      expect(screen.getByText("Application Manifest (golem.yaml)")).toBeInTheDocument();
+      expect(screen.getByTestId("yaml-content").textContent).toMatch(/apiVersion:\s*v1[\s\S]*kind:\s*App/);
     });
+  });
 
-    it("should handle app with missing name", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "",
-      });
+  it("handles YAML loading failure", async () => {
+    mockAPI.manifestService.getAppYamlContent.mockRejectedValue(new Error("YAML not found"));
 
-      renderDashboard();
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText("Working in App")).toBeInTheDocument();
+    const viewYamlButton = screen.getByText("View YAML");
+    fireEvent.click(viewYamlButton);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Failed to Load YAML",
+        description: "Error: YAML not found",
+        variant: "destructive",
       });
     });
   });
 
-  describe("Accessibility", () => {
-    it("should have proper heading structure", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "Test App",
-      });
+  it("shows loading states for action buttons", async () => {
+    // Mock a delayed response to test loading state
+    mockAPI.appService.buildApp.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({ success: true, logs: "" }), 100))
+    );
 
-      renderDashboard();
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      // Wait for the component to load app data and update
-      await waitFor(() => {
-        expect(storeService.getAppById).toHaveBeenCalledWith("test-app-id");
-      });
+    const buildButton = screen.getByText("Build App");
+    fireEvent.click(buildButton);
 
-      await waitFor(() => {
-        expect(
-          screen.getByRole("heading", { name: /Working in Test App/i }),
-        ).toBeInTheDocument();
-      });
-    });
+    // Check that loader icon appears and button is disabled
+    expect(screen.getByTestId("loader-icon")).toBeInTheDocument();
+    expect(buildButton).toBeDisabled();
 
-    it("should support keyboard navigation", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "Test App",
-      });
-
-      renderDashboard();
-      const user = userEvent.setup();
-
-      await waitFor(() => {
-        expect(screen.getByText("Back to Apps")).toBeInTheDocument();
-      });
-
-      await user.tab();
-      expect(document.activeElement).toBe(screen.getByText("Back to Apps"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("loader-icon")).not.toBeInTheDocument();
+      expect(buildButton).not.toBeDisabled();
     });
   });
 
-  describe("Component Integration", () => {
-    it("should pass app context to child components", async () => {
-      const { storeService } = await import("@/lib/settings");
-      (storeService.getAppById as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: "test-app-id",
-        name: "Test App",
-      });
+  it("loads app data on component mount", async () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
 
-      renderDashboard();
-
-      await waitFor(() => {
-        expect(screen.getByTestId("components-section")).toBeInTheDocument();
-        expect(screen.getByTestId("api-section")).toBeInTheDocument();
-        expect(screen.getByTestId("deployment-section")).toBeInTheDocument();
-      });
-
-      // All sections should be rendered indicating they receive the app context
-      expect(screen.getByText("Components Section")).toBeInTheDocument();
-      expect(screen.getByText("API Section")).toBeInTheDocument();
-      expect(screen.getByText("Deployment Section")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockStoreService.getAppById).toHaveBeenCalledWith(mockAppId);
+      expect(mockStoreService.updateAppLastOpened).toHaveBeenCalledWith(mockAppId);
     });
+  });
+
+  it("displays default app name when app name is not available", async () => {
+    mockStoreService.getAppById.mockResolvedValue({ id: mockAppId, name: "" });
+
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Working in App")).toBeInTheDocument();
+    });
+  });
+
+  it("ensures all buttons have correct icons", () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
+
+    // Check that icons are present for each button
+    expect(screen.getByTestId("play-icon")).toBeInTheDocument(); // Build App
+    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument(); // Update Workers  
+    expect(screen.getByTestId("upload-icon")).toBeInTheDocument(); // Deploy Workers
+    expect(screen.getByTestId("send-icon")).toBeInTheDocument(); // Deploy App
+    expect(screen.getByTestId("trash-icon")).toBeInTheDocument(); // Clean App
+    expect(screen.getByTestId("file-text-icon")).toBeInTheDocument(); // View YAML
+  });
+
+  it("maintains responsive grid layout", () => {
+    render(
+      <TestWrapper>
+        <Dashboard />
+      </TestWrapper>
+    );
+
+    const gridContainer = screen.getByTestId("components-section").parentElement;
+    expect(gridContainer).toHaveClass("grid", "flex-1", "grid-cols-1", "gap-4", "lg:grid-cols-3");
   });
 });

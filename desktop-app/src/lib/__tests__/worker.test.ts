@@ -313,9 +313,10 @@ describe("worker utilities", () => {
 
       // Mock getComputedStyle function
       const originalGetComputedStyle = window.getComputedStyle;
-      window.getComputedStyle = vi.fn(
-        () => mockComputedStyle as unknown as CSSStyleDeclaration,
-      );
+      window.getComputedStyle = vi.fn(() => ({
+        ...mockComputedStyle,
+        getPropertyValue: vi.fn((prop: string) => mockComputedStyle[prop as keyof typeof mockComputedStyle] || ""),
+      } as unknown as CSSStyleDeclaration));
 
       document.body.appendChild(textarea);
 
@@ -345,7 +346,11 @@ describe("worker utilities", () => {
       };
 
       const result = parseTooltipTypesData(data);
-      expect(result).toEqual(["bool", "string", "u32"]);
+      expect(result).toEqual([
+        { type: "bool" },
+        { type: "string" },
+        { type: "u32" },
+      ]);
     });
 
     it("should parse complex types", () => {
@@ -372,7 +377,19 @@ describe("worker utilities", () => {
       };
 
       const result = parseTooltipTypesData(data);
-      expect(result).toEqual([{ field1: "string", field2: "u32" }, ["string"]]);
+      expect(result).toEqual([
+        {
+          type: "Record",
+          fields: [
+            { name: "field1", typ: { type: "string" } },
+            { name: "field2", typ: { type: "u32" } },
+          ],
+        },
+        {
+          type: "List",
+          inner: { type: "string" },
+        },
+      ]);
     });
   });
 
@@ -387,10 +404,10 @@ describe("worker utilities", () => {
 
       const result = parseTypesData(input);
       expect(result).toEqual({
-        typ: {
-          type: "Tuple",
-          items: [{ type: "Bool" }, { type: "Str" }],
-        },
+        items: [
+          { name: "", typ: { type: "Bool" } },
+          { name: "", typ: { type: "Str" } },
+        ],
       });
     });
 
@@ -412,18 +429,18 @@ describe("worker utilities", () => {
 
       const result = parseTypesData(input);
       expect(result).toEqual({
-        typ: {
-          type: "Tuple",
-          items: [
-            {
+        items: [
+          {
+            name: "",
+            typ: {
               type: "Record",
               fields: [
                 { name: "field1", typ: { type: "Str" } },
                 { name: "field2", typ: { type: "U32" } },
               ],
             },
-          ],
-        },
+          },
+        ],
       });
     });
   });
@@ -644,7 +661,7 @@ describe("worker utilities", () => {
       };
 
       expect(validateJsonStructure("test", field)).toBe(
-        'Unknown type "UnknownType" for field "testField"',
+        'Unknown type "unknowntype" for field "testField"',
       );
     });
   });
