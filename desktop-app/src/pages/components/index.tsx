@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { calculateExportFunctions, cn, formatRelativeTime } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 import { API } from "@/service";
 import { ComponentList } from "@/types/component";
 import { Worker } from "@/types/worker";
@@ -88,9 +88,7 @@ export const ComponentCard = React.memo(
     // Retrieve the latest version from the versions array
     const latestVersion = data.versions?.[data.versions?.length - 1];
     // Count total exports using a helper function
-    const exportCount = calculateExportFunctions(
-      (latestVersion?.metadata?.exports as string[]) || [],
-    ).length;
+    const exportCount = (latestVersion?.metadata?.exports as string[]) || [];
     // Convert component size from bytes to kilobytes
     const componentSize = Math.round(
       (latestVersion?.componentSize || 0) / 1024,
@@ -121,7 +119,7 @@ export const ComponentCard = React.memo(
             className={"text-xs font-light text-muted-foreground"}
           >
             {formatRelativeTime(
-              data.versions?.[data.versions?.length - 1].createdAt ||
+              data.versions?.[data.versions?.length - 1]!.createdAt ||
                 new Date(),
             )}
           </CardDescription>

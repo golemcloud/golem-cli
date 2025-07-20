@@ -37,9 +37,9 @@ vi.mock("@/components/ui/button", () => ({
     children: React.ReactNode;
     onClick?: () => void;
     disabled?: boolean;
-    type?: string;
+    type?: "submit" | "reset" | "button" | undefined;
   }) => (
-    <button onClick={onClick} disabled={disabled} type={type}>
+    <button onClick={onClick} disabled={disabled} type={type!}>
       {children}
     </button>
   ),
@@ -284,7 +284,7 @@ describe("CreateAPI", () => {
         API.apiService.createApi as MockedFunction<
           typeof API.apiService.createApi
         >
-      ).mockResolvedValue({ id: "new-api-id" });
+      ).mockResolvedValue();
 
       renderCreateAPI();
       const user = userEvent.setup();
@@ -406,7 +406,7 @@ describe("CreateAPI", () => {
         API.apiService.createApi as MockedFunction<
           typeof API.apiService.createApi
         >
-      ).mockResolvedValue({ id: "new-api-id" });
+      ).mockResolvedValue();
 
       renderCreateAPI();
       const user = userEvent.setup();

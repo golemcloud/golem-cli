@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { API } from "@/service";
+import { Worker } from "@/types/worker";
 
 export default function ComponentSettings() {
   const { toast } = useToast();

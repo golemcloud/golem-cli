@@ -138,10 +138,12 @@ export class SettingsService {
       const appIndex = apps.findIndex(app => app.id === appId);
 
       if (appIndex >= 0) {
-        apps[appIndex].lastOpened = new Date().toISOString();
-        await store.set(APPS_KEY, apps);
-        await store.save();
-        return true;
+        if (apps[appIndex]) {
+          apps[appIndex].lastOpened = new Date().toISOString();
+          await store.set(APPS_KEY, apps);
+          await store.save();
+          return true;
+        }
       }
       return false;
     } catch (error) {

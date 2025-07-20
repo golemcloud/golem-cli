@@ -1,4 +1,5 @@
 import { CLIService } from "./cli-service";
+import { Deployment } from "@/types/deployments";
 
 export class DeploymentService {
   private cliService: CLIService;
@@ -7,8 +8,13 @@ export class DeploymentService {
     this.cliService = cliService;
   }
 
-  public getDeploymentApi = async (appId: string) => {
-    return await this.cliService.callCLI(appId, "api", ["deployment", "list"]);
+  public getDeploymentApi = async (
+    appId: string,
+  ): Promise<Deployment[]> => {
+    return (await this.cliService.callCLI(appId, "api", [
+      "deployment",
+      "list",
+    ])) as Promise<Deployment[]>;
   };
 
   public deleteDeployment = async (appId: string, subdomain: string) => {

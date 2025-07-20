@@ -314,7 +314,7 @@ describe("worker utilities", () => {
       // Mock getComputedStyle function
       const originalGetComputedStyle = window.getComputedStyle;
       window.getComputedStyle = vi.fn(
-        () => mockComputedStyle as CSSStyleDeclaration,
+        () => mockComputedStyle as unknown as CSSStyleDeclaration,
       );
 
       document.body.appendChild(textarea);

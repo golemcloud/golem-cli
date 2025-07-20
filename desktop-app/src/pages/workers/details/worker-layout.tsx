@@ -63,7 +63,7 @@ export const WorkerLayout = () => {
   useEffect(() => {
     if (componentId) {
       API.componentService.getComponentByIdAsKey(appId!).then(response => {
-        setCurrentComponent(response[componentId]);
+        setCurrentComponent(response[componentId]!);
       });
     }
   }, [componentId]);

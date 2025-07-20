@@ -15,10 +15,6 @@ export function DeploymentSection() {
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        const response = await API.apiService.getApiList(appId!);
-        const _uniqueApis = [
-          ...new Set(response.map((api: { id: string }) => api.id)),
-        ];
         const [allDeployments] = await Promise.all([
           API.deploymentService.getDeploymentApi(appId!),
         ]);
@@ -55,7 +51,7 @@ export function DeploymentSection() {
             deployments.map((deployment, index) => (
               <div
                 key={index}
-                className="border rounded-lg p-3 hover:bg-muted/50 transition-colors cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
+                className="border rounded-lg p-3 hover:bg-muted/50 cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
                 onClick={() => {
                   navigate(`/app/${appId}/deployments`);
                 }}

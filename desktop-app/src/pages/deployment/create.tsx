@@ -44,7 +44,7 @@ const formSchema = z.object({
     .refine(
       value => {
         if (value.includes(":")) {
-          const port = parseInt(value.split(":")[1]);
+          const port = parseInt(value.split(":")[1]!, 10);
           return port >= 1 && port <= 65535;
         }
         return true;
@@ -120,8 +120,8 @@ export default function CreateDeployment() {
                 acc[api.id] = { id: api.id, versions: [] };
               }
               if (api.id) {
-                acc[api.id].versions.push(api.version);
-                acc[api.id].versions.sort((a, b) =>
+                acc[api.id]!.versions.push(api.version);
+                acc[api.id]!.versions.sort((a, b) =>
                   b.localeCompare(a, undefined, { numeric: true }),
                 );
               }

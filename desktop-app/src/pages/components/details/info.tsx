@@ -38,7 +38,7 @@ export default function ComponentInfo() {
         setVersionList(versionList);
         setComponentList(response);
         if (versionList.length > 0) {
-          setVersionChange(versionList[versionList.length - 1]);
+          setVersionChange(versionList[versionList.length - 1]!);
         }
       });
     }

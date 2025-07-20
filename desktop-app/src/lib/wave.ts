@@ -148,8 +148,11 @@ function convertVariant(value: unknown, typ: Typ): string {
   if (entries.length !== 1) {
     return convertBasicValue(value);
   }
-
-  const [caseName, caseValue] = entries[0];
+  let caseName = entries[0]?.[0] || "";
+  let caseValue: unknown;
+  if (entries[0]) {
+    [caseName, caseValue] = entries[0];
+  }
 
   if (caseValue === null || caseValue === undefined) {
     return caseName;
@@ -210,7 +213,7 @@ function convertTuple(value: unknown, typ: Typ): string {
   if (typ.fields) {
     for (let i = 0; i < value.length && i < typ.fields.length; i++) {
       const elementValue = value[i];
-      const elementType = typ.fields[i].typ;
+      const elementType = typ.fields?.[i]?.typ;
       items.push(convertValueWithType(elementValue, elementType));
     }
   } else {

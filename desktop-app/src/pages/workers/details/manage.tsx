@@ -210,10 +210,10 @@ export default function WorkerManage() {
                 htmlFor="componentId"
                 className="text-right text-sm font-medium"
               >
-                Component ID
+                Component Name
               </Label>
               <Input
-                defaultValue={workerDetails?.workerId?.componentId || "N/A"}
+                defaultValue={workerDetails.componentName || "N/A"}
                 className="col-span-3 bg-muted/50"
                 disabled
               />
@@ -228,7 +228,7 @@ export default function WorkerManage() {
                 Current Version
               </Label>
               <Input
-                defaultValue={workerDetails?.componentVersion || "N/A"}
+                defaultValue={workerDetails?.componentVersion}
                 className="col-span-3 bg-muted/50"
                 disabled
               />
@@ -247,7 +247,7 @@ export default function WorkerManage() {
                   <SelectValue>{upgradeType}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {["Automatic", "Manual"].map(version => (
+                  {["auto", "manual"].map(version => (
                     <SelectItem key={version} value={version}>
                       {version}
                     </SelectItem>

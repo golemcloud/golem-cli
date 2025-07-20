@@ -1,3 +1,5 @@
+import { Worker } from "./../../types/worker";
+import { InvokeResponse } from "./../../hooks/useInvoke";
 import { convertValuesToWaveArgs, convertPayloadToWaveArgs } from "@/lib/wave";
 import { Typ } from "@/types/component";
 import { CLIService } from "./cli-service";
@@ -44,7 +46,9 @@ export class WorkerService {
     if (param.precise) {
       params.push(`--precise`);
     }
-    return await this.cliService.callCLI(appId, "worker", params);
+    return (await this.cliService.callCLI(appId, "worker", params)) as Promise<{
+      workers: Worker[];
+    }>;
   };
 
   public deleteWorker = async (
@@ -131,7 +135,7 @@ export class WorkerService {
     workerName: string,
     functionName: string,
     payload: { params?: unknown[] } | unknown[] | undefined,
-  ) => {
+  ): Promise<InvokeResponse> => {
     // Get component name for proper worker identification
     const component = await this.componentService.getComponentById(
       appId,
@@ -141,9 +145,17 @@ export class WorkerService {
 
     // Convert payload to individual WAVE-formatted arguments using enhanced converter
     let waveArgs: string[];
-    if (payload && typeof payload === 'object' && !Array.isArray(payload) && 'params' in payload && Array.isArray(payload.params)) {
+    if (
+      payload &&
+      typeof payload === "object" &&
+      !Array.isArray(payload) &&
+      "params" in payload &&
+      Array.isArray(payload.params)
+    ) {
       // Use the enhanced payload converter that handles all WIT types
-      waveArgs = convertPayloadToWaveArgs(payload as { params: Array<{ value: unknown; typ?: Typ }> });
+      waveArgs = convertPayloadToWaveArgs(
+        payload as { params: Array<{ value: unknown; typ?: Typ }> },
+      );
     } else if (Array.isArray(payload)) {
       // Legacy format - array of raw values
       waveArgs = convertValuesToWaveArgs(payload);
@@ -152,12 +164,12 @@ export class WorkerService {
       waveArgs = [];
     }
 
-    return await this.cliService.callCLI(appId, "worker", [
+    return (await this.cliService.callCLI(appId, "worker", [
       "invoke",
       fullWorkerName,
       functionName,
       ...waveArgs,
-    ]);
+    ])) as InvokeResponse;
   };
 
   public invokeEphemeralAwait = async (
@@ -165,7 +177,7 @@ export class WorkerService {
     componentId: string,
     functionName: string,
     payload: { params?: unknown[] } | unknown[] | undefined,
-  ) => {
+  ): Promise<InvokeResponse> => {
     // Get component name for ephemeral worker identification
     const component = await this.componentService.getComponentById(
       appId,
@@ -175,9 +187,17 @@ export class WorkerService {
 
     // Convert payload to individual WAVE-formatted arguments using enhanced converter
     let waveArgs: string[];
-    if (payload && typeof payload === 'object' && !Array.isArray(payload) && 'params' in payload && Array.isArray(payload.params)) {
+    if (
+      payload &&
+      typeof payload === "object" &&
+      !Array.isArray(payload) &&
+      "params" in payload &&
+      Array.isArray(payload.params)
+    ) {
       // Use the enhanced payload converter that handles all WIT types
-      waveArgs = convertPayloadToWaveArgs(payload as { params: Array<{ value: unknown; typ?: Typ }> });
+      waveArgs = convertPayloadToWaveArgs(
+        payload as { params: Array<{ value: unknown; typ?: Typ }> },
+      );
     } else if (Array.isArray(payload)) {
       // Legacy format - array of raw values
       waveArgs = convertValuesToWaveArgs(payload);
@@ -186,12 +206,12 @@ export class WorkerService {
       waveArgs = [];
     }
 
-    return await this.cliService.callCLI(appId, "worker", [
+    return (await this.cliService.callCLI(appId, "worker", [
       "invoke",
       ephemeralWorkerName,
       functionName,
       ...waveArgs,
-    ]);
+    ])) as InvokeResponse;
   };
 
   public getOplog = async (

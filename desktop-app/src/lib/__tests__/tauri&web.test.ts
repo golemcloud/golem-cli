@@ -75,7 +75,7 @@ describe("tauri&web utilities", () => {
 
     // Set up global mocks
     global.fetch = mockGlobalFetch;
-    global.WebSocket = mockWebSocket;
+    global.WebSocket = mockWebSocket as unknown as typeof WebSocket;
 
     // Mock document
     Object.defineProperty(global, "document", {

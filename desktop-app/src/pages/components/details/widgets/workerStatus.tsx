@@ -12,6 +12,7 @@ import {
 import { Separator } from "@/components/ui/separator.tsx";
 import ErrorBoundary from "@/components/errorBoundary";
 
+
 // Chart configuration with type safety via `satisfies`
 const chartConfig = {
   value: {
@@ -122,7 +123,8 @@ export function WorkerStatus({
                   nameKey="key"
                   innerRadius={60}
                   strokeWidth={5}
-                >
+                  >
+                    {/* @ts-ignore */}
                   <Label content={renderChartLabel} />
                 </Pie>
               </PieChart>

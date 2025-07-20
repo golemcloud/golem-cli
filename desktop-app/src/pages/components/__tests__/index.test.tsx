@@ -65,8 +65,8 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/card", () => ({
-  Card: ({ children, className, onClick }: MockButtonProps) => (
-    <div className={className} onClick={onClick} data-testid="card">
+  Card: ({ children, onClick }: MockButtonProps) => (
+    <div onClick={onClick} data-testid="card">
       {children}
     </div>
   ),

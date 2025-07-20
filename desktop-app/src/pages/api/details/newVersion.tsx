@@ -35,9 +35,9 @@ const newVersionSchema = z.object({
           Number.isInteger(major) &&
           Number.isInteger(minor) &&
           Number.isInteger(patch) &&
-          major >= 0 &&
-          minor >= 0 &&
-          patch >= 0
+          (major || 0) >= 0 &&
+          (minor || 0) >= 0 &&
+          (patch || 0) >= 0
         );
       },
       {
@@ -94,7 +94,7 @@ export default function APINewVersion() {
         setFetchError(null);
         const response = await API.apiService.getApi(appId!, apiName);
         setApiDetails(response);
-        setActiveApiDetails(response[response.length - 1]);
+        setActiveApiDetails(response[response.length - 1]!);
       } catch (error) {
         console.error("Failed to fetch API details:", error);
         setFetchError("Failed to load API details. Please try again.");
@@ -117,7 +117,7 @@ export default function APINewVersion() {
 
   const autoIncrementVersion = () => {
     const [major, minor, patch] = version!.split(".").map(Number);
-    return `${major}.${minor}.${patch + 1}`;
+    return `${major}.${minor}.${(patch || 0) + 1}`;
   };
 
   const onSubmit = async (values: NewVersionFormValues) => {

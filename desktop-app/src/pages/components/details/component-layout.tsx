@@ -321,7 +321,7 @@ export const ComponentLayout = () => {
         const response = await API.componentService.getComponentByIdAsKey(
           appId!,
         );
-        setCurrentComponent(response[componentId]);
+        setCurrentComponent(response[componentId]!);
       } catch (error) {
         console.error("Error fetching component:", error);
       }

@@ -5,12 +5,17 @@ import {
   ComponentExportFunction,
   ComponentList,
   parseExportString,
+  Typ,
 } from "@/types/component.ts";
 import { parseToJsonEditor, safeFormatJSON } from "@/lib/worker";
 import { toast } from "@/hooks/use-toast";
 
 interface UseInvokeProps {
   isWorkerInvoke?: boolean;
+}
+
+export interface InvokeResponse {
+  result_json: Record<string, unknown>;
 }
 
 export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
@@ -35,7 +40,7 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
       const data = await API.componentService.getComponentByIdAsKey(appId!);
       setComponentList(data);
       const matchingComponent =
-        data?.[componentId].versions?.[data?.[componentId].versions.length - 1];
+        data?.[componentId]?.versions?.[data?.[componentId].versions.length - 1];
 
       if (!matchingComponent) {
         throw new Error("Component not found.");
@@ -91,8 +96,8 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
         // Navigate to first available function
         const firstExport = matchingComponent.parsedExports[0];
         const path = isWorkerInvoke
-          ? `/app/${appId}/components/${componentId}/workers/${workerName}/invoke?name=${firstExport.name}&&fn=${firstExport.functions[0].name}`
-          : `/app/${appId}/components/${componentId}/invoke?name=${firstExport.name}&&fn=${firstExport.functions[0].name}`;
+          ? `/app/${appId}/components/${componentId}/workers/${workerName}/invoke?name=${firstExport.name}&&fn=${firstExport.functions[0]?.name}`
+          : `/app/${appId}/components/${componentId}/invoke?name=${firstExport.name}&&fn=${firstExport.functions[0]?.name}`;
         navigate(path);
       }
     } catch (error: unknown) {
@@ -142,7 +147,7 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
         // Old format - convert to new format
         params = parsedValue.map((value, index) => ({
           value,
-          typ: functionDetails.parameters[index]?.typ,
+          typ: functionDetails.parameters[index]?.typ!,
           name: functionDetails.parameters[index]?.name,
         }));
       } else {
@@ -151,7 +156,7 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
       }
 
       const functionName = `${name}.{${urlFn}}`;
-      let response;
+      let response: InvokeResponse;
 
       if (isWorkerInvoke) {
         response = await API.workerService.invokeWorkerAwait(

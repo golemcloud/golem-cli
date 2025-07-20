@@ -26,12 +26,12 @@ export function ExportsList({ exports }: { exports: string[] }) {
               <CommandGroup>
                 {exports.map((endpoint: string, index) => (
                   <CommandItem
-                    key={`${endpoint.exportName || endpoint}-${endpoint.name || index}`}
+                    key={`${endpoint}-${index}`}
                     className="flex items-center justify-between"
                   >
                     <span className="font-mono text-sm">
                       <span className="text-blue-400">
-                        {endpoint.exportName || endpoint}
+                        {endpoint}
                       </span>
                     </span>
                   </CommandItem>

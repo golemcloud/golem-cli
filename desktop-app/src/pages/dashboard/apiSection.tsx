@@ -44,7 +44,7 @@ export function APISection() {
             apis.map(api => (
               <div
                 key={api.id}
-                className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/50 transition-colors cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
+                className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/50 cursor-pointer bg-gradient-to-br from-background to-muted hover:shadow-lg transition-all"
                 onClick={() => {
                   navigate(
                     `/app/${appId}/apis/${api.id}/version/${api.version}`,

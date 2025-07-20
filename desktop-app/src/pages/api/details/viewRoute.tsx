@@ -93,12 +93,12 @@ function PathParameters({ url }: { url: string }) {
 
     // Extract path parameters
     while ((match = pathParamRegex.exec(path)) !== null) {
-      params.push({ name: match[1], type: "path" });
+      params.push({ name: match[1]!, type: "path" });
     }
 
     // Extract query parameters (key-value pair)
     while ((match = queryParamRegex.exec(path)) !== null) {
-      params.push({ name: match[1], type: "query" });
+      params.push({ name: match[1]!, type: "query" });
     }
     setParameters(params);
   };

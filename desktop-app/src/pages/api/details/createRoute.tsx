@@ -32,6 +32,9 @@ import { parseTypeForTooltip } from "@/lib/utils.ts";
 import { API } from "@/service";
 import type { GatewayBindingType, MethodPattern } from "@/types/api";
 import {
+  Export,
+  Function,
+  Parameter,
   parseExportString,
   type Component,
   type ComponentList,
@@ -153,12 +156,16 @@ const CreateRoute = () => {
 
     // Extract path parameters
     while ((match = pathParamRegex.exec(path)) !== null) {
-      pathParams[match[1]] = match[1];
+      if (match[1]) {
+        pathParams[match[1]] = match[1];
+      }
     }
 
     // Extract query parameters (key-value pair)
     while ((match = queryParamRegex.exec(path)) !== null) {
-      queryParams[match[1]] = match[2]; // key -> param
+      if (match[1] && match[2]) {
+        queryParams[match[1]] = match[2]; // key -> param
+      }
     }
 
     const pathParamsObj = Object.fromEntries(
@@ -349,7 +356,7 @@ const CreateRoute = () => {
     },
   ) => {
     return Object.keys(componentResponse).find(
-      key => componentResponse[key].componentName === componentName,
+      key => componentResponse[key]?.componentName === componentName,
     );
   };
 

@@ -347,7 +347,7 @@ describe("SettingsService", () => {
       const result = await service.updateAppLastOpened("app1");
 
       expect(result).toBe(true);
-      expect(mockApps[0].lastOpened).toBe("2023-01-03T00:00:00Z");
+      expect(mockApps[0]?.lastOpened).toBe("2023-01-03T00:00:00Z");
       expect(mockStore.set).toHaveBeenCalledWith("apps", mockApps);
       expect(mockStore.save).toHaveBeenCalled();
 

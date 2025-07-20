@@ -217,6 +217,7 @@ export const Dashboard = () => {
             status: "error",
             operation: "Deploy App",
           });
+          return Promise.reject(result.logs);
         }
       })
       .catch(error => {

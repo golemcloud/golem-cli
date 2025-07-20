@@ -65,8 +65,8 @@ export default function Plugins() {
           }
           // Extract version strings from the versions array
           versions.forEach(plugin => {
-            if (!pluginMap[name].includes(plugin.version)) {
-              pluginMap[name].push(plugin.version);
+            if (!pluginMap[name]?.includes(plugin.version)) {
+              pluginMap[name]?.push(plugin.version);
             }
           });
         });
@@ -88,12 +88,12 @@ export default function Plugins() {
 
   const refreshComponent = () => {
     API.componentService.getComponentByIdAsKey(appId!).then(response => {
-      setComponent(response[componentId]);
+      setComponent(response[componentId]!);
       const data = response[componentId];
-      const versionList = data.versionList || [];
+      const versionList = data?.versionList || [];
       setVersionList(versionList);
       if (versionList.length > 0) {
-        handleVersionChange(versionList[versionList.length - 1]);
+        handleVersionChange(versionList[versionList.length - 1]!);
       }
     });
   };
