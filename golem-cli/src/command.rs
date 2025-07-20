@@ -549,7 +549,7 @@ pub enum GolemCliSubcommand {
 
 pub mod shared_args {
     use crate::model::app::AppBuildStep;
-    use crate::model::AccountId;
+    use crate::model::{AccountId, PluginReference};
     use crate::model::{
         ComponentName, ProjectName, ProjectReference, WorkerName, WorkerUpdateMode,
     };
@@ -722,6 +722,16 @@ pub mod shared_args {
         pub account_id: Option<AccountId>,
     }
 
+    #[derive(Debug, Args)]
+    pub struct PluginArg {
+        // DO NOT ADD EMPTY LINES TO THE DOC COMMENT
+        /// Plugin, accepted formats:
+        ///   - <PLUGIN_NAME>/<PLUGIN_VERSION>
+        ///   - <ACCOUNT_EMAIL>/<PLUGIN_NAME>/<PLUGIN_VERSION>
+        #[arg(verbatim_doc_comment)]
+        pub plugin: PluginReference,
+    }
+
     #[derive(clap::Args, Debug, Clone)]
     pub struct PluginScopeArgs {
         /// Global scope (plugin available for all components)
@@ -791,6 +801,9 @@ pub mod app {
             /// Update mode - auto or manual, defaults to "auto"
             #[arg(long, short, default_value = "auto")]
             update_mode: WorkerUpdateMode,
+            /// Await the update to be completed
+            #[arg(long, default_value_t = false)]
+            r#await: bool,
         },
         /// Redeploy all workers of the application using the latest version
         RedeployWorkers {
@@ -893,6 +906,9 @@ pub mod component {
             /// Update mode - auto or manual, defaults to "auto"
             #[arg(long, short, default_value_t = WorkerUpdateMode::Automatic)]
             update_mode: WorkerUpdateMode,
+            /// Await the update to be completed
+            #[arg(long, default_value_t = false)]
+            r#await: bool,
         },
         /// Redeploy all workers of the selected component using the latest version
         RedeployWorkers {
@@ -1066,6 +1082,9 @@ pub mod worker {
             mode: Option<WorkerUpdateMode>,
             /// The new version of the updated worker (default is the latest version)
             target_version: Option<u64>,
+            /// Await the update to be completed
+            #[arg(long, default_value_t = false)]
+            r#await: bool,
         },
         /// Interrupts a running worker
         Interrupt {
@@ -1371,6 +1390,7 @@ pub mod api {
 }
 
 pub mod plugin {
+    use super::shared_args::PluginArg;
     use crate::command::shared_args::PluginScopeArgs;
     use crate::model::PathBufOrStdin;
     use clap::Subcommand;
@@ -1385,10 +1405,8 @@ pub mod plugin {
         },
         /// Get information about a registered plugin
         Get {
-            /// Plugin name
-            plugin_name: String,
-            /// Plugin version
-            version: String,
+            #[clap(flatten)]
+            plugin: PluginArg,
         },
         /// Register a new plugin
         Register {
@@ -1399,10 +1417,8 @@ pub mod plugin {
         },
         /// Unregister a plugin
         Unregister {
-            /// Plugin name
-            plugin_name: String,
-            /// Plugin version
-            version: String,
+            #[clap(flatten)]
+            plugin: PluginArg,
         },
     }
 }
@@ -1613,8 +1629,9 @@ pub mod cloud {
 
         use crate::command::cloud::project::plugin::ProjectPluginSubcommand;
         use crate::command::cloud::project::policy::PolicySubcommand;
-        use crate::model::{ProjectName, ProjectPermission, ProjectPolicyId, ProjectReference};
+        use crate::model::{ProjectName, ProjectPolicyId, ProjectReference};
         use clap::Subcommand;
+        use golem_common::model::auth::ProjectPermission;
 
         #[derive(clap::Args, Debug)]
         #[group(required = true, multiple = false)]
@@ -1666,8 +1683,9 @@ pub mod cloud {
         }
 
         pub mod policy {
-            use crate::model::{ProjectPermission, ProjectPolicyId};
+            use crate::model::ProjectPolicyId;
             use clap::Subcommand;
+            use golem_common::model::auth::ProjectPermission;
 
             #[derive(Subcommand, Debug)]
             pub enum PolicySubcommand {

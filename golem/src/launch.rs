@@ -22,12 +22,14 @@ use golem_common::config::DbSqliteConfig;
 use golem_common::model::RetryConfig;
 use golem_component_service::config::ComponentServiceConfig;
 use golem_component_service::ComponentService;
-use golem_service_base::clients::RemoteCloudServiceConfig;
+use golem_service_base::clients::RemoteServiceConfig;
 use golem_service_base::config::BlobStorageConfig;
 use golem_service_base::config::LocalFileSystemBlobStorageConfig;
 use golem_service_base::service::routing_table::RoutingTableConfig;
 use golem_shard_manager::shard_manager_config::ShardManagerConfig;
-use golem_worker_executor::services::golem_config::GolemConfig as WorkerExecutorConfig;
+use golem_worker_executor::services::golem_config::{
+    GolemConfig as WorkerExecutorConfig, ProjectServiceConfig, ProjectServiceGrpcConfig,
+};
 use golem_worker_service::config::WorkerServiceConfig;
 use golem_worker_service::WorkerService;
 use opentelemetry::global;
@@ -232,7 +234,7 @@ fn component_service_config(
                 connect_timeout: Default::default(),
             },
         ),
-        cloud_service: golem_service_base::clients::RemoteCloudServiceConfig {
+        cloud_service: golem_service_base::clients::RemoteServiceConfig {
             host: args.router_addr.clone(),
             port: cloud_service.grpc_port,
             access_token: ADMIN_TOKEN,
@@ -297,6 +299,13 @@ fn worker_executor_config(
             access_token: ADMIN_TOKEN.to_string(),
             ..ComponentServiceGrpcConfig::default()
         }),
+        project_service: ProjectServiceConfig::Grpc(ProjectServiceGrpcConfig {
+            host: args.router_addr.clone(),
+            port: cloud_service_run_details.grpc_port,
+            access_token: ADMIN_TOKEN.to_string(),
+            retries: RetryConfig::default(),
+            ..ProjectServiceGrpcConfig::default()
+        }),
         resource_limits: ResourceLimitsConfig::Grpc(ResourceLimitsGrpcConfig {
             host: args.router_addr.clone(),
             port: cloud_service_run_details.grpc_port,
@@ -351,11 +360,11 @@ fn worker_service_config(
             port: shard_manager_run_details.grpc_port,
             ..RoutingTableConfig::default()
         },
-        cloud_service: RemoteCloudServiceConfig {
+        cloud_service: RemoteServiceConfig {
             host: args.router_addr.clone(),
             port: cloud_service_run_details.grpc_port,
             access_token: ADMIN_TOKEN,
-            ..RemoteCloudServiceConfig::default()
+            ..RemoteServiceConfig::default()
         },
         ..Default::default()
     }
