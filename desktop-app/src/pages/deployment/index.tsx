@@ -264,12 +264,7 @@ export default function Deployments() {
                           <div className="flex justify-between">
                             <div className="flex items-center gap-4">
                               <span
-                                className="relative rounded bg-muted p-1 font-mono text-sm cursor-pointer"
-                                onClick={() =>
-                                  navigate(
-                                    `/apis/${api.id}/version/${api.version}`,
-                                  )
-                                }
+                                className="relative rounded bg-muted p-1 font-mono text-sm"
                               >
                                 {api.id} (v{api.version})
                               </span>

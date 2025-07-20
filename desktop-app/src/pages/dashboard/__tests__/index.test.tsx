@@ -2,9 +2,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Dashboard } from "../index";
 import { BrowserRouter } from "react-router-dom";
-import { ComponentList } from "@/types/component";
+import { ComponentList, ComponentType } from "@/types/component";
 import { Deployment } from "@/types/deployments";
-import { HttpApiDefinition } from "@/types/golemManifest";
+import { HttpApiDefinition, HttpApiDefinitionRoute } from "@/types/golemManifest";
+import { App } from "@/lib/settings";
 
 // Mock lucide-react icons
 vi.mock("lucide-react", () => ({
@@ -133,6 +134,7 @@ vi.mock("@/lib/utils", () => ({
 import { API } from "@/service";
 import { storeService } from "@/lib/settings.ts";
 import { toast } from "@/hooks/use-toast";
+
 const mockAPI = vi.mocked(API);
 const mockStoreService = vi.mocked(storeService);
 const mockToast = vi.mocked(toast);
@@ -143,10 +145,11 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe("Dashboard", () => {
-  const sampleApp = {
+  const sampleApp: App = {
     id: mockAppId,
     name: "Test Application",
-    path: "/test/path",
+    folderLocation: "/test/path",
+    golemYamlLocation: "/test/path/golem.yaml",
     lastOpened: new Date().toISOString(),
   };
 
@@ -161,7 +164,7 @@ describe("Dashboard", () => {
           componentId: "test-component-1",
           componentName: "user-service",
           componentVersion: 3,
-          componentType: "Durable" as const,
+          componentType: ComponentType.Durable,
           createdAt: "2024-01-01T00:00:00Z",
         }
       ],
@@ -170,12 +173,13 @@ describe("Dashboard", () => {
 
   const sampleDeployments: Deployment[] = [
     {
-      deploymentId: "deploy-1",
-      deploymentName: "production",
-      componentName: "user-service",
-      componentVersion: 3,
-      status: "Running",
+      apiDefinitions: [{ id: "api-1", version: "1.0.0" }],
       createdAt: "2024-01-01T00:00:00Z",
+      projectId: "project-1",
+      site: {
+        host: "production.example.com",
+        subdomain: "production",
+      },
     },
   ];
 
@@ -183,18 +187,16 @@ describe("Dashboard", () => {
     {
       id: "api-1",
       version: "1.0.0",
-      draft: false,
       routes: [
         {
           method: "GET",
           path: "/users",
           binding: {
-            type: "wit-worker",
-            componentId: "test-component-1",
-            workerName: "user-service",
-            functionName: "get-users",
+            type: "http-handler",
+            componentName: "user-service",
+            componentVersion: 1,
           },
-        },
+        } as HttpApiDefinitionRoute,
       ],
     },
   ];
@@ -204,18 +206,18 @@ describe("Dashboard", () => {
     mockShowLog.mockClear();
     
     // Setup default mock implementations
-    mockStoreService.getAppById.mockResolvedValue(sampleApp);
-    mockStoreService.updateAppLastOpened.mockResolvedValue(undefined);
-    mockAPI.componentService.getComponentByIdAsKey.mockResolvedValue(sampleComponents);
-    mockAPI.deploymentService.getDeploymentApi.mockResolvedValue(sampleDeployments);
-    mockAPI.apiService.getApiList.mockResolvedValue(sampleApis);
-    mockAPI.manifestService.getAppYamlContent.mockResolvedValue("apiVersion: v1\nkind: App");
+    vi.mocked(mockStoreService.getAppById).mockResolvedValue(sampleApp);
+    vi.mocked(mockStoreService.updateAppLastOpened).mockResolvedValue(true);
+    vi.mocked(mockAPI.componentService.getComponentByIdAsKey).mockResolvedValue(sampleComponents);
+    vi.mocked(mockAPI.deploymentService.getDeploymentApi).mockResolvedValue(sampleDeployments);
+    vi.mocked(mockAPI.apiService.getApiList).mockResolvedValue(sampleApis);
+    vi.mocked(mockAPI.manifestService.getAppYamlContent).mockResolvedValue("apiVersion: v1\nkind: App");
     
     // Setup successful API responses by default
-    mockAPI.appService.buildApp.mockResolvedValue({ success: true, logs: "Build completed" });
-    mockAPI.appService.updateWorkers.mockResolvedValue({ success: true, logs: "Workers updated" });
-    mockAPI.appService.deployWorkers.mockResolvedValue({ success: true, logs: "Workers deployed" });
-    mockAPI.appService.cleanApp.mockResolvedValue({ success: true, logs: "App cleaned" });
+    vi.mocked(mockAPI.appService.buildApp).mockResolvedValue({ success: true, logs: "Build completed", result: {} });
+    vi.mocked(mockAPI.appService.updateWorkers).mockResolvedValue({ success: true, logs: "Workers updated", result: {} });
+    vi.mocked(mockAPI.appService.deployWorkers).mockResolvedValue({ success: true, logs: "Workers deployed", result: {} });
+    vi.mocked(mockAPI.appService.cleanApp).mockResolvedValue({ success: true, logs: "App cleaned", result: {} });
   });
 
   it("renders the dashboard layout correctly", async () => {
@@ -287,9 +289,10 @@ describe("Dashboard", () => {
   });
 
   it("handles build app failure with log display", async () => {
-    mockAPI.appService.buildApp.mockResolvedValue({
+    vi.mocked(mockAPI.appService.buildApp).mockResolvedValue({
       success: false,
       logs: "Build failed: compilation error",
+      result: {},
     });
 
     render(
@@ -368,7 +371,7 @@ describe("Dashboard", () => {
   });
 
   it("handles YAML loading failure", async () => {
-    mockAPI.manifestService.getAppYamlContent.mockRejectedValue(new Error("YAML not found"));
+    vi.mocked(mockAPI.manifestService.getAppYamlContent).mockRejectedValue(new Error("YAML not found"));
 
     render(
       <TestWrapper>
@@ -390,8 +393,8 @@ describe("Dashboard", () => {
 
   it("shows loading states for action buttons", async () => {
     // Mock a delayed response to test loading state
-    mockAPI.appService.buildApp.mockImplementation(() => 
-      new Promise(resolve => setTimeout(() => resolve({ success: true, logs: "" }), 100))
+    vi.mocked(mockAPI.appService.buildApp).mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({ success: true, logs: "", result: {} }), 100))
     );
 
     render(
@@ -427,7 +430,13 @@ describe("Dashboard", () => {
   });
 
   it("displays default app name when app name is not available", async () => {
-    mockStoreService.getAppById.mockResolvedValue({ id: mockAppId, name: "" });
+    vi.mocked(mockStoreService.getAppById).mockResolvedValue({
+      id: mockAppId,
+      name: "",
+      folderLocation: "/test/path",
+      golemYamlLocation: "/test/path/golem.yaml",
+      lastOpened: new Date().toISOString(),
+    });
 
     render(
       <TestWrapper>
