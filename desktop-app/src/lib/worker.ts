@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Case,
   ComponentExportFunction,
@@ -5,7 +6,6 @@ import {
   Typ,
   TypeField,
 } from "@/types/component.ts";
-
 // Raw type structure from external sources
 interface RawType {
   type?: string;
