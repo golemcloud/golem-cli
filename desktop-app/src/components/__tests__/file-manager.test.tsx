@@ -1,4 +1,11 @@
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  type MockedFunction,
+} from "vitest";
 import { render, screen } from "@testing-library/react";
 import { FileNode, FolderStructure } from "../file-manager";
 import { FileStructure } from "@/types/component";

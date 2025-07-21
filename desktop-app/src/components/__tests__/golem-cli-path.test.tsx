@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction, type Mocked } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type MockedFunction,
+  type Mocked,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GolemCliPathSetting } from "../golem-cli-path";
@@ -103,9 +112,7 @@ vi.mock("lucide-react", () => ({
 
 describe("GolemCliPathSetting", () => {
   // Get properly typed mock references
-  let mockOpen: MockedFunction<
-    typeof import("@tauri-apps/plugin-dialog").open
-  >;
+  let mockOpen: MockedFunction<typeof import("@tauri-apps/plugin-dialog").open>;
   let mockToast: MockedFunction<typeof import("@/hooks/use-toast").toast>;
   let mockSettingsService: Mocked<
     typeof import("@/lib/settings").settingsService

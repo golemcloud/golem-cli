@@ -135,14 +135,17 @@ describe("RecursiveParameterInput", () => {
     fireEvent.click(addButton);
 
     expect(mockOnChange).toHaveBeenCalledTimes(1);
-    expect(mockOnChange).toHaveBeenCalledWith("c.addresses", expect.arrayContaining([
-      expect.objectContaining({ 
-        home: expect.objectContaining({
-          apartment: null,
-          street: expect.any(String)
-        })
-      })
-    ]));
+    expect(mockOnChange).toHaveBeenCalledWith(
+      "c.addresses",
+      expect.arrayContaining([
+        expect.objectContaining({
+          home: expect.objectContaining({
+            apartment: null,
+            street: expect.any(String),
+          }),
+        }),
+      ]),
+    );
   });
 
   it("shows variant selection and form fields after adding an item", () => {
@@ -260,7 +263,9 @@ describe("RecursiveParameterInput", () => {
     // Check business-specific fields
     expect(screen.getByText("company-name")).toBeInTheDocument();
     expect(screen.getByText("suite")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Enter company-name...")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Enter company-name..."),
+    ).toBeInTheDocument();
     // Suite is optional, so its input is not shown unless enabled
     expect(screen.getByText("Optional value")).toBeInTheDocument();
   });
@@ -281,7 +286,8 @@ describe("RecursiveParameterInput", () => {
     );
 
     // Find and click the remove button (minus icon)
-    const removeButton = screen.getByTestId("minus-circle").parentElement as HTMLElement;
+    const removeButton = screen.getByTestId("minus-circle")
+      .parentElement as HTMLElement;
     fireEvent.click(removeButton);
 
     // Check that onChange was called with empty array
@@ -309,7 +315,15 @@ describe("RecursiveParameterInput", () => {
 
     // Check that onChange was called with updated street value
     expect(mockOnChange).toHaveBeenCalledWith("c.addresses", [
-      { home: { street: "123 Main St", city: "", state: "", zip: "", apartment: null } },
+      {
+        home: {
+          street: "123 Main St",
+          city: "",
+          state: "",
+          zip: "",
+          apartment: null,
+        },
+      },
     ]);
   });
 
@@ -330,8 +344,10 @@ describe("RecursiveParameterInput", () => {
 
     // Find the optional checkbox for apartment
     const apartmentSection = screen.getByText("apartment").parentElement;
-    const optionalCheckbox = apartmentSection?.querySelector('input[type="checkbox"]') as HTMLInputElement;
-    
+    const optionalCheckbox = apartmentSection?.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+
     expect(optionalCheckbox).toBeInTheDocument();
     expect(optionalCheckbox.checked).toBe(false);
 
@@ -346,8 +362,25 @@ describe("RecursiveParameterInput", () => {
 
   it("supports multiple address items in the list", () => {
     const valueWithMultipleItems = [
-      { home: { street: "123 Main St", city: "City1", state: "State1", zip: "12345", apartment: null } },
-      { business: { "company-name": "ACME Corp", street: "456 Oak Ave", suite: null, city: "City2", state: "State2", zip: "67890" } },
+      {
+        home: {
+          street: "123 Main St",
+          city: "City1",
+          state: "State1",
+          zip: "12345",
+          apartment: null,
+        },
+      },
+      {
+        business: {
+          "company-name": "ACME Corp",
+          street: "456 Oak Ave",
+          suite: null,
+          city: "City2",
+          state: "State2",
+          zip: "67890",
+        },
+      },
     ];
 
     render(

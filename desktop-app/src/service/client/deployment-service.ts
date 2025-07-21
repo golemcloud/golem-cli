@@ -8,9 +8,7 @@ export class DeploymentService {
     this.cliService = cliService;
   }
 
-  public getDeploymentApi = async (
-    appId: string,
-  ): Promise<Deployment[]> => {
+  public getDeploymentApi = async (appId: string): Promise<Deployment[]> => {
     return (await this.cliService.callCLI(appId, "api", [
       "deployment",
       "list",

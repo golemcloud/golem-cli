@@ -40,7 +40,9 @@ export function useInvoke({ isWorkerInvoke = false }: UseInvokeProps = {}) {
       const data = await API.componentService.getComponentByIdAsKey(appId!);
       setComponentList(data);
       const matchingComponent =
-        data?.[componentId]?.versions?.[data?.[componentId].versions.length - 1];
+        data?.[componentId]?.versions?.[
+          data?.[componentId].versions.length - 1
+        ];
 
       if (!matchingComponent) {
         throw new Error("Component not found.");

@@ -46,8 +46,12 @@ export default function WorkerManage() {
   useEffect(() => {
     if (componentId && workerName) {
       API.componentService.getComponentByIdAsKey(appId!).then(response => {
-        const componentListArray = Object.values(response as Record<string, ComponentList>);
-        const foundComponent = componentListArray.find((x: ComponentList) => x.componentId === componentId);
+        const componentListArray = Object.values(
+          response as Record<string, ComponentList>,
+        );
+        const foundComponent = componentListArray.find(
+          (x: ComponentList) => x.componentId === componentId,
+        );
         if (foundComponent) {
           setComponentList(foundComponent);
         }

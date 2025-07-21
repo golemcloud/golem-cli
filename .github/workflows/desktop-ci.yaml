@@ -71,7 +71,11 @@ jobs:
       run: npm test
       working-directory: ./desktop-app
 
-    - name: Lint frontend
+    - name: Check Code Format
+      run: npm run format:check
+      working-directory: ./desktop-app
+
+    - name: Lint Check
       run: npm run lint
       working-directory: ./desktop-app
 

@@ -313,10 +313,16 @@ describe("worker utilities", () => {
 
       // Mock getComputedStyle function
       const originalGetComputedStyle = window.getComputedStyle;
-      window.getComputedStyle = vi.fn(() => ({
-        ...mockComputedStyle,
-        getPropertyValue: vi.fn((prop: string) => mockComputedStyle[prop as keyof typeof mockComputedStyle] || ""),
-      } as unknown as CSSStyleDeclaration));
+      window.getComputedStyle = vi.fn(
+        () =>
+          ({
+            ...mockComputedStyle,
+            getPropertyValue: vi.fn(
+              (prop: string) =>
+                mockComputedStyle[prop as keyof typeof mockComputedStyle] || "",
+            ),
+          }) as unknown as CSSStyleDeclaration,
+      );
 
       document.body.appendChild(textarea);
 

@@ -61,7 +61,7 @@ const createEmptyValue = (
       // For variants, create the first case as default
       if (typeDef.cases && typeDef.cases.length > 0) {
         const firstCase = typeDef.cases[0];
-        if(!firstCase) return {};
+        if (!firstCase) return {};
         if (typeof firstCase === "string") {
           // Unit variant - just return the case name
           return firstCase;

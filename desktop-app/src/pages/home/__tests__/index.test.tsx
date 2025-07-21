@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type MockedFunction,
+} from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -407,9 +415,7 @@ describe("Home Page", () => {
         yamlPath: "/path/to/new/app/golem.yaml",
       });
       (
-        settingsService.addApp as MockedFunction<
-          typeof settingsService.addApp
-        >
+        settingsService.addApp as MockedFunction<typeof settingsService.addApp>
       ).mockResolvedValue(true);
 
       const user = userEvent.setup();

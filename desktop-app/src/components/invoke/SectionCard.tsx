@@ -110,7 +110,9 @@ export function SectionCard({
                     <PopoverContent className="w-[500px] p-2 text-[13px] bg-gray-800 text-white rounded-lg shadow-lg max-h-[500px] overflow-scroll">
                       <CodeBlock
                         text={JSON.stringify(
-                          parseTooltipTypesData(functionDetails as RawTypesInput),
+                          parseTooltipTypesData(
+                            functionDetails as RawTypesInput,
+                          ),
                           null,
                           2,
                         )}

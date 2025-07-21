@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type MockedFunction,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -192,9 +200,7 @@ describe("Application Workflow Integration Tests", () => {
         yamlPath: "/path/to/new/app/golem.yaml",
       });
       (
-        settingsService.addApp as MockedFunction<
-          typeof settingsService.addApp
-        >
+        settingsService.addApp as MockedFunction<typeof settingsService.addApp>
       ).mockResolvedValue(true);
 
       const user = userEvent.setup();
@@ -306,9 +312,11 @@ describe("Application Workflow Integration Tests", () => {
         React.useEffect(() => {
           const service = new Service();
           if (service.componentService) {
-            service.componentService.getComponentById("app-1", "test-component").catch((err: Error) => {
-              setError(err.message);
-            });
+            service.componentService
+              .getComponentById("app-1", "test-component")
+              .catch((err: Error) => {
+                setError(err.message);
+              });
           } else {
             setError("API Error");
           }

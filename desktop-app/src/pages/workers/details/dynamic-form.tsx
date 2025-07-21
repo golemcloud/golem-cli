@@ -8,12 +8,12 @@ import { RecursiveParameterInput } from "@/components/invoke/RecursiveParameterI
 
 export const nonStringPrimitives = [
   "S64",
-  "S32", 
+  "S32",
   "S16",
   "S8",
   "U64",
   "U32",
-  "U16", 
+  "U16",
   "U8",
   "Bool",
   "Enum",

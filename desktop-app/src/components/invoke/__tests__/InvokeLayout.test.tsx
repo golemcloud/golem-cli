@@ -21,7 +21,11 @@ vi.mock("lucide-react", () => ({
 
 // Mock DynamicForm component
 vi.mock("@/pages/workers/details/dynamic-form.tsx", () => ({
-  DynamicForm: ({ functionDetails, onInvoke, exportName }: {
+  DynamicForm: ({
+    functionDetails,
+    onInvoke,
+    exportName,
+  }: {
     functionDetails: ComponentExportFunction;
     onInvoke: (data: InvokeParams) => void;
     exportName: string;
@@ -30,13 +34,15 @@ vi.mock("@/pages/workers/details/dynamic-form.tsx", () => ({
       <div>Dynamic Form for {exportName}</div>
       <div>Function: {functionDetails.name}</div>
       <button
-        onClick={() => onInvoke({
-          params: functionDetails.parameters.map(param => ({
-            name: param.name,
-            typ: param.typ,
-            value: "test-value"
-          }))
-        })}
+        onClick={() =>
+          onInvoke({
+            params: functionDetails.parameters.map(param => ({
+              name: param.name,
+              typ: param.typ,
+              value: "test-value",
+            })),
+          })
+        }
       >
         Invoke Function
       </button>
@@ -46,7 +52,14 @@ vi.mock("@/pages/workers/details/dynamic-form.tsx", () => ({
 
 // Mock SectionCard component
 vi.mock("../SectionCard", () => ({
-  SectionCard: ({ title, description, value, onValueChange, onInvoke, readOnly }: {
+  SectionCard: ({
+    title,
+    description,
+    value,
+    onValueChange,
+    onInvoke,
+    readOnly,
+  }: {
     title: string;
     description: string;
     value: string;
@@ -62,7 +75,7 @@ vi.mock("../SectionCard", () => ({
         <textarea
           data-testid="section-textarea"
           value={value}
-          onChange={(e) => onValueChange(e.target.value)}
+          onChange={e => onValueChange(e.target.value)}
         />
       )}
       {onInvoke && (
@@ -80,10 +93,13 @@ vi.mock("../SectionCard", () => ({
 // Mock worker utilities
 vi.mock("@/lib/worker", () => ({
   parseToJsonEditor: (functionDetails: ComponentExportFunction) => ({
-    [functionDetails.parameters[0]?.name || "param"]: "default-value"
+    [functionDetails.parameters[0]?.name || "param"]: "default-value",
   }),
   parseTypesData: (functionDetails: ComponentExportFunction) => ({
-    types: functionDetails.parameters.map(p => ({ name: p.name, type: p.type }))
+    types: functionDetails.parameters.map(p => ({
+      name: p.name,
+      type: p.type,
+    })),
   }),
 }));
 
@@ -121,7 +137,10 @@ describe("InvokeLayout", () => {
                                 { name: "zip", typ: { type: "str" } },
                                 {
                                   name: "apartment",
-                                  typ: { type: "option", inner: { type: "str" } },
+                                  typ: {
+                                    type: "option",
+                                    inner: { type: "str" },
+                                  },
                                 },
                               ],
                             },
@@ -135,7 +154,10 @@ describe("InvokeLayout", () => {
                                 { name: "street", typ: { type: "str" } },
                                 {
                                   name: "suite",
-                                  typ: { type: "option", inner: { type: "str" } },
+                                  typ: {
+                                    type: "option",
+                                    inner: { type: "str" },
+                                  },
                                 },
                                 { name: "city", typ: { type: "str" } },
                                 { name: "state", typ: { type: "str" } },
@@ -195,7 +217,10 @@ describe("InvokeLayout", () => {
                                   { name: "zip", typ: { type: "str" } },
                                   {
                                     name: "apartment",
-                                    typ: { type: "option", inner: { type: "str" } },
+                                    typ: {
+                                      type: "option",
+                                      inner: { type: "str" },
+                                    },
                                   },
                                 ],
                               },
@@ -205,11 +230,17 @@ describe("InvokeLayout", () => {
                               typ: {
                                 type: "record",
                                 fields: [
-                                  { name: "company-name", typ: { type: "str" } },
+                                  {
+                                    name: "company-name",
+                                    typ: { type: "str" },
+                                  },
                                   { name: "street", typ: { type: "str" } },
                                   {
                                     name: "suite",
-                                    typ: { type: "option", inner: { type: "str" } },
+                                    typ: {
+                                      type: "option",
+                                      inner: { type: "str" },
+                                    },
                                   },
                                   { name: "city", typ: { type: "str" } },
                                   { name: "state", typ: { type: "str" } },
@@ -268,10 +299,14 @@ describe("InvokeLayout", () => {
     render(<InvokeLayout {...mockProps} />);
 
     // Check sidebar is present
-    expect(screen.getByText("appy:complex-exports/appy-complex-api")).toBeInTheDocument();
+    expect(
+      screen.getByText("appy:complex-exports/appy-complex-api"),
+    ).toBeInTheDocument();
 
     // Check header is present
-    expect(screen.getByText("appy:complex-exports/appy-complex-api - add-contact")).toBeInTheDocument();
+    expect(
+      screen.getByText("appy:complex-exports/appy-complex-api - add-contact"),
+    ).toBeInTheDocument();
 
     // Check view mode buttons are present
     expect(screen.getByText("Form Layout")).toBeInTheDocument();
@@ -290,23 +325,32 @@ describe("InvokeLayout", () => {
   it("highlights the current function in the sidebar", () => {
     render(<InvokeLayout {...mockProps} />);
 
-    const addContactButton = screen.getByRole("button", { name: "add-contact" });
-    const getContactsButton = screen.getByRole("button", { name: "get-contacts" });
+    const addContactButton = screen.getByRole("button", {
+      name: "add-contact",
+    });
+    const getContactsButton = screen.getByRole("button", {
+      name: "get-contacts",
+    });
 
     // add-contact should be highlighted since urlFn is "add-contact"
     expect(addContactButton).toHaveClass("bg-gray-300", "dark:bg-neutral-800");
-    expect(getContactsButton).not.toHaveClass("bg-gray-300", "dark:bg-neutral-800");
+    expect(getContactsButton).not.toHaveClass(
+      "bg-gray-300",
+      "dark:bg-neutral-800",
+    );
   });
 
   it("calls onNavigateToFunction when a function is clicked", () => {
     render(<InvokeLayout {...mockProps} />);
 
-    const getContactsButton = screen.getByRole("button", { name: "get-contacts" });
+    const getContactsButton = screen.getByRole("button", {
+      name: "get-contacts",
+    });
     fireEvent.click(getContactsButton);
 
     expect(mockProps.onNavigateToFunction).toHaveBeenCalledWith(
       "appy:complex-exports/appy-complex-api",
-      "get-contacts"
+      "get-contacts",
     );
   });
 
@@ -314,7 +358,11 @@ describe("InvokeLayout", () => {
     render(<InvokeLayout {...mockProps} />);
 
     expect(screen.getByTestId("dynamic-form")).toBeInTheDocument();
-    expect(screen.getByText("Dynamic Form for appy:complex-exports/appy-complex-api")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Dynamic Form for appy:complex-exports/appy-complex-api",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText("Function: add-contact")).toBeInTheDocument();
   });
 
@@ -324,7 +372,9 @@ describe("InvokeLayout", () => {
 
     expect(screen.getByTestId("section-card-preview")).toBeInTheDocument();
     expect(screen.getByText("Preview")).toBeInTheDocument();
-    expect(screen.getByText("Preview the current function invocation arguments")).toBeInTheDocument();
+    expect(
+      screen.getByText("Preview the current function invocation arguments"),
+    ).toBeInTheDocument();
   });
 
   it("renders SectionCard with types when viewMode is 'types'", () => {
@@ -333,7 +383,9 @@ describe("InvokeLayout", () => {
 
     expect(screen.getByTestId("section-card-types")).toBeInTheDocument();
     expect(screen.getAllByText("Types")).toHaveLength(2); // Button and section header
-    expect(screen.getByText("Types of the function arguments")).toBeInTheDocument();
+    expect(
+      screen.getByText("Types of the function arguments"),
+    ).toBeInTheDocument();
   });
 
   it("switches view mode when buttons are clicked", () => {
@@ -373,25 +425,31 @@ describe("InvokeLayout", () => {
     fireEvent.click(invokeButton);
 
     expect(mockProps.onInvoke).toHaveBeenCalledWith({
-      params: [{
-        name: "c",
-        typ: mockProps.functionDetails!.parameters[0]!.typ,
-        value: "test-value"
-      }]
+      params: [
+        {
+          name: "c",
+          typ: mockProps.functionDetails!.parameters[0]!.typ,
+          value: "test-value",
+        },
+      ],
     });
   });
 
   it("renders result section when resultValue is provided", () => {
-    const propsWithResult = { 
-      ...mockProps, 
-      resultValue: '{"success": true, "message": "Contact added"}' 
+    const propsWithResult = {
+      ...mockProps,
+      resultValue: '{"success": true, "message": "Contact added"}',
     };
     render(<InvokeLayout {...propsWithResult} />);
 
     expect(screen.getByTestId("section-card-result")).toBeInTheDocument();
     expect(screen.getByText("Result")).toBeInTheDocument();
-    expect(screen.getByText("View the result of your latest invocation")).toBeInTheDocument();
-    expect(screen.getByText('{"success": true, "message": "Contact added"}')).toBeInTheDocument();
+    expect(
+      screen.getByText("View the result of your latest invocation"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('{"success": true, "message": "Contact added"}'),
+    ).toBeInTheDocument();
   });
 
   it("does not render result section when resultValue is empty", () => {
@@ -404,12 +462,18 @@ describe("InvokeLayout", () => {
     render(<InvokeLayout {...mockProps} />);
 
     // Check that the export name is displayed correctly
-    expect(screen.getByText("appy:complex-exports/appy-complex-api")).toBeInTheDocument();
+    expect(
+      screen.getByText("appy:complex-exports/appy-complex-api"),
+    ).toBeInTheDocument();
 
     // Check that both functions are rendered
-    const functionButtons = screen.getAllByRole("button").filter(button => 
-      button.textContent === "add-contact" || button.textContent === "get-contacts"
-    );
+    const functionButtons = screen
+      .getAllByRole("button")
+      .filter(
+        button =>
+          button.textContent === "add-contact" ||
+          button.textContent === "get-contacts",
+      );
     expect(functionButtons).toHaveLength(2);
   });
 
@@ -436,7 +500,9 @@ describe("InvokeLayout", () => {
 
     // Should not render any of the view mode content
     expect(screen.queryByTestId("dynamic-form")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("section-card-preview")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("section-card-preview"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("section-card-types")).not.toBeInTheDocument();
   });
 
@@ -453,7 +519,11 @@ describe("InvokeLayout", () => {
   it("passes correct export and function names to components", () => {
     render(<InvokeLayout {...mockProps} />);
 
-    expect(screen.getByText("Dynamic Form for appy:complex-exports/appy-complex-api")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Dynamic Form for appy:complex-exports/appy-complex-api",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText("Function: add-contact")).toBeInTheDocument();
   });
 });

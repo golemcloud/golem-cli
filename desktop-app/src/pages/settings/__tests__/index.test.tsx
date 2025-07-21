@@ -45,7 +45,9 @@ describe("SettingsPage", () => {
 
     it("should render the main heading", () => {
       renderSettingsPage();
-      expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Settings" }),
+      ).toBeInTheDocument();
     });
 
     it("should render basic components", () => {

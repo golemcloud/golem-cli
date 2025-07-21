@@ -42,7 +42,9 @@ export class PluginService {
     name: string,
   ): Promise<Plugin[]> => {
     const allPlugins = await this.cliService.callCLI(appId, "plugin", ["list"]);
-    return (allPlugins as Plugin[]).filter((plugin: Plugin) => plugin.name === name);
+    return (allPlugins as Plugin[]).filter(
+      (plugin: Plugin) => plugin.name === name,
+    );
   };
 
   public createPlugin = async (

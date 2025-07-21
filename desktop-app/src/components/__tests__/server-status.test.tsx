@@ -1,4 +1,11 @@
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  type MockedFunction,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { ServerStatus } from "../server-status";
 import { API } from "@/service";

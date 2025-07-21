@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type MockedFunction,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -327,13 +335,9 @@ describe("CreateApplication", () => {
       (open as MockedFunction<typeof open>).mockResolvedValue(
         "/path/to/folder",
       );
-      (invoke as MockedFunction<typeof invoke>).mockResolvedValue(
-        "app-id-123",
-      );
+      (invoke as MockedFunction<typeof invoke>).mockResolvedValue("app-id-123");
       (
-        settingsService.addApp as MockedFunction<
-          typeof settingsService.addApp
-        >
+        settingsService.addApp as MockedFunction<typeof settingsService.addApp>
       ).mockResolvedValue(true);
 
       renderCreateApplication();

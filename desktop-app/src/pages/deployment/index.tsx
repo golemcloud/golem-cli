@@ -263,9 +263,7 @@ export default function Deployments() {
                         <div key={api.id} className="grid space-y-2">
                           <div className="flex justify-between">
                             <div className="flex items-center gap-4">
-                              <span
-                                className="relative rounded bg-muted p-1 font-mono text-sm"
-                              >
+                              <span className="relative rounded bg-muted p-1 font-mono text-sm">
                                 {api.id} (v{api.version})
                               </span>
 

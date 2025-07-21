@@ -1,8 +1,4 @@
-import {
-  Case,
-  FileStructure,
-  Typ,
-} from "@/types/component";
+import { Case, FileStructure, Typ } from "@/types/component";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { HttpApiDefinition } from "@/types/golemManifest.ts";
@@ -129,7 +125,6 @@ export const parseErrorMessage = (error: string): string => {
   }
   return "An unknown error occurred.";
 };
-
 
 interface FileNode {
   name: string;

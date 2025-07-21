@@ -85,7 +85,15 @@ vi.mock("@/components/ui/button", () => ({
   ),
 }));
 
-import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type MockedFunction,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DynamicForm, nonStringPrimitives } from "../dynamic-form";
@@ -526,9 +534,9 @@ describe("DynamicForm", () => {
 
     it("should validate JSON fields and show parse errors", async () => {
       const { sanitizeInput } = await import("@/lib/utils");
-      (
-        sanitizeInput as MockedFunction<typeof sanitizeInput>
-      ).mockReturnValue("invalid json");
+      (sanitizeInput as MockedFunction<typeof sanitizeInput>).mockReturnValue(
+        "invalid json",
+      );
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {
@@ -735,9 +743,9 @@ describe("DynamicForm", () => {
       (
         parseToJsonEditor as MockedFunction<typeof parseToJsonEditor>
       ).mockReturnValue([{ field: "value" }]);
-      (
-        sanitizeInput as MockedFunction<typeof sanitizeInput>
-      ).mockReturnValue('{"field": "updated"}');
+      (sanitizeInput as MockedFunction<typeof sanitizeInput>).mockReturnValue(
+        '{"field": "updated"}',
+      );
 
       const user = userEvent.setup();
       const functionDetails: ComponentExportFunction = {

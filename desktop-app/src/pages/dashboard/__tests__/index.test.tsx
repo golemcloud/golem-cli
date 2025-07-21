@@ -4,7 +4,10 @@ import { Dashboard } from "../index";
 import { BrowserRouter } from "react-router-dom";
 import { ComponentList, ComponentType } from "@/types/component";
 import { Deployment } from "@/types/deployments";
-import { HttpApiDefinition, HttpApiDefinitionRoute } from "@/types/golemManifest";
+import {
+  HttpApiDefinition,
+  HttpApiDefinitionRoute,
+} from "@/types/golemManifest";
 import { App } from "@/lib/settings";
 
 // Mock lucide-react icons
@@ -15,7 +18,11 @@ vi.mock("lucide-react", () => ({
   Trash2: () => <div data-testid="trash-icon">🗑</div>,
   FileText: () => <div data-testid="file-text-icon">📄</div>,
   Send: () => <div data-testid="send-icon">📤</div>,
-  Loader2: () => <div data-testid="loader-icon" className="animate-spin">⏳</div>,
+  Loader2: () => (
+    <div data-testid="loader-icon" className="animate-spin">
+      ⏳
+    </div>
+  ),
   ArrowRight: () => <div data-testid="arrow-right">→</div>,
   LayoutGrid: () => <div data-testid="layout-grid">⚏</div>,
   PlusCircle: () => <div data-testid="plus-circle">➕</div>,
@@ -110,11 +117,15 @@ vi.mock("@/pages/dashboard/apiSection.tsx", () => ({
 
 // Mock YAML Viewer Modal
 vi.mock("@/components/yaml-viewer-modal", () => ({
-  YamlViewerModal: ({ isOpen, title, yamlContent }: {
+  YamlViewerModal: ({
+    isOpen,
+    title,
+    yamlContent,
+  }: {
     isOpen: boolean;
     title: string;
     yamlContent: string;
-  }) => 
+  }) =>
     isOpen ? (
       <div data-testid="yaml-modal">
         <h3>{title}</h3>
@@ -126,7 +137,8 @@ vi.mock("@/components/yaml-viewer-modal", () => ({
 
 // Mock utils
 vi.mock("@/lib/utils", () => ({
-  cn: (...inputs: (string | undefined | null | boolean)[]) => inputs.filter(Boolean).join(" "),
+  cn: (...inputs: (string | undefined | null | boolean)[]) =>
+    inputs.filter(Boolean).join(" "),
   removeDuplicateApis: (apis: HttpApiDefinition[]) => apis,
 }));
 
@@ -166,7 +178,7 @@ describe("Dashboard", () => {
           componentVersion: 3,
           componentType: ComponentType.Durable,
           createdAt: "2024-01-01T00:00:00Z",
-        }
+        },
       ],
     },
   };
@@ -204,32 +216,56 @@ describe("Dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockShowLog.mockClear();
-    
+
     // Setup default mock implementations
     vi.mocked(mockStoreService.getAppById).mockResolvedValue(sampleApp);
     vi.mocked(mockStoreService.updateAppLastOpened).mockResolvedValue(true);
-    vi.mocked(mockAPI.componentService.getComponentByIdAsKey).mockResolvedValue(sampleComponents);
-    vi.mocked(mockAPI.deploymentService.getDeploymentApi).mockResolvedValue(sampleDeployments);
+    vi.mocked(mockAPI.componentService.getComponentByIdAsKey).mockResolvedValue(
+      sampleComponents,
+    );
+    vi.mocked(mockAPI.deploymentService.getDeploymentApi).mockResolvedValue(
+      sampleDeployments,
+    );
     vi.mocked(mockAPI.apiService.getApiList).mockResolvedValue(sampleApis);
-    vi.mocked(mockAPI.manifestService.getAppYamlContent).mockResolvedValue("apiVersion: v1\nkind: App");
-    
+    vi.mocked(mockAPI.manifestService.getAppYamlContent).mockResolvedValue(
+      "apiVersion: v1\nkind: App",
+    );
+
     // Setup successful API responses by default
-    vi.mocked(mockAPI.appService.buildApp).mockResolvedValue({ success: true, logs: "Build completed", result: {} });
-    vi.mocked(mockAPI.appService.updateWorkers).mockResolvedValue({ success: true, logs: "Workers updated", result: {} });
-    vi.mocked(mockAPI.appService.deployWorkers).mockResolvedValue({ success: true, logs: "Workers deployed", result: {} });
-    vi.mocked(mockAPI.appService.cleanApp).mockResolvedValue({ success: true, logs: "App cleaned", result: {} });
+    vi.mocked(mockAPI.appService.buildApp).mockResolvedValue({
+      success: true,
+      logs: "Build completed",
+      result: {},
+    });
+    vi.mocked(mockAPI.appService.updateWorkers).mockResolvedValue({
+      success: true,
+      logs: "Workers updated",
+      result: {},
+    });
+    vi.mocked(mockAPI.appService.deployWorkers).mockResolvedValue({
+      success: true,
+      logs: "Workers deployed",
+      result: {},
+    });
+    vi.mocked(mockAPI.appService.cleanApp).mockResolvedValue({
+      success: true,
+      logs: "App cleaned",
+      result: {},
+    });
   });
 
   it("renders the dashboard layout correctly", async () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     // Check main title and app name
     await waitFor(() => {
-      expect(screen.getByText("Working in Test Application")).toBeInTheDocument();
+      expect(
+        screen.getByText("Working in Test Application"),
+      ).toBeInTheDocument();
     });
 
     // Check back button
@@ -237,7 +273,7 @@ describe("Dashboard", () => {
 
     // Check app actions section
     expect(screen.getByText("App Actions")).toBeInTheDocument();
-    
+
     // Check all action buttons are present
     expect(screen.getByText("Build App")).toBeInTheDocument();
     expect(screen.getByText("Update Workers")).toBeInTheDocument();
@@ -256,7 +292,7 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const backButton = screen.getByText("Back to Apps");
@@ -269,7 +305,7 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const buildButton = screen.getByText("Build App");
@@ -298,7 +334,7 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const buildButton = screen.getByText("Build App");
@@ -318,7 +354,7 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const updateButton = screen.getByText("Update Workers");
@@ -337,7 +373,7 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const deployButton = screen.getByText("Deploy Workers");
@@ -356,27 +392,35 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const viewYamlButton = screen.getByText("View YAML");
     fireEvent.click(viewYamlButton);
 
     await waitFor(() => {
-      expect(mockAPI.manifestService.getAppYamlContent).toHaveBeenCalledWith(mockAppId);
+      expect(mockAPI.manifestService.getAppYamlContent).toHaveBeenCalledWith(
+        mockAppId,
+      );
       expect(screen.getByTestId("yaml-modal")).toBeInTheDocument();
-      expect(screen.getByText("Application Manifest (golem.yaml)")).toBeInTheDocument();
-      expect(screen.getByTestId("yaml-content").textContent).toMatch(/apiVersion:\s*v1[\s\S]*kind:\s*App/);
+      expect(
+        screen.getByText("Application Manifest (golem.yaml)"),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("yaml-content").textContent).toMatch(
+        /apiVersion:\s*v1[\s\S]*kind:\s*App/,
+      );
     });
   });
 
   it("handles YAML loading failure", async () => {
-    vi.mocked(mockAPI.manifestService.getAppYamlContent).mockRejectedValue(new Error("YAML not found"));
+    vi.mocked(mockAPI.manifestService.getAppYamlContent).mockRejectedValue(
+      new Error("YAML not found"),
+    );
 
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const viewYamlButton = screen.getByText("View YAML");
@@ -393,14 +437,20 @@ describe("Dashboard", () => {
 
   it("shows loading states for action buttons", async () => {
     // Mock a delayed response to test loading state
-    vi.mocked(mockAPI.appService.buildApp).mockImplementation(() => 
-      new Promise(resolve => setTimeout(() => resolve({ success: true, logs: "", result: {} }), 100))
+    vi.mocked(mockAPI.appService.buildApp).mockImplementation(
+      () =>
+        new Promise(resolve =>
+          setTimeout(
+            () => resolve({ success: true, logs: "", result: {} }),
+            100,
+          ),
+        ),
     );
 
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const buildButton = screen.getByText("Build App");
@@ -420,12 +470,14 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     await waitFor(() => {
       expect(mockStoreService.getAppById).toHaveBeenCalledWith(mockAppId);
-      expect(mockStoreService.updateAppLastOpened).toHaveBeenCalledWith(mockAppId);
+      expect(mockStoreService.updateAppLastOpened).toHaveBeenCalledWith(
+        mockAppId,
+      );
     });
   });
 
@@ -441,7 +493,7 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     await waitFor(() => {
@@ -453,12 +505,12 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     // Check that icons are present for each button
     expect(screen.getByTestId("play-icon")).toBeInTheDocument(); // Build App
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument(); // Update Workers  
+    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument(); // Update Workers
     expect(screen.getByTestId("upload-icon")).toBeInTheDocument(); // Deploy Workers
     expect(screen.getByTestId("send-icon")).toBeInTheDocument(); // Deploy App
     expect(screen.getByTestId("trash-icon")).toBeInTheDocument(); // Clean App
@@ -469,10 +521,17 @@ describe("Dashboard", () => {
     render(
       <TestWrapper>
         <Dashboard />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    const gridContainer = screen.getByTestId("components-section").parentElement;
-    expect(gridContainer).toHaveClass("grid", "flex-1", "grid-cols-1", "gap-4", "lg:grid-cols-3");
+    const gridContainer =
+      screen.getByTestId("components-section").parentElement;
+    expect(gridContainer).toHaveClass(
+      "grid",
+      "flex-1",
+      "grid-cols-1",
+      "gap-4",
+      "lg:grid-cols-3",
+    );
   });
 });

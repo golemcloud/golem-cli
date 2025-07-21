@@ -51,29 +51,53 @@ vi.mock("@/components/ui/input", () => ({
 }));
 
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
+  Select: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  SelectItem: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  SelectValue: ({ placeholder }: { placeholder?: string }) => (
+    <span>{placeholder}</span>
+  ),
 }));
 
 vi.mock("@/components/ui/card", () => ({
   Card: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 vi.mock("@/components/ui/form", () => ({
-  Form: ({ children }: { children: React.ReactNode }) => <form>{children}</form>,
-  FormControl: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Form: ({ children }: { children: React.ReactNode }) => (
+    <form>{children}</form>
+  ),
+  FormControl: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
   FormField: ({ render }: { render: Function }) => {
     const field = { name: "test", value: "", onChange: vi.fn() };
     return <div>{render({ field, fieldState: { error: null } })}</div>;
   },
-  FormItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  FormLabel: ({ children }: { children: React.ReactNode }) => <label>{children}</label>,
-  FormMessage: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  FormDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  FormItem: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  FormLabel: ({ children }: { children: React.ReactNode }) => (
+    <label>{children}</label>
+  ),
+  FormMessage: ({ children }: { children: React.ReactNode }) => (
+    <span>{children}</span>
+  ),
+  FormDescription: ({ children }: { children: React.ReactNode }) => (
+    <p>{children}</p>
+  ),
 }));
 
 vi.mock("react-hook-form", () => ({
@@ -136,7 +160,7 @@ describe("CreateDeployment", () => {
     return render(
       <MemoryRouter>
         <CreateDeployment />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
   };
 
@@ -158,7 +182,11 @@ describe("CreateDeployment", () => {
 
   it("should render the page description", () => {
     renderCreateDeployment();
-    expect(screen.getByText("Create a new deployment with one or more API definitions")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Create a new deployment with one or more API definitions",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("should render action buttons", () => {

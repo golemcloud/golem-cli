@@ -30,9 +30,7 @@ export function ExportsList({ exports }: { exports: string[] }) {
                     className="flex items-center justify-between"
                   >
                     <span className="font-mono text-sm">
-                      <span className="text-blue-400">
-                        {endpoint}
-                      </span>
+                      <span className="text-blue-400">{endpoint}</span>
                     </span>
                   </CommandItem>
                 ))}

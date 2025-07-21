@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type MockedFunction,
+} from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { RibEditor } from "../rib-editor";
@@ -393,8 +401,8 @@ describe("RibEditor", () => {
         mockMonaco.languages.registerCompletionItemProvider.mock.calls;
       const provider =
         providerCalls.length > 0 &&
-          providerCalls[0] &&
-          providerCalls[0].length > 1
+        providerCalls[0] &&
+        providerCalls[0].length > 1
           ? (providerCalls[0] as [unknown, MockCompletionProvider])[1]
           : null;
 
@@ -431,7 +439,7 @@ describe("RibEditor", () => {
     it("should handle completion provider errors gracefully", () => {
       const consoleSpy = vi
         .spyOn(console, "error")
-        .mockImplementation(() => { });
+        .mockImplementation(() => {});
 
       // Mock a provider that throws an error
 
