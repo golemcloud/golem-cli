@@ -21,12 +21,11 @@ use golem_cli::model::app::AppComponentName;
 use golem_cli::wasm_rpc_stubgen::commands::generate::generate_and_build_client;
 use golem_cli::wasm_rpc_stubgen::stub::{StubConfig, StubDefinition};
 use golem_wasm_ast::analysis::analysed_type::*;
+use golem_wasm_ast::analysis::wit_parser::WitAnalysisContext;
 use golem_wasm_ast::analysis::{
     AnalysedExport, AnalysedFunctionParameter, AnalysedInstance, AnalysedResourceId,
-    AnalysedResourceMode, AnalysedType, AnalysisContext, TypeHandle, TypeOption,
+    AnalysedResourceMode, AnalysedType, TypeHandle,
 };
-use golem_wasm_ast::component::Component;
-use golem_wasm_ast::IgnoreAllButMetadata;
 use tempfile::tempdir;
 use test_r::test;
 
@@ -61,9 +60,7 @@ async fn all_wit_types() {
     let wasm_path = generate_and_build_client(&def, false).await.unwrap();
 
     let stub_bytes = std::fs::read(wasm_path).unwrap();
-    let stub_component = Component::<IgnoreAllButMetadata>::from_bytes(&stub_bytes).unwrap();
-
-    let state = AnalysisContext::new(stub_component);
+    let state = WitAnalysisContext::new(&stub_bytes).unwrap();
     let stub_exports = state.get_top_level_exports().unwrap();
 
     assert_eq!(stub_exports.len(), 1);
@@ -372,9 +369,8 @@ async fn resource() {
     let wasm_path = generate_and_build_client(&def, false).await.unwrap();
 
     let stub_bytes = std::fs::read(wasm_path).unwrap();
-    let stub_component = Component::<IgnoreAllButMetadata>::from_bytes(&stub_bytes).unwrap();
 
-    let state = AnalysisContext::new(stub_component);
+    let state = WitAnalysisContext::new(&stub_bytes).unwrap();
     let stub_exports = state.get_top_level_exports().unwrap();
 
     assert_eq!(stub_exports.len(), 1);
@@ -426,9 +422,7 @@ async fn circular_resources() {
     let wasm_path = generate_and_build_client(&def, false).await.unwrap();
 
     let stub_bytes = std::fs::read(wasm_path).unwrap();
-    let stub_component = Component::<IgnoreAllButMetadata>::from_bytes(&stub_bytes).unwrap();
-
-    let state = AnalysisContext::new(stub_component);
+    let state = WitAnalysisContext::new(&stub_bytes).unwrap();
     let stub_exports = state.get_top_level_exports().unwrap();
 
     assert_eq!(stub_exports.len(), 1);
@@ -489,9 +483,7 @@ async fn inline_resources() {
     let wasm_path = generate_and_build_client(&def, false).await.unwrap();
 
     let stub_bytes = std::fs::read(wasm_path).unwrap();
-    let stub_component = Component::<IgnoreAllButMetadata>::from_bytes(&stub_bytes).unwrap();
-
-    let state = AnalysisContext::new(stub_component);
+    let state = WitAnalysisContext::new(&stub_bytes).unwrap();
     let stub_exports = state.get_top_level_exports().unwrap();
 
     assert_eq!(stub_exports.len(), 1);
@@ -649,6 +641,7 @@ fn assert_has_stub(
         AnalysedType::Handle(TypeHandle {
             mode: AnalysedResourceMode::Owned,
             resource_id,
+            ..
         }) => resource_id.clone(),
         _ => panic!("unexpected constructor return type"),
     };
@@ -696,6 +689,7 @@ fn assert_has_stub(
         vec![AnalysedType::Handle(TypeHandle {
             resource_id,
             mode: AnalysedResourceMode::Borrowed,
+            name: None,
         })],
         parameters,
     ]
@@ -724,6 +718,7 @@ fn assert_has_stub(
             AnalysedType::Handle(TypeHandle {
                 mode: AnalysedResourceMode::Owned,
                 resource_id,
+                name: None,
             }) => resource_id.clone(),
             _ => panic!("unexpected async result return type"),
         };
@@ -758,6 +753,7 @@ fn assert_valid_polling_resource(
                 == AnalysedType::Handle(TypeHandle {
                     resource_id: resource_id.clone(),
                     mode: AnalysedResourceMode::Borrowed,
+                    name: None,
                 })
         })
         .collect::<Vec<_>>();
@@ -783,8 +779,6 @@ fn assert_valid_polling_resource(
     assert!(get_function.result.is_some());
     assert_eq!(
         get_function.result.as_ref().unwrap().typ,
-        AnalysedType::Option(TypeOption {
-            inner: Box::new(return_type)
-        })
+        option(return_type)
     );
 }
