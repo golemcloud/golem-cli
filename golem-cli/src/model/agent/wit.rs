@@ -17,197 +17,359 @@ use crate::model::app::AppComponentName;
 use anyhow::bail;
 use golem_wasm_ast::analysis::AnalysedType;
 use heck::ToKebabCase;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::path::Path;
 use wit_component::WitPrinter;
 use wit_parser::{PackageId, Resolve, SourceMap};
 
+const STATIC_WRAPPER_INTERFACE_NAME: &str = "agent";
+
 pub fn generate_agent_wrapper_wit(
     component_name: &AppComponentName,
     agent_types: &[AgentType],
 ) -> anyhow::Result<String> {
-    let wrapper_wit_package_source = generate_wit_source(component_name, agent_types)?;
+    let mut ctx = AgentWrapperGeneratorContext::new();
+    let wrapper_wit_package_source = ctx.generate_wit_source(component_name, agent_types)?;
 
     let resolved = ResolvedWrapper::new(wrapper_wit_package_source)?;
 
     resolved.into_single_file_wrapper_wit()
 }
 
-/// Generate the wrapper WIT that also imports and exports golem:agent/guest
-fn generate_wit_source(
-    component_name: &AppComponentName,
-    agent_types: &[AgentType],
-) -> anyhow::Result<String> {
-    let mut result = String::new();
-
-    let package_name = component_name.to_string();
-    let parts = package_name.split(':').collect::<Vec<_>>();
-    if parts.len() != 2 {
-        bail!(
-            "Component name `{package_name}` is not a valid WIT package name. It should be in the format `namespace:name`.",
-        )
-    }
-
-    let interface_name = parts[1].to_string();
-
-    writeln!(result, "package {package_name};")?;
-    writeln!(result, "")?;
-    writeln!(result, "interface {interface_name} {{")?;
-    writeln!(
-        result,
-        "  use golem:agent/common.{{agent-error, agent-type}};"
-    )?;
-
-    // TODO: collect and generate data types
-
-    for agent in agent_types {
-        generate_agent_wrapper_resource(&mut result, agent)?;
-    }
-
-    writeln!(result, "}}")?;
-    writeln!(result, "")?;
-    writeln!(result, "world agent-wrapper {{")?;
-    writeln!(result, "  import golem:agent/guest;")?;
-    writeln!(result, "  export golem:agent/guest;")?;
-    writeln!(result, "  export {interface_name};")?;
-    writeln!(result, "}}")?;
-
-    Ok(result)
+struct AgentWrapperGeneratorContext {
+    type_names: HashMap<AnalysedType, String>,
+    used_names: HashSet<String>,
 }
 
-fn generate_agent_wrapper_resource(result: &mut String, agent: &AgentType) -> anyhow::Result<()> {
-    let resource_name = agent.type_name.to_kebab_case();
-    let constructor_name = agent.constructor.name.as_deref().unwrap_or("create");
-
-    writeln!(result, "    /// {}", agent.description)?;
-    writeln!(result, "  resource {resource_name} {{")?;
-    writeln!(result, "    constructor(agent-id: string);")?;
-
-    writeln!(result, "    /// {}", agent.constructor.description)?;
-    write!(result, "    {constructor_name}: static func(")?;
-    write_parameter_list(result, &agent.constructor.input_schema)?;
-    writeln!(result, ") -> result<{resource_name}, agent-error>;")?;
-
-    writeln!(result, "")?;
-    writeln!(result, "    get-id: func() -> string;")?;
-    writeln!(result, "    get-definition: func() -> agent-type;")?;
-    writeln!(result, "")?;
-
-    for method in &agent.methods {
-        writeln!(result, "    /// {}", method.description)?;
-        write!(result, "    {}: func(", method.name)?;
-        write_parameter_list(result, &method.input_schema)?;
-        write!(result, ") -> result<")?;
-        write_return_type(result, &method.output_schema)?;
-        writeln!(result, ", agent-error>;")?;
+impl AgentWrapperGeneratorContext {
+    fn new() -> Self {
+        Self {
+            type_names: HashMap::new(),
+            used_names: HashSet::new(),
+        }
     }
 
-    writeln!(result, "  }}")?;
+    /// Generate the wrapper WIT that also imports and exports golem:agent/guest
+    fn generate_wit_source(
+        &mut self,
+        component_name: &AppComponentName,
+        agent_types: &[AgentType],
+    ) -> anyhow::Result<String> {
+        let mut result = String::new();
 
-    Ok(())
-}
+        let package_name = component_name.to_string();
+        let parts = package_name.split(':').collect::<Vec<_>>();
+        if parts.len() != 2 {
+            bail!(
+                "Component name `{package_name}` is not a valid WIT package name. It should be in the format `namespace:name`.",
+            )
+        }
 
-fn write_parameter_list(result: &mut String, input: &DataSchema) -> anyhow::Result<()> {
-    match input {
-        DataSchema::Tuple(elements) => {
-            let mut n = 0;
-            for element in elements {
-                if n > 0 {
-                    write!(result, ", ")?;
+        let interface_name = STATIC_WRAPPER_INTERFACE_NAME;
+
+        writeln!(result, "package {package_name};")?;
+        writeln!(result, "")?;
+        writeln!(result, "interface {interface_name} {{")?;
+        writeln!(
+            result,
+            "  use golem:agent/common.{{agent-error, agent-type}};"
+        )?;
+
+        for agent in agent_types {
+            self.generate_agent_wrapper_resource(&mut result, agent)?;
+        }
+
+        self.traverse_gathered_types()?;
+        let types = self.type_names.clone();
+        for (typ, name) in types {
+            self.generate_type_definition(&mut result, &typ, &name)?;
+        }
+
+        writeln!(result, "}}")?;
+        writeln!(result, "")?;
+        writeln!(result, "world agent-wrapper {{")?;
+        writeln!(result, "  import golem:agent/guest;")?;
+        writeln!(result, "  export golem:agent/guest;")?;
+        writeln!(result, "  export {interface_name};")?;
+        writeln!(result, "}}")?;
+
+        Ok(result)
+    }
+
+    fn generate_agent_wrapper_resource(
+        &mut self,
+        result: &mut String,
+        agent: &AgentType,
+    ) -> anyhow::Result<()> {
+        let resource_name = agent.type_name.to_kebab_case();
+        let constructor_name = agent.constructor.name.as_deref().unwrap_or("create");
+
+        writeln!(result, "    /// {}", agent.description)?;
+        writeln!(result, "  resource {resource_name} {{")?;
+        writeln!(result, "    constructor(agent-id: string);")?;
+
+        writeln!(result, "    /// {}", agent.constructor.description)?;
+        write!(result, "    {constructor_name}: static func(")?;
+        self.write_parameter_list(result, &agent.constructor.input_schema)?;
+        writeln!(result, ") -> result<{resource_name}, agent-error>;")?;
+
+        writeln!(result, "")?;
+        writeln!(result, "    get-id: func() -> string;")?;
+        writeln!(result, "    get-definition: func() -> agent-type;")?;
+        writeln!(result, "")?;
+
+        for method in &agent.methods {
+            writeln!(result, "    /// {}", method.description)?;
+            write!(result, "    {}: func(", method.name)?;
+            self.write_parameter_list(result, &method.input_schema)?;
+            write!(result, ") -> result<")?;
+            self.write_return_type(result, &method.output_schema)?;
+            writeln!(result, ", agent-error>;")?;
+        }
+
+        writeln!(result, "  }}")?;
+
+        Ok(())
+    }
+
+    fn traverse_gathered_types(&mut self) -> anyhow::Result<()> {
+        let mut visited = HashSet::new();
+        let mut stack = Vec::new();
+        for typ in self.type_names.keys() {
+            stack.push(typ);
+        }
+
+        while let Some(typ) = stack.pop() {
+            match typ {
+                AnalysedType::Variant(variant) => {
+                    for case in &variant.cases {
+                        if let Some(ty) = &case.typ {
+                            visited.insert(ty.clone());
+                        }
+                    }
                 }
-                n += 1;
-
-                let param_name = format!("p{n}"); // TODO: get name from the schema
-                write!(result, "{param_name}: ")?;
-                match element {
-                    ElementSchema::ComponentModel(typ) => {
-                        write!(result, "{}", wit_type_reference(typ)?)?;
+                AnalysedType::Result(result) => {
+                    if let Some(ty) = &result.ok {
+                        visited.insert((&**ty).clone());
                     }
-                    ElementSchema::UnstructuredText(_text_descriptor) => {
-                        todo!()
-                    }
-                    ElementSchema::UnstructuredBinary(_bin_descriptor) => {
-                        todo!()
+                    if let Some(ty) = &result.err {
+                        visited.insert((&**ty).clone());
                     }
                 }
+                AnalysedType::Option(option) => {
+                    visited.insert((&*option.inner).clone());
+                }
+                AnalysedType::Record(record) => {
+                    for field in &record.fields {
+                        visited.insert(field.typ.clone());
+                    }
+                }
+                AnalysedType::Tuple(items) => {
+                    for item in &items.items {
+                        visited.insert(item.clone());
+                    }
+                }
+                AnalysedType::List(list) => {
+                    visited.insert((&*list.inner).clone());
+                }
+                _ => {}
             }
         }
-        DataSchema::Multimodal(_cases) => {
-            todo!()
+
+        for typ in visited {
+            self.register_type(&typ);
         }
+
+        Ok(())
     }
-    Ok(())
-}
 
-fn write_return_type(result: &mut String, schema: &DataSchema) -> anyhow::Result<()> {
-    match schema {
-        DataSchema::Tuple(elements) => {
-            let mut n = 0;
-            write!(result, "tuple<")?;
-            for element in elements {
-                if n > 0 {
-                    write!(result, ", ")?;
-                }
-                n += 1;
+    fn generate_type_definition(
+        &mut self,
+        result: &mut String,
+        typ: &AnalysedType,
+        name: &str,
+    ) -> anyhow::Result<()> {
+        match typ {
+            AnalysedType::Variant(_) => {
+                writeln!(result, "    variant {name} {{")?;
+                writeln!(result, "    }}")?;
+            }
+            AnalysedType::Enum(_) => {
+                writeln!(result, "    enum {name} {{")?;
+                writeln!(result, "    }}")?;
+            }
+            AnalysedType::Flags(_) => {
+                writeln!(result, "    flags {name} {{")?;
+                writeln!(result, "    }}")?;
+            }
+            AnalysedType::Record(_) => {
+                writeln!(result, "    record {name} {{")?;
+                writeln!(result, "    }}")?;
+            }
+            _ => {
+                writeln!(
+                    result,
+                    "    type {name} = {};",
+                    self.wit_type_reference(typ)?
+                )?;
+            }
+        }
+        Ok(())
+    }
 
-                match element {
-                    ElementSchema::ComponentModel(typ) => {
-                        write!(result, "{}", wit_type_reference(typ)?)?;
+    fn write_parameter_list(
+        &mut self,
+        result: &mut String,
+        input: &DataSchema,
+    ) -> anyhow::Result<()> {
+        match input {
+            DataSchema::Tuple(elements) => {
+                let mut n = 0;
+                for element in elements {
+                    if n > 0 {
+                        write!(result, ", ")?;
                     }
-                    ElementSchema::UnstructuredText(_text_descriptor) => {
-                        todo!()
-                    }
-                    ElementSchema::UnstructuredBinary(_bin_descriptor) => {
-                        todo!()
-                    }
+                    n += 1;
+
+                    let param_name = &element.name;
+                    write!(result, "{param_name}: ")?;
+                    self.write_element_schema_type_ref(result, &element.schema)?;
                 }
             }
-            write!(result, ">")?;
+            DataSchema::Multimodal(_cases) => {
+                todo!()
+            }
         }
-        DataSchema::Multimodal(_cases) => {
-            todo!()
+        Ok(())
+    }
+
+    fn write_return_type(
+        &mut self,
+        result: &mut String,
+        schema: &DataSchema,
+    ) -> anyhow::Result<()> {
+        match schema {
+            DataSchema::Tuple(elements) if elements.len() == 0 => {
+                write!(result, "_")?;
+            }
+            DataSchema::Tuple(elements) if elements.len() == 1 => {
+                self.write_element_schema_type_ref(
+                    result,
+                    &elements.iter().next().as_ref().unwrap().schema,
+                )?;
+            }
+            DataSchema::Tuple(elements) => {
+                let mut n = 0;
+                write!(result, "tuple<")?;
+                for element in elements {
+                    if n > 0 {
+                        write!(result, ", ")?;
+                    }
+                    n += 1;
+
+                    self.write_element_schema_type_ref(result, &element.schema)?;
+                }
+                write!(result, ">")?;
+            }
+            DataSchema::Multimodal(_cases) => {
+                todo!()
+            }
+        }
+        Ok(())
+    }
+
+    fn write_element_schema_type_ref(
+        &mut self,
+        result: &mut String,
+        element: &ElementSchema,
+    ) -> anyhow::Result<()> {
+        match element {
+            ElementSchema::ComponentModel(typ) => {
+                write!(result, "{}", self.wit_type_reference(typ)?)?;
+            }
+            ElementSchema::UnstructuredText(_text_descriptor) => {
+                write!(result, "string")?;
+            }
+            ElementSchema::UnstructuredBinary(_bin_descriptor) => {
+                write!(result, "list<u8>")?;
+            }
+        }
+        Ok(())
+    }
+
+    fn wit_type_reference(&mut self, typ: &AnalysedType) -> anyhow::Result<String> {
+        match typ {
+            AnalysedType::Variant(_)
+            | AnalysedType::Enum(_)
+            | AnalysedType::Flags(_)
+            | AnalysedType::Record(_) => {
+                if let Some(name) = typ.name() {
+                    // TODO: register with name - fail on conflict
+                    todo!()
+                } else {
+                    // TODO: generate new name
+                    todo!()
+                }
+            }
+            AnalysedType::Result(_) => todo!(),
+            AnalysedType::Option(opt) => {
+                let inner_type_ref = self.wit_type_reference(&opt.inner)?;
+                Ok(format!("option<{inner_type_ref}>"))
+            }
+
+            AnalysedType::Tuple(tuple) => {
+                let inner_type_refs = tuple
+                    .items
+                    .iter()
+                    .map(|t| self.wit_type_reference(t))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(format!("tuple<{}>", inner_type_refs.join(", ")))
+            }
+            AnalysedType::List(list) => {
+                let inner_type_ref = self.wit_type_reference(&list.inner)?;
+                Ok(format!("list<{inner_type_ref}>"))
+            }
+            AnalysedType::Str(_) => Ok("string".to_string()),
+            AnalysedType::Chr(_) => Ok("char".to_string()),
+            AnalysedType::F64(_) => Ok("f64".to_string()),
+            AnalysedType::F32(_) => Ok("f32".to_string()),
+            AnalysedType::U64(_) => Ok("u64".to_string()),
+            AnalysedType::S64(_) => Ok("s64".to_string()),
+            AnalysedType::U32(_) => Ok("u32".to_string()),
+            AnalysedType::S32(_) => Ok("s32".to_string()),
+            AnalysedType::U16(_) => Ok("u16".to_string()),
+            AnalysedType::S16(_) => Ok("s16".to_string()),
+            AnalysedType::U8(_) => Ok("u8".to_string()),
+            AnalysedType::S8(_) => Ok("s8".to_string()),
+            AnalysedType::Bool(_) => Ok("bool".to_string()),
+            AnalysedType::Handle(_) => todo!(),
         }
     }
-    Ok(())
-}
 
-fn wit_type_reference(typ: &AnalysedType) -> anyhow::Result<String> {
-    match typ {
-        AnalysedType::Variant(_) => todo!(),
-        AnalysedType::Result(_) => todo!(),
-        AnalysedType::Option(opt) => {
-            let inner_type_ref = wit_type_reference(&opt.inner)?;
-            Ok(format!("option<{inner_type_ref}>"))
+    fn register_type(&mut self, typ: &AnalysedType) -> String {
+        if let Some(name) = self.type_names.get(typ) {
+            name.clone()
+        } else {
+            let proposed_name = typ
+                .name()
+                .map(|n| n.to_string())
+                .unwrap_or("element".to_string());
+            let name = self.find_unused_name(proposed_name);
+            self.type_names.insert(typ.clone(), name.clone());
+            self.used_names.insert(name.clone());
+            name
         }
-        AnalysedType::Enum(_) => todo!(),
-        AnalysedType::Flags(_) => todo!(),
-        AnalysedType::Record(_) => todo!(),
-        AnalysedType::Tuple(tuple) => {
-            let inner_type_refs = tuple
-                .items
-                .iter()
-                .map(|t| wit_type_reference(t))
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(format!("tuple<{}>", inner_type_refs.join(", ")))
+    }
+
+    fn find_unused_name(&self, name: String) -> String {
+        let mut current = name.clone();
+        let mut counter = 1;
+        while self.used_names.contains(&name) {
+            current = format!("{name}_{counter}");
+            counter += 1;
         }
-        AnalysedType::List(list) => {
-            let inner_type_ref = wit_type_reference(&list.inner)?;
-            Ok(format!("list<{inner_type_ref}>"))
-        }
-        AnalysedType::Str(_) => Ok("string".to_string()),
-        AnalysedType::Chr(_) => Ok("char".to_string()),
-        AnalysedType::F64(_) => Ok("f64".to_string()),
-        AnalysedType::F32(_) => Ok("f32".to_string()),
-        AnalysedType::U64(_) => Ok("u64".to_string()),
-        AnalysedType::S64(_) => Ok("s64".to_string()),
-        AnalysedType::U32(_) => Ok("u32".to_string()),
-        AnalysedType::S32(_) => Ok("s32".to_string()),
-        AnalysedType::U16(_) => Ok("u16".to_string()),
-        AnalysedType::S16(_) => Ok("s16".to_string()),
-        AnalysedType::U8(_) => Ok("u8".to_string()),
-        AnalysedType::S8(_) => Ok("s8".to_string()),
-        AnalysedType::Bool(_) => Ok("bool".to_string()),
-        AnalysedType::Handle(_) => todo!(),
+        current
     }
 }
 
@@ -358,7 +520,7 @@ fn add_golem_agent(resolve: &mut Resolve) -> anyhow::Result<PackageId> {
 #[cfg(test)]
 mod tests {
     use crate::model::agent::{
-        AgentConstructor, AgentMethod, AgentType, DataSchema, ElementSchema,
+        AgentConstructor, AgentMethod, AgentType, DataSchema, ElementSchema, NamedElementSchema,
     };
     use golem_wasm_ast::analysis::analysed_type;
     use indoc::indoc;
@@ -373,19 +535,19 @@ mod tests {
         assert!(wit.contains(indoc!(
             r#"package example:empty;
             
-            interface empty {
+            interface agent {
               use golem:agent/common.{agent-error, agent-type};
             }
 
             world agent-wrapper {
               import wasi:clocks/wall-clock@0.2.3;
               import wasi:io/poll@0.2.3;
-              import golem:rpc/types@0.2.1;
+              import golem:rpc/types@0.2.2;
               import golem:agent/common;
               import golem:agent/guest;
 
               export golem:agent/guest;
-              export empty;
+              export agent;
             }
             "#
         )));
@@ -401,9 +563,17 @@ mod tests {
                 name: None,
                 description: "Creates an example agent instance".into(),
                 prompt_hint: None,
-                input_schema: super::DataSchema::Tuple(vec![
-                    ElementSchema::ComponentModel(analysed_type::u32()),
-                    ElementSchema::ComponentModel(analysed_type::option(analysed_type::str())),
+                input_schema: DataSchema::Tuple(vec![
+                    NamedElementSchema {
+                        name: "a".to_string(),
+                        schema: ElementSchema::ComponentModel(analysed_type::u32()),
+                    },
+                    NamedElementSchema {
+                        name: "b".to_string(),
+                        schema: ElementSchema::ComponentModel(analysed_type::option(
+                            analysed_type::str(),
+                        )),
+                    },
                 ]),
             },
             methods: vec![
@@ -412,21 +582,29 @@ mod tests {
                     description: "returns a random string".to_string(),
                     prompt_hint: None,
                     input_schema: DataSchema::Tuple(vec![]),
-                    output_schema: DataSchema::Tuple(vec![ElementSchema::ComponentModel(
-                        analysed_type::str(),
-                    )]),
+                    output_schema: DataSchema::Tuple(vec![NamedElementSchema {
+                        name: "a".to_string(),
+                        schema: ElementSchema::ComponentModel(analysed_type::str()),
+                    }]),
                 },
                 AgentMethod {
                     name: "f2".to_string(),
                     description: "adds two numbers".to_string(),
                     prompt_hint: None,
                     input_schema: DataSchema::Tuple(vec![
-                        ElementSchema::ComponentModel(analysed_type::u32()),
-                        ElementSchema::ComponentModel(analysed_type::u32()),
+                        NamedElementSchema {
+                            name: "x".to_string(),
+                            schema: ElementSchema::ComponentModel(analysed_type::u32()),
+                        },
+                        NamedElementSchema {
+                            name: "y".to_string(),
+                            schema: ElementSchema::ComponentModel(analysed_type::u32()),
+                        },
                     ]),
-                    output_schema: DataSchema::Tuple(vec![ElementSchema::ComponentModel(
-                        analysed_type::u32(),
-                    )]),
+                    output_schema: DataSchema::Tuple(vec![NamedElementSchema {
+                        name: "return".to_string(),
+                        schema: ElementSchema::ComponentModel(analysed_type::u32()),
+                    }]),
                 },
             ],
             dependencies: vec![],
@@ -436,32 +614,32 @@ mod tests {
         assert!(wit.contains(indoc!(
             r#"package example:single1;
 
-            interface single1 {
+            interface agent {
               use golem:agent/common.{agent-error, agent-type};
 
               /// An example agent
               resource agent1 {
                 constructor(agent-id: string);
                 /// Creates an example agent instance
-                create: static func(p1: u32, p2: option<string>) -> result<agent1, agent-error>;
+                create: static func(a: u32, b: option<string>) -> result<agent1, agent-error>;
                 get-id: func() -> string;
                 get-definition: func() -> agent-type;
                 /// returns a random string
-                f1: func() -> result<tuple<string>, agent-error>;
+                f1: func() -> result<string, agent-error>;
                 /// adds two numbers
-                f2: func(p1: u32, p2: u32) -> result<tuple<u32>, agent-error>;
+                f2: func(x: u32, y: u32) -> result<u32, agent-error>;
               }
             }
 
             world agent-wrapper {
               import wasi:clocks/wall-clock@0.2.3;
               import wasi:io/poll@0.2.3;
-              import golem:rpc/types@0.2.1;
+              import golem:rpc/types@0.2.2;
               import golem:agent/common;
               import golem:agent/guest;
 
               export golem:agent/guest;
-              export single1;
+              export agent;
             }
             "#
         )));
