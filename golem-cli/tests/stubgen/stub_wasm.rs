@@ -182,13 +182,15 @@ async fn all_wit_types() {
         field("name", str()),
         field("price", f32()),
         field("quantity", u32()),
-    ]);
+    ])
+    .named("product-item");
     let order = record(vec![
         field("order-id", str()),
         field("items", list(product_item.clone())),
         field("total", f32()),
         field("timestamp", u64()),
-    ]);
+    ])
+    .named("order");
 
     assert_has_stub(
         exported_interface,
@@ -205,12 +207,13 @@ async fn all_wit_types() {
         None,
     );
 
-    let permissions = flags(&["read", "write", "exec", "close"]);
+    let permissions = flags(&["read", "write", "exec", "close"]).named("permissions");
     let metadata = record(vec![
         field("name", str()),
         field("origin", str()),
         field("perms", permissions.clone()),
-    ]);
+    ])
+    .named("metadata");
 
     assert_has_stub(
         exported_interface,
@@ -268,7 +271,8 @@ async fn all_wit_types() {
         field("x", s32()),
         field("y", s32()),
         field("metadata", metadata.clone()),
-    ]);
+    ])
+    .named("point");
     assert_has_stub(
         exported_interface,
         "iface1",
@@ -291,12 +295,13 @@ async fn all_wit_types() {
         Some(result_err(str())),
     );
 
-    let order_confirmation = record(vec![field("order-id", str())]);
+    let order_confirmation = record(vec![field("order-id", str())]).named("order-confirmation");
     let checkout_result = variant(vec![
         case("error", str()),
         case("success", order_confirmation.clone()),
         unit_case("unknown"),
-    ]);
+    ])
+    .named("checkout-result");
 
     assert_has_stub(
         exported_interface,
@@ -313,7 +318,7 @@ async fn all_wit_types() {
         Some(checkout_result.clone()),
     );
 
-    let color = r#enum(&["red", "green", "blue"]);
+    let color = r#enum(&["red", "green", "blue"]).named("color");
     assert_has_stub(
         exported_interface,
         "iface1",
@@ -549,10 +554,13 @@ fn assert_has_rpc_resource_constructor(exported_interface: &AnalysedInstance, na
                     record(vec![field(
                         "uuid",
                         record(vec![field("high-bits", u64()), field("low-bits", u64()),])
-                    ),])
+                            .named("uuid")
+                    )])
+                    .named("component-id")
                 ),
                 field("worker-name", str()),
             ])
+            .named("worker-id")
         }]
     );
 }
@@ -613,10 +621,13 @@ fn assert_has_resource(
                         record(vec![field(
                             "uuid",
                             record(vec![field("high-bits", u64()), field("low-bits", u64()),])
+                                .named("uuid")
                         ),])
+                        .named("component-id")
                     ),
                     field("worker-name", str()),
                 ])
+                .named("worker-id")
             }],
             constructor_parameters.to_vec()
         ]
@@ -698,10 +709,7 @@ fn assert_has_stub(
     let scheduled_function_parameters = [
         parameters_with_self.clone(),
         // schedule_for parameter
-        vec![record(vec![
-            field("seconds", u64()),
-            field("nanoseconds", u32()),
-        ])],
+        vec![record(vec![field("seconds", u64()), field("nanoseconds", u32())]).named("datetime")],
     ]
     .concat();
 
