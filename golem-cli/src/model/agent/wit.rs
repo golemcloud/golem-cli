@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::model::agent::{AgentType, DataSchema, ElementSchema};
+use crate::model::agent::{AgentType, DataSchema, ElementSchema, NamedElementSchema};
 use crate::model::app::AppComponentName;
-use anyhow::bail;
+use anyhow::{anyhow, bail};
+use golem_wasm_ast::analysis::analysed_type::{case, list, str, u8, variant};
 use golem_wasm_ast::analysis::AnalysedType;
 use heck::ToKebabCase;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::path::Path;
 use wit_component::WitPrinter;
@@ -69,7 +70,7 @@ impl AgentWrapperGeneratorContext {
         let interface_name = STATIC_WRAPPER_INTERFACE_NAME;
 
         writeln!(result, "package {package_name};")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
         writeln!(result, "interface {interface_name} {{")?;
         writeln!(
             result,
@@ -81,13 +82,19 @@ impl AgentWrapperGeneratorContext {
         }
 
         self.traverse_gathered_types()?;
-        let types = self.type_names.clone();
+        let mut types = self
+            .type_names
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<Vec<_>>();
+        types.sort_by_key(|(_, name)| name.clone());
+
         for (typ, name) in types {
             self.generate_type_definition(&mut result, &typ, &name)?;
         }
 
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
         writeln!(result, "world agent-wrapper {{")?;
         writeln!(result, "  import golem:agent/guest;")?;
         writeln!(result, "  export golem:agent/guest;")?;
@@ -111,20 +118,21 @@ impl AgentWrapperGeneratorContext {
 
         writeln!(result, "    /// {}", agent.constructor.description)?;
         write!(result, "    {constructor_name}: static func(")?;
-        self.write_parameter_list(result, &agent.constructor.input_schema)?;
+        self.write_parameter_list(result, &agent.constructor.input_schema, "constructor")?;
         writeln!(result, ") -> result<{resource_name}, agent-error>;")?;
 
-        writeln!(result, "")?;
+        writeln!(result)?;
         writeln!(result, "    get-id: func() -> string;")?;
         writeln!(result, "    get-definition: func() -> agent-type;")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         for method in &agent.methods {
+            let name = method.name.to_kebab_case();
             writeln!(result, "    /// {}", method.description)?;
-            write!(result, "    {}: func(", method.name)?;
-            self.write_parameter_list(result, &method.input_schema)?;
+            write!(result, "    {name}: func(")?;
+            self.write_parameter_list(result, &method.input_schema, &name)?;
             write!(result, ") -> result<")?;
-            self.write_return_type(result, &method.output_schema)?;
+            self.write_return_type(result, &method.output_schema, &name)?;
             writeln!(result, ", agent-error>;")?;
         }
 
@@ -137,48 +145,59 @@ impl AgentWrapperGeneratorContext {
         let mut visited = HashSet::new();
         let mut stack = Vec::new();
         for typ in self.type_names.keys() {
-            stack.push(typ);
+            stack.push(typ.clone());
         }
 
         while let Some(typ) = stack.pop() {
-            match typ {
-                AnalysedType::Variant(variant) => {
-                    for case in &variant.cases {
-                        if let Some(ty) = &case.typ {
-                            visited.insert(ty.clone());
+            if !visited.contains(&typ) {
+                visited.insert(typ.clone());
+                match typ {
+                    AnalysedType::Variant(variant) => {
+                        for case in &variant.cases {
+                            if let Some(ty) = &case.typ {
+                                stack.push(ty.clone());
+                            }
                         }
                     }
-                }
-                AnalysedType::Result(result) => {
-                    if let Some(ty) = &result.ok {
-                        visited.insert((&**ty).clone());
+                    AnalysedType::Result(result) => {
+                        if let Some(ty) = &result.ok {
+                            stack.push((**ty).clone());
+                        }
+                        if let Some(ty) = &result.err {
+                            stack.push((**ty).clone());
+                        }
                     }
-                    if let Some(ty) = &result.err {
-                        visited.insert((&**ty).clone());
+                    AnalysedType::Option(option) => {
+                        stack.push((*option.inner).clone());
                     }
-                }
-                AnalysedType::Option(option) => {
-                    visited.insert((&*option.inner).clone());
-                }
-                AnalysedType::Record(record) => {
-                    for field in &record.fields {
-                        visited.insert(field.typ.clone());
+                    AnalysedType::Record(record) => {
+                        for field in &record.fields {
+                            stack.push(field.typ.clone());
+                        }
                     }
-                }
-                AnalysedType::Tuple(items) => {
-                    for item in &items.items {
-                        visited.insert(item.clone());
+                    AnalysedType::Tuple(items) => {
+                        for item in &items.items {
+                            stack.push(item.clone());
+                        }
                     }
+                    AnalysedType::List(list) => {
+                        stack.push((*list.inner).clone());
+                    }
+                    _ => {}
                 }
-                AnalysedType::List(list) => {
-                    visited.insert((&*list.inner).clone());
-                }
-                _ => {}
             }
         }
 
         for typ in visited {
-            self.register_type(&typ);
+            if matches!(
+                typ,
+                AnalysedType::Variant(_)
+                    | AnalysedType::Enum(_)
+                    | AnalysedType::Flags(_)
+                    | AnalysedType::Record(_)
+            ) {
+                self.register_type(&typ);
+            }
         }
 
         Ok(())
@@ -191,20 +210,43 @@ impl AgentWrapperGeneratorContext {
         name: &str,
     ) -> anyhow::Result<()> {
         match typ {
-            AnalysedType::Variant(_) => {
+            AnalysedType::Variant(variant) => {
                 writeln!(result, "    variant {name} {{")?;
+                for case in &variant.cases {
+                    write!(result, "      {}", case.name.to_kebab_case())?;
+                    if let Some(typ) = &case.typ {
+                        write!(result, "({})", self.wit_type_reference(typ)?)?;
+                    }
+                    writeln!(result, ",")?;
+                }
                 writeln!(result, "    }}")?;
             }
-            AnalysedType::Enum(_) => {
+            AnalysedType::Enum(enum_) => {
                 writeln!(result, "    enum {name} {{")?;
+                for case in &enum_.cases {
+                    let case = case.to_kebab_case();
+                    writeln!(result, "      {case},")?;
+                }
                 writeln!(result, "    }}")?;
             }
-            AnalysedType::Flags(_) => {
+            AnalysedType::Flags(flags) => {
                 writeln!(result, "    flags {name} {{")?;
+                for case in &flags.names {
+                    let case = case.to_kebab_case();
+                    writeln!(result, "      {case},")?;
+                }
                 writeln!(result, "    }}")?;
             }
-            AnalysedType::Record(_) => {
+            AnalysedType::Record(fields) => {
                 writeln!(result, "    record {name} {{")?;
+                for field in &fields.fields {
+                    writeln!(
+                        result,
+                        "      {}: {},",
+                        field.name.to_kebab_case(),
+                        self.wit_type_reference(&field.typ)?
+                    )?;
+                }
                 writeln!(result, "    }}")?;
             }
             _ => {
@@ -222,23 +264,24 @@ impl AgentWrapperGeneratorContext {
         &mut self,
         result: &mut String,
         input: &DataSchema,
+        context: &str,
     ) -> anyhow::Result<()> {
         match input {
             DataSchema::Tuple(elements) => {
-                let mut n = 0;
-                for element in elements {
+                for (n, element) in elements.iter().enumerate() {
                     if n > 0 {
                         write!(result, ", ")?;
                     }
-                    n += 1;
 
-                    let param_name = &element.name;
+                    let param_name = &element.name.to_kebab_case();
                     write!(result, "{param_name}: ")?;
                     self.write_element_schema_type_ref(result, &element.schema)?;
                 }
             }
-            DataSchema::Multimodal(_cases) => {
-                todo!()
+            DataSchema::Multimodal(cases) => {
+                let variant = Self::multimodal_variant(cases).named(format!("{context}-input"));
+                let name = self.register_type(&variant);
+                write!(result, "input: {name}")?;
             }
         }
         Ok(())
@@ -248,9 +291,10 @@ impl AgentWrapperGeneratorContext {
         &mut self,
         result: &mut String,
         schema: &DataSchema,
+        context: &str,
     ) -> anyhow::Result<()> {
         match schema {
-            DataSchema::Tuple(elements) if elements.len() == 0 => {
+            DataSchema::Tuple(elements) if elements.is_empty() => {
                 write!(result, "_")?;
             }
             DataSchema::Tuple(elements) if elements.len() == 1 => {
@@ -260,20 +304,20 @@ impl AgentWrapperGeneratorContext {
                 )?;
             }
             DataSchema::Tuple(elements) => {
-                let mut n = 0;
                 write!(result, "tuple<")?;
-                for element in elements {
+                for (n, element) in elements.iter().enumerate() {
                     if n > 0 {
                         write!(result, ", ")?;
                     }
-                    n += 1;
 
                     self.write_element_schema_type_ref(result, &element.schema)?;
                 }
                 write!(result, ">")?;
             }
-            DataSchema::Multimodal(_cases) => {
-                todo!()
+            DataSchema::Multimodal(cases) => {
+                let variant = Self::multimodal_variant(cases).named(format!("{context}-output"));
+                let name = self.register_type(&variant);
+                write!(result, "{name}")?;
             }
         }
         Ok(())
@@ -304,15 +348,31 @@ impl AgentWrapperGeneratorContext {
             | AnalysedType::Enum(_)
             | AnalysedType::Flags(_)
             | AnalysedType::Record(_) => {
-                if let Some(name) = typ.name() {
-                    // TODO: register with name - fail on conflict
-                    todo!()
+                let name = self.register_type(typ);
+                Ok(name)
+            }
+            AnalysedType::Result(result) => {
+                let ok_type_ref = if let Some(ok) = &result.ok {
+                    self.wit_type_reference(ok)?
                 } else {
-                    // TODO: generate new name
-                    todo!()
+                    "_".to_string()
+                };
+                let err_type_ref = if let Some(err) = &result.err {
+                    self.wit_type_reference(err)?
+                } else {
+                    "".to_string()
+                };
+
+                if err_type_ref.is_empty() {
+                    if ok_type_ref == "_" {
+                        Ok("result".to_string())
+                    } else {
+                        Ok(format!("result<{ok_type_ref}>"))
+                    }
+                } else {
+                    Ok(format!("result<{ok_type_ref}, {err_type_ref}>"))
                 }
             }
-            AnalysedType::Result(_) => todo!(),
             AnalysedType::Option(opt) => {
                 let inner_type_ref = self.wit_type_reference(&opt.inner)?;
                 Ok(format!("option<{inner_type_ref}>"))
@@ -343,7 +403,9 @@ impl AgentWrapperGeneratorContext {
             AnalysedType::U8(_) => Ok("u8".to_string()),
             AnalysedType::S8(_) => Ok("s8".to_string()),
             AnalysedType::Bool(_) => Ok("bool".to_string()),
-            AnalysedType::Handle(_) => todo!(),
+            AnalysedType::Handle(_) => Err(anyhow!(
+                "Handles are not supported on agent interfaces currently."
+            )),
         }
     }
 
@@ -354,7 +416,8 @@ impl AgentWrapperGeneratorContext {
             let proposed_name = typ
                 .name()
                 .map(|n| n.to_string())
-                .unwrap_or("element".to_string());
+                .unwrap_or("element".to_string())
+                .to_kebab_case();
             let name = self.find_unused_name(proposed_name);
             self.type_names.insert(typ.clone(), name.clone());
             self.used_names.insert(name.clone());
@@ -366,10 +429,24 @@ impl AgentWrapperGeneratorContext {
         let mut current = name.clone();
         let mut counter = 1;
         while self.used_names.contains(&name) {
-            current = format!("{name}_{counter}");
+            current = format!("{name}{counter}");
             counter += 1;
         }
         current
+    }
+
+    fn multimodal_variant(cases: &[NamedElementSchema]) -> AnalysedType {
+        let mut variant_cases = Vec::new();
+        for named_element_schema in cases {
+            let case_name = named_element_schema.name.to_kebab_case();
+            let case_type = match &named_element_schema.schema {
+                ElementSchema::ComponentModel(typ) => typ.clone(),
+                ElementSchema::UnstructuredText(_) => str(),
+                ElementSchema::UnstructuredBinary(_) => list(u8()),
+            };
+            variant_cases.push(case(&case_name, case_type));
+        }
+        variant(variant_cases)
     }
 }
 
@@ -520,9 +597,12 @@ fn add_golem_agent(resolve: &mut Resolve) -> anyhow::Result<PackageId> {
 #[cfg(test)]
 mod tests {
     use crate::model::agent::{
-        AgentConstructor, AgentMethod, AgentType, DataSchema, ElementSchema, NamedElementSchema,
+        AgentConstructor, AgentMethod, AgentType, BinaryDescriptor, DataSchema, ElementSchema,
+        NamedElementSchema, TextDescriptor,
     };
-    use golem_wasm_ast::analysis::analysed_type;
+    use golem_wasm_ast::analysis::analysed_type::{
+        case, field, list, option, r#enum, record, str, u32, unit_case, variant,
+    };
     use indoc::indoc;
     use test_r::test;
 
@@ -566,13 +646,11 @@ mod tests {
                 input_schema: DataSchema::Tuple(vec![
                     NamedElementSchema {
                         name: "a".to_string(),
-                        schema: ElementSchema::ComponentModel(analysed_type::u32()),
+                        schema: ElementSchema::ComponentModel(u32()),
                     },
                     NamedElementSchema {
                         name: "b".to_string(),
-                        schema: ElementSchema::ComponentModel(analysed_type::option(
-                            analysed_type::str(),
-                        )),
+                        schema: ElementSchema::ComponentModel(option(str())),
                     },
                 ]),
             },
@@ -584,7 +662,7 @@ mod tests {
                     input_schema: DataSchema::Tuple(vec![]),
                     output_schema: DataSchema::Tuple(vec![NamedElementSchema {
                         name: "a".to_string(),
-                        schema: ElementSchema::ComponentModel(analysed_type::str()),
+                        schema: ElementSchema::ComponentModel(str()),
                     }]),
                 },
                 AgentMethod {
@@ -594,16 +672,16 @@ mod tests {
                     input_schema: DataSchema::Tuple(vec![
                         NamedElementSchema {
                             name: "x".to_string(),
-                            schema: ElementSchema::ComponentModel(analysed_type::u32()),
+                            schema: ElementSchema::ComponentModel(u32()),
                         },
                         NamedElementSchema {
                             name: "y".to_string(),
-                            schema: ElementSchema::ComponentModel(analysed_type::u32()),
+                            schema: ElementSchema::ComponentModel(u32()),
                         },
                     ]),
                     output_schema: DataSchema::Tuple(vec![NamedElementSchema {
                         name: "return".to_string(),
-                        schema: ElementSchema::ComponentModel(analysed_type::u32()),
+                        schema: ElementSchema::ComponentModel(u32()),
                     }]),
                 },
             ],
@@ -628,6 +706,314 @@ mod tests {
                 f1: func() -> result<string, agent-error>;
                 /// adds two numbers
                 f2: func(x: u32, y: u32) -> result<u32, agent-error>;
+              }
+            }
+
+            world agent-wrapper {
+              import wasi:clocks/wall-clock@0.2.3;
+              import wasi:io/poll@0.2.3;
+              import golem:rpc/types@0.2.2;
+              import golem:agent/common;
+              import golem:agent/guest;
+
+              export golem:agent/guest;
+              export agent;
+            }
+            "#
+        )));
+    }
+
+    #[test]
+    fn single_agent_wrapper_2() {
+        let component_name = "example:single2".into();
+
+        let color = r#enum(&["red", "green", "blue"]).named("color");
+
+        let person = record(vec![
+            field("first-name", str()),
+            field("last-name", str()),
+            field("age", option(u32())),
+            field("eye-color", color.clone()),
+        ])
+        .named("person");
+
+        let location = variant(vec![
+            case("home", str()),
+            case("work", str()),
+            unit_case("unknown"),
+        ])
+        .named("location");
+
+        let agent_types = vec![AgentType {
+            type_name: "agent1".to_string(),
+            description: "An example agent".to_string(),
+            constructor: AgentConstructor {
+                name: None,
+                description: "Creates an example agent instance".into(),
+                prompt_hint: None,
+                input_schema: DataSchema::Tuple(vec![
+                    NamedElementSchema {
+                        name: "person".to_string(),
+                        schema: ElementSchema::ComponentModel(person),
+                    },
+                    NamedElementSchema {
+                        name: "description".to_string(),
+                        schema: ElementSchema::UnstructuredText(TextDescriptor {
+                            restrictions: None,
+                        }),
+                    },
+                    NamedElementSchema {
+                        name: "photo".to_string(),
+                        schema: ElementSchema::UnstructuredBinary(BinaryDescriptor {
+                            restrictions: None,
+                        }),
+                    },
+                ]),
+            },
+            methods: vec![
+                AgentMethod {
+                    name: "f1".to_string(),
+                    description: "returns a location".to_string(),
+                    prompt_hint: None,
+                    input_schema: DataSchema::Tuple(vec![]),
+                    output_schema: DataSchema::Tuple(vec![NamedElementSchema {
+                        name: "return".to_string(),
+                        schema: ElementSchema::ComponentModel(location.clone()),
+                    }]),
+                },
+                AgentMethod {
+                    name: "f2".to_string(),
+                    description: "takes a location and returns a color".to_string(),
+                    prompt_hint: None,
+                    input_schema: DataSchema::Tuple(vec![NamedElementSchema {
+                        name: "location".to_string(),
+                        schema: ElementSchema::ComponentModel(location),
+                    }]),
+                    output_schema: DataSchema::Tuple(vec![NamedElementSchema {
+                        name: "return".to_string(),
+                        schema: ElementSchema::ComponentModel(color),
+                    }]),
+                },
+            ],
+            dependencies: vec![],
+        }];
+        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types).unwrap();
+        println!("{wit}");
+        assert!(wit.contains(indoc!(
+            r#"package example:single2;
+
+            interface agent {
+              use golem:agent/common.{agent-error, agent-type};
+
+              /// An example agent
+              resource agent1 {
+                constructor(agent-id: string);
+                /// Creates an example agent instance
+                create: static func(person: person, description: string, photo: list<u8>) -> result<agent1, agent-error>;
+                get-id: func() -> string;
+                get-definition: func() -> agent-type;
+                /// returns a location
+                f1: func() -> result<location, agent-error>;
+                /// takes a location and returns a color
+                f2: func(location: location) -> result<color, agent-error>;
+              }
+
+              enum color {
+                red,
+                green,
+                blue,
+              }
+
+              variant location {
+                home(string),
+                work(string),
+                unknown,
+              }
+
+              record person {
+                first-name: string,
+                last-name: string,
+                age: option<u32>,
+                eye-color: color,
+              }
+            }
+
+            world agent-wrapper {
+              import wasi:clocks/wall-clock@0.2.3;
+              import wasi:io/poll@0.2.3;
+              import golem:rpc/types@0.2.2;
+              import golem:agent/common;
+              import golem:agent/guest;
+
+              export golem:agent/guest;
+              export agent;
+            }
+            "#
+        )));
+    }
+
+    #[test]
+    fn multi_agent_wrapper_2() {
+        let component_name = "example:multi1".into();
+
+        let color = r#enum(&["red", "green", "blue"]).named("color");
+
+        let person = record(vec![
+            field("first-name", str()),
+            field("last-name", str()),
+            field("age", option(u32())),
+            field("eye-color", color.clone()),
+        ])
+        .named("person");
+
+        let location = variant(vec![
+            case("home", str()),
+            case("work", str()),
+            unit_case("unknown"),
+        ])
+        .named("location");
+
+        let agent_types = vec![
+            AgentType {
+                type_name: "agent1".to_string(),
+                description: "An example agent".to_string(),
+                constructor: AgentConstructor {
+                    name: None,
+                    description: "Creates an example agent instance".into(),
+                    prompt_hint: None,
+                    input_schema: DataSchema::Tuple(vec![
+                        NamedElementSchema {
+                            name: "person".to_string(),
+                            schema: ElementSchema::ComponentModel(person.clone()),
+                        },
+                        NamedElementSchema {
+                            name: "description".to_string(),
+                            schema: ElementSchema::UnstructuredText(TextDescriptor {
+                                restrictions: None,
+                            }),
+                        },
+                        NamedElementSchema {
+                            name: "photo".to_string(),
+                            schema: ElementSchema::UnstructuredBinary(BinaryDescriptor {
+                                restrictions: None,
+                            }),
+                        },
+                    ]),
+                },
+                methods: vec![AgentMethod {
+                    name: "f1".to_string(),
+                    description: "returns a location".to_string(),
+                    prompt_hint: None,
+                    input_schema: DataSchema::Tuple(vec![]),
+                    output_schema: DataSchema::Tuple(vec![NamedElementSchema {
+                        name: "return".to_string(),
+                        schema: ElementSchema::ComponentModel(location.clone()),
+                    }]),
+                }],
+                dependencies: vec![],
+            },
+            AgentType {
+                type_name: "agent2".to_string(),
+                description: "Another example agent".to_string(),
+                constructor: AgentConstructor {
+                    name: None,
+                    description: "Creates another example agent instance".into(),
+                    prompt_hint: None,
+                    input_schema: DataSchema::Tuple(vec![NamedElementSchema {
+                        name: "person-group".to_string(),
+                        schema: ElementSchema::ComponentModel(list(person)),
+                    }]),
+                },
+                methods: vec![AgentMethod {
+                    name: "f2".to_string(),
+                    description: "takes a location or a color and returns a text or an image"
+                        .to_string(),
+                    prompt_hint: None,
+                    input_schema: DataSchema::Multimodal(vec![
+                        NamedElementSchema {
+                            name: "place".to_string(),
+                            schema: ElementSchema::ComponentModel(location),
+                        },
+                        NamedElementSchema {
+                            name: "color".to_string(),
+                            schema: ElementSchema::ComponentModel(color),
+                        },
+                    ]),
+                    output_schema: DataSchema::Multimodal(vec![
+                        NamedElementSchema {
+                            name: "text".to_string(),
+                            schema: ElementSchema::UnstructuredText(TextDescriptor {
+                                restrictions: None,
+                            }),
+                        },
+                        NamedElementSchema {
+                            name: "image".to_string(),
+                            schema: ElementSchema::UnstructuredBinary(BinaryDescriptor {
+                                restrictions: None,
+                            }),
+                        },
+                    ]),
+                }],
+                dependencies: vec![],
+            },
+        ];
+        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types).unwrap();
+        println!("{wit}");
+        assert!(wit.contains(indoc!(
+            r#"package example:multi1;
+
+            interface agent {
+              use golem:agent/common.{agent-error, agent-type};
+
+              /// An example agent
+              resource agent1 {
+                constructor(agent-id: string);
+                /// Creates an example agent instance
+                create: static func(person: person, description: string, photo: list<u8>) -> result<agent1, agent-error>;
+                get-id: func() -> string;
+                get-definition: func() -> agent-type;
+                /// returns a location
+                f1: func() -> result<location, agent-error>;
+              }
+
+              /// Another example agent
+              resource agent2 {
+                constructor(agent-id: string);
+                /// Creates another example agent instance
+                create: static func(person-group: list<person>) -> result<agent2, agent-error>;
+                get-id: func() -> string;
+                get-definition: func() -> agent-type;
+                /// takes a location or a color and returns a text or an image
+                f2: func(input: f2-input) -> result<f2-output, agent-error>;
+              }
+
+              enum color {
+                red,
+                green,
+                blue,
+              }
+
+              variant f2-output {
+                text(string),
+                image(list<u8>),
+              }
+
+              variant location {
+                home(string),
+                work(string),
+                unknown,
+              }
+
+              variant f2-input {
+                place(location),
+                color(color),
+              }
+
+              record person {
+                first-name: string,
+                last-name: string,
+                age: option<u32>,
+                eye-color: color,
               }
             }
 

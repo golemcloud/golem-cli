@@ -243,7 +243,7 @@ fn dynamic_import(
             }
         }
 
-        for ((interface_name, resource_name), _methods) in resources {
+        for ((_interface_name, resource_name), _methods) in resources {
             instance.resource(
                 &resource_name,
                 ResourceType::host::<ResourceEntry>(),
