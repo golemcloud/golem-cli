@@ -1,5 +1,5 @@
 [agent]
-url = "https://github.com/golemcloud/golem-agentic/archive/names-in-schema.tar.gz"
+url = "https://github.com/golemcloud/golem-agentic/archive/main.tar.gz"
 sha256 = "860bbac7d96cfcdfb2c31bbb8c8d8430e55f87300042ee94228228c37d554872"
 sha512 = "cb3d758b6b8c834131479ebd17e63a83ac9f376e33183bb00947e269da0ffefbeb1c945be5a51fc30497d8f6e833e20124f3f1ff6a63e9b67afeed094cfa8961"
 deps = ["all", "blobstore", "cli", "clocks", "config", "filesystem", "golem-1.x", "golem-agent", "golem-durability", "golem-rpc", "http", "io", "keyvalue", "logging", "random", "sockets"]
@@ -33,8 +33,8 @@ sha256 = "d707888500487684ea753aa86547665221803d64445fcb1ef23470ded04eaab7"
 sha512 = "7558b6110b7f8b43b8b9858e9236eba2569babf9a23204d186785e6693172c94856e271406b7753ed75c8e1fefb2558e7038b10f3dead448a4ea23975f3d10df"
 
 [golem-agent]
-sha256 = "718ce239ca1bd79309f79ff9595819a11fb9b0877b8052c257da2dd06da9dc09"
-sha512 = "2ec5a1460ca030ba2c9a0349bfd6b7c4602f832b83da30bf2bae96d7df7155bafeacc10235aeb12a32d2079c2e503876d4d75663f467caf54f398a22e20b2199"
+sha256 = "cf8eab6c0fb4832cc08bf98f8bb1181b4540e78df07f2b3b2b45913501a8cdd4"
+sha512 = "9933f7e20f28a4f05fd99bf8b2e89e37d0a605f0f30f87ad10e903975acd82f821dea3bafe1d5889c2d2b7781d0356a2eecd1ab38c0daa6dc2f9e029a3c3eead"
 
 [golem-durability]
 sha256 = "c5f8b9b4bda5a8d5d1d008978abed617c18da7d9c24167bf20a81a379d10d688"
