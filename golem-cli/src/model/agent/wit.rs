@@ -38,7 +38,7 @@ pub fn generate_agent_wrapper_wit(
     resolved.into_single_file_wrapper_wit()
 }
 
-struct AgentWrapperGeneratorContext {
+pub struct AgentWrapperGeneratorContext {
     type_names: HashMap<AnalysedType, String>,
     used_names: HashSet<String>,
 }

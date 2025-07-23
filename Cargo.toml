@@ -72,6 +72,7 @@ itertools = "0.14.0"
 lenient_bool = "0.1.1"
 log = "0.4.25"
 minijinja = "2.7.0"
+moonbit-component-generator = { version = "0.0.1", features = ["get-script"] }
 nanoid = "0.4.0"
 native-tls = "0.2.13"
 nondestructive = "0.0.26"
