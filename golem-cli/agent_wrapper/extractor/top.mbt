@@ -347,7 +347,7 @@ impl Extractor for NodeExtractor with list_elements(self : NodeExtractor) -> Arr
           Some(extractor) => result.push(extractor)
         }
       }
-      if !failing {
+      if not(failing) {
         Some(result)
       } else {
         None
