@@ -14,7 +14,11 @@
 
 mod conversions;
 pub mod extraction;
+pub mod moonbit;
 pub mod wit;
+
+#[cfg(test)]
+pub mod test;
 
 // Golem Agent types
 // NOTE: this is going to be moved to golem-common

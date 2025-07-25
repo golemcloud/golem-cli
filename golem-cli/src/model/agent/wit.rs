@@ -29,34 +29,49 @@ const STATIC_WRAPPER_INTERFACE_NAME: &str = "agent";
 pub fn generate_agent_wrapper_wit(
     component_name: &AppComponentName,
     agent_types: &[AgentType],
-) -> anyhow::Result<String> {
-    let mut ctx = AgentWrapperGeneratorContext::new();
-    let wrapper_wit_package_source = ctx.generate_wit_source(component_name, agent_types)?;
-
-    let resolved = ResolvedWrapper::new(wrapper_wit_package_source)?;
-
-    resolved.into_single_file_wrapper_wit()
+) -> anyhow::Result<AgentWrapperGeneratorContext> {
+    let mut ctx = AgentWrapperGeneratorContextState::new(agent_types.to_vec());
+    ctx.generate_wit_source(component_name)?;
+    ctx.generate_single_file_wrapper_wit()?;
+    ctx.finalize()
 }
 
-struct AgentWrapperGeneratorContext {
+pub struct AgentWrapperGeneratorContext {
+    pub agent_types: Vec<AgentType>,
+    pub type_names: HashMap<AnalysedType, String>,
+    pub used_names: HashSet<String>,
+    pub multimodal_variants: HashMap<String, String>,
+    pub wrapper_package_wit_source: String,
+    pub single_file_wrapper_wit_source: String,
+}
+
+pub struct AgentWrapperGeneratorContextState {
+    agent_types: Vec<AgentType>,
     type_names: HashMap<AnalysedType, String>,
     used_names: HashSet<String>,
+    multimodal_variants: HashMap<String, String>,
+    wrapper_package_wit_source: Option<String>,
+    single_file_wrapper_wit_source: Option<String>,
 }
 
-impl AgentWrapperGeneratorContext {
-    fn new() -> Self {
+impl AgentWrapperGeneratorContextState {
+    fn new(agent_types: Vec<AgentType>) -> Self {
         Self {
             type_names: HashMap::new(),
             used_names: HashSet::new(),
+            multimodal_variants: HashMap::new(),
+            wrapper_package_wit_source: None,
+            single_file_wrapper_wit_source: None,
+            agent_types,
         }
     }
 
     /// Generate the wrapper WIT that also imports and exports golem:agent/guest
-    fn generate_wit_source(
-        &mut self,
-        component_name: &AppComponentName,
-        agent_types: &[AgentType],
-    ) -> anyhow::Result<String> {
+    fn generate_wit_source(&mut self, component_name: &AppComponentName) -> anyhow::Result<()> {
+        if self.wrapper_package_wit_source.is_some() {
+            return Err(anyhow!("generate_wit_source has been called already"));
+        }
+
         let mut result = String::new();
 
         let package_name = component_name.to_string();
@@ -77,7 +92,8 @@ impl AgentWrapperGeneratorContext {
             "  use golem:agent/common.{{agent-error, agent-type}};"
         )?;
 
-        for agent in agent_types {
+        let agent_types = self.agent_types.clone();
+        for agent in &agent_types {
             self.generate_agent_wrapper_resource(&mut result, agent)?;
         }
 
@@ -101,7 +117,41 @@ impl AgentWrapperGeneratorContext {
         writeln!(result, "  export {interface_name};")?;
         writeln!(result, "}}")?;
 
-        Ok(result)
+        self.wrapper_package_wit_source = Some(result);
+        Ok(())
+    }
+
+    fn generate_single_file_wrapper_wit(&mut self) -> anyhow::Result<()> {
+        if self.single_file_wrapper_wit_source.is_some() {
+            return Err(anyhow!(
+                "generate_single_file_wrapper_wit has been called already"
+            ));
+        }
+
+        let resolved = ResolvedWrapper::new(
+            self.wrapper_package_wit_source
+                .as_ref()
+                .ok_or_else(|| anyhow!("Must call generate_wit_source first"))?
+                .clone(),
+        )?;
+
+        self.single_file_wrapper_wit_source = Some(resolved.into_single_file_wrapper_wit()?);
+        Ok(())
+    }
+
+    fn finalize(self) -> anyhow::Result<AgentWrapperGeneratorContext> {
+        Ok(AgentWrapperGeneratorContext {
+            type_names: self.type_names,
+            used_names: self.used_names,
+            multimodal_variants: self.multimodal_variants,
+            wrapper_package_wit_source: self
+                .wrapper_package_wit_source
+                .ok_or_else(|| anyhow!("Must call generate_single_file_wrapper_wit first"))?,
+            single_file_wrapper_wit_source: self
+                .single_file_wrapper_wit_source
+                .ok_or_else(|| anyhow!("Must call generate_wit_source first"))?,
+            agent_types: self.agent_types,
+        })
     }
 
     fn generate_agent_wrapper_resource(
@@ -280,8 +330,8 @@ impl AgentWrapperGeneratorContext {
             }
             DataSchema::Multimodal(cases) => {
                 let variant = Self::multimodal_variant(cases).named(format!("{context}-input"));
-                let name = self.register_type(&variant);
-                write!(result, "input: {name}")?;
+                let name = self.register_multimodal_variant(&variant);
+                write!(result, "input: list<{name}>")?;
             }
         }
         Ok(())
@@ -316,8 +366,8 @@ impl AgentWrapperGeneratorContext {
             }
             DataSchema::Multimodal(cases) => {
                 let variant = Self::multimodal_variant(cases).named(format!("{context}-output"));
-                let name = self.register_type(&variant);
-                write!(result, "{name}")?;
+                let name = self.register_multimodal_variant(&variant);
+                write!(result, "list<{name}>")?;
             }
         }
         Ok(())
@@ -407,6 +457,13 @@ impl AgentWrapperGeneratorContext {
                 "Handles are not supported on agent interfaces currently."
             )),
         }
+    }
+
+    fn register_multimodal_variant(&mut self, typ: &AnalysedType) -> String {
+        let name = self.register_type(typ);
+        self.multimodal_variants
+            .insert(typ.name().unwrap().to_string(), name.clone());
+        name
     }
 
     fn register_type(&mut self, typ: &AnalysedType) -> String {
@@ -597,11 +654,11 @@ fn add_golem_agent(resolve: &mut Resolve) -> anyhow::Result<PackageId> {
 #[cfg(test)]
 mod tests {
     use crate::model::agent::{
-        AgentConstructor, AgentMethod, AgentType, BinaryDescriptor, DataSchema, ElementSchema,
-        NamedElementSchema, TextDescriptor,
+        test, AgentConstructor, AgentMethod, AgentType, BinaryDescriptor, DataSchema,
+        ElementSchema, NamedElementSchema, TextDescriptor,
     };
     use golem_wasm_ast::analysis::analysed_type::{
-        case, field, list, option, r#enum, record, str, u32, unit_case, variant,
+        case, field, option, r#enum, record, str, u32, unit_case, variant,
     };
     use indoc::indoc;
     use test_r::test;
@@ -610,7 +667,9 @@ mod tests {
     fn empty_agent_wrapper() {
         let component_name = "example:empty".into();
         let agent_types = vec![];
-        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types).unwrap();
+        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types)
+            .unwrap()
+            .single_file_wrapper_wit_source;
         println!("{wit}");
         assert!(wit.contains(indoc!(
             r#"package example:empty;
@@ -687,7 +746,9 @@ mod tests {
             ],
             dependencies: vec![],
         }];
-        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types).unwrap();
+        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types)
+            .unwrap()
+            .single_file_wrapper_wit_source;
         println!("{wit}");
         assert!(wit.contains(indoc!(
             r#"package example:single1;
@@ -797,7 +858,9 @@ mod tests {
             ],
             dependencies: vec![],
         }];
-        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types).unwrap();
+        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types)
+            .unwrap()
+            .single_file_wrapper_wit_source;
         println!("{wit}");
         assert!(wit.contains(indoc!(
             r#"package example:single2;
@@ -855,109 +918,11 @@ mod tests {
     #[test]
     fn multi_agent_wrapper_2() {
         let component_name = "example:multi1".into();
+        let agent_types = test::multi_agent_wrapper_2_types();
 
-        let color = r#enum(&["red", "green", "blue"]).named("color");
-
-        let person = record(vec![
-            field("first-name", str()),
-            field("last-name", str()),
-            field("age", option(u32())),
-            field("eye-color", color.clone()),
-        ])
-        .named("person");
-
-        let location = variant(vec![
-            case("home", str()),
-            case("work", str()),
-            unit_case("unknown"),
-        ])
-        .named("location");
-
-        let agent_types = vec![
-            AgentType {
-                type_name: "agent1".to_string(),
-                description: "An example agent".to_string(),
-                constructor: AgentConstructor {
-                    name: None,
-                    description: "Creates an example agent instance".into(),
-                    prompt_hint: None,
-                    input_schema: DataSchema::Tuple(vec![
-                        NamedElementSchema {
-                            name: "person".to_string(),
-                            schema: ElementSchema::ComponentModel(person.clone()),
-                        },
-                        NamedElementSchema {
-                            name: "description".to_string(),
-                            schema: ElementSchema::UnstructuredText(TextDescriptor {
-                                restrictions: None,
-                            }),
-                        },
-                        NamedElementSchema {
-                            name: "photo".to_string(),
-                            schema: ElementSchema::UnstructuredBinary(BinaryDescriptor {
-                                restrictions: None,
-                            }),
-                        },
-                    ]),
-                },
-                methods: vec![AgentMethod {
-                    name: "f1".to_string(),
-                    description: "returns a location".to_string(),
-                    prompt_hint: None,
-                    input_schema: DataSchema::Tuple(vec![]),
-                    output_schema: DataSchema::Tuple(vec![NamedElementSchema {
-                        name: "return".to_string(),
-                        schema: ElementSchema::ComponentModel(location.clone()),
-                    }]),
-                }],
-                dependencies: vec![],
-            },
-            AgentType {
-                type_name: "agent2".to_string(),
-                description: "Another example agent".to_string(),
-                constructor: AgentConstructor {
-                    name: None,
-                    description: "Creates another example agent instance".into(),
-                    prompt_hint: None,
-                    input_schema: DataSchema::Tuple(vec![NamedElementSchema {
-                        name: "person-group".to_string(),
-                        schema: ElementSchema::ComponentModel(list(person)),
-                    }]),
-                },
-                methods: vec![AgentMethod {
-                    name: "f2".to_string(),
-                    description: "takes a location or a color and returns a text or an image"
-                        .to_string(),
-                    prompt_hint: None,
-                    input_schema: DataSchema::Multimodal(vec![
-                        NamedElementSchema {
-                            name: "place".to_string(),
-                            schema: ElementSchema::ComponentModel(location),
-                        },
-                        NamedElementSchema {
-                            name: "color".to_string(),
-                            schema: ElementSchema::ComponentModel(color),
-                        },
-                    ]),
-                    output_schema: DataSchema::Multimodal(vec![
-                        NamedElementSchema {
-                            name: "text".to_string(),
-                            schema: ElementSchema::UnstructuredText(TextDescriptor {
-                                restrictions: None,
-                            }),
-                        },
-                        NamedElementSchema {
-                            name: "image".to_string(),
-                            schema: ElementSchema::UnstructuredBinary(BinaryDescriptor {
-                                restrictions: None,
-                            }),
-                        },
-                    ]),
-                }],
-                dependencies: vec![],
-            },
-        ];
-        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types).unwrap();
+        let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types)
+            .unwrap()
+            .single_file_wrapper_wit_source;
         println!("{wit}");
         assert!(wit.contains(indoc!(
             r#"package example:multi1;
@@ -984,7 +949,7 @@ mod tests {
                 get-id: func() -> string;
                 get-definition: func() -> agent-type;
                 /// takes a location or a color and returns a text or an image
-                f2: func(input: f2-input) -> result<f2-output, agent-error>;
+                f2: func(input: list<f2-input>) -> result<list<f2-output>, agent-error>;
               }
 
               enum color {
