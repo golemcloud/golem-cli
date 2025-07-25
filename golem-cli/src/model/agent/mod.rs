@@ -14,8 +14,8 @@
 
 mod conversions;
 pub mod extraction;
-pub mod wit;
 pub mod moonbit;
+pub mod wit;
 
 #[cfg(test)]
 pub mod test;

@@ -26,6 +26,24 @@ pub fn extract_component_model_value(
   }
 }
 
+pub fn extract_unstructured_text(
+    element : @common.ElementValue,
+    ) -> @common.TextReference {
+    match element {
+        @common.ElementValue::UnstructuredText(text) => text
+        _ => panic()
+    }
+}
+
+pub fn extract_unstructured_binary(
+    element : @common.ElementValue,
+) -> @common.BinaryReference {
+    match element {
+        @common.ElementValue::UnstructuredBinary(data) => data
+        _ => panic()
+    }
+}
+
 ///|
 pub fn extract(value : @types.WitValue) -> &Extractor {
   WitValueExtractor::{ value, }

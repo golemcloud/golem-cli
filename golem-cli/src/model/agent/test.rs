@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use golem_wasm_ast::analysis::analysed_type::{case, field, list, option, r#enum, record, str, u32, unit_case, variant};
-use crate::model::agent::{AgentConstructor, AgentMethod, AgentType, BinaryDescriptor, DataSchema, ElementSchema, NamedElementSchema, TextDescriptor};
+use crate::model::agent::{
+    AgentConstructor, AgentMethod, AgentType, BinaryDescriptor, DataSchema, ElementSchema,
+    NamedElementSchema, TextDescriptor,
+};
+use golem_wasm_ast::analysis::analysed_type::{
+    case, field, list, option, r#enum, record, str, u32, unit_case, variant,
+};
 
 pub fn multi_agent_wrapper_2_types() -> Vec<AgentType> {
     let color = r#enum(&["red", "green", "blue"]).named("color");
@@ -24,14 +29,14 @@ pub fn multi_agent_wrapper_2_types() -> Vec<AgentType> {
         field("age", option(u32())),
         field("eye-color", color.clone()),
     ])
-        .named("person");
+    .named("person");
 
     let location = variant(vec![
         case("home", str()),
         case("work", str()),
         unit_case("unknown"),
     ])
-        .named("location");
+    .named("location");
 
     let agent_types = vec![
         AgentType {

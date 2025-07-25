@@ -364,14 +364,14 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
         )?;
         writeln!(result, "  hasher.combine(self.rep())")?;
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         writeln!(result, "priv struct {wrapped_agents} {{")?;
         writeln!(result, "  agents: Map[{agent_name}, @guest.Agent]")?;
         writeln!(result, "  reverse_agents: Map[String, {agent_name}]")?;
         writeln!(result, "  mut last_agent_id: Int")?;
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         writeln!(result, "let {wrapped_agents_var}: {wrapped_agents} = {{")?;
         writeln!(result, "  agents: {{}},")?;
@@ -388,7 +388,7 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
         writeln!(result, "    None => panic()")?;
         writeln!(result, "  }}")?;
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         writeln!(
             result,
@@ -400,7 +400,7 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
         )?;
         writeln!(result, "  {wrapped_agents_var}.agents.remove(self)")?;
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         writeln!(
             result,
@@ -411,7 +411,7 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
             "  {wrapped_agents_var}.reverse_agents.get(agent_id).unwrap()"
         )?;
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         let constructor_params =
             to_moonbit_parameter_list(&ctx, &agent.constructor.input_schema, "constructor", false)?;
@@ -446,7 +446,7 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
         writeln!(result, "    Ok(agent)")?;
         writeln!(result, "  }})")?;
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         writeln!(
             result,
@@ -454,7 +454,7 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
         )?;
         writeln!(result, "  self.unwrap().get_id()")?;
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         writeln!(
             result,
@@ -462,17 +462,16 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
         )?;
         writeln!(result, "  self.unwrap().get_definition()")?;
         writeln!(result, "}}")?;
-        writeln!(result, "")?;
+        writeln!(result)?;
 
         for method in &agent.methods {
             let original_method_name = &method.name;
             let method_name = method.name.to_lower_camel_case();
 
             let moonbit_param_defs =
-                to_moonbit_parameter_list(&ctx, &method.input_schema, &original_method_name, true)?;
+                to_moonbit_parameter_list(&ctx, &method.input_schema, original_method_name, true)?;
             let moonbit_return_type =
-                to_moonbit_return_type(&ctx, &method.output_schema, &original_method_name)?;
-            let extract_result = "..."; // TODO
+                to_moonbit_return_type(&ctx, &method.output_schema, original_method_name)?;
 
             writeln!(result, "pub fn {agent_name}::{method_name}(self: {agent_name}{moonbit_param_defs}) -> Result[{moonbit_return_type}, @common.AgentError] {{")?;
             writeln!(result, "  let input = try ")?;
@@ -480,7 +479,7 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
                 &mut result,
                 &ctx,
                 &method.input_schema,
-                &original_method_name,
+                original_method_name,
             )?;
             writeln!(result, "    catch {{")?;
             writeln!(
@@ -493,10 +492,12 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
                 result,
                 "  self.unwrap().invoke(\"{original_method_name}\", input).bind(result => {{"
             )?;
-            writeln!(result, "    {extract_result}")?;
+
+            extract_data_value(&mut result, &ctx, &method.output_schema, "    ")?;
+
             writeln!(result, "  }})")?;
             writeln!(result, "}}")?;
-            writeln!(result, "")?;
+            writeln!(result)?;
         }
     }
 
@@ -562,7 +563,7 @@ fn to_moonbit_return_type(
     match schema {
         DataSchema::Tuple(elements) => {
             // tuple output is represented by either Unit, a single type, or a tuple of types
-            if elements.len() == 0 {
+            if elements.is_empty() {
                 write!(result, "Unit")?;
             } else if elements.len() == 1 {
                 let element = &elements[0];
@@ -762,7 +763,7 @@ fn build_data_value(
                     "value",
                     "            ",
                 )?;
-                writeln!(result, "")?;
+                writeln!(result)?;
                 writeln!(result, "          }}")?;
             }
 
@@ -827,7 +828,7 @@ fn write_builder(
                         write_builder(
                             result,
                             ctx,
-                            &case.typ.as_ref().unwrap(),
+                            case.typ.as_ref().unwrap(),
                             "value",
                             "builder",
                             &format!("{indent}         "),
@@ -1006,6 +1007,316 @@ fn write_builder(
             "Handle types are not supported in the static agent wrappers."
         ))?,
     }
+    Ok(())
+}
+
+// TODO: the extraction logic panics on type mismatches currently. we may want it to be an AgentError instead.
+fn extract_data_value(
+    result: &mut String,
+    ctx: &AgentWrapperGeneratorContext,
+    schema: &DataSchema,
+    indent: &str,
+) -> anyhow::Result<()> {
+    match schema {
+        DataSchema::Tuple(elements) => {
+            if elements.is_empty() {
+                writeln!(result, "{indent}Ok(())")?;
+            } else if elements.len() == 1 {
+                writeln!(
+                    result,
+                    "{indent}let values = @extractor.extract_tuple(result)"
+                )?;
+                let element = &elements[0];
+                match &element.schema {
+                    ElementSchema::ComponentModel(typ) => {
+                        writeln!(
+                            result,
+                            "{indent}let wit_value = @extractor.extract_component_model_value(values[0])"
+                        )?;
+                        writeln!(result, "{indent}Ok(")?;
+                        extract_wit_value(result, ctx, typ, "wit_value", indent)?;
+                        writeln!(result, "{indent})")?;
+                    }
+                    ElementSchema::UnstructuredText(_) => {
+                        writeln!(
+                            result,
+                            "{indent}match @extractor.extract_unstructured_text(values[0]) {{"
+                        )?;
+                        writeln!(result, "{indent}  Url(url) => panic()")?; // TODO: support url values
+                        writeln!(
+                            result,
+                            "{indent}  Inline(text_source) => Ok(text_source.data)"
+                        )?;
+                        writeln!(result, "}}")?;
+                    }
+                    ElementSchema::UnstructuredBinary(_) => {
+                        writeln!(
+                            result,
+                            "{indent}match @extractor.extract_unstructured_binary(values[0]) {{"
+                        )?;
+                        writeln!(result, "{indent}  Url(url) => panic()")?; // TODO: support url values
+                        writeln!(
+                            result,
+                            "{indent}  Inline(binary_source) => Ok(binary_source.data)"
+                        )?; // TODO: the wit interface should use (data, mime-type) pairs if it's not a single mime-type case
+                        writeln!(result, "}}")?;
+                    }
+                }
+            } else {
+                writeln!(
+                    result,
+                    "{indent}let values = @extractor.extract_tuple(result)"
+                )?;
+                writeln!(result, "{indent}Ok((")?;
+                for (idx, element) in elements.iter().enumerate() {
+                    match &element.schema {
+                        ElementSchema::ComponentModel(typ) => {
+                            writeln!(
+                                result,
+                                "{indent}let wit_value = @extractor.extract_component_model_value(values[{idx}])"
+                            )?;
+                            writeln!(result, "{{")?;
+                            extract_wit_value(
+                                result,
+                                ctx,
+                                typ,
+                                "@extractor.extract(wit_value)",
+                                &format!("{indent}  "),
+                            )?;
+                            writeln!(result, "}}")?;
+                        }
+                        ElementSchema::UnstructuredText(_) => {
+                            writeln!(
+                                result,
+                                "{indent}match @extractor.extract_unstructured_text(values[{idx}]) {{"
+                            )?;
+                            writeln!(result, "{indent}  Url(url) => panic()")?; // TODO: support url values
+                            writeln!(
+                                result,
+                                "{indent}  Inline(text_source) => Ok(text_source.data)"
+                            )?;
+                            writeln!(result, "}},")?;
+                        }
+                        ElementSchema::UnstructuredBinary(_) => {
+                            writeln!(
+                                result,
+                                "{indent}match @extractor.extract_unstructured_binary(values[{idx}]) {{"
+                            )?;
+                            writeln!(result, "{indent}  Url(url) => panic()")?; // TODO: support url values
+                            writeln!(
+                                result,
+                                "{indent}  Inline(binary_source) => Ok(binary_source.data)"
+                            )?; // TODO: the wit interface should use (data, mime-type) pairs if it's not a single mime-type case
+                            writeln!(result, "}},")?;
+                        }
+                    }
+                }
+                writeln!(result, "{indent}))")?;
+            }
+        }
+        DataSchema::Multimodal(_) => {
+            // TODO
+            writeln!(result, "{indent}...")?;
+        }
+    }
+
+    Ok(())
+}
+
+fn extract_wit_value(
+    result: &mut String,
+    ctx: &AgentWrapperGeneratorContext,
+    typ: &AnalysedType,
+    from: &str,
+    indent: &str,
+) -> anyhow::Result<()> {
+    match typ {
+        AnalysedType::Variant(variant) => {
+            let variant_name = ctx
+                .type_names
+                .get(typ)
+                .ok_or_else(|| anyhow!("Missing type name for variant: {typ:?}"))?
+                .to_upper_camel_case();
+
+            writeln!(result, "{indent}{{")?;
+            writeln!(
+                result,
+                "{indent}  let (idx, inner) = {from}.variant().unwrap()"
+            )?;
+            writeln!(result, "{indent}  match idx {{")?;
+
+            for (idx, case) in variant.cases.iter().enumerate() {
+                let case_name = case.name.to_kebab_case().to_upper_camel_case();
+
+                writeln!(result, "{indent}    {idx} => {{")?;
+                if let Some(inner_type) = &case.typ {
+                    writeln!(result, "{indent}      {variant_name}::{case_name}(")?;
+                    extract_wit_value(
+                        result,
+                        ctx,
+                        inner_type,
+                        "inner.unwrap()",
+                        &format!("{indent}        "),
+                    )?;
+                    writeln!(result, "{indent}      )")?;
+                } else {
+                    writeln!(result, "{indent}      {variant_name}::{case_name}")?;
+                }
+                writeln!(result, "{indent}    }}")?;
+            }
+
+            writeln!(result, "{indent}  }}")?;
+            writeln!(result, "{indent}}}")?;
+        }
+        AnalysedType::Result(result_type) => {
+            writeln!(result, "{indent}{from}.result().unwrap().map(inner => {{")?;
+            if let Some(ok) = &result_type.ok {
+                extract_wit_value(result, ctx, ok, "inner", &format!("{indent}  "))?;
+            } else {
+                writeln!(result, "{indent}  ()")?;
+            }
+            writeln!(result, "{indent}}}).map_err(inner => {{")?;
+            if let Some(err) = &result_type.err {
+                writeln!(result, "{indent}  inner.map(inner => {{")?;
+                extract_wit_value(result, ctx, err, "inner", &format!("{indent}    "))?;
+                writeln!(result, "{indent}  }})")?;
+            } else {
+                writeln!(result, "{indent}  ()")?;
+            }
+            writeln!(result, "{indent}}})")?;
+        }
+        AnalysedType::Option(option) => {
+            writeln!(result, "{indent}{from}.option().unwrap().map(inner => {{")?;
+            extract_wit_value(result, ctx, &option.inner, "inner", &format!("{indent}  "))?;
+            writeln!(result, "{indent}}})")?;
+        }
+        AnalysedType::Enum(_) => {
+            let enum_type_name = ctx
+                .type_names
+                .get(typ)
+                .ok_or_else(|| anyhow!("Missing type name for enum: {typ:?}"))?
+                .to_upper_camel_case();
+            writeln!(
+                result,
+                "{indent}{enum_type_name}::from({from}.enum_value().unwrap().reinterpret_as_int())"
+            )?;
+        }
+        AnalysedType::Flags(flags) => {
+            let flags_type = ctx
+                .type_names
+                .get(typ)
+                .ok_or_else(|| anyhow!("Missing type name for flags: {typ:?}"))?
+                .to_upper_camel_case();
+
+            writeln!(result, "{indent}{{")?;
+            writeln!(result, "{indent}  let bitmap = {from}.flags().unwrap()")?;
+            writeln!(result, "{indent}  let mut result = {flags_type}::default()")?;
+            for (idx, flag) in flags.names.iter().enumerate() {
+                let flag_name = flag.to_shouty_snake_case();
+                writeln!(
+                    result,
+                    "{indent}  if bitmap[{idx}] {{ result.set({flags_type}Flag::{flag_name}) }}"
+                )?;
+            }
+            writeln!(result, "{indent}  result")?;
+            writeln!(result, "{indent}}}")?;
+        }
+        AnalysedType::Record(record) => {
+            let record_name = ctx
+                .type_names
+                .get(typ)
+                .ok_or_else(|| anyhow!("Missing type name for record: {typ:?}"))?
+                .to_upper_camel_case();
+
+            writeln!(result, "{indent}{record_name}::{{")?;
+
+            for (idx, field) in record.fields.iter().enumerate() {
+                let field_name = field.name.to_snake_case();
+
+                writeln!(result, "{indent}  {field_name}: {{")?;
+                extract_wit_value(
+                    result,
+                    ctx,
+                    &field.typ,
+                    &format!("{from}.field({idx}).unwrap()"),
+                    &format!("{indent}    "),
+                )?;
+                writeln!(result, "{indent}  }},")?;
+            }
+
+            writeln!(result, "{indent}}}")?;
+        }
+        AnalysedType::Tuple(tuple) => {
+            writeln!(result, "{indent}(")?;
+
+            for (idx, typ) in tuple.items.iter().enumerate() {
+                writeln!(result, "{indent}  {{")?;
+                extract_wit_value(
+                    result,
+                    ctx,
+                    typ,
+                    &format!("{from}.tuple_element({idx}).unwrap()"),
+                    &format!("{indent}    "),
+                )?;
+                writeln!(result, "{indent}  }},")?;
+            }
+
+            writeln!(result, "{indent})")?;
+        }
+        AnalysedType::List(list) => {
+            writeln!(
+                result,
+                "{indent}{from}.list_elements().unwrap().map(item => {{"
+            )?;
+            extract_wit_value(result, ctx, &list.inner, "item", &format!("{indent}  "))?;
+            writeln!(result, "{indent}}})")?;
+        }
+        AnalysedType::Str(_) => {
+            writeln!(result, "{indent}{from}.string().unwrap()")?;
+        }
+        AnalysedType::Chr(_) => {
+            writeln!(result, "{indent}{from}.char().unwrap()")?;
+        }
+        AnalysedType::F64(_) => {
+            writeln!(result, "{indent}{from}.f64().unwrap()")?;
+        }
+        AnalysedType::F32(_) => {
+            writeln!(result, "{indent}{from}.f32().unwrap()")?;
+        }
+        AnalysedType::U64(_) => {
+            writeln!(result, "{indent}{from}.u64().unwrap()")?;
+        }
+        AnalysedType::S64(_) => {
+            writeln!(result, "{indent}{from}.s64().unwrap()")?;
+        }
+        AnalysedType::U32(_) => {
+            writeln!(result, "{indent}{from}.u32().unwrap()")?;
+        }
+        AnalysedType::S32(_) => {
+            writeln!(result, "{indent}{from}.s32().unwrap()")?;
+        }
+        AnalysedType::U16(_) => {
+            writeln!(result, "{indent}{from}.u16().unwrap()")?;
+        }
+        AnalysedType::S16(_) => {
+            writeln!(result, "{indent}{from}.s16().unwrap()")?;
+        }
+        AnalysedType::U8(_) => {
+            writeln!(result, "{indent}{from}.u8().unwrap()")?;
+        }
+        AnalysedType::S8(_) => {
+            writeln!(result, "{indent}{from}.s8().unwrap()")?;
+        }
+        AnalysedType::Bool(_) => {
+            writeln!(result, "{indent}{from}.bool().unwrap()")?;
+        }
+        AnalysedType::Handle(_) => {
+            return Err(anyhow!(
+                "Handle types are not supported in the static agent wrappers."
+            ));
+        }
+    }
+
     Ok(())
 }
 
