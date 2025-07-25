@@ -30,42 +30,44 @@ pub fn generate_agent_wrapper_wit(
     component_name: &AppComponentName,
     agent_types: &[AgentType],
 ) -> anyhow::Result<AgentWrapperGeneratorContext> {
-    let mut ctx = AgentWrapperGeneratorContextState::new();
-    ctx.generate_wit_source(component_name, agent_types)?;
+    let mut ctx = AgentWrapperGeneratorContextState::new(agent_types.to_vec());
+    ctx.generate_wit_source(component_name)?;
     ctx.generate_single_file_wrapper_wit()?;
     ctx.finalize()
 }
 
 pub struct AgentWrapperGeneratorContext {
+    pub agent_types: Vec<AgentType>,
     pub type_names: HashMap<AnalysedType, String>,
     pub used_names: HashSet<String>,
+    pub multimodal_variants: HashMap<String, String>,
     pub wrapper_package_wit_source: String,
     pub single_file_wrapper_wit_source: String,
 }
 
 pub struct AgentWrapperGeneratorContextState {
+    agent_types: Vec<AgentType>,
     type_names: HashMap<AnalysedType, String>,
     used_names: HashSet<String>,
+    multimodal_variants: HashMap<String, String>,
     wrapper_package_wit_source: Option<String>,
     single_file_wrapper_wit_source: Option<String>,
 }
 
 impl AgentWrapperGeneratorContextState {
-    fn new() -> Self {
+    fn new(agent_types: Vec<AgentType>) -> Self {
         Self {
             type_names: HashMap::new(),
             used_names: HashSet::new(),
+            multimodal_variants: HashMap::new(),
             wrapper_package_wit_source: None,
             single_file_wrapper_wit_source: None,
+            agent_types,
         }
     }
 
     /// Generate the wrapper WIT that also imports and exports golem:agent/guest
-    fn generate_wit_source(
-        &mut self,
-        component_name: &AppComponentName,
-        agent_types: &[AgentType],
-    ) -> anyhow::Result<()> {
+    fn generate_wit_source(&mut self, component_name: &AppComponentName) -> anyhow::Result<()> {
         if self.wrapper_package_wit_source.is_some() {
             return Err(anyhow!("generate_wit_source has been called already"));
         }
@@ -90,7 +92,8 @@ impl AgentWrapperGeneratorContextState {
             "  use golem:agent/common.{{agent-error, agent-type}};"
         )?;
 
-        for agent in agent_types {
+        let agent_types = self.agent_types.clone();
+        for agent in &agent_types {
             self.generate_agent_wrapper_resource(&mut result, agent)?;
         }
 
@@ -120,7 +123,9 @@ impl AgentWrapperGeneratorContextState {
 
     fn generate_single_file_wrapper_wit(&mut self) -> anyhow::Result<()> {
         if self.single_file_wrapper_wit_source.is_some() {
-            return Err(anyhow!("generate_single_file_wrapper_wit has been called already"));
+            return Err(anyhow!(
+                "generate_single_file_wrapper_wit has been called already"
+            ));
         }
 
         let resolved = ResolvedWrapper::new(
@@ -138,12 +143,14 @@ impl AgentWrapperGeneratorContextState {
         Ok(AgentWrapperGeneratorContext {
             type_names: self.type_names,
             used_names: self.used_names,
+            multimodal_variants: self.multimodal_variants,
             wrapper_package_wit_source: self
                 .wrapper_package_wit_source
                 .ok_or_else(|| anyhow!("Must call generate_single_file_wrapper_wit first"))?,
             single_file_wrapper_wit_source: self
                 .single_file_wrapper_wit_source
                 .ok_or_else(|| anyhow!("Must call generate_wit_source first"))?,
+            agent_types: self.agent_types,
         })
     }
 
@@ -323,8 +330,8 @@ impl AgentWrapperGeneratorContextState {
             }
             DataSchema::Multimodal(cases) => {
                 let variant = Self::multimodal_variant(cases).named(format!("{context}-input"));
-                let name = self.register_type(&variant);
-                write!(result, "input: {name}")?;
+                let name = self.register_multimodal_variant(&variant);
+                write!(result, "input: list<{name}>")?;
             }
         }
         Ok(())
@@ -359,8 +366,8 @@ impl AgentWrapperGeneratorContextState {
             }
             DataSchema::Multimodal(cases) => {
                 let variant = Self::multimodal_variant(cases).named(format!("{context}-output"));
-                let name = self.register_type(&variant);
-                write!(result, "{name}")?;
+                let name = self.register_multimodal_variant(&variant);
+                write!(result, "list<{name}>")?;
             }
         }
         Ok(())
@@ -450,6 +457,13 @@ impl AgentWrapperGeneratorContextState {
                 "Handles are not supported on agent interfaces currently."
             )),
         }
+    }
+
+    fn register_multimodal_variant(&mut self, typ: &AnalysedType) -> String {
+        let name = self.register_type(typ);
+        self.multimodal_variants
+            .insert(typ.name().unwrap().to_string(), name.clone());
+        name
     }
 
     fn register_type(&mut self, typ: &AnalysedType) -> String {
@@ -655,7 +669,7 @@ mod tests {
         let agent_types = vec![];
         let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types)
             .unwrap()
-            .wrapper_package_wit_source;
+            .single_file_wrapper_wit_source;
         println!("{wit}");
         assert!(wit.contains(indoc!(
             r#"package example:empty;
@@ -734,7 +748,7 @@ mod tests {
         }];
         let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types)
             .unwrap()
-            .wrapper_package_wit_source;
+            .single_file_wrapper_wit_source;
         println!("{wit}");
         assert!(wit.contains(indoc!(
             r#"package example:single1;
@@ -846,7 +860,7 @@ mod tests {
         }];
         let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types)
             .unwrap()
-            .wrapper_package_wit_source;
+            .single_file_wrapper_wit_source;
         println!("{wit}");
         assert!(wit.contains(indoc!(
             r#"package example:single2;
@@ -908,7 +922,7 @@ mod tests {
 
         let wit = super::generate_agent_wrapper_wit(&component_name, &agent_types)
             .unwrap()
-            .wrapper_package_wit_source;
+            .single_file_wrapper_wit_source;
         println!("{wit}");
         assert!(wit.contains(indoc!(
             r#"package example:multi1;
@@ -935,7 +949,7 @@ mod tests {
                 get-id: func() -> string;
                 get-definition: func() -> agent-type;
                 /// takes a location or a color and returns a text or an image
-                f2: func(input: f2-input) -> result<f2-output, agent-error>;
+                f2: func(input: list<f2-input>) -> result<list<f2-output>, agent-error>;
               }
 
               enum color {

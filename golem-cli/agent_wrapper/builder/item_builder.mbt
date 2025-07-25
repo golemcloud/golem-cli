@@ -230,6 +230,18 @@ pub fn ItemBuilder::variant_unit(
 }
 
 ///|
+pub fn ItemBuilder::variant_option(
+  self : ItemBuilder,
+  idx : UInt,
+  inner : ((ItemBuilder) -> Unit raise BuilderError)?,
+) -> Unit raise BuilderError {
+  match inner {
+    Some(inner_fn) => self.variant(idx, inner_fn)
+    None => self.variant_unit(idx)
+  }
+}
+
+///|
 pub fn ItemBuilder::tuple(
   self : ItemBuilder,
   inner : (ItemBuilder) -> Unit raise BuilderError,
@@ -278,6 +290,17 @@ pub fn ItemBuilder::option_some(
 }
 
 ///|
+pub fn ItemBuilder::option(
+  self : ItemBuilder,
+  inner : ((ItemBuilder) -> Unit raise BuilderError)?,
+) -> Unit raise BuilderError {
+  match inner {
+    Some(inner_fn) => self.option_some(inner_fn)
+    None => self.option_none()
+  }
+}
+
+///|
 pub fn ItemBuilder::result_ok(
   self : ItemBuilder,
   inner : (ItemBuilder) -> Unit raise BuilderError,
@@ -323,6 +346,22 @@ pub fn ItemBuilder::result_err_unit(
   }
   let item_type_index = self.root_builder().add_result_err_unit()
   self.parent.add_item(item_type_index)
+}
+
+///|
+pub fn ItemBuilder::result(
+  self : ItemBuilder,
+  inner : Result[
+    ((ItemBuilder) -> Unit raise BuilderError)?,
+    ((ItemBuilder) -> Unit raise BuilderError)?,
+  ],
+) -> Unit raise BuilderError {
+  match inner {
+    Ok(Some(inner_fn)) => self.result_ok(inner_fn)
+    Ok(None) => self.result_ok_unit()
+    Err(Some(inner_fn)) => self.result_err(inner_fn)
+    Err(None) => self.result_err_unit()
+  }
 }
 
 ///|

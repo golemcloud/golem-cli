@@ -2,7 +2,7 @@
 typealias Int as NodeIndex
 
 ///|
-suberror BuilderError String
+pub suberror BuilderError String
 
 ///|
 struct Builder {
@@ -375,6 +375,19 @@ pub fn Builder::variant_unit(
 }
 
 ///|
+pub fn Builder::variant_option(
+  self : Builder,
+  case_idx : UInt,
+  inner : ((ItemBuilder) -> Unit raise BuilderError)?,
+) -> @types.WitValue raise BuilderError {
+  let result = match inner {
+    Some(inner_fn) => self.variant(case_idx, inner_fn)
+    None => self.variant_unit(case_idx)
+  }
+  result
+}
+
+///|
 pub fn Builder::tuple(
   self : Builder,
   inner : (ItemBuilder) -> Unit raise BuilderError,
@@ -411,6 +424,17 @@ pub fn Builder::option_none(self : Builder) -> @types.WitValue {
 }
 
 ///|
+pub fn Builder::option(
+  self : Builder,
+  inner : ((ItemBuilder) -> Unit raise BuilderError)?,
+) -> @types.WitValue raise BuilderError {
+  match inner {
+    Some(inner_fn) => self.option_some(inner_fn)
+    None => self.option_none()
+  }
+}
+
+///|
 pub fn Builder::result_ok(
   self : Builder,
   inner : (ItemBuilder) -> Unit raise BuilderError,
@@ -440,6 +464,22 @@ pub fn Builder::result_ok_unit(self : Builder) -> @types.WitValue {
 pub fn Builder::result_err_unit(self : Builder) -> @types.WitValue {
   let _ = self.add_result_err_unit()
   self.build()
+}
+
+///|
+pub fn Builder::result(
+  self : Builder,
+  inner : Result[
+    ((ItemBuilder) -> Unit raise BuilderError)?,
+    ((ItemBuilder) -> Unit raise BuilderError)?,
+  ],
+) -> @types.WitValue raise BuilderError {
+  match inner {
+    Ok(Some(inner_fn)) => self.result_ok(inner_fn)
+    Ok(None) => self.result_ok_unit()
+    Err(Some(inner_fn)) => self.result_err(inner_fn)
+    Err(None) => self.result_err_unit()
+  }
 }
 
 ///|
