@@ -125,7 +125,13 @@ pub enum DataSchema {
 #[derive(Debug, Clone, Encode, Decode, IntoValue)]
 pub enum DataValue {
     Tuple(Vec<ElementValue>),
-    Multimodal(Vec<ElementValue>),
+    Multimodal(Vec<NamedElementValue>),
+}
+
+#[derive(Debug, Clone, Encode, Decode, IntoValue)]
+pub struct NamedElementValue {
+    pub name: String,
+    pub value: ElementValue,
 }
 
 #[derive(Debug, Clone, Encode, Decode, IntoValue)]

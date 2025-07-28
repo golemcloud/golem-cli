@@ -29,7 +29,6 @@ pub fn generate_moonbit_wrapper(
 ) -> anyhow::Result<()> {
     let wit = &ctx.single_file_wrapper_wit_source;
     let mut component = MoonBitComponent::empty_from_wit(wit, Some("agent-wrapper"))?;
-    component.disable_cleanup(); // TODO: just for testing
 
     component
         .define_bindgen_packages()
@@ -493,7 +492,13 @@ fn generate_agent_stub(ctx: AgentWrapperGeneratorContext) -> anyhow::Result<Stri
                 "  self.unwrap().invoke(\"{original_method_name}\", input).bind(result => {{"
             )?;
 
-            extract_data_value(&mut result, &ctx, &method.output_schema, "    ")?;
+            extract_data_value(
+                &mut result,
+                &ctx,
+                &method.output_schema,
+                "    ",
+                original_method_name,
+            )?;
 
             writeln!(result, "  }})")?;
             writeln!(result, "}}")?;
@@ -526,10 +531,10 @@ fn to_moonbit_parameter_list(
                         write!(result, "{param_name}: {}", moonbit_type_ref(ctx, typ)?)?;
                     }
                     ElementSchema::UnstructuredText(_) => {
-                        write!(result, "{param_name}: String")?;
+                        write!(result, "{param_name}: @common.TextReference")?;
                     }
                     ElementSchema::UnstructuredBinary(_) => {
-                        write!(result, "{param_name}: FixedArray[Byte]")?;
+                        write!(result, "{param_name}: @common.BinaryReference")?;
                     }
                 }
             }
@@ -572,10 +577,10 @@ fn to_moonbit_return_type(
                         write!(result, "{}", moonbit_type_ref(ctx, typ)?)?;
                     }
                     ElementSchema::UnstructuredText(_) => {
-                        write!(result, "String")?;
+                        write!(result, "@common.TextReference")?;
                     }
                     ElementSchema::UnstructuredBinary(_) => {
-                        write!(result, "FixedArray[Byte]")?;
+                        write!(result, "@common.BinaryReference")?;
                     }
                 }
             } else {
@@ -589,10 +594,10 @@ fn to_moonbit_return_type(
                             write!(result, "{}", moonbit_type_ref(ctx, typ)?)?;
                         }
                         ElementSchema::UnstructuredText(_) => {
-                            write!(result, "String")?;
+                            write!(result, "@common.TextReference")?;
                         }
                         ElementSchema::UnstructuredBinary(_) => {
-                            write!(result, "FixedArray[Byte]")?;
+                            write!(result, "@common.BinaryReference")?;
                         }
                     }
                 }
@@ -711,11 +716,16 @@ fn build_element_value(
             write!(result, "{indent})")?;
         }
         ElementSchema::UnstructuredText(_) => {
-            write!(result, "{indent}@common.ElementValue::UnstructuredText(@common.TextReference::Inline(@common.TextSource::{{ data: {access}, text_type: None }}))")?;
+            write!(
+                result,
+                "{indent}@common.ElementValue::UnstructuredText({access})"
+            )?;
         }
         ElementSchema::UnstructuredBinary(_) => {
-            let mime_type = "application/octet-stream"; // TODO: we must expose it as a parameter on the WIT interface when no restrictions or more than one
-            write!(result, "{indent}@common.ElementValue::UnstructuredBinary(@common.BinaryReference::Inline(@common.BinarySource::{{ data: {access}, binary_type: @common.BinaryType::{{ mime_type: \"{mime_type}\" }} }}))")?;
+            write!(
+                result,
+                "{indent}@common.ElementValue::UnstructuredBinary({access})"
+            )?;
         }
     }
     Ok(())
@@ -756,14 +766,16 @@ fn build_data_value(
                     .to_kebab_case()
                     .to_upper_camel_case();
                 writeln!(result, "          {type_name}::{case_name}(value) => {{")?;
+                writeln!(result, "            (\"{}\",", named_element_schema.name)?;
                 build_element_value(
                     result,
                     ctx,
                     &named_element_schema.schema,
                     "value",
-                    "            ",
+                    "              ",
                 )?;
                 writeln!(result)?;
+                writeln!(result, "            )")?;
                 writeln!(result, "          }}")?;
             }
 
@@ -1016,6 +1028,7 @@ fn extract_data_value(
     ctx: &AgentWrapperGeneratorContext,
     schema: &DataSchema,
     indent: &str,
+    context: &str,
 ) -> anyhow::Result<()> {
     match schema {
         DataSchema::Tuple(elements) => {
@@ -1040,26 +1053,14 @@ fn extract_data_value(
                     ElementSchema::UnstructuredText(_) => {
                         writeln!(
                             result,
-                            "{indent}match @extractor.extract_unstructured_text(values[0]) {{"
+                            "{indent}@extractor.extract_unstructured_text(values[0])"
                         )?;
-                        writeln!(result, "{indent}  Url(url) => panic()")?; // TODO: support url values
-                        writeln!(
-                            result,
-                            "{indent}  Inline(text_source) => Ok(text_source.data)"
-                        )?;
-                        writeln!(result, "}}")?;
                     }
                     ElementSchema::UnstructuredBinary(_) => {
                         writeln!(
                             result,
-                            "{indent}match @extractor.extract_unstructured_binary(values[0]) {{"
+                            "{indent}@extractor.extract_unstructured_binary(values[0])"
                         )?;
-                        writeln!(result, "{indent}  Url(url) => panic()")?; // TODO: support url values
-                        writeln!(
-                            result,
-                            "{indent}  Inline(binary_source) => Ok(binary_source.data)"
-                        )?; // TODO: the wit interface should use (data, mime-type) pairs if it's not a single mime-type case
-                        writeln!(result, "}}")?;
                     }
                 }
             } else {
@@ -1088,35 +1089,80 @@ fn extract_data_value(
                         ElementSchema::UnstructuredText(_) => {
                             writeln!(
                                 result,
-                                "{indent}match @extractor.extract_unstructured_text(values[{idx}]) {{"
+                                "{indent}@extractor.extract_unstructured_text(values[{idx}])"
                             )?;
-                            writeln!(result, "{indent}  Url(url) => panic()")?; // TODO: support url values
-                            writeln!(
-                                result,
-                                "{indent}  Inline(text_source) => Ok(text_source.data)"
-                            )?;
-                            writeln!(result, "}},")?;
                         }
                         ElementSchema::UnstructuredBinary(_) => {
                             writeln!(
                                 result,
-                                "{indent}match @extractor.extract_unstructured_binary(values[{idx}]) {{"
+                                "{indent}@extractor.extract_unstructured_binary(values[{idx}])"
                             )?;
-                            writeln!(result, "{indent}  Url(url) => panic()")?; // TODO: support url values
-                            writeln!(
-                                result,
-                                "{indent}  Inline(binary_source) => Ok(binary_source.data)"
-                            )?; // TODO: the wit interface should use (data, mime-type) pairs if it's not a single mime-type case
-                            writeln!(result, "}},")?;
                         }
                     }
                 }
                 writeln!(result, "{indent}))")?;
             }
         }
-        DataSchema::Multimodal(_) => {
-            // TODO
-            writeln!(result, "{indent}...")?;
+        DataSchema::Multimodal(elements) => {
+            let name = format!("{context}-output");
+            let variant_name = ctx
+                .multimodal_variants
+                .get(&name)
+                .ok_or_else(|| anyhow!(format!("Missing multimodal variant {name}")))?
+                .to_upper_camel_case();
+
+            writeln!(
+                result,
+                "{indent}let values = @extractor.extract_multimodal(result)"
+            )?;
+            writeln!(result, "{indent}Ok(values.map(pair => {{")?;
+            writeln!(result, "{indent}  match pair.0 {{")?;
+            for element in elements {
+                let case_name = element.name.to_kebab_case().to_upper_camel_case();
+                writeln!(result, "{indent}    \"{}\" => {{", element.name)?;
+                match &element.schema {
+                    ElementSchema::ComponentModel(typ) => {
+                        writeln!(result, "{indent}      match pair.1 {{")?;
+                        writeln!(
+                            result,
+                            "{indent}        @common.ElementValue::ComponentModel(wit_value) => {{"
+                        )?;
+                        writeln!(result, "{indent}        {variant_name}::{case_name}(")?;
+                        extract_wit_value(
+                            result,
+                            ctx,
+                            typ,
+                            "wit_value",
+                            &format!("{indent}          "),
+                        )?;
+                        writeln!(result, "{indent}          )")?;
+                        writeln!(result, "{indent}        }}")?;
+                        writeln!(result, "{indent}        _ => panic()")?;
+                        writeln!(result, "{indent}      }}")?;
+                    }
+                    ElementSchema::UnstructuredText(_) => {
+                        writeln!(result, "{indent}      match pair.1 {{")?;
+                        writeln!(
+                            result,
+                            "{indent}        @common.ElementValue::UnstructuredText(text) => {variant_name}::{case_name}(text)"
+                        )?;
+                        writeln!(result, "{indent}        _ => panic()")?;
+                        writeln!(result, "{indent}      }}")?;
+                    }
+                    ElementSchema::UnstructuredBinary(_) => {
+                        writeln!(result, "{indent}      match pair.1 {{")?;
+                        writeln!(
+                            result,
+                            "{indent}        @common.ElementValue::UnstructuredBinary(binary) => {variant_name}::{case_name}(binary)"
+                        )?;
+                        writeln!(result, "{indent}        _ => panic()")?;
+                        writeln!(result, "{indent}      }}")?;
+                    }
+                }
+                writeln!(result, "{indent}    }}")?;
+            }
+            writeln!(result, "{indent}  }}")?;
+            writeln!(result, "{indent}}}))")?;
         }
     }
 

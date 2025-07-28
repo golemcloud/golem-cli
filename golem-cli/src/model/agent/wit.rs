@@ -15,7 +15,7 @@
 use crate::model::agent::{AgentType, DataSchema, ElementSchema, NamedElementSchema};
 use crate::model::app::AppComponentName;
 use anyhow::{anyhow, bail};
-use golem_wasm_ast::analysis::analysed_type::{case, list, str, u8, variant};
+use golem_wasm_ast::analysis::analysed_type::{case, variant};
 use golem_wasm_ast::analysis::AnalysedType;
 use heck::ToKebabCase;
 use std::collections::{HashMap, HashSet};
@@ -89,7 +89,7 @@ impl AgentWrapperGeneratorContextState {
         writeln!(result, "interface {interface_name} {{")?;
         writeln!(
             result,
-            "  use golem:agent/common.{{agent-error, agent-type}};"
+            "  use golem:agent/common.{{agent-error, agent-type, binary-reference, text-reference}};"
         )?;
 
         let agent_types = self.agent_types.clone();
@@ -102,6 +102,9 @@ impl AgentWrapperGeneratorContextState {
             .type_names
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
+            .filter(|(k, _)| {
+                k.name() != Some("text-reference") && k.name() != Some("binary-reference")
+            })
             .collect::<Vec<_>>();
         types.sort_by_key(|(_, name)| name.clone());
 
@@ -383,10 +386,10 @@ impl AgentWrapperGeneratorContextState {
                 write!(result, "{}", self.wit_type_reference(typ)?)?;
             }
             ElementSchema::UnstructuredText(_text_descriptor) => {
-                write!(result, "string")?;
+                write!(result, "text-reference")?;
             }
             ElementSchema::UnstructuredBinary(_bin_descriptor) => {
-                write!(result, "list<u8>")?;
+                write!(result, "binary-reference")?;
             }
         }
         Ok(())
@@ -498,8 +501,8 @@ impl AgentWrapperGeneratorContextState {
             let case_name = named_element_schema.name.to_kebab_case();
             let case_type = match &named_element_schema.schema {
                 ElementSchema::ComponentModel(typ) => typ.clone(),
-                ElementSchema::UnstructuredText(_) => str(),
-                ElementSchema::UnstructuredBinary(_) => list(u8()),
+                ElementSchema::UnstructuredText(_) => variant(vec![]).named("text-reference"),
+                ElementSchema::UnstructuredBinary(_) => variant(vec![]).named("binary-reference"),
             };
             variant_cases.push(case(&case_name, case_type));
         }
@@ -675,7 +678,7 @@ mod tests {
             r#"package example:empty;
             
             interface agent {
-              use golem:agent/common.{agent-error, agent-type};
+              use golem:agent/common.{agent-error, agent-type, binary-reference, text-reference};
             }
 
             world agent-wrapper {
@@ -754,7 +757,7 @@ mod tests {
             r#"package example:single1;
 
             interface agent {
-              use golem:agent/common.{agent-error, agent-type};
+              use golem:agent/common.{agent-error, agent-type, binary-reference, text-reference};
 
               /// An example agent
               resource agent1 {
@@ -866,13 +869,13 @@ mod tests {
             r#"package example:single2;
 
             interface agent {
-              use golem:agent/common.{agent-error, agent-type};
+              use golem:agent/common.{agent-error, agent-type, binary-reference, text-reference};
 
               /// An example agent
               resource agent1 {
                 constructor(agent-id: string);
                 /// Creates an example agent instance
-                create: static func(person: person, description: string, photo: list<u8>) -> result<agent1, agent-error>;
+                create: static func(person: person, description: text-reference, photo: binary-reference) -> result<agent1, agent-error>;
                 get-id: func() -> string;
                 get-definition: func() -> agent-type;
                 /// returns a location
@@ -928,13 +931,13 @@ mod tests {
             r#"package example:multi1;
 
             interface agent {
-              use golem:agent/common.{agent-error, agent-type};
+              use golem:agent/common.{agent-error, agent-type, binary-reference, text-reference};
 
               /// An example agent
               resource agent1 {
                 constructor(agent-id: string);
                 /// Creates an example agent instance
-                create: static func(person: person, description: string, photo: list<u8>) -> result<agent1, agent-error>;
+                create: static func(person: person, description: text-reference, photo: binary-reference) -> result<agent1, agent-error>;
                 get-id: func() -> string;
                 get-definition: func() -> agent-type;
                 /// returns a location
@@ -959,8 +962,8 @@ mod tests {
               }
 
               variant f2-output {
-                text(string),
-                image(list<u8>),
+                text(text-reference),
+                image(binary-reference),
               }
 
               variant location {

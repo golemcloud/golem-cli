@@ -7,6 +7,14 @@ pub fn extract_tuple(value : @common.DataValue) -> Array[@common.ElementValue] {
 }
 
 ///|
+pub fn extract_multimodal(value: @common.DataValue) -> Array[(String, @common.ElementValue)] {
+  match value {
+    @common.DataValue::Multimodal(elements) => elements
+    _ => panic()
+  }
+}
+
+///|
 pub fn expect_single_element(
   values : Array[@common.ElementValue],
 ) -> @common.ElementValue {
