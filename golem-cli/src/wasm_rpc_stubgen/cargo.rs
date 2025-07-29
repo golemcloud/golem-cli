@@ -24,13 +24,12 @@ use crate::wasm_rpc_stubgen::{
 use anyhow::{anyhow, Context};
 use cargo_toml::{
     Dependency, DependencyDetail, DepsSet, Edition, Inheritable, LtoSetting, Manifest, Profile,
-    Profiles, StripSetting, Workspace,
+    Profiles, StripSetting, Value, Workspace,
 };
 use heck::ToSnakeCase;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use toml::Value;
 use toml_edit::{DocumentMut, InlineTable};
 use wit_parser::PackageName;
 
