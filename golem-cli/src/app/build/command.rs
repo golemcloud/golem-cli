@@ -33,6 +33,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 use tracing::debug;
+use wasm_rquickjs::{EmbeddingMode, JsModuleSpec};
 
 pub async fn execute_build_command(
     ctx: &mut ApplicationContext,
@@ -205,8 +206,23 @@ fn execute_quickjs_create(
 ) -> anyhow::Result<()> {
     let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
     let wit = base_build_dir.join(&command.wit);
-    let js = base_build_dir.join(&command.js);
     let generate_quickjs_crate = base_build_dir.join(&command.generate_quickjs_crate);
+
+    let mut js_modules = Vec::new();
+    let mut js_paths = Vec::new();
+    for (name, spec) in &command.js_modules {
+        let mode = if spec == "@composition" {
+            EmbeddingMode::Composition
+        } else {
+            let js = base_build_dir.join(spec);
+            js_paths.push(js.clone().into_std_path_buf());
+            EmbeddingMode::EmbedFile(js)
+        };
+        js_modules.push(JsModuleSpec {
+            name: name.clone(),
+            mode,
+        });
+    }
 
     let task_result_marker = TaskResultMarker::new(
         &ctx.application.task_result_marker_dir(),
@@ -221,12 +237,7 @@ fn execute_quickjs_create(
 
     if is_up_to_date(
         skip_up_to_date_checks,
-        || {
-            vec![
-                wit.clone().into_std_path_buf(),
-                js.clone().into_std_path_buf(),
-            ]
-        },
+        || [vec![wit.clone().into_std_path_buf()], js_paths].concat(),
         || vec![generate_quickjs_crate.clone().into_std_path_buf()],
     ) {
         log_skipping_up_to_date(format!(
@@ -247,7 +258,7 @@ fn execute_quickjs_create(
     task_result_marker.result({
         wasm_rquickjs::generate_wrapper_crate(
             &wit,
-            &js,
+            &js_modules,
             &generate_quickjs_crate,
             command.world.as_deref(),
         )

@@ -369,7 +369,7 @@ pub struct ExternalCommand {
 pub struct GenerateQuickJSCrate {
     pub generate_quickjs_crate: String,
     pub wit: String,
-    pub js: String,
+    pub js_modules: HashMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub world: Option<String>,
 }

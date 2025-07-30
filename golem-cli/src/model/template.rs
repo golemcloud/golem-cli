@@ -118,7 +118,15 @@ impl<C: Serialize> Template<C> for app_raw::GenerateQuickJSCrate {
         Ok(app_raw::GenerateQuickJSCrate {
             generate_quickjs_crate: self.generate_quickjs_crate.render(env, ctx)?,
             wit: self.wit.render(env, ctx)?,
-            js: self.js.render(env, ctx)?,
+            js_modules: HashMap::from_iter(
+                self.js_modules
+                    .iter()
+                    .map(|(k, v)| {
+                        k.render(env, ctx)
+                            .and_then(|k| v.render(env, ctx).map(|v| (k, v)))
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
             world: self.world.render(env, ctx)?,
         })
     }
