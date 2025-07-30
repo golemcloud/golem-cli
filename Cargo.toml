@@ -3,7 +3,7 @@ resolver = "2"
 
 members = ["golem", "golem-cli", "golem-templates"]
 
-exclude = ["desktop-app/src-tauri"]
+exclude = ["desktop-app/src-tauri", "template-golem-agent-ts"]
 
 [workspace.metadata]
 license-file = "LICENSE"
