@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::model::agent::AgentType;
 use anyhow::anyhow;
+use golem_common::model::agent::AgentType;
 use rib::ParsedFunctionName;
 use std::collections::HashMap;
 use std::path::Path;
@@ -75,8 +75,9 @@ pub async fn extract_agent_types(wasm_path: &Path) -> anyhow::Result<Vec<AgentTy
     let instance = linker.instantiate_async(&mut store, &component).await?;
 
     let func = find_discover_function(&mut store, &instance)?;
-    let typed_func =
-        func.typed::<(), (Vec<super::bindings::golem::agent::common::AgentType>,)>(&mut store)?;
+    let typed_func = func.typed::<(), (
+        Vec<golem_common::model::agent::bindings::golem::agent::common::AgentType>,
+    )>(&mut store)?;
     let results = typed_func.call_async(&mut store, ()).await?;
     typed_func.post_return_async(&mut store).await?;
 
@@ -197,8 +198,6 @@ fn dynamic_import(
         // These does not have to be mocked, we allow them through wasmtime-wasi
         Ok(())
     } else {
-        println!("dynamic_import: {name}");
-
         let mut instance = root.instance(name)?;
         let mut resources: HashMap<(String, String), Vec<MethodInfo>> = HashMap::new();
         let mut functions = Vec::new();
@@ -245,8 +244,7 @@ fn dynamic_import(
             }
         }
 
-        for ((interface_name, resource_name), _methods) in resources {
-            println!("Defining resource: {interface_name}.{resource_name}");
+        for ((_interface_name, resource_name), _methods) in resources {
             instance.resource(
                 &resource_name,
                 ResourceType::host::<ResourceEntry>(),
@@ -255,7 +253,6 @@ fn dynamic_import(
         }
 
         for function in functions {
-            println!("Defining function: {}", function.name);
             instance.func_new_async(
                 &function.name.function.function_name(),
                 move |_store, _params, _results| {
