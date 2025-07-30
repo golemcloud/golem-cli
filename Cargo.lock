@@ -1747,7 +1747,7 @@ dependencies = [
 [[package]]
 name = "cloud-service"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3746,7 +3746,7 @@ dependencies = [
 [[package]]
 name = "golem-api-grpc"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "async-trait",
  "bincode",
@@ -3763,16 +3763,16 @@ dependencies = [
 
 [[package]]
 name = "golem-api-grpc"
-version = "1.3.0-dev.20"
+version = "1.3.0-dev.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f75ecab7fcac5412dd55c1bc869ce27ea42ff4b0738abfa1a98b0f248e0548a4"
+checksum = "204ac174cb1337917bc2130fd9741bcf35d5f88fa9582c44ca086894dfe468ba"
 dependencies = [
  "async-trait",
  "bincode",
  "bytes 1.10.1",
  "cargo_metadata 0.19.2",
- "golem-wasm-ast 1.3.0-dev.20",
- "golem-wasm-rpc 1.3.0-dev.20",
+ "golem-wasm-ast 1.3.0-dev.21",
+ "golem-wasm-rpc 1.3.0-dev.21",
  "prost 0.13.5",
  "prost-types 0.13.5",
  "tonic",
@@ -3811,13 +3811,13 @@ dependencies = [
  "futures-util",
  "fuzzy-matcher",
  "golem-client",
- "golem-common 1.3.0-dev.20",
- "golem-rib 1.3.0-dev.20",
+ "golem-common 1.3.0-dev.21",
+ "golem-rib 1.3.0-dev.21",
  "golem-rib-repl",
  "golem-templates",
- "golem-wasm-ast 1.3.0-dev.20",
- "golem-wasm-rpc 1.3.0-dev.20",
- "golem-wasm-rpc-derive 1.3.0-dev.20",
+ "golem-wasm-ast 1.3.0-dev.21",
+ "golem-wasm-rpc 1.3.0-dev.21",
+ "golem-wasm-rpc-derive 1.3.0-dev.21",
  "golem-wit",
  "heck 0.5.0",
  "humansize",
@@ -3884,17 +3884,17 @@ dependencies = [
 
 [[package]]
 name = "golem-client"
-version = "1.3.0-dev.20"
+version = "1.3.0-dev.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41960ab93c6ed2781f5724730d54a03557d7920617a998e38689b9e5bc51c484"
+checksum = "017ea90814f90e9864d011344070e7e6287f2620d523d489399c22a2d9db3535"
 dependencies = [
  "async-trait",
  "bytes 1.10.1",
  "chrono",
- "golem-common 1.3.0-dev.20",
+ "golem-common 1.3.0-dev.21",
  "golem-openapi-client-generator",
- "golem-wasm-ast 1.3.0-dev.20",
- "golem-wasm-rpc 1.3.0-dev.20",
+ "golem-wasm-ast 1.3.0-dev.21",
+ "golem-wasm-rpc 1.3.0-dev.21",
  "http 1.3.1",
  "reqwest 0.12.20",
  "serde",
@@ -3908,7 +3908,7 @@ dependencies = [
 [[package]]
 name = "golem-common"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3966,9 +3966,9 @@ dependencies = [
 
 [[package]]
 name = "golem-common"
-version = "1.3.0-dev.20"
+version = "1.3.0-dev.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c26696740d597184e4fc1b492f0430ae60be5856c450cdc3071aefa20750a4e5"
+checksum = "6d6ac398e7e07d5e117954e72f8e1dcf550f306d8678d29802e2f4535750ef05"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3983,11 +3983,11 @@ dependencies = [
  "derive_more 2.0.1",
  "figment",
  "fred",
- "golem-api-grpc 1.3.0-dev.20",
- "golem-rib 1.3.0-dev.20",
- "golem-wasm-ast 1.3.0-dev.20",
- "golem-wasm-rpc 1.3.0-dev.20",
- "golem-wasm-rpc-derive 1.3.0-dev.20",
+ "golem-api-grpc 1.3.0-dev.21",
+ "golem-rib 1.3.0-dev.21",
+ "golem-wasm-ast 1.3.0-dev.21",
+ "golem-wasm-rpc 1.3.0-dev.21",
+ "golem-wasm-rpc-derive 1.3.0-dev.21",
  "http 1.3.1",
  "humantime-serde",
  "iso8601-timestamp",
@@ -4027,7 +4027,7 @@ dependencies = [
 [[package]]
 name = "golem-component-compilation-service"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "async-trait",
  "futures",
@@ -4053,7 +4053,7 @@ dependencies = [
 [[package]]
 name = "golem-component-service"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4136,7 +4136,7 @@ checksum = "1270134f61673cd221121fad55752b4692a5bc3f7a5f9b30e4d45d7b2e044946"
 [[package]]
 name = "golem-rib"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "async-trait",
  "bigdecimal",
@@ -4155,17 +4155,17 @@ dependencies = [
 
 [[package]]
 name = "golem-rib"
-version = "1.3.0-dev.20"
+version = "1.3.0-dev.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "122cd58bafb6a9cd3daf7d32f6b91b8b844a9ab0ddb6d389c6a7c937f118b49c"
+checksum = "1029a76bc6be6ee7655c18ca35c3a12618a88288e9bd74231d4b8074bbb9e32b"
 dependencies = [
  "async-trait",
  "bigdecimal",
  "bincode",
  "combine",
- "golem-api-grpc 1.3.0-dev.20",
- "golem-wasm-ast 1.3.0-dev.20",
- "golem-wasm-rpc 1.3.0-dev.20",
+ "golem-api-grpc 1.3.0-dev.21",
+ "golem-wasm-ast 1.3.0-dev.21",
+ "golem-wasm-rpc 1.3.0-dev.21",
  "poem-openapi",
  "poem-openapi-derive",
  "semver",
@@ -4176,9 +4176,9 @@ dependencies = [
 
 [[package]]
 name = "golem-rib-repl"
-version = "1.3.0-dev.20"
+version = "1.3.0-dev.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea3b66265b6651128d5f6da07590928b00f8f21fcb9b35e40cca0bf3983fd97b"
+checksum = "14bf9e0899e8df18954fe1ab4a5d431f8faed11202075b8f0163dce5cc50e53a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4187,9 +4187,9 @@ dependencies = [
  "convert_case 0.8.0",
  "crossterm 0.28.1",
  "dirs 4.0.0",
- "golem-rib 1.3.0-dev.20",
- "golem-wasm-ast 1.3.0-dev.20",
- "golem-wasm-rpc 1.3.0-dev.20",
+ "golem-rib 1.3.0-dev.21",
+ "golem-wasm-ast 1.3.0-dev.21",
+ "golem-wasm-rpc 1.3.0-dev.21",
  "prometheus 0.13.4",
  "rustyline",
  "serde_json",
@@ -4204,7 +4204,7 @@ dependencies = [
 [[package]]
 name = "golem-service-base"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "anyhow",
  "applying",
@@ -4260,7 +4260,7 @@ dependencies = [
 [[package]]
 name = "golem-shard-manager"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "anyhow",
  "async-rwlock",
@@ -4320,7 +4320,7 @@ dependencies = [
 [[package]]
 name = "golem-wasm-ast"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "bincode",
  "bincode_derive",
@@ -4345,9 +4345,9 @@ dependencies = [
 
 [[package]]
 name = "golem-wasm-ast"
-version = "1.3.0-dev.20"
+version = "1.3.0-dev.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92439c2d155fa22fac717d82bc9eb966b3debf6d72f18e47ae8dacfcd76da0b1"
+checksum = "d1f1498e5eef4c273a4ac6525908f3b5885fe56b5d41b97ecb56e9a3a1d120e6"
 dependencies = [
  "bincode",
  "bincode_derive",
@@ -4373,7 +4373,7 @@ dependencies = [
 [[package]]
 name = "golem-wasm-rpc"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "arbitrary",
  "async-recursion",
@@ -4402,9 +4402,9 @@ dependencies = [
 
 [[package]]
 name = "golem-wasm-rpc"
-version = "1.3.0-dev.20"
+version = "1.3.0-dev.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87cca37af6598ddf4025ab784411a9253825e8d8958cc650bbb6dd17b4757cd3"
+checksum = "1bb59ace8286dd608a9efe2ed55075aad9b21f0e3f5a1417754e3dc5feb1b315"
 dependencies = [
  "arbitrary",
  "async-recursion",
@@ -4415,7 +4415,7 @@ dependencies = [
  "cargo_metadata 0.19.2",
  "chrono",
  "git-version",
- "golem-wasm-ast 1.3.0-dev.20",
+ "golem-wasm-ast 1.3.0-dev.21",
  "poem-openapi",
  "poem-openapi-derive",
  "prost 0.13.5",
@@ -4432,7 +4432,7 @@ dependencies = [
 [[package]]
 name = "golem-wasm-rpc-derive"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -4442,9 +4442,9 @@ dependencies = [
 
 [[package]]
 name = "golem-wasm-rpc-derive"
-version = "1.3.0-dev.20"
+version = "1.3.0-dev.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbf17025f36649fa32e5344c7b2421e948041d3d6534acd068198bec5e1e4a45"
+checksum = "4fd44d020dd03bd8c483a6a4c84e78017f8241229ee753d2e6c533c77d96919e"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -4461,7 +4461,7 @@ checksum = "b6552cbc30303cdbed1ac24a9352287fbc8e97b26a28472b3972e296e5509734"
 [[package]]
 name = "golem-worker-executor"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "anyhow",
  "applying",
@@ -4537,7 +4537,7 @@ dependencies = [
 [[package]]
 name = "golem-worker-service"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -13087,9 +13087,9 @@ dependencies = [
 [[patch.unused]]
 name = "golem-client"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
 
 [[patch.unused]]
 name = "golem-rib-repl"
 version = "0.0.0"
-source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.20#63b78e6f2cd4a94f388c9e162e7f6cfa610c97dc"
+source = "git+https://github.com/golemcloud/golem.git?tag=v1.3.0-dev.21#02b343f95f50b29b0c3f60b6e61c59fb59409cde"
