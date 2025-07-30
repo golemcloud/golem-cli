@@ -322,6 +322,8 @@ pub enum BuildCommand {
     External(ExternalCommand),
     QuickJSCrate(GenerateQuickJSCrate),
     QuickJSDTS(GenerateQuickJSDTS),
+    AgentWrapper(GenerateAgentWrapper),
+    ComposeAgentWrapper(ComposeAgentWrapper),
 }
 
 impl BuildCommand {
@@ -330,6 +332,8 @@ impl BuildCommand {
             BuildCommand::External(cmd) => cmd.dir.as_deref(),
             BuildCommand::QuickJSCrate(_) => None,
             BuildCommand::QuickJSDTS(_) => None,
+            BuildCommand::AgentWrapper(_) => None,
+            BuildCommand::ComposeAgentWrapper(_) => None,
         }
     }
 
@@ -338,6 +342,8 @@ impl BuildCommand {
             BuildCommand::External(cmd) => cmd.targets.clone(),
             BuildCommand::QuickJSCrate(cmd) => vec![cmd.generate_quickjs_crate.clone()],
             BuildCommand::QuickJSDTS(cmd) => vec![cmd.generate_quickjs_dts.clone()],
+            BuildCommand::AgentWrapper(cmd) => vec![cmd.generate_agent_wrapper.clone()],
+            BuildCommand::ComposeAgentWrapper(cmd) => vec![cmd.to.clone()],
         }
     }
 }
@@ -375,6 +381,26 @@ pub struct GenerateQuickJSDTS {
     pub wit: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub world: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GenerateAgentWrapper {
+    /// The target path of the generated wrapper component
+    pub generate_agent_wrapper: String,
+    /// The path of the compiled WASM component containing the dynamic golem:agent implementation
+    pub based_on_compiled_wasm: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ComposeAgentWrapper {
+    /// The target path of the generated wrapper component
+    pub compose_agent_wrapper: String,
+    /// The path of the compiled WASM component implementing golem:agent
+    pub with_agent: String,
+    /// The path of the resulting composed WASM component
+    pub to: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

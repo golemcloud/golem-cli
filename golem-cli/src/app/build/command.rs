@@ -21,13 +21,117 @@ use crate::app::context::ApplicationContext;
 use crate::app::error::CustomCommandError;
 use crate::fs::compile_and_collect_globs;
 use crate::log::{log_action, log_skipping_up_to_date, LogColorize, LogIndent};
+use crate::model::app::AppComponentName;
 use crate::model::app_raw;
+use crate::model::app_raw::{
+    ComposeAgentWrapper, GenerateAgentWrapper, GenerateQuickJSCrate, GenerateQuickJSDTS,
+};
+use crate::wasm_rpc_stubgen::commands;
 use anyhow::{anyhow, Context};
 use camino::Utf8Path;
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 use tracing::debug;
+
+pub async fn execute_build_command(
+    ctx: &mut ApplicationContext,
+    component_name: &AppComponentName,
+    command: &app_raw::BuildCommand,
+    additional_env_vars: HashMap<String, String>,
+) -> anyhow::Result<()> {
+    let base_build_dir = ctx
+        .application
+        .component_source_dir(component_name)
+        .to_path_buf();
+    match command {
+        app_raw::BuildCommand::External(external_command) => {
+            execute_external_command(ctx, &base_build_dir, external_command, additional_env_vars)
+        }
+        app_raw::BuildCommand::QuickJSCrate(command) => {
+            execute_quickjs_create(ctx, &base_build_dir, command)
+        }
+        app_raw::BuildCommand::QuickJSDTS(command) => {
+            execute_quickjs_d_ts(ctx, &base_build_dir, command)
+        }
+        app_raw::BuildCommand::AgentWrapper(command) => {
+            execute_agent_wrapper(ctx, component_name, &base_build_dir, command).await
+        }
+        app_raw::BuildCommand::ComposeAgentWrapper(command) => {
+            execute_compose_agent_wrapper(&base_build_dir, command).await
+        }
+    }
+}
+
+async fn execute_agent_wrapper(
+    ctx: &mut ApplicationContext,
+    component_name: &AppComponentName,
+    base_build_dir: &Path,
+    command: &GenerateAgentWrapper,
+) -> anyhow::Result<()> {
+    let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
+    let wrapper_wasm_path = base_build_dir.join(&command.generate_agent_wrapper);
+    let compiled_wasm_path = base_build_dir.join(&command.based_on_compiled_wasm);
+
+    log_action(
+        "Generating",
+        format!(
+            "agent wrapper for {}",
+            component_name.to_string().log_color_highlight()
+        ),
+    );
+    let _indent = LogIndent::new();
+
+    let agent_types = ctx
+        .wit
+        .get_extracted_agent_types(component_name, compiled_wasm_path.as_std_path())
+        .await?;
+
+    log_action(
+        "Generating",
+        format!(
+            "agent WIT interface for {}",
+            component_name.to_string().log_color_highlight()
+        ),
+    );
+
+    let wrapper_context =
+        crate::model::agent::wit::generate_agent_wrapper_wit(component_name, &agent_types)?;
+
+    log_action(
+        "Generating",
+        format!(
+            "agent WIT interface implementation to {}",
+            wrapper_wasm_path.to_string().log_color_highlight()
+        ),
+    );
+
+    crate::model::agent::moonbit::generate_moonbit_wrapper(
+        wrapper_context,
+        wrapper_wasm_path.as_std_path(),
+    )?;
+
+    Ok(())
+}
+
+async fn execute_compose_agent_wrapper(
+    base_build_dir: &Path,
+    command: &ComposeAgentWrapper,
+) -> anyhow::Result<()> {
+    let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
+    let wrapper_wasm_path = base_build_dir.join(&command.compose_agent_wrapper);
+    let user_component = base_build_dir.join(&command.with_agent);
+    let target_component = base_build_dir.join(&command.to);
+
+    commands::composition::compose(
+        user_component.as_std_path(),
+        &[wrapper_wasm_path.as_std_path().to_path_buf()],
+        target_component.as_std_path(),
+    )
+    .await?;
+
+    Ok(())
+}
 
 pub fn execute_custom_command(
     ctx: &ApplicationContext,
@@ -94,109 +198,106 @@ pub fn execute_custom_command(
     Ok(())
 }
 
-pub fn execute_build_command(
+fn execute_quickjs_create(
     ctx: &ApplicationContext,
     base_build_dir: &Path,
-    command: &app_raw::BuildCommand,
-    additional_env_vars: HashMap<String, String>,
+    command: &GenerateQuickJSCrate,
 ) -> anyhow::Result<()> {
-    match command {
-        app_raw::BuildCommand::External(external_command) => {
-            execute_external_command(ctx, base_build_dir, external_command, additional_env_vars)
-        }
-        app_raw::BuildCommand::QuickJSCrate(command) => {
-            let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
-            let wit = base_build_dir.join(&command.wit);
-            let js = base_build_dir.join(&command.js);
-            let generate_quickjs_crate = base_build_dir.join(&command.generate_quickjs_crate);
+    let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
+    let wit = base_build_dir.join(&command.wit);
+    let js = base_build_dir.join(&command.js);
+    let generate_quickjs_crate = base_build_dir.join(&command.generate_quickjs_crate);
 
-            let task_result_marker = TaskResultMarker::new(
-                &ctx.application.task_result_marker_dir(),
-                GenerateQuickJSCrateCommandMarkerHash {
-                    build_dir: base_build_dir.as_std_path(),
-                    command,
-                },
-            )?;
+    let task_result_marker = TaskResultMarker::new(
+        &ctx.application.task_result_marker_dir(),
+        GenerateQuickJSCrateCommandMarkerHash {
+            build_dir: base_build_dir.as_std_path(),
+            command,
+        },
+    )?;
 
-            let skip_up_to_date_checks =
-                ctx.config.skip_up_to_date_checks || !task_result_marker.is_up_to_date();
+    let skip_up_to_date_checks =
+        ctx.config.skip_up_to_date_checks || !task_result_marker.is_up_to_date();
 
-            if is_up_to_date(
-                skip_up_to_date_checks,
-                || {
-                    vec![
-                        wit.clone().into_std_path_buf(),
-                        js.clone().into_std_path_buf(),
-                    ]
-                },
-                || vec![generate_quickjs_crate.clone().into_std_path_buf()],
-            ) {
-                log_skipping_up_to_date(format!(
-                    "executing WASM RQuickJS wrapper generator in directory {}",
-                    base_build_dir.log_color_highlight()
-                ));
-                return Ok(());
-            }
-
-            log_action(
-                "Executing",
-                format!(
-                    "WASM RQuickJS wrapper generator in directory {}",
-                    base_build_dir.log_color_highlight()
-                ),
-            );
-
-            task_result_marker.result({
-                wasm_rquickjs::generate_wrapper_crate(
-                    &wit,
-                    &js,
-                    &generate_quickjs_crate,
-                    command.world.as_deref(),
-                )
-            })
-        }
-        app_raw::BuildCommand::QuickJSDTS(command) => {
-            let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
-            let wit = &base_build_dir.join(&command.wit);
-            let generate_quickjs_dts = &base_build_dir.join(&command.generate_quickjs_dts);
-
-            let task_result_marker = TaskResultMarker::new(
-                &ctx.application.task_result_marker_dir(),
-                GenerateQuickJSDTSCommandMarkerHash {
-                    build_dir: base_build_dir.as_std_path(),
-                    command,
-                },
-            )?;
-
-            let skip_up_to_date_checks =
-                ctx.config.skip_up_to_date_checks || !task_result_marker.is_up_to_date();
-
-            if is_up_to_date(
-                skip_up_to_date_checks,
-                || vec![wit.clone().into_std_path_buf()],
-                || vec![generate_quickjs_dts.clone().into_std_path_buf()],
-            ) {
-                log_skipping_up_to_date(format!(
-                    "executing WASM RQuickJS d.ts generator in directory {}",
-                    base_build_dir.log_color_highlight()
-                ));
-                return Ok(());
-            }
-
-            log_action(
-                "Executing",
-                format!(
-                    "WASM RQuickJS d.ts generator in directory {}",
-                    base_build_dir.log_color_highlight()
-                ),
-            );
-
-            task_result_marker.result({
-                wasm_rquickjs::generate_dts(wit, generate_quickjs_dts, command.world.as_deref())
-                    .context("Failed to generate QuickJS DTS")
-            })
-        }
+    if is_up_to_date(
+        skip_up_to_date_checks,
+        || {
+            vec![
+                wit.clone().into_std_path_buf(),
+                js.clone().into_std_path_buf(),
+            ]
+        },
+        || vec![generate_quickjs_crate.clone().into_std_path_buf()],
+    ) {
+        log_skipping_up_to_date(format!(
+            "executing WASM RQuickJS wrapper generator in directory {}",
+            base_build_dir.log_color_highlight()
+        ));
+        return Ok(());
     }
+
+    log_action(
+        "Executing",
+        format!(
+            "WASM RQuickJS wrapper generator in directory {}",
+            base_build_dir.log_color_highlight()
+        ),
+    );
+
+    task_result_marker.result({
+        wasm_rquickjs::generate_wrapper_crate(
+            &wit,
+            &js,
+            &generate_quickjs_crate,
+            command.world.as_deref(),
+        )
+    })
+}
+
+fn execute_quickjs_d_ts(
+    ctx: &ApplicationContext,
+    base_build_dir: &Path,
+    command: &GenerateQuickJSDTS,
+) -> anyhow::Result<()> {
+    let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
+    let wit = &base_build_dir.join(&command.wit);
+    let generate_quickjs_dts = &base_build_dir.join(&command.generate_quickjs_dts);
+
+    let task_result_marker = TaskResultMarker::new(
+        &ctx.application.task_result_marker_dir(),
+        GenerateQuickJSDTSCommandMarkerHash {
+            build_dir: base_build_dir.as_std_path(),
+            command,
+        },
+    )?;
+
+    let skip_up_to_date_checks =
+        ctx.config.skip_up_to_date_checks || !task_result_marker.is_up_to_date();
+
+    if is_up_to_date(
+        skip_up_to_date_checks,
+        || vec![wit.clone().into_std_path_buf()],
+        || vec![generate_quickjs_dts.clone().into_std_path_buf()],
+    ) {
+        log_skipping_up_to_date(format!(
+            "executing WASM RQuickJS d.ts generator in directory {}",
+            base_build_dir.log_color_highlight()
+        ));
+        return Ok(());
+    }
+
+    log_action(
+        "Executing",
+        format!(
+            "WASM RQuickJS d.ts generator in directory {}",
+            base_build_dir.log_color_highlight()
+        ),
+    );
+
+    task_result_marker.result({
+        wasm_rquickjs::generate_dts(wit, generate_quickjs_dts, command.world.as_deref())
+            .context("Failed to generate QuickJS DTS")
+    })
 }
 
 pub fn execute_external_command(

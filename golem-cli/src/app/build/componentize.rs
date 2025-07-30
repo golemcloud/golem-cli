@@ -21,7 +21,7 @@ use anyhow::{anyhow, Context};
 use heck::ToLowerCamelCase;
 use std::collections::{BTreeSet, HashMap};
 
-pub fn componentize(ctx: &mut ApplicationContext) -> anyhow::Result<()> {
+pub async fn componentize(ctx: &mut ApplicationContext) -> anyhow::Result<()> {
     log_action("Building", "components");
     let _indent = LogIndent::new();
 
@@ -51,13 +51,8 @@ pub fn componentize(ctx: &mut ApplicationContext) -> anyhow::Result<()> {
         let env_vars = build_step_env_vars(ctx, &component_name)
             .context("Failed to get env vars for build step")?;
 
-        for build_step in &component_properties.build {
-            execute_build_command(
-                ctx,
-                ctx.application.component_source_dir(&component_name),
-                build_step,
-                env_vars.clone(),
-            )?;
+        for build_step in component_properties.build.clone() {
+            execute_build_command(ctx, &component_name, &build_step, env_vars.clone()).await?;
         }
     }
 
