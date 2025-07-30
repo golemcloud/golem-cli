@@ -246,7 +246,7 @@ export default function WorkerManage() {
               >
                 Upgrade Type
               </Label>
-              <Select defaultValue="Automatic" onValueChange={setUpgradeType}>
+              <Select defaultValue="auto" onValueChange={setUpgradeType}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue>{upgradeType}</SelectValue>
                 </SelectTrigger>
