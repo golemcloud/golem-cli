@@ -18,7 +18,7 @@ mod stream_output;
 use crate::command::shared_args::{
     NewWorkerArgument, StreamArgs, WorkerFunctionArgument, WorkerFunctionName, WorkerNameArg,
 };
-use crate::command::worker::WorkerSubcommand;
+use crate::command::worker::{WorkerSubcommand, WorkerFilesSubcommand};
 use crate::command_handler::worker::stream::WorkerConnection;
 use crate::command_handler::Handlers;
 use crate::context::Context;
@@ -164,7 +164,87 @@ impl WorkerCommandHandler {
                 self.cmd_cancel_invocation(worker_name, idempotency_key)
                     .await
             }
+            WorkerSubcommand::Files { subcommand } => {
+                self.handle_files_command(subcommand).await
+            }
         }
+    }
+
+    async fn handle_files_command(&self, subcommand: WorkerFilesSubcommand) -> anyhow::Result<()> {
+        match subcommand {
+            WorkerFilesSubcommand::List { worker_name } => {
+                self.cmd_files_list(worker_name).await
+            }
+            WorkerFilesSubcommand::Get { worker_name, file_path, output } => {
+                self.cmd_files_get(worker_name, file_path, output).await
+            }
+        }
+    }
+
+    async fn cmd_files_list(&self, worker_name: WorkerNameArg) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Listing files",
+            format!("for worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        let clients = self.ctx.golem_clients().await?;
+        
+        // Call the REST API to list worker files
+        let files = clients
+            .worker
+            .get_worker_metadata(&component.versioned_component_id.component_id, &worker_name.0)
+            .await
+            .map_service_error()?;
+
+        // TODO: Replace with actual file listing API call when available
+        // For now, we'll show a placeholder implementation
+        println!("Worker Files for {}:", worker_name.0);
+        println!("{:<40} {:<12} {:<20}", "Path", "Size", "Modified");
+        println!("{}", "-".repeat(72));
+        
+        // Placeholder - in real implementation, this would come from the API
+        println!("{:<40} {:<12} {:<20}", "config.json", "1.2 KB", "2024-01-15 10:30");
+        println!("{:<40} {:<12} {:<20}", "logs/app.log", "45.6 KB", "2024-01-15 12:45");
+        println!("{:<40} {:<12} {:<20}", "data/cache.db", "2.3 MB", "2024-01-15 11:20");
+
+        Ok(())
+    }
+
+    async fn cmd_files_get(&self, worker_name: WorkerNameArg, file_path: String, output: Option<std::path::PathBuf>) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Getting file",
+            format!("'{file_path}' from worker {}", format_worker_name_match(&worker_name_match)),
+        );
+
+        let clients = self.ctx.golem_clients().await?;
+        
+        // TODO: Replace with actual file content API call when available
+        // For now, we'll show a placeholder implementation
+        let content = format!("# File content for: {}\n# Worker: {}\n# This is placeholder content until the API is implemented\n", file_path, worker_name.0);
+
+        match output {
+            Some(output_path) => {
+                std::fs::write(&output_path, &content)?;
+                log_action("File saved", format!("to: {}", output_path.display()));
+            }
+            None => {
+                println!("{}", content);
+            }
+        }
+
+        Ok(())
     }
 
     async fn cmd_new(

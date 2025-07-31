@@ -997,6 +997,7 @@ pub mod worker {
     use crate::model::{IdempotencyKey, WorkerUpdateMode};
     use clap::Subcommand;
     use golem_client::model::ScanCursor;
+    use std::path::PathBuf;
 
     #[derive(Debug, Subcommand)]
     pub enum WorkerSubcommand {
@@ -1131,6 +1132,31 @@ pub mod worker {
             worker_name: WorkerNameArg,
             /// Idempotency key of the invocation to be cancelled
             idempotency_key: IdempotencyKey,
+        },
+        /// Manage worker files
+        Files {
+            #[clap(subcommand)]
+            subcommand: WorkerFilesSubcommand,
+        },
+    }
+
+    #[derive(Debug, Subcommand)]
+    pub enum WorkerFilesSubcommand {
+        /// List all worker files
+        List {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+        },
+        /// Get contents of a specific worker file
+        Get {
+            #[command(flatten)]
+            worker_name: WorkerNameArg,
+            /// File path
+            #[arg(short, long)]
+            file_path: String,
+            /// Output to file instead of stdout
+            #[arg(short, long)]
+            output: Option<PathBuf>,
         },
     }
 }
