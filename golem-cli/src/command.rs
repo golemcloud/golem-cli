@@ -1137,7 +1137,7 @@ pub mod worker {
             #[command(flatten)]
             worker_name: WorkerNameArg,
             /// Path to list files from (optional, defaults to root)
-            #[arg(long, short)]
+            #[arg(long)]
             path: Option<String>,
         },
         /// Get contents of a file in a worker's file system
