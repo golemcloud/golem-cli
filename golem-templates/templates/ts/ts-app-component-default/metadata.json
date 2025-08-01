@@ -1,4 +1,4 @@
 {
-  "description": "The default component template for JavaScript",
-  "appComponentGroup": "default"
+  "description": "The default component template for TypeScript",
+  "appComponentGroup": "generic"
 }

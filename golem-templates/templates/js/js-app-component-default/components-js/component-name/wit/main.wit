@@ -3,8 +3,8 @@ package pack:name;
 // See https://component-model.bytecodealliance.org/design/wit.html for more details about the WIT syntax
 
 interface component-name-api {
-  add: func(value: u64);
-  get: func() -> u64;
+  add: func(value: u32);
+  get: func() -> u32;
 }
 
 world component-name  {

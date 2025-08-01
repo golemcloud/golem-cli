@@ -8,14 +8,15 @@ templates:
     - command: npx rollup -c
       sources:
       - src
-      - ../../common-js
+      - ../../common-ts
       - rollup.config.mjs
       - tsconfig.js
       targets:
       - dist/main.js
     - generateQuickjsCrate: ../../golem-temp/quickjs-wrappers/{{ component_name | to_snake_case }}
       wit: wit-generated
-      js: dist/main.js
+      jsModules:
+        main: dist/main.js
     - command: cargo component build --release
       dir: ../../golem-temp/quickjs-wrappers/{{ component_name | to_snake_case }}
       sources:
