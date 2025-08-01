@@ -324,6 +324,7 @@ pub enum BuildCommand {
     QuickJSDTS(GenerateQuickJSDTS),
     AgentWrapper(GenerateAgentWrapper),
     ComposeAgentWrapper(ComposeAgentWrapper),
+    InjectToPrebuiltQuickJs(InjectToPrebuiltQuickJs),
 }
 
 impl BuildCommand {
@@ -334,6 +335,7 @@ impl BuildCommand {
             BuildCommand::QuickJSDTS(_) => None,
             BuildCommand::AgentWrapper(_) => None,
             BuildCommand::ComposeAgentWrapper(_) => None,
+            BuildCommand::InjectToPrebuiltQuickJs(_) => None,
         }
     }
 
@@ -344,6 +346,7 @@ impl BuildCommand {
             BuildCommand::QuickJSDTS(cmd) => vec![cmd.generate_quickjs_dts.clone()],
             BuildCommand::AgentWrapper(cmd) => vec![cmd.generate_agent_wrapper.clone()],
             BuildCommand::ComposeAgentWrapper(cmd) => vec![cmd.to.clone()],
+            BuildCommand::InjectToPrebuiltQuickJs(cmd) => vec![cmd.into.clone()],
         }
     }
 }
@@ -401,6 +404,19 @@ pub struct ComposeAgentWrapper {
     pub with_agent: String,
     /// The path of the resulting composed WASM component
     pub to: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InjectToPrebuiltQuickJs {
+    /// The path to the prebuilt QuickJS WASM file that loads a JS module through a get-script import
+    pub inject_to_prebuilt_quickjs: String,
+    /// The path to the JS module
+    pub module: String,
+    /// The path to the intermediate WASM containing the JS module
+    pub module_wasm: String,
+    /// The path to the output WASM component containing the injected JS module
+    pub into: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

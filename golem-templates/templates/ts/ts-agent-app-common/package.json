@@ -12,11 +12,13 @@
   },
   "devDependencies": {
     "@rollup/plugin-alias": "^5.1.1",
+    "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/node": "^22.10.5",
     "rollup": "^4.29.1",
     "tslib": "^2.8.1",
-    "typescript": "^5.7.2"
+    "typescript": "^5.8.3",
+    "@rttist/typegen": "^0.2.0"
   }
 }

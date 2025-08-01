@@ -25,6 +25,7 @@ use crate::model::app::AppComponentName;
 use crate::model::app_raw;
 use crate::model::app_raw::{
     ComposeAgentWrapper, GenerateAgentWrapper, GenerateQuickJSCrate, GenerateQuickJSDTS,
+    InjectToPrebuiltQuickJs,
 };
 use crate::wasm_rpc_stubgen::commands;
 use anyhow::{anyhow, Context};
@@ -60,6 +61,9 @@ pub async fn execute_build_command(
         }
         app_raw::BuildCommand::ComposeAgentWrapper(command) => {
             execute_compose_agent_wrapper(&base_build_dir, command).await
+        }
+        app_raw::BuildCommand::InjectToPrebuiltQuickJs(command) => {
+            execute_inject_to_prebuilt_quick_js(&base_build_dir, command).await
         }
     }
 }
@@ -128,6 +132,42 @@ async fn execute_compose_agent_wrapper(
         user_component.as_std_path(),
         &[wrapper_wasm_path.as_std_path().to_path_buf()],
         target_component.as_std_path(),
+    )
+    .await?;
+
+    Ok(())
+}
+
+async fn execute_inject_to_prebuilt_quick_js(
+    base_build_dir: &Path,
+    command: &InjectToPrebuiltQuickJs,
+) -> anyhow::Result<()> {
+    let base_build_dir = Utf8Path::from_path(base_build_dir).unwrap();
+    let base_wasm = base_build_dir.join(&command.inject_to_prebuilt_quickjs);
+    let js_module = base_build_dir.join(&command.module);
+    let js_module_contents = std::fs::read_to_string(&js_module)
+        .with_context(|| format!("Failed to read JS module from {js_module}"))?;
+    let js_module_wasm = base_build_dir.join(&command.module_wasm);
+    let target = base_build_dir.join(&command.into);
+
+    log_action(
+        "Injecting",
+        format!(
+            "JS module {} into QuickJS WASM {}",
+            js_module.log_color_highlight(),
+            base_wasm.log_color_highlight()
+        ),
+    );
+
+    moonbit_component_generator::get_script::generate_get_script_component(
+        &js_module_contents,
+        &js_module_wasm,
+    )?;
+
+    commands::composition::compose(
+        base_wasm.as_std_path(),
+        &[js_module_wasm.as_std_path().to_path_buf()],
+        target.as_std_path(),
     )
     .await?;
 

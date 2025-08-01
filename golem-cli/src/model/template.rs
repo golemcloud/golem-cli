@@ -88,6 +88,11 @@ impl<C: Serialize> Template<C> for app_raw::BuildCommand {
             app_raw::BuildCommand::ComposeAgentWrapper(compose_agent_wrapper) => Ok(
                 app_raw::BuildCommand::ComposeAgentWrapper(compose_agent_wrapper.render(env, ctx)?),
             ),
+            app_raw::BuildCommand::InjectToPrebuiltQuickJs(inject_to_prebuilt_quickjs) => {
+                Ok(app_raw::BuildCommand::InjectToPrebuiltQuickJs(
+                    inject_to_prebuilt_quickjs.render(env, ctx)?,
+                ))
+            }
         }
     }
 }
@@ -163,6 +168,19 @@ impl<C: Serialize> Template<C> for app_raw::ComposeAgentWrapper {
             compose_agent_wrapper: self.compose_agent_wrapper.render(env, ctx)?,
             with_agent: self.with_agent.render(env, ctx)?,
             to: self.to.render(env, ctx)?,
+        })
+    }
+}
+
+impl<C: Serialize> Template<C> for app_raw::InjectToPrebuiltQuickJs {
+    type Rendered = app_raw::InjectToPrebuiltQuickJs;
+
+    fn render(&self, env: &Environment, ctx: &C) -> Result<Self::Rendered, Error> {
+        Ok(app_raw::InjectToPrebuiltQuickJs {
+            inject_to_prebuilt_quickjs: self.inject_to_prebuilt_quickjs.render(env, ctx)?,
+            module: self.module.render(env, ctx)?,
+            module_wasm: self.module_wasm.render(env, ctx)?,
+            into: self.into.render(env, ctx)?,
         })
     }
 }

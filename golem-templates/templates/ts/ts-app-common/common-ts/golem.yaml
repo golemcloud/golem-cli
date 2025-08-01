@@ -8,7 +8,7 @@ templates:
     - command: npx rollup -c
       sources:
       - src
-      - ../../common-js
+      - ../../common-ts
       - rollup.config.mjs
       - tsconfig.js
       targets:
