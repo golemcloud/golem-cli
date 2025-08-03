@@ -109,62 +109,110 @@ impl ServerHandler for GolemCliMcpServer {
                 .build(),
             instructions: Some(
                 "
-                Always prefer to use tools not commands line scripts or manual commands.
-                Tools Introduction
-                Helps interacting with Golem. It allows users to upload their components, launch new workers based on these components and call functions on running workers, etc..,
+                Note: this below is an ai summarry for context from human input and other sources
 
-                Call get_list_golem_mcp_server_tool_info, list_golem_mcp_server_tools tools to know detailed info about available tools before making a call.
-                Ask user confirmation before making a call to any tool. very import. Show the user the tool name, arguments, and description.
+### 🧠 **Tool-based Golem Interaction System Overview**
 
-                User uses these tools like they normally use gemini cli but via claude code or similar tools inside the golem app directory where the mcp server is running.
-                
-                📎 NOTES:
-                    - User requests should be interpreted and mapped internally to tool calls.
-                    - AI agents must ensure the `params` object includes all required keys and correct types and number of arguments.
-                    - If the user requests a tool that is not available, return an error.
-                    - If the user requests a tool that is available, but with incorrect parameters, return an error.
-                    - If the user requests a tool that is available, but with correct parameters, execute the tool and return the result.
-                    - If the user requests a tool that is available, but with correct parameters, but the tool execution fails, return an error.
-                    - If the user requests a tool that is available, but with correct parameters, and the tool execution succeeds, return the result.
-                    - No interactive shell exists. Every action is an atomic tool invocation. Ask for confirmation before calling a tool
-                    - Golem app, golem app has components, components have manifests, manifests are yaml or json files, manifests are used to describe the component and its dependencies, 
-                    - manifests are used to launch the component, manifests are used to manage the components
-                    - components are defined or resolved in three ways:
-                            /// Accepted formats:
-                            ///   - <COMPONENT>
-                            ///   - <PROJECT>/<COMPONENT>
-                            ///   - <ACCOUNT>/<PROJECT>/<COMPONENT>
-                            /// WHERE COMPONENT is the name of form <package>:<name>, e.g. golem:my_component
-                    - each account of user can have multiple projects, each project can have multiple components
-                    - one manifest file for each component, manifest file is named golem.yaml or golem.json
-                    - one manifest for app/project.
+**Intent**: Tools manage component lifecycle, worker control, and invocation logic **without shell scripts**. Operate like `gcloud`/`gemini` via atomic tool calls inside the app directory where the `mcp server` runs.
 
-                    For more details about Golem CLI tools, see the documentation at learn.golem.cloud/cli (Note: below are generated with ai)
-                    1. profiles - 
-                        Golem CLI profiles system enables isolated configurations for different Golem environments (e.g., cloud vs. local). 
-                        It supports interactive and scripted setup, profile switching, authentication for cloud access via GitHub OAuth, and output formatting. 
-                        Profiles are stored in ~/.golem and can be reset by deleting that directory. Useful for managing multi-environment workflows via named profiles. 
-                        Full CLI command reference and usage examples are available here: learn.golem.cloud/cli/profiles.
+---
 
-                    2. components:
-                        Golem CLI components are WebAssembly modules you build, deploy, and version. 
-                        You can generate components from templates, build them locally, deploy to Golem, and inspect metadata like exports and version. 
-                        Deployments are durable by default but can be set as ephemeral. 
-                        Versioning enables updates and redeploys without breaking references. 
-                        Components can be listed, retrieved by name/version, and connected to worker logic. 
-                        Use golem component, golem app, and related subcommands for management.
+### 🔧 **General Principles**
 
-                        More details: learn.golem.cloud/cli/components
+* **All actions = discrete tool calls** (no shell/CLI scripting).
+* **Tool discovery**:
 
-                    3. workers - 
-                        Golem CLI workers are isolated WebAssembly instances that can be created (durable or ephemeral), listed, inspected, invoked (async or sync), updated, suspended, resumed, or deleted. 
-                        Each worker has state, metadata, and logs. 
-                        Invocations support idempotency keys, async queuing, and argument passing. Updates can target single or multiple workers via filters. 
-                        Logs are streamable in various formats. Durable workers persist state; ephemeral ones restart stateless. 
-                        Deletion wipes state. Listing is slow at scale.
-                        More details: learn.golem.cloud/cli/workers
+  * Use `get_list_golem_mcp_server_tool_info`
+  * Use `list_golem_mcp_server_tools`
 
-                End.
+* **Before execution**:
+
+  * Always confirm tool use with the user.
+  * Show tool name, parameters, and description.
+
+* **Inputs**:
+
+  * All `params` must be valid (types, structure, presence).
+
+* **Failures**:
+
+  * Invalid tool → error
+  * Invalid params → error
+  * Failed run → error
+  * Successful run → return result
+
+---
+
+### 📦 **Component Management**
+
+* A *component* = WebAssembly module with a `golem.yaml` or `golem.json` manifest.
+* Manifest declares name, version, type (`durable` or `ephemeral`), APIs.
+
+* Components defined via:
+
+  * `<COMPONENT>`
+  * `<PROJECT>/<COMPONENT>`
+  * `<ACCOUNT>/<PROJECT>/<COMPONENT>` COMPONENT is of from package:name
+
+* One manifest per component.
+
+* Component tools manage:
+
+  * Creation (from templates)
+  * Building
+  * Deploying
+  * Redeploy/version control
+  * Listing/querying
+
+---
+
+### ⚙️ **Worker Management**
+
+* A *worker* = isolated instance of a component.
+* Can be `durable` (stateful) or `ephemeral` (stateless).
+* Workers can:
+
+  * Be launched from components
+  * Handle RPC calls (async or sync)
+  * Be resumed, interrupted, deleted, or updated
+* Logs are streamable (`json`, `yaml`, `text`)
+* Updates are single or batched
+* Invocation supports idempotency keys
+* Deletion wipes persistent state
+
+---
+
+### 👤 **Profiles**
+
+* Profiles = isolated configurations for local/cloud backends.
+* Each profile has:
+
+  * URLs (local or cloud)
+  * Auth context (e.g., GitHub OAuth for Golem Cloud)
+  * Output formatting
+* Profiles live under `~/.golem` and can be switched/reset.
+
+---
+
+### ✅ **Execution Flow Template (Agent)**
+
+1. Parse user intent → map to tool
+2. Lookup tool: `get_list_golem_mcp_server_tool_info`
+3. Confirm with user:
+
+   * Tool name
+   * Parameters
+   * Description
+4. Validate `params` → execute tool if confirmed
+5. Return result or error
+
+---
+
+For deeper reference, see:
+
+* Profiles: [learn.golem.cloud/cli/profiles](https://learn.golem.cloud/cli/profiles)
+* Components: [learn.golem.cloud/cli/components](https://learn.golem.cloud/cli/components)
+* Workers: [learn.golem.cloud/cli/workers](https://learn.golem.cloud/cli/workers)
                 ".to_string()
             ),
             protocol_version: ProtocolVersion::V_2025_03_26,
