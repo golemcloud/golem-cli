@@ -109,7 +109,15 @@ impl ServerHandler for GolemCliMcpServer {
                 .build(),
             instructions: Some(
                 "
-                Note: this below is an ai summarry for context from human input and other sources
+**Note for maintainers**: this below is an AI summary for context from my input and other sources
+
+The Golem app manifest (`golem.yaml` or `golem.json`) defines the structure of a Golem application. It lists components, WIT dependencies, and optional included manifests. The manifest is auto-discovered by the CLI, unless overridden with `--app-manifest-path`. Included files are merged, but only the root manifest may define `includes` or `witDeps`. Each component must have a unique name across all merged manifests.
+
+The `golem app build` command runs three steps: `gen-rpc` (generate RPC bindings), `componentize` (compile to WebAssembly), and `link-rpc` (link RPC logic). These steps can be individually controlled. The manifest supports templating using minijinja with helpers like `to_snake_case` and access to `component_name`.
+
+This system enables multi-component apps to be built, deployed, and managed from a unified configuration, with commands like `golem app new`, `golem app deploy`, and `golem app clean`.
+
+---
 
 ### 🧠 **Tool-based Golem Interaction System Overview**
 
@@ -124,16 +132,13 @@ impl ServerHandler for GolemCliMcpServer {
 
   * Use `get_list_golem_mcp_server_tool_info`
   * Use `list_golem_mcp_server_tools`
-
 * **Before execution**:
 
   * Always confirm tool use with the user.
   * Show tool name, parameters, and description.
-
 * **Inputs**:
 
   * All `params` must be valid (types, structure, presence).
-
 * **Failures**:
 
   * Invalid tool → error
@@ -147,15 +152,12 @@ impl ServerHandler for GolemCliMcpServer {
 
 * A *component* = WebAssembly module with a `golem.yaml` or `golem.json` manifest.
 * Manifest declares name, version, type (`durable` or `ephemeral`), APIs.
-
 * Components defined via:
 
   * `<COMPONENT>`
   * `<PROJECT>/<COMPONENT>`
-  * `<ACCOUNT>/<PROJECT>/<COMPONENT>` COMPONENT is of from package:name
-
+  * `<ACCOUNT>/<PROJECT>/<COMPONENT>` where `COMPONENT` is of form `package:name`
 * One manifest per component.
-
 * Component tools manage:
 
   * Creation (from templates)
@@ -194,6 +196,45 @@ impl ServerHandler for GolemCliMcpServer {
 
 ---
 
+### 🔌 **Plugin System**
+
+* **Purpose**: Extend Golem via reusable plugin modules (experimental).
+* **Types**:
+
+  * **Component Transformer**: HTTP service modifies WASM pre-deploy.
+  * **Library Plugin**: Imported WASM, no HTTP.
+  * **Application Plugin**: User exports → plugin imports.
+  * **Oplog Processor**: Observes other workers’ logs (stateful logic, experimental).
+* **Plugin Install Locations**:
+
+  * Per Component (via manifest or CLI)
+  * Per Project (applies to all new components)
+  * Per Worker (runtime activation)
+* **Manifest Example**:
+
+```yaml
+components:
+  my_component:
+    plugins:
+      - name: my_plugin
+        version: 1.0.0
+        parameters:
+          key: value
+```
+
+#### CLI Commands
+
+* `golem plugin list [--project] [--component]`
+* `golem plugin get <name> <version>`
+* `golem plugin register <manifest_path>`
+* `golem plugin unregister --plugin-name <name> --version <version>`
+* `golem component plugin install / uninstall / update`
+* `golem project plugin install / uninstall / update`
+* `golem component plugin get`
+* `golem project plugin get`
+
+---
+
 ### ✅ **Execution Flow Template (Agent)**
 
 1. Parse user intent → map to tool
@@ -208,12 +249,15 @@ impl ServerHandler for GolemCliMcpServer {
 
 ---
 
-For deeper reference, see:
+### 🔗 **References**
 
-* Profiles: [learn.golem.cloud/cli/profiles](https://learn.golem.cloud/cli/profiles)
-* Components: [learn.golem.cloud/cli/components](https://learn.golem.cloud/cli/components)
-* Workers: [learn.golem.cloud/cli/workers](https://learn.golem.cloud/cli/workers)
-                ".to_string()
+* [Profiles](https://learn.golem.cloud/cli/profiles)
+* [Components](https://learn.golem.cloud/cli/components)
+* [Workers](https://learn.golem.cloud/cli/workers)
+* [Manifests](https://learn.golem.cloud/cli/app-manifest)
+* [Plugins](https://learn.golem.cloud/cli/plugins)
+
+".to_string()
             ),
             protocol_version: ProtocolVersion::V_2025_03_26,
             server_info: Implementation {
