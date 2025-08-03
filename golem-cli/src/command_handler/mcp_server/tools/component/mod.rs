@@ -11,7 +11,7 @@ use console::strip_ansi_codes;
 use golem_templates::model::PackageName;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::path::PathBuf;
@@ -127,7 +127,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn create_new_component(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<CreateNewComponentTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -175,7 +175,7 @@ impl GolemCliMcpServer {
     #[tool(name = "update_workers", description = "Update workers of a golem app")]
     pub async fn update_workers(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<UpdateWorkersTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -229,7 +229,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn redeploy_component_workers(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<RedeployWorkersTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -276,7 +276,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn build_components(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<BuildComponentTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -336,7 +336,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn filter_templates(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<FilterTemplatesComponentTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -379,7 +379,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn deploy_components(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<DeployComponentTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -440,7 +440,7 @@ impl GolemCliMcpServer {
     #[tool(name = "list_components", description = "List components in golem app")]
     pub async fn list_components(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<ListComponentTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -488,7 +488,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn clean_components(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<CleanComponentTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -536,7 +536,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn get_components(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<GetComponentTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -584,7 +584,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn add_dependency_to_a_component(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<AddDependencyTool>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -641,7 +641,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn diagnose_components(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<DiagnoseComponentTool>,
     ) -> Result<CallToolResult, CallToolError> {

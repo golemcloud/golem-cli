@@ -6,7 +6,7 @@ use crate::log::{get_mcp_tool_output, Mcp, Output};
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -49,7 +49,7 @@ impl GolemCliMcpServer {
     #[tool(name = "create_new_cloud_account", description = "Add a new account")]
     pub async fn create_new_cloud_account(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -100,7 +100,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn get_cloud_account(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -148,7 +148,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn update_cloud_account(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Update>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -200,7 +200,7 @@ impl GolemCliMcpServer {
     #[tool(name = "delete_cloud_account", description = "Delete the account")]
     pub async fn delete_cloud_account(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {

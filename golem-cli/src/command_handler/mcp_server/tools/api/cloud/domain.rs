@@ -6,7 +6,7 @@ use crate::log::{get_mcp_tool_output, Mcp, Output};
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -41,7 +41,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn get_domain(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -86,7 +86,7 @@ impl GolemCliMcpServer {
     #[tool(name = "delete_domain", description = "Delete an existing domain")]
     pub async fn delete_domain(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -134,7 +134,7 @@ impl GolemCliMcpServer {
     #[tool(name = "add_new_domain", description = "Add new domain")]
     pub async fn add_new_domain(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {

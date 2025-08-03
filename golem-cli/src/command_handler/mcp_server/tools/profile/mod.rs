@@ -7,7 +7,7 @@ use crate::model::Format;
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -81,7 +81,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn create_new_global_profile(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -135,7 +135,7 @@ impl GolemCliMcpServer {
     #[tool(name = "list_global_profiles", description = "List global profiles")]
     pub async fn list_global_profiles(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(_): Parameters<List>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -183,7 +183,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn show_global_profile_details(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -228,7 +228,7 @@ impl GolemCliMcpServer {
     #[tool(name = "remove_profile", description = "Remove global profile")]
     pub async fn remove_profile(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -276,7 +276,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn switch_profile(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Switch>,
     ) -> Result<CallToolResult, CallToolError> {

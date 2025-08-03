@@ -7,7 +7,7 @@ use console::strip_ansi_codes;
 use golem_common::model::PluginInstallationId;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -67,7 +67,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn install_component_plugin(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Install>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -124,7 +124,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn get_component_plugin(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -175,7 +175,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn uninstall_component_plugin(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Uninstall>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -226,7 +226,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn update_component_plugin(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Update>,
     ) -> Result<CallToolResult, CallToolError> {

@@ -7,7 +7,7 @@ use console::strip_ansi_codes;
 use golem_common::model::PluginInstallationId;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -66,7 +66,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn install_project_plugin(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Install>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -123,7 +123,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn uninstall_project_plugin(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Uninstall>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -174,7 +174,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn get_cloud_project_plugins(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -219,7 +219,7 @@ impl GolemCliMcpServer {
     #[tool(name = "update_project_plugin", description = "Update project plugin")]
     pub async fn update_project_plugin(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Update>,
     ) -> Result<CallToolResult, CallToolError> {

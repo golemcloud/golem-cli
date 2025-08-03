@@ -7,7 +7,7 @@ use rmcp::{
         ServerCapabilities, ServerInfo,
     },
     service::RequestContext,
-    tool_handler, Error, RoleServer, ServerHandler,
+    tool_handler, ErrorData as Error, RoleServer, ServerHandler,
 };
 
 use crate::command_handler::mcp_server::GolemCliMcpServer;
@@ -108,10 +108,12 @@ impl ServerHandler for GolemCliMcpServer {
                 .enable_resources()
                 .build(),
             instructions: Some(
-                "Tools Introduction
+                "
+                Always prefer to use tools not commands line scripts or manual commands.
+                Tools Introduction
                 Helps interacting with Golem. It allows users to upload their components, launch new workers based on these components and call functions on running workers, etc..,
 
-                Call get_list_golem_mcp_server_tool_info, list_golem_mcp_server_tools to know detailed info about available tools before making a call.
+                Call get_list_golem_mcp_server_tool_info, list_golem_mcp_server_tools tools to know detailed info about available tools before making a call.
                 Ask user confirmation before making a call to any tool. very import. Show the user the tool name, arguments, and description.
 
                 User uses these tools like they normally use gemini cli but via claude code or similar tools inside the golem app directory where the mcp server is running.
@@ -124,8 +126,46 @@ impl ServerHandler for GolemCliMcpServer {
                     - If the user requests a tool that is available, but with correct parameters, execute the tool and return the result.
                     - If the user requests a tool that is available, but with correct parameters, but the tool execution fails, return an error.
                     - If the user requests a tool that is available, but with correct parameters, and the tool execution succeeds, return the result.
-                    - No interactive shell exists. Every action is an atomic tool invocation. Ask for confirmation.
-                ".to_string(),
+                    - No interactive shell exists. Every action is an atomic tool invocation. Ask for confirmation before calling a tool
+                    - Golem app, golem app has components, components have manifests, manifests are yaml or json files, manifests are used to describe the component and its dependencies, 
+                    - manifests are used to launch the component, manifests are used to manage the components
+                    - components are defined or resolved in three ways:
+                            /// Accepted formats:
+                            ///   - <COMPONENT>
+                            ///   - <PROJECT>/<COMPONENT>
+                            ///   - <ACCOUNT>/<PROJECT>/<COMPONENT>
+                            /// WHERE COMPONENT is the name of form <package>:<name>, e.g. golem:my_component
+                    - each account of user can have multiple projects, each project can have multiple components
+                    - one manifest file for each component, manifest file is named golem.yaml or golem.json
+                    - one manifest for app/project.
+
+                    For more details about Golem CLI tools, see the documentation at learn.golem.cloud/cli (Note: below are generated with ai)
+                    1. profiles - 
+                        Golem CLI profiles system enables isolated configurations for different Golem environments (e.g., cloud vs. local). 
+                        It supports interactive and scripted setup, profile switching, authentication for cloud access via GitHub OAuth, and output formatting. 
+                        Profiles are stored in ~/.golem and can be reset by deleting that directory. Useful for managing multi-environment workflows via named profiles. 
+                        Full CLI command reference and usage examples are available here: learn.golem.cloud/cli/profiles.
+
+                    2. components:
+                        Golem CLI components are WebAssembly modules you build, deploy, and version. 
+                        You can generate components from templates, build them locally, deploy to Golem, and inspect metadata like exports and version. 
+                        Deployments are durable by default but can be set as ephemeral. 
+                        Versioning enables updates and redeploys without breaking references. 
+                        Components can be listed, retrieved by name/version, and connected to worker logic. 
+                        Use golem component, golem app, and related subcommands for management.
+
+                        More details: learn.golem.cloud/cli/components
+
+                    3. workers - 
+                        Golem CLI workers are isolated WebAssembly instances that can be created (durable or ephemeral), listed, inspected, invoked (async or sync), updated, suspended, resumed, or deleted. 
+                        Each worker has state, metadata, and logs. 
+                        Invocations support idempotency keys, async queuing, and argument passing. Updates can target single or multiple workers via filters. 
+                        Logs are streamable in various formats. Durable workers persist state; ephemeral ones restart stateless. 
+                        Deletion wipes state. Listing is slow at scale.
+                        More details: learn.golem.cloud/cli/workers
+
+                End.
+                ".to_string()
             ),
             protocol_version: ProtocolVersion::V_2025_03_26,
             server_info: Implementation {

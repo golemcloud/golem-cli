@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ impl GolemCliMcpServer {
     #[tool(name = "create_new_token", description = "Create new token")]
     pub async fn create_new_token(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -81,7 +81,7 @@ impl GolemCliMcpServer {
     #[tool(name = "list_tokens", description = "List tokens")]
     pub async fn list_tokens(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(_): Parameters<List>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -126,7 +126,7 @@ impl GolemCliMcpServer {
     #[tool(name = "delete_tokens", description = "Delete an existing token")]
     pub async fn delete_tokens(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {

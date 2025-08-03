@@ -10,7 +10,7 @@ use crate::model::{IdempotencyKey, WorkerUpdateMode};
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -152,7 +152,7 @@ impl GolemCliMcpServer {
     #[tool(name = "create_new_worker", description = "Create new worker")]
     pub async fn create_new_worker(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -206,7 +206,7 @@ impl GolemCliMcpServer {
     #[tool(name = "list_worker_metadata", description = "List worker metadata")]
     pub async fn list_worker_metadata(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<List>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -260,7 +260,7 @@ impl GolemCliMcpServer {
     #[tool(name = "update_worker", description = "Updates a worker")]
     pub async fn update_worker(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Update>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -312,7 +312,7 @@ impl GolemCliMcpServer {
     #[tool(name = "get_worker_metadata", description = "Get worker metadata")]
     pub async fn get_worker_metadata(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -356,7 +356,7 @@ impl GolemCliMcpServer {
     #[tool(name = "delete_worker", description = "Deletes a worker")]
     pub async fn delete_worker(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -403,7 +403,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn invoke_worker(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Invoke>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -464,7 +464,7 @@ impl GolemCliMcpServer {
     #[tool(name = "resume_worker", description = "Resume an interrupted worker")]
     pub async fn resume_worker(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Resume>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -508,7 +508,7 @@ impl GolemCliMcpServer {
     #[tool(name = "interupt_worker", description = "Interrupts a running worker")]
     pub async fn interupt_worker(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Interrupt>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -555,7 +555,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn simulate_worker_crash(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<SimulateCrash>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -602,7 +602,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn query_worker_oplog(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Oplog>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -652,7 +652,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn stream_worker_outputs(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Stream>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -702,7 +702,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn revert_worker_operations(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Revert>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -756,7 +756,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn cancel_worker_invocation(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<CancelInvocation>,
     ) -> Result<CallToolResult, CallToolError> {

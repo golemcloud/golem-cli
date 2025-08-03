@@ -7,7 +7,7 @@ use crate::model::api::ApiDefinitionId;
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -52,7 +52,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn get_api_deployment(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -100,7 +100,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn list_api_deployment(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<List>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -145,7 +145,7 @@ impl GolemCliMcpServer {
     #[tool(name = "delete_api_deployment", description = "Delete api deployment")]
     pub async fn delete_api_deployment(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -193,7 +193,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn deploy_api_deployments(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Deploy>,
     ) -> Result<CallToolResult, CallToolError> {

@@ -7,7 +7,7 @@ use crate::model::PathBufOrStdin;
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -51,7 +51,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn get_certificate(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -102,7 +102,7 @@ impl GolemCliMcpServer {
     )]
     pub async fn delete_certificate(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Delete>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -150,7 +150,7 @@ impl GolemCliMcpServer {
     #[tool(name = "add_new_certificate", description = "Create new certificate")]
     pub async fn add_new_certificate(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {

@@ -4,7 +4,7 @@ use rmcp::{
     model::{CallToolResult, Content, Meta},
     schemars,
     service::RequestContext,
-    tool, tool_router, Error as CallToolError, Peer, RoleServer, ServerHandler,
+    tool, tool_router, ErrorData as CallToolError, Peer, RoleServer, ServerHandler,
 };
 use serde::{Deserialize, Serialize};
 

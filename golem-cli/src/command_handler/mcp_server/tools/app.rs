@@ -10,7 +10,7 @@ use console::strip_ansi_codes;
 use golem_templates::model::{default_guest_language, GuestLanguage};
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
-use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
+use rmcp::{schemars, tool, tool_router, ErrorData as CallToolError, Peer, RoleServer};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::sync::Arc;
@@ -78,7 +78,7 @@ impl GolemCliMcpServer {
     #[tool(name = "create_new_app", description = "Create a new golem app")]
     pub async fn create_new_app(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<New>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -126,7 +126,7 @@ impl GolemCliMcpServer {
     #[tool(name = "custom_command", description = "Custom command in a golem app")]
     pub async fn custom_command(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<CustomCommand>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -171,7 +171,7 @@ impl GolemCliMcpServer {
     #[tool(name = "update_app_workers", description = "Update app workers")]
     pub async fn update_app_workers(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<UpdateWorkers>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -222,7 +222,7 @@ impl GolemCliMcpServer {
     #[tool(name = "redeploy_app_workers", description = "Redeploy app workers")]
     pub async fn redeploy_app_workers(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<RedeployWorkers>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -269,7 +269,7 @@ impl GolemCliMcpServer {
     #[tool(name = "build_app", description = "Build app")]
     pub async fn build_app(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Build>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -324,7 +324,7 @@ impl GolemCliMcpServer {
     #[tool(name = "deploy_app", description = "Deploy app")]
     pub async fn deploy_app(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Deploy>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -381,7 +381,7 @@ impl GolemCliMcpServer {
     #[tool(name = "clean_app", description = "Clean app")]
     pub async fn clean_app(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Clean>,
     ) -> Result<CallToolResult, CallToolError> {
@@ -426,7 +426,7 @@ impl GolemCliMcpServer {
     #[tool(name = "diagnose_app", description = "Diagnose app")]
     pub async fn diagnose_app(
         &self,
-        meta: Meta,
+        _meta: Meta,
         client: Peer<RoleServer>,
         Parameters(req): Parameters<Diagnose>,
     ) -> Result<CallToolResult, CallToolError> {
