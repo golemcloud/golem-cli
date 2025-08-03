@@ -34,7 +34,7 @@ pub struct New {
     cloud_url: Option<Url>,
     /// Default output format
     default_format: Format,
-    
+
     /// Token to use for authenticating against Golem. If not provided an OAuth2 flow will be performed when authentication is needed for the first time.
     // #[schemars(with = "String")]
     // static_token: Option<Uuid>, disabled
@@ -109,10 +109,13 @@ impl GolemCliMcpServer {
                     req.cloud_url,
                     req.default_format,
                     req.allow_insecure,
-                    None // req.static_token, not good to allow in mcp, so oauth flow will take place
+                    None, // req.static_token, not good to allow in mcp, so oauth flow will take place as per golem cli docs i saw
                 ) {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -154,7 +157,10 @@ impl GolemCliMcpServer {
                 let command_new = ProfileCommandHandler::new(ctx.into());
                 match command_new.cmd_list() {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -199,7 +205,10 @@ impl GolemCliMcpServer {
                 let command_new = ProfileCommandHandler::new(ctx.into());
                 match command_new.cmd_get(req.profile_name) {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -241,7 +250,10 @@ impl GolemCliMcpServer {
                 let command_new = ProfileCommandHandler::new(ctx.into());
                 match command_new.cmd_delete(req.profile_name) {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -286,7 +298,10 @@ impl GolemCliMcpServer {
                 let command_new = ProfileCommandHandler::new(ctx.into());
                 match command_new.cmd_switch(req.profile_name) {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),

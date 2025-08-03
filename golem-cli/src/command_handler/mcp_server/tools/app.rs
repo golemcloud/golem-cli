@@ -7,7 +7,7 @@ use crate::command_handler::mcp_server::GolemCliMcpServer;
 use crate::log::{get_mcp_tool_output, Mcp, Output};
 use crate::model::WorkerUpdateMode;
 use console::strip_ansi_codes;
-use golem_templates::model::{GuestLanguage, default_guest_language};
+use golem_templates::model::{default_guest_language, GuestLanguage};
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
 use rmcp::{schemars, tool, tool_router, Error as CallToolError, Peer, RoleServer};
@@ -21,7 +21,7 @@ pub struct New {
     /// Application folder name where the new application should be created
     application_name: String,
     /// Languages that the application should support, default langauge : rust
-    #[schemars(default="default_guest_language")]
+    #[schemars(default = "default_guest_language")]
     language: Vec<GuestLanguage>,
 }
 
@@ -69,8 +69,8 @@ pub struct Diagnose {
 
 /// Run custom command
 #[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct CustomCommand{
-    command: Vec<String>
+pub struct CustomCommand {
+    command: Vec<String>,
 }
 
 #[tool_router(router= tool_router_app, vis="pub")]
@@ -103,7 +103,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -145,7 +148,10 @@ impl GolemCliMcpServer {
                 let command_new = AppCommandHandler::new(ctx.into());
                 match command_new.cmd_custom_command(req.command).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -186,11 +192,18 @@ impl GolemCliMcpServer {
             Ok(ctx) => {
                 let command_new = AppCommandHandler::new(ctx.into());
                 match command_new
-                    .cmd_update_workers(req.component_name.component_name, req.update_mode, req.await_update)
+                    .cmd_update_workers(
+                        req.component_name.component_name,
+                        req.update_mode,
+                        req.await_update,
+                    )
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -234,7 +247,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -282,7 +298,10 @@ impl GolemCliMcpServer {
                 .await
                 {
                     Ok(Ok(_)) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Ok(Err(e)) => Ok(CallToolResult {
@@ -336,7 +355,10 @@ impl GolemCliMcpServer {
                 .await
                 {
                     Ok(Ok(_)) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Ok(Err(e)) => Ok(CallToolResult {
@@ -382,7 +404,10 @@ impl GolemCliMcpServer {
 
                 match command_new.cmd_clean(req.component_name).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -424,7 +449,10 @@ impl GolemCliMcpServer {
 
                 match command_new.cmd_diagnose(req.component_name).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {

@@ -79,7 +79,10 @@ impl GolemCliMcpServer {
                 let command_new = ApiDefinitionCommandHandler::new(ctx.into());
                 match command_new.cmd_get(req.project, req.id, req.version).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -124,7 +127,10 @@ impl GolemCliMcpServer {
                 let command_new = ApiDefinitionCommandHandler::new(ctx.into());
                 match command_new.cmd_list(req.project, req.id).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -172,7 +178,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -226,7 +235,10 @@ impl GolemCliMcpServer {
                 .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),

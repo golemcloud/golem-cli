@@ -183,7 +183,10 @@ impl GolemCliMcpServer {
                 .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -234,7 +237,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -284,7 +290,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -325,7 +334,10 @@ impl GolemCliMcpServer {
                 let command_new = WorkerCommandHandler::new(ctx.into());
                 match command_new.cmd_get(req.worker_name).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -366,7 +378,10 @@ impl GolemCliMcpServer {
                 let command_new = WorkerCommandHandler::new(ctx.into());
                 match command_new.cmd_delete(req.worker_name).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -427,7 +442,10 @@ impl GolemCliMcpServer {
                 .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -468,7 +486,10 @@ impl GolemCliMcpServer {
                 let command_new = WorkerCommandHandler::new(ctx.into());
                 match command_new.cmd_resume(req.worker_name).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -509,7 +530,10 @@ impl GolemCliMcpServer {
                 let command_new = WorkerCommandHandler::new(ctx.into());
                 match command_new.cmd_interrupt(req.worker_name).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -553,7 +577,10 @@ impl GolemCliMcpServer {
                 let command_new = WorkerCommandHandler::new(ctx.into());
                 match command_new.cmd_simulate_crash(req.worker_name).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -600,7 +627,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -647,7 +677,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -698,7 +731,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -745,7 +781,10 @@ impl GolemCliMcpServer {
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {

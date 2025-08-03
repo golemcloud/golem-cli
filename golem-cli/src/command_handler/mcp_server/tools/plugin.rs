@@ -70,7 +70,10 @@ impl GolemCliMcpServer {
 
                 match command_new.cmd_list(req.scope).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -115,7 +118,10 @@ impl GolemCliMcpServer {
 
                 match command_new.cmd_get(req.reference).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -157,7 +163,10 @@ impl GolemCliMcpServer {
 
                 match command_new.cmd_register(req.scope, req.manifest).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {
@@ -197,12 +206,12 @@ impl GolemCliMcpServer {
             Ok(ctx) => {
                 let command_new = PluginCommandHandler::new(ctx.into());
 
-                match command_new
-                    .cmd_unregister(req.reference)
-                    .await
-                {
+                match command_new.cmd_unregister(req.reference).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
                         is_error: None,
                     }),
                     Err(e) => Ok(CallToolResult {

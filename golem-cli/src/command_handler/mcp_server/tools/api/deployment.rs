@@ -74,7 +74,10 @@ impl GolemCliMcpServer {
                 let command_new = ApiDeploymentCommandHandler::new(ctx.into());
                 match command_new.cmd_get(req.project, req.site).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -119,7 +122,10 @@ impl GolemCliMcpServer {
                 let command_new = ApiDeploymentCommandHandler::new(ctx.into());
                 match command_new.cmd_list(req.project, req.definition).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -161,7 +167,10 @@ impl GolemCliMcpServer {
                 let command_new = ApiDeploymentCommandHandler::new(ctx.into());
                 match command_new.cmd_delete(req.project, req.site).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -215,7 +224,10 @@ impl GolemCliMcpServer {
                 .await
                 {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),

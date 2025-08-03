@@ -558,7 +558,7 @@ pub mod shared_args {
     use crate::model::app::AppBuildStep;
     use crate::model::{AccountId, PluginReference};
     use crate::model::{
-        ComponentName, ProjectName, ProjectReference, WorkerName, WorkerUpdateMode
+        ComponentName, ProjectName, ProjectReference, WorkerName, WorkerUpdateMode,
     };
     use clap::Args;
     use golem_templates::model::GuestLanguage;
@@ -627,7 +627,7 @@ pub mod shared_args {
     pub struct ForceBuildArg {
         /// When set to true will skip modification time based up-to-date checks, defaults to false
         #[clap(long, default_value = "false")]
-        #[schemars(default="default_force_build_arg")]
+        #[schemars(default = "default_force_build_arg")]
         pub force_build: bool,
     }
 
@@ -639,7 +639,7 @@ pub mod shared_args {
     pub struct BuildArgs {
         /// Select specific build step(s)
         #[clap(long, short)]
-        #[schemars(default="default_build_args_steps")]
+        #[schemars(default = "default_build_args_steps")]
         pub step: Vec<AppBuildStep>,
         #[command(flatten)]
         pub force_build: ForceBuildArg,

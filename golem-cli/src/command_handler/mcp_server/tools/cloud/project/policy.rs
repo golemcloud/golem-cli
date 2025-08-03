@@ -31,9 +31,8 @@ pub struct Get {
 
 #[tool_router(router= tool_router_cloud_project_policy, vis="pub")]
 impl GolemCliMcpServer {
-
     // Todo: need changes in golem repo
-    
+
     // #[tool(
     //     name = "create_new_project_policy",
     //     description = "Creates a new project sharing policy"
@@ -107,7 +106,10 @@ impl GolemCliMcpServer {
                 let command_new = CloudProjectPolicyCommandHandler::new(ctx.into());
                 match command_new.cmd_get(req.policy_id).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),

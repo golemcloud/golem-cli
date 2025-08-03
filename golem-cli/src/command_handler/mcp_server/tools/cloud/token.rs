@@ -58,7 +58,10 @@ impl GolemCliMcpServer {
                 let command_new = CloudTokenCommandHandler::new(ctx.into());
                 match command_new.cmd_new(req.expires_at).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -100,7 +103,10 @@ impl GolemCliMcpServer {
                 let command_new = CloudTokenCommandHandler::new(ctx.into());
                 match command_new.cmd_list().await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),
@@ -142,7 +148,10 @@ impl GolemCliMcpServer {
                 let command_new = CloudTokenCommandHandler::new(ctx.into());
                 match command_new.cmd_delete(req.token_id).await {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),

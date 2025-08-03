@@ -2,14 +2,13 @@ use console::strip_ansi_codes;
 use rmcp::{
     handler::server::tool::Parameters,
     model::{CallToolResult, Content, Meta},
+    schemars,
     service::RequestContext,
     tool, tool_router, Error as CallToolError, Peer, RoleServer, ServerHandler,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    command_handler::mcp_server::GolemCliMcpServer,
-};
+use crate::command_handler::mcp_server::GolemCliMcpServer;
 use std::future::Future;
 
 pub mod api;
@@ -78,7 +77,7 @@ impl GolemCliMcpServer {
                 content: tools_result
                     .tools
                     .into_iter()
-                    .filter(|tool| strip_ansi_codes(&tool.name).to_string() == req.tool_name)
+                    .filter(|tool| strip_ansi_codes(&tool.name) == req.tool_name)
                     .map(|tool| Content::text(tool.schema_as_json_value().to_string()))
                     .collect(),
                 is_error: None,

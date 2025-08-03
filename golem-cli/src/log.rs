@@ -15,8 +15,6 @@
 use crate::fs::{OverwriteSafeAction, OverwriteSafeActionPlan, PathExtra};
 use camino::{Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
-use console::strip_ansi_codes;
-use rmcp::model::{ProgressNotificationParam, ProgressToken};
 use rmcp::{Peer, RoleServer};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
@@ -30,7 +28,6 @@ static TERMINAL_WIDTH: OnceLock<Option<usize>> = OnceLock::new();
 static WRAP_PADDING: usize = 2;
 // static PROGRESS_COUNTER: LazyLock<RwLock<u32>> = LazyLock::new(|| RwLock::new(0));
 static TOOL_OUTPUT: LazyLock<RwLock<Vec<String>>> = LazyLock::new(RwLock::default);
-
 
 fn terminal_width() -> Option<usize> {
     *TERMINAL_WIDTH.get_or_init(|| terminal_size().map(|(width, _)| width.0 as usize))
@@ -206,8 +203,8 @@ pub fn logln_internal(message: &str) {
 
     for line in lines {
         match &output {
-            Output::Stdout => println!("{}{}", indent, line),
-            Output::Stderr => eprintln!("{}{}", indent, line),
+            Output::Stdout => println!("{indent}{line}"),
+            Output::Stderr => eprintln!("{indent}{line}"),
             Output::None => {}
             Output::TracingDebug => debug!("{}{}", indent, line),
             Output::Mcp(_mcp) => {
@@ -259,18 +256,15 @@ fn process_lines(message: &str, width: Option<usize>) -> Vec<Cow<'_, str>> {
 //     });
 // }
 
-pub fn store_mcp_tool_output(
-    indent: &str,
-    line: Cow<'_, str>,
-) {
-    let data: String = format!("{}{}", indent, line).clone();
+pub fn store_mcp_tool_output(indent: &str, line: Cow<'_, str>) {
+    let data: String = format!("{indent}{line}").clone();
     (*TOOL_OUTPUT.write().unwrap()).push(data)
 }
 
 pub fn get_mcp_tool_output() -> Vec<String> {
     let output = TOOL_OUTPUT.read().unwrap().to_vec().join("\n");
     (*TOOL_OUTPUT.write().unwrap()).clear();
-    
+
     vec![output]
 }
 

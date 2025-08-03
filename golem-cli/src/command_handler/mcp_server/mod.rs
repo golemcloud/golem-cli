@@ -64,7 +64,7 @@ impl McpServerCommandHandler {
                         ..Default::default()
                     },
                 ));
-                let listener = tokio::net::TcpListener::bind(format!("[::1]:{}", port)).await?;
+                let listener = tokio::net::TcpListener::bind(format!("[::1]:{port}")).await?;
                 loop {
                     let io = tokio::select! {
                         _ = tokio::signal::ctrl_c() => break,
@@ -83,7 +83,7 @@ impl McpServerCommandHandler {
             Transport::Sse => {
                 println!("Runing golem-cli mcp mode (sse transport) on port {port}");
 
-                let ct = SseServer::serve(format!("127.0.0.1:{}", port).parse()?)
+                let ct = SseServer::serve(format!("127.0.0.1:{port}").parse()?)
                     .await?
                     .with_service_directly(GolemCliMcpServer::new);
 
@@ -122,7 +122,7 @@ impl GolemCliMcpServer {
                 + self::GolemCliMcpServer::tool_router_worker()
                 + self::GolemCliMcpServer::tool_router_repl()
 
-                + self::GolemCliMcpServer::tool_router_list_tools(),      
+                + self::GolemCliMcpServer::tool_router_list_tools(),
         }
     }
 }

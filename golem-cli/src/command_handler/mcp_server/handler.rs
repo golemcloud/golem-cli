@@ -1,8 +1,10 @@
-use std::{fs, future::Future, path::Path };
+use std::{fs, future::Future, path::Path};
 
 use rmcp::{
     model::{
-        Implementation, ListResourcesResult, ListToolsResult, PaginatedRequestParam, ProtocolVersion, RawResource, ReadResourceRequestParam, ReadResourceResult, Resource, ResourceContents, ServerCapabilities, ServerInfo
+        Implementation, ListResourcesResult, PaginatedRequestParam, ProtocolVersion, RawResource,
+        ReadResourceRequestParam, ReadResourceResult, Resource, ResourceContents,
+        ServerCapabilities, ServerInfo,
     },
     service::RequestContext,
     tool_handler, Error, RoleServer, ServerHandler,
@@ -12,7 +14,6 @@ use crate::command_handler::mcp_server::GolemCliMcpServer;
 
 #[tool_handler]
 impl ServerHandler for GolemCliMcpServer {
-
     fn list_resources(
         &self,
         _request: Option<PaginatedRequestParam>,
@@ -88,18 +89,16 @@ impl ServerHandler for GolemCliMcpServer {
         request: ReadResourceRequestParam,
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<ReadResourceResult, Error>> + Send + '_ {
-        std::future::ready(
-            match fs::read_to_string(Path::new(&request.uri)) {
-                Ok(content) => Ok(ReadResourceResult {
-                    contents: vec![ResourceContents::TextResourceContents {
-                        uri: request.uri,
-                        mime_type: None,
-                        text: content,
-                    }],
-                }),
-                Err(e) => Err(Error::internal_error(e.to_string(), None)),
-            },
-        )
+        std::future::ready(match fs::read_to_string(Path::new(&request.uri)) {
+            Ok(content) => Ok(ReadResourceResult {
+                contents: vec![ResourceContents::TextResourceContents {
+                    uri: request.uri,
+                    mime_type: None,
+                    text: content,
+                }],
+            }),
+            Err(e) => Err(Error::internal_error(e.to_string(), None)),
+        })
     }
 
     fn get_info(&self) -> ServerInfo {
@@ -112,14 +111,20 @@ impl ServerHandler for GolemCliMcpServer {
                 "Tools Introduction
                 Helps interacting with Golem. It allows users to upload their components, launch new workers based on these components and call functions on running workers, etc..,
 
-                Call list_golem_mcp_server_tools once to know detailed info about available tools.
+                Call get_list_golem_mcp_server_tool_info, list_golem_mcp_server_tools to know detailed info about available tools before making a call.
+                Ask user confirmation before making a call to any tool. very import. Show the user the tool name, arguments, and description.
 
-                User uses these tools when using gemini cli or calude code or similar tools inside the golem app.
+                User uses these tools like they normally use gemini cli but via claude code or similar tools inside the golem app directory where the mcp server is running.
                 
                 📎 NOTES:
                     - User requests should be interpreted and mapped internally to tool calls.
-                    - AI agents must ensure the `params` object includes all required keys and correct types.
-                    - No interactive shell exists. Every action is an atomic tool invocation.
+                    - AI agents must ensure the `params` object includes all required keys and correct types and number of arguments.
+                    - If the user requests a tool that is not available, return an error.
+                    - If the user requests a tool that is available, but with incorrect parameters, return an error.
+                    - If the user requests a tool that is available, but with correct parameters, execute the tool and return the result.
+                    - If the user requests a tool that is available, but with correct parameters, but the tool execution fails, return an error.
+                    - If the user requests a tool that is available, but with correct parameters, and the tool execution succeeds, return the result.
+                    - No interactive shell exists. Every action is an atomic tool invocation. Ask for confirmation.
                 ".to_string(),
             ),
             protocol_version: ProtocolVersion::V_2025_03_26,

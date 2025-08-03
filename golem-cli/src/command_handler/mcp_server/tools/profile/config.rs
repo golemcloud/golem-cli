@@ -51,7 +51,10 @@ impl GolemCliMcpServer {
                 let command_new = ProfileConfigCommandHandler::new(ctx.into());
                 match command_new.cmd_set_format(req.profile_name, req.format) {
                     Ok(_) => Ok(CallToolResult {
-                        content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
+                        content: get_mcp_tool_output()
+                            .into_iter()
+                            .map(Content::text)
+                            .collect(),
 
                         is_error: None,
                     }),

@@ -21,8 +21,8 @@ use crate::app::context::ApplicationContext;
 use crate::app::error::CustomCommandError;
 use crate::fs::compile_and_collect_globs;
 use crate::log::{
-    get_log_output, log_action, log_skipping_up_to_date, store_mcp_tool_output,
-    LogColorize, LogIndent, Output,
+    get_log_output, log_action, log_skipping_up_to_date, store_mcp_tool_output, LogColorize,
+    LogIndent, Output,
 };
 use crate::model::app_raw;
 use anyhow::{anyhow, Context};
