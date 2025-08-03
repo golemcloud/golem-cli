@@ -15,6 +15,7 @@
 use anyhow::bail;
 use chrono::{DateTime, Utc};
 use golem_client::model::{ApiDefinitionInfo, ApiSite, MethodPattern, Provider};
+use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -26,7 +27,7 @@ pub enum HttpApiDeployMode {
     Matching,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum IdentityProviderType {
     Google,
     Facebook,
@@ -103,7 +104,7 @@ impl FromStr for ApiDefinitionIdWithVersion {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ApiDefinitionId(pub String);
 
 impl Display for ApiDefinitionId {
@@ -124,7 +125,7 @@ impl From<String> for ApiDefinitionId {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ApiDefinitionVersion(pub String);
 
 impl Display for ApiDefinitionVersion {

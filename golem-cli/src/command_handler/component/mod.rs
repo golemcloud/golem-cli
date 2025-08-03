@@ -150,7 +150,7 @@ impl ComponentCommandHandler {
         }
     }
 
-    async fn cmd_new(
+    pub async fn cmd_new(
         &self,
         template: Option<ComponentTemplateName>,
         component_package_name: Option<PackageName>,
@@ -242,7 +242,7 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_build(
+    pub async fn cmd_build(
         &self,
         component_name: ComponentOptionalComponentNames,
         build_args: BuildArgs,
@@ -257,7 +257,7 @@ impl ComponentCommandHandler {
             .await
     }
 
-    async fn cmd_clean(
+    pub async fn cmd_clean(
         &self,
         component_name: ComponentOptionalComponentNames,
     ) -> anyhow::Result<()> {
@@ -270,7 +270,7 @@ impl ComponentCommandHandler {
             .await
     }
 
-    async fn cmd_deploy(
+    pub async fn cmd_deploy(
         &self,
         component_name: ComponentOptionalComponentNames,
         force_build: ForceBuildArg,
@@ -292,7 +292,7 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    fn cmd_templates(&self, filter: Option<String>) {
+    pub fn cmd_templates(&self, filter: Option<String>) {
         match filter {
             Some(filter) => {
                 if let Some(language) = GuestLanguage::from_string(filter.clone()) {
@@ -309,7 +309,7 @@ impl ComponentCommandHandler {
         }
     }
 
-    async fn cmd_list(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
+    pub async fn cmd_list(&self, component_name: Option<ComponentName>) -> anyhow::Result<()> {
         let show_sensitive = self.ctx.show_sensitive();
 
         let selected_component_names = self
@@ -386,7 +386,7 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_get(
+    pub async fn cmd_get(
         &self,
         component_name: Option<ComponentName>,
         version: Option<u64>,
@@ -492,7 +492,7 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_update_workers(
+    pub async fn cmd_update_workers(
         &self,
         component_name: Option<ComponentName>,
         update_mode: WorkerUpdateMode,
@@ -507,7 +507,7 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_redeploy_workers(
+    pub async fn cmd_redeploy_workers(
         &self,
         component_name: Option<ComponentName>,
     ) -> anyhow::Result<()> {
@@ -519,7 +519,7 @@ impl ComponentCommandHandler {
         Ok(())
     }
 
-    async fn cmd_diagnose(
+    pub async fn cmd_diagnose(
         &self,
         component_names: ComponentOptionalComponentNames,
     ) -> anyhow::Result<()> {
@@ -532,7 +532,7 @@ impl ComponentCommandHandler {
             .await
     }
 
-    async fn cmd_add_dependency(
+    pub async fn cmd_add_dependency(
         &self,
         component_name: Option<ComponentName>,
         target_component_name: Option<ComponentName>,
