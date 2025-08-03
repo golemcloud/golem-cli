@@ -52,6 +52,7 @@ pub struct UpdateWorkers {
     component_name: AppOptionalComponentNames,
     /// Update mode - auto or manual, defaults to "auto"
     update_mode: WorkerUpdateMode,
+    await_update: bool,
 }
 
 /// Redeploy all workers of the application using the latest version
@@ -185,7 +186,7 @@ impl GolemCliMcpServer {
             Ok(ctx) => {
                 let command_new = AppCommandHandler::new(ctx.into());
                 match command_new
-                    .cmd_update_workers(req.component_name.component_name, req.update_mode)
+                    .cmd_update_workers(req.component_name.component_name, req.update_mode, req.await_update)
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {

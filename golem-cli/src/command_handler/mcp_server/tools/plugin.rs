@@ -3,7 +3,7 @@ use crate::command::GolemCliGlobalFlags;
 use crate::command_handler::mcp_server::GolemCliMcpServer;
 use crate::command_handler::plugin::PluginCommandHandler;
 use crate::log::{get_mcp_tool_output, Mcp, Output};
-use crate::model::PathBufOrStdin;
+use crate::model::{PathBufOrStdin, PluginReference};
 use console::strip_ansi_codes;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::{CallToolResult, Content, Meta};
@@ -22,10 +22,7 @@ pub struct List {
 /// Get information about a registered plugin
 #[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Get {
-    /// Plugin name
-    plugin_name: String,
-    /// Plugin version
-    version: String,
+    reference: PluginReference,
 }
 
 /// Register a new plugin
@@ -39,10 +36,7 @@ pub struct Register {
 /// Unregister a plugin
 #[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Unregister {
-    /// Plugin name
-    plugin_name: String,
-    /// Plugin version
-    version: String,
+    reference: PluginReference,
 }
 
 #[tool_router(router= tool_router_plugin, vis="pub")]
@@ -100,7 +94,7 @@ impl GolemCliMcpServer {
         &self,
         meta: Meta,
         client: Peer<RoleServer>,
-        Parameters(req): Parameters<Unregister>,
+        Parameters(req): Parameters<Get>,
     ) -> Result<CallToolResult, CallToolError> {
         let start_local_server_yes = Arc::new(tokio::sync::RwLock::new(false));
 
@@ -119,7 +113,7 @@ impl GolemCliMcpServer {
             Ok(ctx) => {
                 let command_new = PluginCommandHandler::new(ctx.into());
 
-                match command_new.cmd_get(req.plugin_name, req.version).await {
+                match command_new.cmd_get(req.reference).await {
                     Ok(_) => Ok(CallToolResult {
                         content: get_mcp_tool_output().into_iter().map(Content::text).collect(),
                         is_error: None,
@@ -204,7 +198,7 @@ impl GolemCliMcpServer {
                 let command_new = PluginCommandHandler::new(ctx.into());
 
                 match command_new
-                    .cmd_unregister(req.plugin_name, req.version)
+                    .cmd_unregister(req.reference)
                     .await
                 {
                     Ok(_) => Ok(CallToolResult {

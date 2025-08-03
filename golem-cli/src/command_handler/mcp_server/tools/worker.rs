@@ -96,6 +96,7 @@ pub struct Update {
     mode: Option<WorkerUpdateMode>,
     /// The new version of the updated worker (default is the latest version)
     target_version: Option<u64>,
+    await_update: bool,
 }
 
 /// Interrupts a running worker
@@ -278,6 +279,7 @@ impl GolemCliMcpServer {
                         req.worker_name,
                         req.mode.unwrap_or(WorkerUpdateMode::Automatic),
                         req.target_version,
+                        req.await_update,
                     )
                     .await
                 {
