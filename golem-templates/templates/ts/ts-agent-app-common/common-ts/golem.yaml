@@ -9,7 +9,7 @@ templates:
         - ../../common-ts
       targets:
         - .metadata
-    - command: npx --no rollup -c
+    - command: npx --no rollup -- -c
       sources:
       - src
       - ../../common-ts

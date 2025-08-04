@@ -7,7 +7,7 @@
     "components-ts/*/*"
   ],
   "dependencies": {
-    "@afsalthaj/golem-ts-sdk": "0.0.1-dev.2",
+    "@golemcloud/golem-ts-sdk": "0.0.1-dev.3",
     "rttist": "^1.0.0-rc.4"
   },
   "devDependencies": {

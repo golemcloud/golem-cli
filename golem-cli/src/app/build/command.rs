@@ -129,8 +129,8 @@ async fn execute_compose_agent_wrapper(
     let target_component = base_build_dir.join(&command.to);
 
     commands::composition::compose(
-        user_component.as_std_path(),
-        &[wrapper_wasm_path.as_std_path().to_path_buf()],
+        wrapper_wasm_path.as_std_path(),
+        &[user_component.as_std_path().to_path_buf()],
         target_component.as_std_path(),
     )
     .await?;

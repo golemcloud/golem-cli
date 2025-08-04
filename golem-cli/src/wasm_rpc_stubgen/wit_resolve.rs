@@ -527,26 +527,7 @@ impl ResolvedWitApplication {
 
                     // The WASM has no root package name (always root:component with world root) so
                     // we use the app component name as a main package name
-                    let component_name_str = component_name.as_str();
-                    let package_name_re = regex::Regex::new(
-                        r"^(?P<namespace>[^:]+):(?P<name>[^@]+)(?:@(?P<version>.+))?$",
-                    )?;
-                    let captures = package_name_re.captures(component_name_str).ok_or_else(|| {
-                        anyhow!("Invalid component name format: {}", component_name_str)
-                    })?;
-                    let namespace = captures.name("namespace").unwrap().as_str().to_string();
-                    let name = captures.name("name").unwrap().as_str().to_string();
-                    let version = captures
-                        .name("version")
-                        .map(|m| m.as_str().to_string())
-                        .map(|v| semver::Version::parse(&v))
-                        .transpose()?;
-
-                    let main_package_name = PackageName {
-                        namespace,
-                        name,
-                        version,
-                    };
+                    let main_package_name = component_name.to_package_name()?;
 
                     // When using a WASM as a "source WIT", we are currently not supporting transforming
                     // that into a generated WIT dir, just treat it as a static interface definition for

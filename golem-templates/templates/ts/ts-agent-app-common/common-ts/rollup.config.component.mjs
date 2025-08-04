@@ -10,7 +10,7 @@ export default function componentRollupConfig() {
 
     const externalPackages = (id) => {
         return (
-            id === "@afsalthaj/golem-ts-sdk" ||
+            id === "@golemcloud/golem-ts-sdk" ||
             id.startsWith("golem:api") ||
             id.startsWith("golem:rpc")
         );

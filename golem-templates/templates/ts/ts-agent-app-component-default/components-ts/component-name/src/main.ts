@@ -3,7 +3,7 @@ import {
     Agent,
     Prompt,
     Description,
-} from '@afsalthaj/golem-ts-sdk';
+} from '@golemcloud/golem-ts-sdk';
 
 @Agent()
 class AssistantAgent extends BaseAgent {
@@ -12,9 +12,8 @@ class AssistantAgent extends BaseAgent {
     async ask(name: string): Promise<string> {
         const customData = { data: "Sample data", value: 42 };
 
-        // Can be used after solving https://github.com/golemcloud/wasm-rquickjs/issues/2
-        // const remoteWeatherClient = WeatherAgent.createRemote("");
-        // const remoteWeather = await remoteWeatherClient.getWeather(name, customData);
+        const remoteWeatherClient = WeatherAgent.createRemote("");
+        const remoteWeather = await remoteWeatherClient.getWeather(name, customData);
 
         const localWeatherClient = WeatherAgent.createLocal("afsal");
         const localWeather = await localWeatherClient.getWeather(name, customData);
