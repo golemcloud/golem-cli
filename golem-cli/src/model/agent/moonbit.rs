@@ -35,8 +35,8 @@ pub fn generate_moonbit_wrapper(
         .context("Defining bindgen packages")?;
 
     let moonbit_root_package = component.moonbit_root_package()?;
-    let pkg_namespace = component.root_pkg_namespace()?;
-    let pkg_name = component.root_pkg_name()?;
+    let pkg_namespace = component.root_pkg_namespace()?.to_snake_case();
+    let pkg_name = component.root_pkg_name()?.to_snake_case();
 
     // Adding the builder and extractor packages
     add_builder_package(&mut component, &moonbit_root_package)?;
