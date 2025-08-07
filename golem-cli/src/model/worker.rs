@@ -45,10 +45,9 @@ pub fn fuzzy_match_function_name(
     let fuzzy_search = FuzzySearch::new(component_function_names.iter().map(|s| s.as_str()));
     match fuzzy_search.find(&normalized_function_name) {
         Ok(matched) => {
-            // if we have a match, but it is non-exact _or_ we have a parsed function name, we customize the parsed function name and render it
-            // because it may have resource parameters
-
             match parsed_function_name {
+                // if we have a match, but it is non-exact _or_ we have a parsed function name, we customize the parsed function name and render it
+                // because it may have resource parameters
                 Some(mut parsed_function_name)
                     if !matched.exact_match
                         || parsed_function_name.function.is_indexed_resource() =>
