@@ -164,6 +164,12 @@ impl WorkerCommandHandler {
                 self.cmd_cancel_invocation(worker_name, idempotency_key)
                     .await
             }
+            WorkerSubcommand::Files { worker_name, path } => {
+                self.cmd_files(worker_name, path).await
+            }
+            WorkerSubcommand::FileContents { worker_name, path } => {
+                self.cmd_file_contents(worker_name, path).await
+            }
         }
     }
 
@@ -840,6 +846,92 @@ impl WorkerCommandHandler {
             "Deleted",
             format!("worker {}", format_worker_name_match(&worker_name_match)),
         );
+
+        Ok(())
+    }
+
+    async fn cmd_files(
+        &self,
+        worker_name: WorkerNameArg,
+        path: Option<String>,
+    ) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Listing files",
+            format!(
+                "for worker {}",
+                format_worker_name_match(&worker_name_match)
+            ),
+        );
+
+        let clients = self.ctx.golem_clients().await?;
+        let files = clients
+            .worker
+            .get_files(
+                &component.versioned_component_id.component_id,
+                &worker_name.0,
+                path.as_deref().unwrap_or("/"),
+            )
+            .await
+            .map_service_error()?;
+
+        // Display the files response using debug formatting for now
+        println!("{:#?}", files);
+
+        Ok(())
+    }
+
+    async fn cmd_file_contents(
+        &self,
+        worker_name: WorkerNameArg,
+        path: String,
+    ) -> anyhow::Result<()> {
+        self.ctx.silence_app_context_init().await;
+        let worker_name_match = self.match_worker_name(worker_name.worker_name).await?;
+        let (component, worker_name) = self
+            .component_by_worker_name_match(&worker_name_match)
+            .await?;
+
+        log_action(
+            "Getting file contents",
+            format!(
+                "for file {} in worker {}",
+                path.log_color_highlight(),
+                format_worker_name_match(&worker_name_match)
+            ),
+        );
+
+        let clients = self.ctx.golem_clients().await?;
+        let contents = clients
+            .worker
+            .get_file_content(
+                &component.versioned_component_id.component_id,
+                &worker_name.0,
+                &path,
+            )
+            .await
+            .map_service_error()?;
+
+        match String::from_utf8(contents.to_vec()) {
+            Ok(text) => {
+                print!("{}", text);
+                // Add newline if the content doesn't end with one
+                if !text.ends_with('\n') {
+                    println!();
+                }
+            }
+            Err(_) => {
+                // If content is not valid UTF-8, write raw bytes to stdout
+                use std::io::{self, Write};
+                let _ = io::stdout().write_all(&contents);
+                let _ = io::stdout().write_all(b"\n");
+            }
+        }
 
         Ok(())
     }
