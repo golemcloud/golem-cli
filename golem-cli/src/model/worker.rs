@@ -47,31 +47,29 @@ pub fn fuzzy_match_function_name(
         Ok(matched) => {
             // if we have a match, but it is non-exact _or_ we have a parsed function name, we customize the parsed function name and render it
             // because it may have resource parameters
-            if parsed_function_name.is_some()
-                && (!matched.exact_match
-                    || parsed_function_name
-                        .iter()
-                        .any(|f| f.function.is_indexed_resource()))
-            {
-                let mut parsed_function_name = parsed_function_name.unwrap();
-                let parsed_matched_function_name = ParsedFunctionName::parse(&matched.option)
-                    .expect("The rendered component export names should always be parseable");
 
-                adjust_parsed_function_name(
-                    &mut parsed_function_name,
-                    parsed_matched_function_name,
-                    normalized_function_name,
-                )?;
+            match parsed_function_name {
+                Some(mut parsed_function_name)
+                    if !matched.exact_match
+                        || parsed_function_name.function.is_indexed_resource() =>
+                {
+                    let parsed_matched_function_name = ParsedFunctionName::parse(&matched.option)
+                        .expect("The rendered component export names should always be parseable");
 
-                let rendered_altered_function_name = parsed_function_name.to_string();
-                Ok(Match {
-                    option: rendered_altered_function_name,
-                    pattern: matched.pattern,
-                    exact_match: false,
-                })
-            } else {
-                // otherwise we just return the matched raw function name
-                Ok(normalized(matched))
+                    adjust_parsed_function_name(
+                        &mut parsed_function_name,
+                        parsed_matched_function_name,
+                        normalized_function_name,
+                    )?;
+
+                    let rendered_altered_function_name = parsed_function_name.to_string();
+                    Ok(Match {
+                        option: rendered_altered_function_name,
+                        pattern: matched.pattern,
+                        exact_match: false,
+                    })
+                }
+                _ => Ok(normalized(matched)),
             }
         }
         Err(Error::Ambiguous {
