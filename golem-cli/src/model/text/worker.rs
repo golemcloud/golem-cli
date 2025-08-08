@@ -802,6 +802,56 @@ impl TextView for PublicOplogEntry {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkerFilesView {
+    pub nodes: Vec<FileNodeView>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileNodeView {
+    pub name: String,
+    pub last_modified: u64,
+    pub kind: String,
+    pub permissions: String,
+    pub size: u64,
+}
+
+#[derive(Table)]
+pub struct WorkerFileNodeTableView {
+    #[table(title = "Name")]
+    pub name: String,
+    #[table(title = "Kind")]
+    pub kind: String,
+    #[table(title = "Permissions")]
+    pub permissions: String,
+    #[table(title = "Size", justify = "Justify::Right")]
+    pub size: u64,
+    #[table(title = "Last Modified", justify = "Justify::Right")]
+    pub last_modified: u64,
+}
+
+impl From<&FileNodeView> for WorkerFileNodeTableView {
+    fn from(value: &FileNodeView) -> Self {
+        Self {
+            name: value.name.clone(),
+            kind: value.kind.clone(),
+            permissions: value.permissions.clone(),
+            size: value.size,
+            last_modified: value.last_modified,
+        }
+    }
+}
+
+impl TextView for WorkerFilesView {
+    fn log(&self) {
+        if self.nodes.is_empty() {
+            logln("No files found.");
+        } else {
+            log_table::<_, WorkerFileNodeTableView>(&self.nodes);
+        }
+    }
+}
+
 fn log_plugin_description(pad: &str, value: &PluginInstallationDescription) {
     logln(format!(
         "{pad}plugin name:       {}",
