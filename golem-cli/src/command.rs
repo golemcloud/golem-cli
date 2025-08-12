@@ -137,6 +137,14 @@ pub struct GolemCliGlobalFlags {
     #[command(flatten)]
     pub verbosity: Verbosity,
 
+    /// Run Golem CLI as an MCP server
+    #[arg(long, global = true, display_order = 111)]
+    pub serve: bool,
+
+    /// Port to listen on when running in serve mode
+    #[arg(long, global = true, default_value_t = 1232, display_order = 112)]
+    pub serve_port: u16,
+
     // The flags below can only be set through env vars, as they are mostly
     // useful for testing, so we do not want to pollute the flag space with them
     #[arg(skip)]

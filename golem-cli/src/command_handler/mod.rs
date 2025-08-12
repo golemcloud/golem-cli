@@ -214,6 +214,18 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                 .await
                 {
                     Ok(handler) => {
+                        if command.global_flags.serve {
+                            crate::log::logln(format!(
+                                "golem-cli running MCP Server at port {}",
+                                command.global_flags.serve_port
+                            ));
+                            // Start MCP server and run until shutdown
+                            if let Err(err) = crate::serve::run_server(handler.ctx.clone(), command.global_flags.serve_port).await {
+                                crate::log::log_error_action("Serve failed:", format!("{}", err));
+                                return Ok(ExitCode::FAILURE);
+                            }
+                            return Ok(ExitCode::SUCCESS);
+                        }
                         let result = handler
                             .handle_command(command)
                             .await

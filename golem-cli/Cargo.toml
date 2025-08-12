@@ -13,6 +13,8 @@ build = "build.rs"
 [features]
 default = []
 server-commands = []
+# Enables MCP serve mode integration using rust-mcp-sdk (SSE over HTTP)
+mcp-serve = ["dep:rust-mcp-sdk", "dep:hyper"]
 
 [lib]
 harness = false
@@ -123,6 +125,10 @@ wit-bindgen-rust = { workspace = true }
 wit-component = { workspace = true }
 wit-encoder = { workspace = true }
 wit-parser = { workspace = true }
+
+# MCP (optional, enabled by `--features mcp-serve`)
+rust-mcp-sdk = { version = "0.5", default-features = false, features = ["server", "macros"], optional = true }
+hyper = { version = "1", features = ["server"], optional = true }
 
 [dev-dependencies]
 
