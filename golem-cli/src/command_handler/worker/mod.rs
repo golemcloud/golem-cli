@@ -57,6 +57,7 @@ use golem_client::model::{
     WorkerCreationRequest as WorkerCreationRequestCloud,
 };
 use golem_common::model::public_oplog::OplogCursor;
+use golem_common::model::worker::WasiConfigVars;
 use golem_wasm_ast::analysis::AnalysedType;
 use golem_wasm_rpc::json::OptionallyValueAndTypeJson;
 use golem_wasm_rpc::{parse_value_and_type, ValueAndType};
@@ -861,6 +862,7 @@ impl WorkerCommandHandler {
                     name: worker_name,
                     args,
                     env,
+                    wasi_config_vars: WasiConfigVars::default(),
                 },
             )
             .await

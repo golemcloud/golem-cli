@@ -157,6 +157,7 @@ fn cloud_service_config(args: &LaunchArgs) -> CloudServiceConfig {
         db: DbConfig::Sqlite(DbSqliteConfig {
             database: args.data_dir.join("cloud.db").to_string_lossy().to_string(),
             max_connections: 4,
+            foreign_keys: false,
         }),
         accounts: AccountsConfig { accounts },
         ..Default::default()
@@ -224,6 +225,7 @@ fn component_service_config(
                 .to_string_lossy()
                 .to_string(),
             max_connections: 4,
+            foreign_keys: false,
         }),
         blob_storage: blob_storage_config(args),
         compilation: golem_component_service::config::ComponentCompilationConfig::Enabled(
@@ -276,6 +278,7 @@ fn worker_executor_config(
                 .to_string_lossy()
                 .to_string(),
             max_connections: 4,
+            foreign_keys: false,
         }),
         indexed_storage: IndexedStorageConfig::KVStoreSqlite(IndexedStorageKVStoreSqliteConfig {}),
         blob_storage: blob_storage_config(args),
@@ -337,6 +340,7 @@ fn worker_service_config(
                 .to_string_lossy()
                 .to_string(),
             max_connections: 4,
+            foreign_keys: false,
         }),
         gateway_session_storage: golem_worker_service::config::GatewaySessionStorageConfig::Sqlite(
             DbSqliteConfig {
@@ -346,6 +350,7 @@ fn worker_service_config(
                     .to_string_lossy()
                     .to_string(),
                 max_connections: 4,
+                foreign_keys: false,
             },
         ),
         blob_storage: blob_storage_config(args),

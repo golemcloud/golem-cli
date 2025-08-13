@@ -462,7 +462,7 @@ pub struct WorkerMetadataView {
     pub last_error: Option<String>,
     pub component_size: u64,
     pub total_linear_memory_size: u64,
-    pub owned_resources: HashMap<String, golem_client::model::ResourceMetadata>,
+    pub owned_resources: HashMap<String, golem_client::model::WorkerResourceDescription>,
 }
 
 impl TrimDateTime for WorkerMetadataView {
@@ -514,7 +514,7 @@ pub struct WorkerMetadata {
     pub last_error: Option<String>,
     pub component_size: u64,
     pub total_linear_memory_size: u64,
-    pub owned_resources: HashMap<String, golem_client::model::ResourceMetadata>,
+    pub owned_resources: HashMap<String, golem_client::model::WorkerResourceDescription>,
 }
 
 impl WorkerMetadata {

@@ -701,6 +701,7 @@ fn assert_has_stub(
             resource_id,
             mode: AnalysedResourceMode::Borrowed,
             name: None,
+            owner: None,
         })],
         parameters,
     ]
@@ -727,6 +728,7 @@ fn assert_has_stub(
                 mode: AnalysedResourceMode::Owned,
                 resource_id,
                 name: None,
+                owner: None,
             }) => resource_id.clone(),
             _ => panic!("unexpected async result return type"),
         };
@@ -762,6 +764,7 @@ fn assert_valid_polling_resource(
                     resource_id: resource_id.clone(),
                     mode: AnalysedResourceMode::Borrowed,
                     name: None,
+                    owner: None,
                 })
         })
         .collect::<Vec<_>>();
