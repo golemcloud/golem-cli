@@ -214,6 +214,20 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                 .await
                 {
                     Ok(handler) => {
+                        if command.global_flags.serve {
+                            crate::log::logln(format!(
+                                "golem-cli running MCP Server at port {}",
+                                command.global_flags.serve_port
+                            ));
+                            // Start MCP server and run until shutdown
+                            match crate::serve::run_server(handler.ctx.clone(), command.global_flags.serve_port).await {
+                                Ok(()) => return ExitCode::SUCCESS,
+                                Err(err) => {
+                                    crate::log::log_error_action("Serve failed:", format!("{}", err));
+                                    return ExitCode::FAILURE;
+                                }
+                            }
+                        }
                         let result = handler
                             .handle_command(command)
                             .await
@@ -238,54 +252,38 @@ impl<Hooks: CommandHandlerHooks + 'static> CommandHandler<Hooks> {
                     Err(error) => Err(error),
                 }
             }
-            GolemCliCommandParseResult::ErrorWithPartialMatch {
-                error,
-                fallback_command,
-                partial_match,
-            } => {
-                init_tracing(
-                    fallback_command
-                        .global_flags
-                        .verbosity
-                        .as_clap_verbosity_flag(),
-                    false,
-                );
-
-                debug!(partial_match = ?partial_match, "Partial match");
-                debug_log_parse_error(&error, &fallback_command);
-
-                let handler = Self::new_with_init_hint_error_handler(
-                    fallback_command.global_flags.clone(),
-                    Some(Output::Stderr),
-                    hooks,
-                )
-                .await;
-
-                logln("");
-                error.print().unwrap();
-
-                match handler {
-                    Ok(handler) => {
-                        let exit_code = clamp_exit_code(error.exit_code());
-                        handler
-                            .ctx
-                            .error_handler()
-                            .handle_partial_match(partial_match)
-                            .await
-                            .map(|_| exit_code)
+            GolemCliCommandParseResult::Error { error: _, fallback_command } |
+            GolemCliCommandParseResult::ErrorWithPartialMatch { error: _, fallback_command, partial_match: _ } => {
+                // If --serve was provided without a subcommand, start serve mode
+                if fallback_command.global_flags.serve {
+                    let global_flags = fallback_command.global_flags.clone();
+                    // Reuse the normal initialization path to build context
+                    match Self::new_with_init_hint_error_handler(global_flags.clone(), None, hooks).await {
+                        Ok(handler) => {
+                            crate::log::logln(format!(
+                                "golem-cli running MCP Server at port {}",
+                                global_flags.serve_port
+                            ));
+                            match crate::serve::run_server(handler.ctx.clone(), global_flags.serve_port).await {
+                                Ok(()) => Ok(ExitCode::SUCCESS),
+                                Err(err) => {
+                                    set_log_output(Output::Stderr);
+                                    crate::log::log_error_action("Serve failed:", format!("{}", err));
+                                    Ok(ExitCode::FAILURE)
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            set_log_output(Output::Stderr);
+                            crate::log::log_error_action("Init failed:", format!("{}", err));
+                            Ok(ExitCode::FAILURE)
+                        }
                     }
-                    Err(err) => Err(err),
+                } else {
+                    // Fall back to existing hint/error handling
+                    set_log_output(Output::Stderr);
+                    Err(anyhow!(NonSuccessfulExit))
                 }
-            }
-            GolemCliCommandParseResult::Error {
-                error,
-                fallback_command,
-            } => {
-                init_tracing(fallback_command.global_flags.verbosity(), false);
-                debug_log_parse_error(&error, &fallback_command);
-                error.print().unwrap();
-
-                Ok(clamp_exit_code(error.exit_code()))
             }
         };
 
