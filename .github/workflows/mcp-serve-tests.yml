@@ -1,0 +1,36 @@
+name: mcp-serve-tests
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  test-mcp-serve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --features mcp-serve
+
+      - name: Test SSE smoke
+        run: cargo test --features mcp-serve --test mcp_serve_smoke -- --nocapture
+
+      - name: Test SSE tools
+        run: cargo test --features mcp-serve --test mcp_tools_sse -- --nocapture
+
+      - name: Test SSE resources
+        run: cargo test --features mcp-serve --test mcp_resources_sse -- --nocapture 
