@@ -17,3 +17,5 @@ Conventions:
 - Code paths are relative to repo root.
 - Tests should reference exact files and test names when added.
 - Link commits/PRs when pushed upstream. 
+
+- 2025-08-14: Added placeholder HTTP JSON-RPC E2E tests for tools and resources, marked as `#[ignore]` (SSE is the required transport; HTTP deferred). Next: add SSE client-based E2E tests to exercise `tools.list`/`tools.call` and `resources.list`/`read` over `/sse`. 
