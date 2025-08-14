@@ -809,7 +809,7 @@ impl WorkerCommandHandler {
                 .await
                 .map_service_error()?;
 
-            WorkerMetadata::from_cloud(worker_name_match.component_name, result)
+            WorkerMetadata::from(worker_name_match.component_name, result)
         };
 
         self.ctx
@@ -1003,7 +1003,7 @@ impl WorkerCommandHandler {
             .await
             .map_service_error()?;
 
-        Ok(WorkerMetadata::from_cloud(component_name.clone(), result))
+        Ok(WorkerMetadata::from(component_name.clone(), result))
     }
 
     async fn delete(&self, component_id: Uuid, worker_name: &str) -> anyhow::Result<()> {
@@ -1371,7 +1371,7 @@ impl WorkerCommandHandler {
                     results
                         .workers
                         .into_iter()
-                        .map(|meta| WorkerMetadata::from_cloud(component_name.clone(), meta)),
+                        .map(|meta| WorkerMetadata::from(component_name.clone(), meta)),
                 );
 
                 results.cursor

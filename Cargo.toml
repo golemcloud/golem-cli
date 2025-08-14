@@ -29,7 +29,7 @@ license-file = "LICENSE"
 #golem-wit = "=1.3.0-dev.5"
 
 golem-client = { path = "../golem/golem-client" }
-golem-common = { path = "../golem/golem-common" }
+golem-common = { path = "../golem/golem-common", features = ["agent-extraction"] }
 golem-rib = { path = "../golem/golem-rib" }
 golem-rib-repl = { path = "../golem/golem-rib-repl" }
 golem-service-base = { path = "../golem/golem-service-base" }
