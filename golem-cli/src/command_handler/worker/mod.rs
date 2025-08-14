@@ -279,7 +279,7 @@ impl WorkerCommandHandler {
             .await?;
 
         let matched_function_name =
-            fuzzy_match_function_name(function_name, &component.metadata.exports);
+            fuzzy_match_function_name(function_name, component.metadata.exports());
         let function_name = match matched_function_name {
             Ok(match_) => {
                 log_fuzzy_match(&match_);
@@ -287,7 +287,7 @@ impl WorkerCommandHandler {
             }
             Err(error) => {
                 let component_functions =
-                    show_exported_functions(&component.metadata.exports, false);
+                    show_exported_functions(component.metadata.exports(), false);
 
                 match error {
                     Error::Ambiguous {
