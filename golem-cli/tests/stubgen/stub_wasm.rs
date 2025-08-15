@@ -653,7 +653,7 @@ fn assert_has_stub(
             mode: AnalysedResourceMode::Owned,
             resource_id,
             ..
-        }) => resource_id.clone(),
+        }) => *resource_id,
         _ => panic!("unexpected constructor return type"),
     };
 
@@ -729,7 +729,7 @@ fn assert_has_stub(
                 resource_id,
                 name: None,
                 owner: None,
-            }) => resource_id.clone(),
+            }) => *resource_id,
             _ => panic!("unexpected async result return type"),
         };
 
@@ -761,7 +761,7 @@ fn assert_valid_polling_resource(
         .filter(|r| {
             r.parameters[0].typ
                 == AnalysedType::Handle(TypeHandle {
-                    resource_id: resource_id.clone(),
+                    resource_id,
                     mode: AnalysedResourceMode::Borrowed,
                     name: None,
                     owner: None,

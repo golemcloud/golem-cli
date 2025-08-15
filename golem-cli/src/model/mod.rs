@@ -524,10 +524,7 @@ pub struct WorkerMetadata {
 }
 
 impl WorkerMetadata {
-    pub fn from(
-        component_name: ComponentName,
-        value: golem_client::model::WorkerMetadata,
-    ) -> Self {
+    pub fn from(component_name: ComponentName, value: golem_client::model::WorkerMetadata) -> Self {
         WorkerMetadata {
             worker_id: value.worker_id,
             component_name,

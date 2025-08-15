@@ -13,23 +13,8 @@
 // limitations under the License.
 
 use crate::log::{log_action, LogColorize};
-use anyhow::anyhow;
 use golem_common::model::agent::AgentType;
-use rib::ParsedFunctionName;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
-use tracing::{debug, error};
-use wasmtime::component::types::{ComponentInstance, ComponentItem};
-use wasmtime::component::{
-    Component, Func, Instance, Linker, LinkerInstance, ResourceTable, ResourceType, Type,
-};
-use wasmtime::{AsContextMut, Engine, Store};
-use wasmtime_wasi::p2::{WasiCtx, WasiView};
-use wasmtime_wasi::{IoCtx, IoView};
-use wit_parser::{PackageId, Resolve, WorldItem};
-
-const INTERFACE_NAME: &str = "golem:agent/guest";
-const FUNCTION_NAME: &str = "discover-agent-types";
 
 /// Extracts the implemented agent types from the given WASM component, assuming it implements the `golem:agent/guest` interface.
 /// If it does not, it fails.
